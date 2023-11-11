@@ -336,7 +336,7 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
 
 [[nodiscard]] ObjectGuid Object::GetGuidValue(uint16 index) const
 {
-    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, false));
+    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, false),"index + 1 < m_valuesCount || PrintIndexError(index, false)");
     return *((ObjectGuid*) &(m_uint32Values[index]));
 }
 

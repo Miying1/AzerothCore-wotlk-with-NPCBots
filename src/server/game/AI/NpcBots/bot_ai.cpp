@@ -474,6 +474,7 @@ void bot_ai::CheckOwnerExpiry()
     ObjectGuid ownerGuid = ObjectGuid(HighGuid::Player, 0, npcBotData->owner);
     time_t timeNow = time(0);
     time_t expireTime = time_t(BotMgr::GetOwnershipExpireTime());
+    uint8 ownerLevel = sCharacterCache->GetCharacterLevelByGuid(ownerGuid);
     uint32 accId = sCharacterCache->GetCharacterAccountIdByGuid(ownerGuid);
     QueryResult result = accId ? LoginDatabase.Query("SELECT UNIX_TIMESTAMP(last_login) FROM account WHERE id = {}", accId) : nullptr;
 
@@ -481,7 +482,7 @@ void bot_ai::CheckOwnerExpiry()
     time_t lastLoginTime = fields ? time_t(fields[0].Get<uint32>()) : timeNow;
 
     //either expired or owner does not exist
-    if (timeNow >= lastLoginTime + expireTime)
+    if (timeNow >= lastLoginTime + expireTime || ownerLevel < 80)
     {
         std::string name = "unknown";
         sCharacterCache->GetCharacterNameByGuid(ownerGuid, name);
@@ -545,7 +546,75 @@ void bot_ai::CheckOwnerExpiry()
         BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_ROLES, &roleMask);
     }
 }
+void bot_ai::SendEquipsToOwner()
+{
 
+    NpcBotData const* npcBotData = BotDataMgr::SelectNpcBotData(me->GetEntry());
+    ASSERT(npcBotData, "bot_ai::CheckLevelCloseLink(): data not found!");
+
+    NpcBotExtras const* npcBotExtra = BotDataMgr::SelectNpcBotExtras(me->GetEntry());
+    ASSERT(npcBotExtra, "bot_ai::CheckLevelCloseLink(): extra data not found!");
+    if (npcBotData->owner == 0)
+        return;
+    ObjectGuid ownerGuid = ObjectGuid(HighGuid::Player, 0, npcBotData->owner);
+     
+    //send all items back
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_NPCBOT_EQUIP_BY_ITEM_INSTANCE);
+    //        0            1                2      3         4        5      6             7                 8           9           10    11    12         13
+    //"SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, guid, itemEntry, owner_guid "
+    //  "FROM item_instance WHERE guid IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_SYNCH
+
+    for (uint8 i = 0; i != BOT_INVENTORY_SIZE; ++i)
+        stmt->SetData(i, npcBotData->equips[i]);
+
+    PreparedQueryResult iiresult = CharacterDatabase.Query(stmt);
+    if (iiresult)
+    {
+        std::vector<Item*> items;
+
+        do
+        {
+            Field* fields2 = iiresult->Fetch();
+            uint32 itemGuidLow = fields2[11].Get<uint32>();
+            uint32 itemId = fields2[12].Get<uint32>();
+            Item* item = new Item;
+            ASSERT(item->LoadFromDB(itemGuidLow, ownerGuid, fields2, itemId));
+            items.push_back(item);
+
+        } while (iiresult->NextRow());
+
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        while (!items.empty())
+        {
+            static const std::string subject = LocalizedNpcText(nullptr, BOT_TEXT_OWNERSHIP_EXPIRED);
+            MailDraft draft(subject, "");
+            for (uint8 i = 0; !items.empty() && i < MAX_MAIL_ITEMS; ++i)
+            {
+                Item* item = items.back();
+                items.pop_back();
+                item->SetOwnerGUID(ownerGuid);
+                item->FSetState(ITEM_CHANGED);
+                item->SaveToDB(trans);
+                draft.AddItem(item);
+            }
+            draft.SendMailTo(trans, MailReceiver(npcBotData->owner), MailSender(me, MAIL_STATIONERY_GM));
+        }
+        CharacterDatabase.CommitTransaction(trans);
+
+        BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_EQUIPS, _equips);
+    }
+
+    //hard reset owner
+    uint32 newOwner = 0;
+    BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_OWNER, &newOwner);
+    //...spec
+    uint8 spec = SelectSpecForClass(npcBotExtra->bclass);
+    BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_SPEC, &spec);
+    //...and roles
+    uint32 roleMask = DefaultRolesForClass(npcBotExtra->bclass, spec);
+    BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_ROLES, &roleMask);
+
+}
 void bot_ai::InitUnitFlags()
 {
     if (BotMgr::DisplayEquipment() == true && CanDisplayNonWeaponEquipmentChanges())

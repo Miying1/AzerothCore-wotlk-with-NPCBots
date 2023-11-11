@@ -492,7 +492,7 @@ void MotionMaster::MoveTakeoff(uint32 id, Position const& pos, float speed /* = 
     Movement::MoveSplineInit init(_owner);
     init.MoveTo(x, y, z);
 
-    if (speed > 0.0f)
+    if (speed > 0.01f)
     {
         init.SetVelocity(speed);
     }

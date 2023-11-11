@@ -2123,6 +2123,11 @@ class spell_gen_profession_research : public SpellScript
         Player* caster = GetCaster()->ToPlayer();
         uint32 spellId = GetSpellInfo()->Id;
 
+        // Players will now learn 3 recipes the very first time they perform Northrend Inscription Research (3.3.0 patch notes)
+        if (spellId == 61177)
+            for (int i = 0; i < 2; ++i)
+                if (uint32 discoveredSpellId = GetExplicitDiscoverySpell(spellId, caster))
+                    caster->learnSpell(discoveredSpellId);
         // learn random explicit discovery recipe (if any)
         if (uint32 discoveredSpellId = GetExplicitDiscoverySpell(spellId, caster))
             caster->learnSpell(discoveredSpellId);

@@ -129,7 +129,7 @@ public:
         bool PrepareProc(ProcEventInfo&  /*eventInfo*/)
         {
             // xinef: prevent charge drop
-            PreventDefaultAction();
+            //PreventDefaultAction();
             return true;
         }
 

@@ -116,7 +116,7 @@ struct boss_moroes : public BossAI
         {
             if (Creature* guest = GetRandomGuest())
             {
-                guest->AI()->Talk(SAY_GUEST);
+                //guest->AI()->Talk(SAY_GUEST);
             }
             context.Repeat(5s);
         }).Schedule(1min, 2min, GROUP_PRECOMBAT_TALK, [this](TaskContext context)

@@ -955,17 +955,17 @@ public:
             switch (events.ExecuteEvent())
             {
                 case EVENT_SHADOW_WORD_PAIN:
-                    if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 10.0f))
                         me->CastSpell(target, SPELL_SHADOW_WORD_PAIN, false);
-                    events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s);
+                    events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 7s);
                     break;
                 case EVENT_CIRCLE_OF_DESTRUCTION:
-                    if (Unit* target = SelectTargetFromPlayerList(10.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 10.0f))
                         me->CastSpell(target, SPELL_CIRCLE_OF_DESTRUCTION, false);
                     events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12s);
                     break;
                 case EVENT_COWER_IN_FEAR:
-                    if (Unit* target = SelectTargetFromPlayerList(20.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 20.0f))
                         me->CastSpell(target, SPELL_COWER_IN_FEAR, false);
                     events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10s);
                     break;
@@ -1071,12 +1071,12 @@ public:
                     events.ScheduleEvent(EVENT_FLAMESTRIKE, 15s);
                     break;
                 case EVENT_FROSTBOLT:
-                    if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                    if (Unit* target =SelectTarget(SelectTargetMethod::Random,0, 40.0f))
                         me->CastSpell(target, SPELL_FROSTBOLT, false);
                     events.ScheduleEvent(EVENT_FROSTBOLT, 9s);
                     break;
                 case EVENT_CHAINS_OF_ICE:
-                    if (Unit* target = SelectTargetFromPlayerList(100.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 100.0f))
                         me->CastSpell(target, SPELL_CHAINS_OF_ICE, false);
                     events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 12s);
                     break;
@@ -1217,7 +1217,7 @@ public:
             switch (events.ExecuteEvent())
             {
                 case EVENT_SHADOW_STEP:
-                    if (Unit* target = SelectTargetFromPlayerList(100.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 100.0f))
                     {
                         DoResetThreatList();
                         me->AddThreat(target, 5000.0f);
@@ -1231,7 +1231,7 @@ public:
                     events.ScheduleEvent(EVENT_DEADLY_POISON, 4s);
                     break;
                 case EVENT_ENVENOMED_DAGGER_THROW:
-                    if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 40.0f))
                         me->CastSpell(target, SPELL_ENVENOMED_DAGGER_THROW, false);
                     events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10s);
                     break;
@@ -1424,7 +1424,7 @@ public:
                     events.ScheduleEvent(EVENT_FROST_TRAP, 30s);
                     break;
                 case EVENT_ICE_SHOT:
-                    if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random,0, 40.0f))
                         me->CastSpell(target, SPELL_ICE_SHOT, false);
                     events.ScheduleEvent(EVENT_ICE_SHOT, 8s);
                     break;
@@ -1862,8 +1862,8 @@ public:
                             events.ScheduleEvent(EVENT_LK_SUMMON_RWD, 6400ms);
                             events.ScheduleEvent(EVENT_LK_SUMMON_GHOULS, 12s + 500ms);
                             events.ScheduleEvent(EVENT_LK_SUMMON_LA, 16s + 500ms);
-                            events.ScheduleEvent(EVENT_LK_SUMMON_RWD, 16s + 600ms);
-                            events.ScheduleEvent(EVENT_LK_SUMMON_LA, 17s + 700ms);
+                            events.ScheduleEvent(EVENT_LK_SUMMON_RWD, 26s + 600ms);
+                            events.ScheduleEvent(EVENT_LK_SUMMON_LA, 27s + 700ms);
                             break;
                     }
                     if (currentWall <= 3)

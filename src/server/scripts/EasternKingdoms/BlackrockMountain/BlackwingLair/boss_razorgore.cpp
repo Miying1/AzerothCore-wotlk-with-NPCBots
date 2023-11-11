@@ -265,6 +265,11 @@ public:
                         events.ScheduleEvent(EVENT_CONFLAGRATION, 30s);
                         break;
                 }
+                if (!secondPhase && me->HealthBelowPct(95)) {
+                    instance->SetBossState(DATA_RAZORGORE_THE_UNTAMED, DONE);
+                    instance->SetData(DATA_EGG_EVENT, SPECIAL);
+                    DoChangePhase();
+                }
             }
 
             DoMeleeAttackIfReady();

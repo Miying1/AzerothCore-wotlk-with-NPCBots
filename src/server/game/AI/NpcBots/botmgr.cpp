@@ -1006,7 +1006,7 @@ bool BotMgr::IsPartyInCombat() const
         if (itr->second->IsInCombat())
             return true;
         if (Unit const* pet = itr->second->GetBotsPet())
-            if (pet->IsInCombat())
+            if (pet->IsAlive() && pet->IsInWater() && pet->IsInCombat())
                 return true;
     }
 

@@ -105,6 +105,7 @@ class bot_ai : public CreatureAI
         Player* GetBotOwner() const { return master; }
         bool SetBotOwner(Player* newowner);
         void CheckOwnerExpiry();
+        void SendEquipsToOwner();
         uint8 GetBotClass() const { return _botclass; }
         uint32 GetLastDiff() const { return lastdiff; }
         virtual void UpdateDeadAI(uint32 diff);

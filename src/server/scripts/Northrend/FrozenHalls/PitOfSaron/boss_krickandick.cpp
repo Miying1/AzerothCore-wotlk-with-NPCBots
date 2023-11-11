@@ -183,7 +183,7 @@ public:
                 case EVENT_SPELL_TOXIC_WASTE:
                     if (Creature* k = GetKrick())
                         if (!k->HasUnitState(UNIT_STATE_CASTING))
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, false))
                             {
                                 k->CastSpell(target, SPELL_TOXIC_WASTE);
                                 events.Repeat(7s, 10s);
@@ -198,7 +198,7 @@ public:
                 case EVENT_SPELL_SHADOW_BOLT:
                     if (Creature* k = GetKrick())
                         if (!k->HasUnitState(UNIT_STATE_CASTING))
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 35.0f, true))
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 35.0f, false))
                             {
                                 k->CastSpell(target, SPELL_SHADOW_BOLT);
                                 events.Repeat(14s);

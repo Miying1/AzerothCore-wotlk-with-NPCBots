@@ -139,11 +139,11 @@ public:
                             Creature* pGuard2 = pInstance->instance->GetCreature(pInstance->GetGuidData(DATA_EREKEM_GUARD_2_GUID));
                             if ((pGuard1 && !pGuard1->IsAlive()) || (pGuard2 && !pGuard2->IsAlive()))
                             {
-                                events.Repeat(3s, 6s);
+                                events.Repeat(7s, 10s);
                                 break;
                             }
                         }
-                    events.Repeat(8s, 11s);
+                    events.Repeat(11s, 14s);
                     break;
                 case EVENT_SPELL_EARTH_SHIELD:
                     me->CastSpell(me, SPELL_EARTH_SHIELD, false);

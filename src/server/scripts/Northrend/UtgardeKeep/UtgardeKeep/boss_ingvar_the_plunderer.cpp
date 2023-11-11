@@ -131,7 +131,7 @@ public:
             me->SetDisplayId(DISPLAYID_DEFAULT);
             me->LoadEquipment(1);
             FeignDeath(false);
-            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
             me->SetControlled(false, UNIT_STATE_ROOT);
             me->DisableRotate(false);
 
@@ -146,7 +146,7 @@ public:
                 damage = 0;
                 me->InterruptNonMeleeSpells(true);
                 me->RemoveAllAuras();
-                me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
                 me->SetControlled(false, UNIT_STATE_ROOT);
                 me->DisableRotate(false);
                 me->GetMotionMaster()->MovementExpired();
@@ -210,13 +210,15 @@ public:
                 me->SetUnitFlag(UNIT_FLAG_PREVENT_EMOTES_FROM_CHAT_TEXT);
                 me->SetUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                 me->SetDynamicFlag(UNIT_DYNFLAG_DEAD);
+               // me->SetImmuneToAll(true,true); //npcbot and palyer
             }
             else
             {
                 me->SetStandState(UNIT_STAND_STATE_STAND);
-                me->RemoveUnitFlag(UNIT_FLAG_PREVENT_EMOTES_FROM_CHAT_TEXT);
+                me->RemoveUnitFlag(UNIT_FLAG_PREVENT_EMOTES_FROM_CHAT_TEXT); 
                 me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                 me->RemoveDynamicFlag(UNIT_DYNFLAG_DEAD);
+               // me->SetImmuneToAll(false,true);
             }
         }
 
@@ -284,6 +286,7 @@ public:
                     me->RemoveAura(SPELL_RESURRECTION_BALL);
                     me->CastSpell(me, SPELL_RESURRECTION_HEAL, true);
                     FeignDeath(false);
+                   // me->SetImmuneToAll(false,true);
                     events.RescheduleEvent(EVENT_MORPH_TO_UNDEAD, 3s);
                     break;
                 case EVENT_MORPH_TO_UNDEAD:
@@ -296,7 +299,7 @@ public:
                         c->DespawnOrUnsummon();
                         summons.DespawnAll();
                     }
-                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
                     AttackStart(me->GetVictim());
                     me->GetMotionMaster()->MoveChase(me->GetVictim());
                     Talk(YELL_AGGRO_2);

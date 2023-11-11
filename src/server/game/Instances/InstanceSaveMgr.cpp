@@ -335,9 +335,13 @@ void InstanceSaveMgr::LoadResetTimes()
         MapDifficulty const* mapDiff = &itr->second;
         if (!mapDiff->resetTime)
             continue;
-
+        uint32 resetTime = mapDiff->resetTime;
+        if (mapid == 409 || mapid == 469)
+            resetTime = 345600;
+        else if (mapid == 534 || mapid == 548 || mapid == 550 || mapid == 564 || mapid == 544 || mapid == 565)
+            resetTime = 345600;
         // the reset_delay must be at least one day
-        uint32 period = uint32(((mapDiff->resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
+        uint32 period = uint32(((resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
         if (period < DAY)
             period = DAY;
 
@@ -345,8 +349,8 @@ void InstanceSaveMgr::LoadResetTimes()
         if (!t)
         {
             // initialize the reset time
-            t = today + period + diff;
-            SetResetTimeFor(mapid, difficulty, t);
+            t = today + period + diff-(4 * HOUR);
+            SetResetTimeFor(mapid, difficulty, t); 
             CharacterDatabase.DirectExecute("INSERT INTO instance_reset VALUES ('{}', '{}', '{}')", mapid, difficulty, (uint32)t);
         }
 
