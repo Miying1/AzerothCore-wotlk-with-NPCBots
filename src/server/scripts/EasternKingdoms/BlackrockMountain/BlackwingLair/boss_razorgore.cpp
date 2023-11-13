@@ -265,6 +265,8 @@ public:
                         events.ScheduleEvent(EVENT_CONFLAGRATION, 30s);
                         break;
                 }
+                if (!secondPhase && me->HealthBelowPct(50))
+                    DoAction(ACTION_PHASE_TWO);
             }
 
             DoMeleeAttackIfReady();

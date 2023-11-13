@@ -214,7 +214,7 @@ public:
             if (!me->isActiveObject())
                 return;
 
-            if (!SelectTargetFromPlayerList(115.0f))
+            if (!SelectTarget(SelectTargetMethod.Random, 100,0))
             {
                 EnterEvadeMode();
                 return;
@@ -462,8 +462,8 @@ public:
         void JustEngagedWith(Unit* who) override
         {
             boss_illidari_council_memberAI::JustEngagedWith(who);
-            events.ScheduleEvent(EVENT_SPELL_REFLECTIVE_SHIELD, 10000);
-            events.ScheduleEvent(EVENT_SPELL_CIRCLE_OF_HEALING, 20000);
+            events.ScheduleEvent(EVENT_SPELL_REFLECTIVE_SHIELD, 15000);
+            events.ScheduleEvent(EVENT_SPELL_CIRCLE_OF_HEALING, 40000);
             events.ScheduleEvent(EVENT_SPELL_DIVINE_WRATH, 5000);
             events.ScheduleEvent(EVENT_SPELL_EMPOWERED_SMITE, 15000);
         }
@@ -481,7 +481,7 @@ public:
             {
                 case EVENT_SPELL_CIRCLE_OF_HEALING:
                     me->CastSpell(me, SPELL_CIRCLE_OF_HEALING, false);
-                    events.ScheduleEvent(EVENT_SPELL_CIRCLE_OF_HEALING, 20000);
+                    events.ScheduleEvent(EVENT_SPELL_CIRCLE_OF_HEALING, 40000);
                     break;
                 case EVENT_SPELL_REFLECTIVE_SHIELD:
                     if (roll_chance_i(50))
@@ -492,7 +492,7 @@ public:
                 case EVENT_SPELL_DIVINE_WRATH:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f))
                         me->CastSpell(target, SPELL_DIVINE_WRATH, false);
-                    events.ScheduleEvent(EVENT_SPELL_DIVINE_WRATH, 20000);
+                    events.ScheduleEvent(EVENT_SPELL_DIVINE_WRATH, 30000);
                     break;
                 case EVENT_SPELL_EMPOWERED_SMITE:
                     me->CastSpell(me->GetVictim(), SPELL_EMPOWERED_SMITE, false);

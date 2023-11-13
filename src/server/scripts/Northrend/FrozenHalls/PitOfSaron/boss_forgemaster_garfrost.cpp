@@ -240,7 +240,7 @@ public:
                     break;
                 case EVENT_SPELL_THROW_SARONITE:
                     bCanSayBoulderHit = true;
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 140.0f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 140.0f, false))
                     {
                         Talk(WHISPER_BOULDER, target);
                         me->CastSpell(target, SPELL_THROW_SARONITE, false);
@@ -260,7 +260,7 @@ public:
                     events.Repeat(35s);
                     break;
                 case EVENT_SPELL_DEEP_FREEZE:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, false))
                     {
                         Talk(EMOTE_DEEP_FREEZE, target);
                         me->CastSpell(target, SPELL_DEEP_FREEZE, false);

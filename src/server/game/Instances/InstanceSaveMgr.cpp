@@ -345,7 +345,7 @@ void InstanceSaveMgr::LoadResetTimes()
         if (!t)
         {
             // initialize the reset time
-            t = today + period + diff;
+            t = today + period + diff-(4* HOUR);
             SetResetTimeFor(mapid, difficulty, t);
             CharacterDatabase.DirectExecute("INSERT INTO instance_reset VALUES ('{}', '{}', '{}')", mapid, difficulty, (uint32)t);
         }

@@ -118,7 +118,8 @@ public:
                     events.ScheduleEvent(EVENT_QUIVERING_STRIKE, 5s);
                     break;
                 case EVENT_IMPENDING_DESPAIR:
-                    if (Unit* target = SelectTargetFromPlayerList(45.0f, 0, true))
+                    //if (Unit* target = SelectTargetFromPlayerList(45.0f, 0, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod.Random,50,0,false,false,0))
                     {
                         Talk(SAY_IMPENDING_DESPAIR);
                         me->CastSpell(target, SPELL_IMPENDING_DESPAIR, false);
@@ -131,14 +132,14 @@ public:
                     me->SetControlled(true, UNIT_STATE_ROOT);
                     events.DelayEventsToMax(5000, 0);
                     events.ScheduleEvent(EVENT_UNROOT, 4s);
-                    events.ScheduleEvent(EVENT_DEFILING_HORROR, 20s);
+                    events.ScheduleEvent(EVENT_DEFILING_HORROR, 25s);
                     break;
                 case EVENT_UNROOT:
                     me->SetControlled(false, UNIT_STATE_ROOT);
                     break;
             }
 
-            if ((uiHopelessnessCount == 0 && HealthBelowPct(67)) || (uiHopelessnessCount == 1 && HealthBelowPct(34)) || (uiHopelessnessCount == 2 && HealthBelowPct(11)))
+            if ((uiHopelessnessCount == 0 && HealthBelowPct(60)) || (uiHopelessnessCount == 1 && HealthBelowPct(25)) || (uiHopelessnessCount == 2 && HealthBelowPct(7)))
             {
                 if (uiHopelessnessCount)
                     me->RemoveOwnedAura(hopelessnessId[uiHopelessnessCount - 1][DUNGEON_MODE(0, 1)]);

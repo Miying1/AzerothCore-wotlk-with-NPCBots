@@ -1006,7 +1006,7 @@ bool BotMgr::IsPartyInCombat() const
         if (itr->second->IsInCombat())
             return true;
         if (Unit const* pet = itr->second->GetBotsPet())
-            if (pet->IsInCombat())
+            if (pet.IsAlive() && pet->IsInWater() && pet->IsInCombat())
                 return true;
     }
 
@@ -1691,8 +1691,9 @@ uint32 BotMgr::GetNpcBotCost(uint8 level, uint8 botclass)
     uint32 cost =
         level < 10 ? _npcBotsCost / 2000 : //5 silver
         level < 20 ? _npcBotsCost / 100 :  //1 gold
-        level < 30 ? _npcBotsCost / 20 :   //5 gold
-        level < 40 ? _npcBotsCost / 5 :    //20 gold
+        level < 40 ? _npcBotsCost / 20 :   //5 gold
+        level < 60 ? _npcBotsCost / 8 :    //20 gold
+        level < 70 ? _npcBotsCost / 5 :    //20 gold
         (_npcBotsCost * level) / DEFAULT_MAX_LEVEL; //50 - 100 gold
 
     switch (botclass)

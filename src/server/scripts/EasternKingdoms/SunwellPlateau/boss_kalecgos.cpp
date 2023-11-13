@@ -79,6 +79,7 @@ enum SWPActions
     ACTION_SATH_BANISH                  = 3,
     ACTION_KALEC_DIED                   = 4,
     ACTION_ENRAGE_OTHER                 = 5,
+    ACTION_OVER                         =6
 };
 
 enum kalEvents
@@ -181,7 +182,8 @@ public:
                 return;
             }
 
-            if (me->HasAura(SPELL_BANISH) && sathBanished)
+            //if (me->HasAura(SPELL_BANISH) && sathBanished)
+            if(param==ACTION_OVER)
             {
                 events.Reset();
                 events2.ScheduleEvent(EVENT_TALK_GOOD_1, 1000);
@@ -208,7 +210,7 @@ public:
             events.ScheduleEvent(EVENT_FROST_BREATH, 15000);
             events.ScheduleEvent(EVENT_WILD_MAGIC, 10000);
             events.ScheduleEvent(EVENT_TAIL_LASH, 25000);
-            events.ScheduleEvent(EVENT_SPECTRAL_BLAST, 20000);
+            //events.ScheduleEvent(EVENT_SPECTRAL_BLAST, 20000);
             events.ScheduleEvent(EVENT_CHECK_POS, 5000);
             events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
             events.ScheduleEvent(EVENT_CHECK_HEALTH2, 1000);
@@ -341,7 +343,8 @@ public:
                 case EVENT_CHECK_HEALTH2:
                     if (me->HealthBelowPct(1))
                     {
-                        DoAction(ACTION_BANISH);
+                        DoAction(ACTION_OVER);
+                        //DoAction(ACTION_BANISH);
                         break;
                     }
                     events.ScheduleEvent(EVENT_CHECK_HEALTH2, 1000);

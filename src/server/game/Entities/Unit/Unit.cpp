@@ -18666,8 +18666,10 @@ bool Unit::IsPetAura(Aura const* aura)
         return false;
 
     // if the owner has that pet aura, return true
+    if(owner->m_petAuras.empty())
+        return false;
     for (PetAura const* petAura : owner->m_petAuras)
-        if (petAura->GetAura(GetEntry()) == aura->GetId())
+        if (petAura && petAura->GetAura(GetEntry()) == aura->GetId())
             return true;
 
     return false;
@@ -20176,9 +20178,14 @@ bool Unit::IsInRaidWith(Unit const* unit) const
 {
     if (this == unit)
         return true;
-
+    
     Unit const* u1 = GetCharmerOrOwnerOrSelf();
-    Unit const* u2 = unit->GetCharmerOrOwnerOrSelf();
+    Unit const* u2;
+    if(unit->IsNPCBotPet()){
+        u2= unit->GetCreator()->GetOwner();
+    }else{
+        u2 = unit->GetCharmerOrOwnerOrSelf();
+    }
     if (u1 == u2)
         return true;
 
