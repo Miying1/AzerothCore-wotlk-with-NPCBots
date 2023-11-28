@@ -176,7 +176,7 @@ public:
             bSwitcher = false;
             bNooneDied = true;
             events.Reset();
-            events.RescheduleEvent(EVENT_CHECK_PLAYERS, 0);
+            events.RescheduleEvent(EVENT_CHECK_PLAYERS, 100);
 
             NPC_ChampionGUIDs.clear();
         }

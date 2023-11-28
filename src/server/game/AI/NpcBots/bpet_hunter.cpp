@@ -273,14 +273,14 @@ public:
                 return;
             }
 
-            if (IsSpellReady(GROWL_1, diff, false) && u && u != me && focus >= 15 && me->IsWithinMeleeRange(opponent) &&
+           /* if (IsSpellReady(GROWL_1, diff, false) && u && u != me && focus >= 15 && me->IsWithinMeleeRange(opponent) &&
                 opponent->CanHaveThreatList() && !CCed(opponent) && !opponent->HasAuraType(SPELL_AURA_MOD_TAUNT) &&
                 (!IsTank(u) || (GetHealthPCT(u) < 30 && GetHealthPCT(me) > 50)) && IsInBotParty(u))
             {
                 me->CastSpell(opponent, GetSpell(GROWL_1), false);
                 SetSpellCooldown(GROWL_1, 3500);
                 return;
-            }
+            }*/
 
             if (IsSpellReady(TAUNT_1, diff, false) && u && u != me && me->IsWithinMeleeRange(opponent) &&
                 opponent->CanHaveThreatList() && !CCed(opponent) && !opponent->HasAuraType(SPELL_AURA_MOD_TAUNT) &&

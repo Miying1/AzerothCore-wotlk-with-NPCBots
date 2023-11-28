@@ -356,7 +356,7 @@ public:
 
             instance->SetData(DATA_ARCHIMONDEEVENT, IN_PROGRESS);
             events.ScheduleEvent(EVENT_SPELL_AIR_BURST, urand(25000, 35000));
-            events.ScheduleEvent(EVENT_SPELL_DOOMFIRE, urand(10000, 20000));
+            //events.ScheduleEvent(EVENT_SPELL_DOOMFIRE, urand(10000, 20000));
             events.ScheduleEvent(EVENT_SPELL_FEAR, 42000);
             events.ScheduleEvent(EVENT_SPELL_GRIP_OF_THE_LEGION, 2000);
             events.ScheduleEvent(EVENT_SPELL_FINGER_OF_DEATH, 1000);

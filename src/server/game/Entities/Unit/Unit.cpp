@@ -18669,7 +18669,7 @@ bool Unit::IsPetAura(Aura const* aura)
 
     // if the owner has that pet aura, return true
     for (PetAura const* petAura : owner->m_petAuras)
-        if (petAura->GetAura(GetEntry()) == aura->GetId())
+        if (petAura && !petAura->IsRemovedOnChangePet() && petAura->GetAura(GetEntry()) == aura->GetId())
             return true;
 
     return false;

@@ -7808,7 +7808,11 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
         player->PlayerTalkClass->SendCloseGossip();
         return true;
     }
-
+    if (me->GetEntry() == 70330) {
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "你有拿走我的信件吗...", 80000, GOSSIP_ACTION_INFO_DEF + 1);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "你有什么东西卖?", 80001, GOSSIP_ACTION_INFO_DEF + 1);
+        //AddGossipItemFor(player, 703301, 1, 80000, 1);
+    }
     AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_NEVERMIND), 0, GOSSIP_ACTION_INFO_DEF + 1);
     player->PlayerTalkClass->SendGossipMenu(gossipTextId, me->GetGUID());
     return true;
@@ -7882,6 +7886,14 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         {
             return bot_ai::OnGossipHello(player, 0);
         }
+        case 80000:
+            player->PlayerTalkClass->SendCloseGossip();
+            player->GetSession()->SendShowMailBox(creature->GetGUID());
+            return true;
+        case 80001:
+            player->PlayerTalkClass->SendCloseGossip(); 
+            player->GetSession()->SendListInventory(creature->GetGUID());
+            return true;
         case GOSSIP_SENDER_CLASS:
         {
             switch (_botclass)
@@ -8646,7 +8658,6 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             Item const* item = _equips[slot];
             ASSERT(item);
-
             BotDataMgr::UpdateNpcBotTransmogData(me->GetEntry(), slot, item->GetEntry(), itemId);
 
             if (slot <= BOT_SLOT_RANGED)
@@ -19459,12 +19470,13 @@ bool bot_ai::CanChangeEquip(uint8 slot) const
     return (_botclass != BOT_CLASS_BM && _botclass != BOT_CLASS_ARCHMAGE &&
         _botclass != BOT_CLASS_DREADLORD && _botclass != BOT_CLASS_SPELLBREAKER &&
         _botclass != BOT_CLASS_DARK_RANGER && _botclass != BOT_CLASS_NECROMANCER &&
-        _botclass != BOT_CLASS_SEA_WITCH && _botclass != BOT_CLASS_CRYPT_LORD) ||
+        _botclass != BOT_CLASS_SEA_WITCH && _botclass != BOT_CLASS_CRYPT_LORD &&
+        me->GetEntry() != 70330) ||
         slot > BOT_SLOT_RANGED;
 }
 bool bot_ai::CanDisplayNonWeaponEquipmentChanges() const
 {
-    return (_botclass < BOT_CLASS_EX_START || _botclass == BOT_CLASS_ARCHMAGE);
+    return (_botclass < BOT_CLASS_EX_START || _botclass == BOT_CLASS_ARCHMAGE) && me->GetEntry()!=70330;
 }
 bool bot_ai::IsValidTransmog(uint8 slot, ItemTemplate const* source) const
 {
@@ -19673,8 +19685,11 @@ void bot_ai::SendUpdateToOutOfRangeBotGroupMembers()
 
     _groupUpdateMask = GROUP_UPDATE_FLAG_NONE;
     _auraRaidUpdateMask = 0;
-    if (botPet)
-        botPet->GetBotPetAI()->ResetAuraUpdateMaskForRaid();
+    if (botPet) {
+        if(bot_pet_ai* pet= botPet->GetBotPetAI())
+            pet->ResetAuraUpdateMaskForRaid();
+    }
+        
 }
 
 //BATTLEGROUNDS

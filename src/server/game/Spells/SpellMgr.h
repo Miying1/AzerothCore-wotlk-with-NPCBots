@@ -485,6 +485,7 @@ public:
 
     [[nodiscard]] uint32 GetAura(uint32 petEntry) const
     {
+        if (auras.empty()) return 0;
         PetAuraMap::const_iterator itr = auras.find(petEntry);
         if (itr != auras.end())
             return itr->second;

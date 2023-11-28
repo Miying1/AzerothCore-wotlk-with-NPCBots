@@ -2183,6 +2183,7 @@ void AchievementMgr::UpdateTimedAchievements(uint32 timeDiff)
 void AchievementMgr::StartTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry, uint32 timeLost /*= 0*/)
 {
     AchievementCriteriaEntryList const& achievementCriteriaList = sAchievementMgr->GetTimedAchievementCriteriaByType(type);
+    if (achievementCriteriaList.empty()) return;
     for (AchievementCriteriaEntryList::const_iterator i = achievementCriteriaList.begin(); i != achievementCriteriaList.end(); ++i)
     {
         if ((*i)->timerStartEvent != entry)

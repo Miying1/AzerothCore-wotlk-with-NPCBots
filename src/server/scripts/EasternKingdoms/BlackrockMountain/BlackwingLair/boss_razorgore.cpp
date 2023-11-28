@@ -266,9 +266,9 @@ public:
                         break;
                 }
                 if (!secondPhase && me->HealthBelowPct(95)) {
-                    instance->SetBossState(DATA_RAZORGORE_THE_UNTAMED, DONE);
+                    //DoChangePhase();
                     instance->SetData(DATA_EGG_EVENT, SPECIAL);
-                    DoChangePhase();
+                    instance->SetBossState(DATA_RAZORGORE_THE_UNTAMED, DONE);
                 }
             }
 

@@ -1517,7 +1517,7 @@ BotAddResult BotMgr::AddBot(Creature* bot)
         ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_BOTADDFAIL_TELEPORTED).c_str(), bot->GetName().c_str());
         return BOT_ADD_BUSY;
     }
-    if (!owned && owned_count >= GetMaxNpcBots())
+    if ((!owned && owned_count >= GetMaxNpcBots()))
     {
         ChatHandler ch(_owner->GetSession());
         ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), GetMaxNpcBots());
@@ -1690,10 +1690,12 @@ uint32 BotMgr::GetNpcBotCost(uint8 level, uint8 botclass)
     //rare / rareelite bots have their cost adjusted
     uint32 cost =
         level < 10 ? _npcBotsCost / 2000 : //5 silver
-        level < 20 ? _npcBotsCost / 100 :  //1 gold
         level < 30 ? _npcBotsCost / 20 :   //5 gold
-        level < 40 ? _npcBotsCost / 5 :    //20 gold
-        (_npcBotsCost * level) / DEFAULT_MAX_LEVEL; //50 - 100 gold
+        level < 50 ? _npcBotsCost / 10 :   //5 gold
+        level < 60 ? _npcBotsCost / 5 :   //5 gold
+        level < 70 ? _npcBotsCost / 4 :    //20 gold
+        level < 79 ? _npcBotsCost / 2 :    //20 gold
+        _npcBotsCost*2 ; //50 - 100 gold
 
     switch (botclass)
     {

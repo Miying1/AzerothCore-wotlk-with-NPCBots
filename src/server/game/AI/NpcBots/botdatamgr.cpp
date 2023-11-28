@@ -2720,7 +2720,15 @@ uint8 BotDataMgr::GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask)
 
     return count;
 }
-
+uint32 BotDataMgr::GetNpcBotCountByIp(std::string ip) {
+    uint32 bot_count = 0;
+    QueryResult result = CharacterDatabase.Query("SELECT npc_count FROM view_player_botcount WHERE last_ip = '{}'", ip);
+    if (result)
+    {
+        bot_count = result->Fetch()[0].Get<uint32>();
+    }
+    return bot_count;
+}
 uint8 BotDataMgr::GetLevelBonusForBotRank(uint32 rank)
 {
     switch (rank)

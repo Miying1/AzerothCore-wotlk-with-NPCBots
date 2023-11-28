@@ -317,17 +317,16 @@ public:
             if (damage >= me->GetHealth())
             {
                 damage = 0;
+                me->SetReactState(REACT_PASSIVE);
+                me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                me->SetFaction(FACTION_FRIENDLY);
+                me->RemoveAllAuras();
+                me->AttackStop();
+                events.Reset();
                 if (m_pInstance->GetData(TYPE_FREYA) != DONE)
                 {
-                    Talk(SAY_DEATH);
-
-                    me->SetReactState(REACT_PASSIVE);
-                    me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    me->SetFaction(FACTION_FRIENDLY);
-                    me->RemoveAllAuras();
-                    me->AttackStop();
-                    events.Reset();
-
+                    m_pInstance->SetData(TYPE_FREYA, DONE);
+                    Talk(SAY_DEATH); 
                     summons.DespawnAll();
                     events.Reset();
 
@@ -357,7 +356,6 @@ public:
                     if (m_pInstance)
                     {
                         me->CastSpell(me, 65074, true); // credit
-                        m_pInstance->SetData(TYPE_FREYA, DONE);
                     }
                 }
             }

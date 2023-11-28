@@ -249,6 +249,8 @@ public:
             _phase = 1;
             bChangePhase = false;
             _Reset();
+            if(!IsHeroic())
+              me->SetVisible(true);
             me->SetReactState(REACT_AGGRESSIVE);
             me->SetStandState(UNIT_STAND_STATE_STAND);
 

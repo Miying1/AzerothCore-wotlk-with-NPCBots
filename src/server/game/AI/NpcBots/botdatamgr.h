@@ -8,7 +8,7 @@
 #include <functional>
 #include <set>
 #include <shared_mutex>
-#include <vector>
+#include <vector> 
 
 class BattlegroundQueue;
 class Creature;
@@ -188,6 +188,7 @@ class BotDataMgr
         static ObjectGuid GetNPCBotGuid(uint32 entry);
         static std::vector<uint32> GetExistingNPCBotIds();
         static uint8 GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask = 0);
+        static uint32 GetNpcBotCountByIp(std::string ip);
 
         static void DespawnWandererBot(uint32 entry);
         static void LoadWanderMap(bool reload = false);

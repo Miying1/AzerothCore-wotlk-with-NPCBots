@@ -23,57 +23,57 @@ TODO: slow (pvp), mana shield
 
 enum MageBaseSpells
 {
-    DAMPENMAGIC_1                       = 604,
-    AMPLIFYMAGIC_1                      = 1008,//manual use only
-    ARCANEINTELLECT_1                   = 1459,
-    ARCANEMISSILES_1                    = 5143,
-    ARCANE_BLAST_1                      = 30451,
-    POLYMORPH_1                         = 118,
-    COUNTERSPELL_1                      = 2139,
-    SPELLSTEAL_1                        = 30449,
-    EVOCATION_1                         = 12051,
-    BLINK_1                             = 1953,
-    REMOVE_CURSE_1                      = 475,
-    INVISIBILITY_1                      = 66,
-    SCORCH_1                            = 2948,
-    BLAST_WAVE_1                        = 11113,
-    DRAGON_BREATH_1                     = 31661,
-    FIRE_BLAST_1                        = 2136,
-    PYROBLAST_1                         = 11366,
-    LIVING_BOMB_1                       = 44457,
-    FLAMESTRIKE_1                       = 2120,
-    COMBUSTION_1                        = 11129,
-    FROSTFIRE_BOLT_1                    = 44614,
-    FIREBALL_1                          = 133,
-    FROSTBOLT_1                         = 116,
-    FROST_NOVA_1                        = 122,
-    CONE_OF_COLD_1                      = 120,
-    BLIZZARD_1                          = 10,
-    FROST_ARMOR_1                       = 168,
-    ICE_ARMOR_1                         = 7302,
-    MOLTEN_ARMOR_1                      = 30482,
-    ICE_BARRIER_1                       = 11426,
-    ICE_BLOCK_1                         = 45438,
-    FOCUS_MAGIC_1                       = 54646,
-    PRESENCE_OF_MIND_1                  = 12043,
-    ARCANE_POWER_1                      = 12042,
-    SLOW_FALL_1                         = 130,
-    ICE_LANCE_1                         = 30455,
-    ICY_VEINS_1                         = 12472,
-    COLD_SNAP_1                         = 11958,
-    DEEP_FREEZE_1                       = 44572,
-    FROST_WARD_1                        = 6143,
-    FIRE_WARD_1                         = 543,
-    MIRROR_IMAGE_1                      = 55342,
+    DAMPENMAGIC_1 = 604,
+    AMPLIFYMAGIC_1 = 1008,//manual use only
+    ARCANEINTELLECT_1 = 1459,
+    ARCANEMISSILES_1 = 5143,
+    ARCANE_BLAST_1 = 30451,
+    POLYMORPH_1 = 118,
+    COUNTERSPELL_1 = 2139,
+    SPELLSTEAL_1 = 30449,
+    EVOCATION_1 = 12051,
+    BLINK_1 = 1953,
+    REMOVE_CURSE_1 = 475,
+    INVISIBILITY_1 = 66,
+    SCORCH_1 = 2948,
+    BLAST_WAVE_1 = 11113,
+    DRAGON_BREATH_1 = 31661,
+    FIRE_BLAST_1 = 2136,
+    PYROBLAST_1 = 11366,
+    LIVING_BOMB_1 = 44457,
+    FLAMESTRIKE_1 = 2120,
+    COMBUSTION_1 = 11129,
+    FROSTFIRE_BOLT_1 = 44614,
+    FIREBALL_1 = 133,
+    FROSTBOLT_1 = 116,
+    FROST_NOVA_1 = 122,
+    CONE_OF_COLD_1 = 120,
+    BLIZZARD_1 = 10,
+    FROST_ARMOR_1 = 168,
+    ICE_ARMOR_1 = 7302,
+    MOLTEN_ARMOR_1 = 30482,
+    ICE_BARRIER_1 = 11426,
+    ICE_BLOCK_1 = 45438,
+    FOCUS_MAGIC_1 = 54646,
+    PRESENCE_OF_MIND_1 = 12043,
+    ARCANE_POWER_1 = 12042,
+    SLOW_FALL_1 = 130,
+    ICE_LANCE_1 = 30455,
+    ICY_VEINS_1 = 12472,
+    COLD_SNAP_1 = 11958,
+    DEEP_FREEZE_1 = 44572,
+    FROST_WARD_1 = 6143,
+    FIRE_WARD_1 = 543,
+    MIRROR_IMAGE_1 = 55342,
     //Special
-    ARCANE_MISSILES_DAMAGE_1            = 7268,
-    BLIZZARD_DAMAGE_1                   = 42208,
-    LIVING_BOMB_DAMAGE_1                = 44461,
-    CONJURE_MANA_GEM_1                  = 759,
-    MANA_GEM_1                          = 5405,
-    RITUAL_OF_REFRESHMENT_1             = 43987,
+    ARCANE_MISSILES_DAMAGE_1 = 7268,
+    BLIZZARD_DAMAGE_1 = 42208,
+    LIVING_BOMB_DAMAGE_1 = 44461,
+    CONJURE_MANA_GEM_1 = 759,
+    MANA_GEM_1 = 5405,
+    RITUAL_OF_REFRESHMENT_1 = 43987,
 
-    SUMMON_WATER_ELEMENTAL_1            = 31687
+    SUMMON_WATER_ELEMENTAL_1 = 31687
 };
 
 enum MagePassives
@@ -175,6 +175,11 @@ public:
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
+      /*  if (creature->GetEntry() == 70330 && creature->IsInCombat()) {
+            player->PlayerTalkClass->SendCloseGossip();
+            player->GetSession()->SendTradeStatus(TRADE_STATUS_NO_TARGET);
+            return true;
+        }*/
         return creature->GetBotAI()->OnGossipHello(player, 0);
     }
 
@@ -420,11 +425,11 @@ public:
                 return;
 
             Unit::AttackerSet const& b_attackers = me->getAttackers();
-
+            uint8 manaPct = GetManaPCT(me);
             float dist = me->GetDistance(mytar);
 
             //COMBUSTION (no GCD)
-            if (IsSpellReady(COMBUSTION_1, diff, false) && GetManaPCT(me) > 20 &&
+            if (IsSpellReady(COMBUSTION_1, diff, false) && manaPct > 20 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 4 ||
                 master->getAttackers().size() > 1 || b_attackers.size() > 1) &&
                 Rand() < 45 &&
@@ -435,7 +440,7 @@ public:
                     return;
             }
             //ICY VEINS (no GCD)
-            if (IsSpellReady(ICY_VEINS_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 20 &&
+            if (IsSpellReady(ICY_VEINS_1, diff, false) && me->IsInCombat() && manaPct > 20 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 2 ||
                 (mytar->GetTypeId() == TYPEID_UNIT && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL)) &&
                 Rand() < 45)
@@ -444,7 +449,7 @@ public:
                     return;
             }
             //ARCANE POWER (no GCD, not with PoM)
-            if (IsSpellReady(ARCANE_POWER_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 50 &&
+            if (IsSpellReady(ARCANE_POWER_1, diff, false) && me->IsInCombat() && manaPct > 50 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 2 ||
                 (mytar->GetTypeId() == TYPEID_UNIT && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL)) &&
                 Rand() < 75 && !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x20, 0x0))
@@ -453,7 +458,7 @@ public:
                     return;
             }
             //PRESENCE OF MIND (no GCD, not with AP)
-            if (IsSpellReady(PRESENCE_OF_MIND_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 10 && Rand() < 35 &&
+            if (IsSpellReady(PRESENCE_OF_MIND_1, diff, false) && me->IsInCombat() && manaPct > 10 && Rand() < 35 &&
                 !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x80000, 0x0))
             {
                 if (doCast(me, GetSpell(PRESENCE_OF_MIND_1)))
@@ -463,6 +468,8 @@ public:
             //Cheap check
             if (GC_Timer > diff) //!ensure none spells below ignore GCD!
                 return;
+            bool is_fire = GetSpec() == BOT_SPEC_MAGE_FIRE;
+            bool is_frost = GetSpec() == BOT_SPEC_MAGE_FROST;
             //NOVAS
             if ((IsSpellReady(FROST_NOVA_1, diff) || IsSpellReady(BLAST_WAVE_1, diff)) && Rand() < 85)
             {
@@ -472,7 +479,7 @@ public:
                 {
                     bool oneOnOne = (*targets.begin()) == mytar;
                     //Frost Nova
-                    if (IsSpellReady(FROST_NOVA_1, diff) && (targets.size() > 1 || oneOnOne))
+                    if (IsSpellReady(FROST_NOVA_1, diff) && (targets.size() > 2 || oneOnOne))
                     {
                         if (doCast(me, GetSpell(FROST_NOVA_1)))
                         {
@@ -481,7 +488,7 @@ public:
                         }
                     }
                     //Blast Wave
-                    else if (IsSpellReady(BLAST_WAVE_1, diff) && (targets.size() > 1 || oneOnOne))
+                    else if (is_fire && IsSpellReady(BLAST_WAVE_1, diff) && (targets.size() > 1 || oneOnOne))
                     {
                         if (doCast(me, GetSpell(BLAST_WAVE_1)))
                             return;
@@ -505,13 +512,13 @@ public:
                 if (!targets.empty())
                 {
                     //Cone of Cold
-                    if (IsSpellReady(CONE_OF_COLD_1, diff))
+                    if (is_frost && IsSpellReady(CONE_OF_COLD_1, diff))
                     {
                         if (doCast(me, GetSpell(CONE_OF_COLD_1)))
                             return;
                     }
                     //Dragon's Breath
-                    else if (IsSpellReady(DRAGON_BREATH_1, diff))
+                    else if (is_fire && IsSpellReady(DRAGON_BREATH_1, diff))
                     {
                         if (doCast(me, GetSpell(DRAGON_BREATH_1)))
                             return;
@@ -567,8 +574,8 @@ public:
                 if (doCast(mytar, GetSpell(DEEP_FREEZE_1)))
                     return;
             }
-            //Flamestrike (instant cast only)
-            if (/*fbCasted && */IsSpellReady(FLAMESTRIKE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(FLAMESTRIKE_1) && Rand() < 80 &&
+            //Flamestrike (instant cast only)火冲
+            if (/*fbCasted && */IsSpellReady(FLAMESTRIKE_1, diff) && is_fire && can_do_fire && dist < CalcSpellMaxRange(FLAMESTRIKE_1) && Rand() < 80 &&
                 me->HasAura(FIRESTARTER_BUFF))
             {
                 if (doCast(mytar, GetSpell(FLAMESTRIKE_1)))
@@ -586,36 +593,47 @@ public:
                 SetSpellCooldown(BLIZZARD_1, 1500); //fail
             }
             //Ice Lance (no cd, only GCD)
-            if (fbCasted && (!me->GetMap()->IsDungeon() || mytar->IsControlledByPlayer()) &&
+           /* if (fbCasted && (!me->GetMap()->IsDungeon() || mytar->IsControlledByPlayer()) &&
                 IsSpellReady(ICE_LANCE_1, diff) && can_do_frost && dist < CalcSpellMaxRange(ICE_LANCE_1) &&
                 (mytar->isFrozen() || me->HasAuraType(SPELL_AURA_ABILITY_IGNORE_AURASTATE)))
             {
                 if (doCast(mytar, GetSpell(ICE_LANCE_1)))
                     return;
-            }
+            }*/
             //Fireball or Frostfire Bolt (instant cast or combustion use up)
-            if (/*fbCasted && */IsSpellReady(FROSTFIREBOLT, diff) && (can_do_frost | can_do_fire) && dist < CalcSpellMaxRange(FROSTFIREBOLT) && Rand() < 150 &&
-                ((((CCed(mytar, true) || b_attackers.empty()) && me->HasAura(COMBUSTION_BUFF)) || me->HasAura(BRAIN_FREEZE_BUFF)) ||
-                !GetSpell(FROSTBOLT_1))) //level 1-3
+            if (me->HasAuraType(SPELL_AURA_ABILITY_IGNORE_AURASTATE) && IsSpellReady(FROSTFIREBOLT, diff) && (can_do_frost | can_do_fire) && dist < CalcSpellMaxRange(FROSTFIREBOLT) && Rand() < 150) //level 1-3
             {
                 if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                     return;
             }
-            //Main rotation
-            //Arcane Missiles (arcane spec only)
-            if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane && GetSpec() == BOT_SPEC_MAGE_ARCANE && dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
-                (me->GetLevel() < 45 ||
-                ((!GetSpell(ARCANE_BLAST_1) || arcaneBlastStack >= 3 || sSpellMgr->GetSpellInfo(ARCANE_BLAST_1)->CalcPowerCost(me, SPELL_SCHOOL_MASK_ARCANE) > int(me->GetPower(POWER_MANA))) &&
-                me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))))
-            {
-                if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
-                    return;
-            }
-            if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && GetSpec() == BOT_SPEC_MAGE_ARCANE && dist < CalcSpellMaxRange(ARCANE_BLAST_1) &&
-                (arcaneBlastStack < 4 || !me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0)))
-            {
-                if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
-                    return;
+            if (GetSpec() == BOT_SPEC_MAGE_ARCANE) {
+                //Main rotation
+                //Arcane Missiles (arcane spec only) 
+                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1) && manaPct > 30 &&
+                     me->HasAura(12042) )
+                {
+                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                        return;
+                }
+                if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
+                    ((manaPct < 15 && arcaneBlastStack >= 2) || (manaPct < 30 && arcaneBlastStack >= 3) || (arcaneBlastStack >= 4 && me->HasAura(MISSILE_BARRAGE_BUFF))))
+                {
+                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
+                        return;
+                }
+              /*  if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane &&dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
+                    (me->GetLevel() < 45 ||
+                        ((!GetSpell(ARCANE_BLAST_1) || arcaneBlastStack >= 4 || sSpellMgr->GetSpellInfo(ARCANE_BLAST_1)->CalcPowerCost(me, SPELL_SCHOOL_MASK_ARCANE) > int(me->GetPower(POWER_MANA))) &&
+                            me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))))
+                {
+                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
+                        return;
+                }*/
+                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1))
+                {
+                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                        return;
+                }
             }
             if (GetSpec() != BOT_SPEC_MAGE_ARCANE || !GetSpell(ARCANE_BLAST_1))
             {
@@ -626,8 +644,12 @@ public:
                     if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                         return;
                 }
-
-                if (IsSpellReady(FROSTBOLT_1, diff) && can_do_frost && GetSpec() != BOT_SPEC_MAGE_FIRE && dist < CalcSpellMaxRange(FROSTBOLT_1))
+                if (is_fire && IsSpellReady(FIREBALL_1, diff) && can_do_fire  && dist < CalcSpellMaxRange(FIREBALL_1))
+                {
+                    if (doCast(mytar, GetSpell(FIREBALL_1)))
+                        return;
+                }
+                if (is_frost && IsSpellReady(FROSTBOLT_1, diff) && can_do_frost  && dist < CalcSpellMaxRange(FROSTBOLT_1))
                 {
                     if (doCast(mytar, GetSpell(FROSTBOLT_1)))
                         return;
@@ -682,7 +704,7 @@ public:
             }
             if (Rand() < 35)
             {
-                if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 15 && uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
+                if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 32 && uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
                 {
                     if (doCast(me, GetSpell(EVOCATION_1)))
                         return;
