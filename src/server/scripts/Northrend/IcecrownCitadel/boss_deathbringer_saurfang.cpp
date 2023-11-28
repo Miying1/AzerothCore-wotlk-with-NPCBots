@@ -533,6 +533,7 @@ public:
             _events.Reset();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
+            me->CombatStop();
         }
 
         void DoAction(int32 action) override
@@ -583,7 +584,7 @@ public:
                         me->MonsterMoveWithSpeed(me->GetPositionX(), me->GetPositionY(), 539.2917f, 10.0f);
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
                             (*itr)->AI()->DoAction(ACTION_DESPAWN);
-
+                        me->CombatStop();
                         /*Talk(SAY_OUTRO_HORDE_1);
                         _events.ScheduleEvent(EVENT_OUTRO_HORDE_1, 10000);
                         _events.ScheduleEvent(EVENT_OUTRO_HORDE_2, 18000);
@@ -794,6 +795,7 @@ public:
             _events.Reset();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
+            me->CombatStop();
         }
 
         void DoAction(int32 action) override
@@ -847,6 +849,7 @@ public:
                             (*itr)->AI()->DoAction(ACTION_DESPAWN);
 
                         //Talk(SAY_OUTRO_ALLIANCE_1);
+                        me->CombatStop();
                         break;
                     }
                 case ACTION_EVADE:

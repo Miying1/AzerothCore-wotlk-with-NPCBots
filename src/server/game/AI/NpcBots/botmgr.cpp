@@ -1690,7 +1690,7 @@ uint32 BotMgr::GetNpcBotCost(uint8 level, uint8 botclass)
     //rare / rareelite bots have their cost adjusted
     uint32 cost =
         level < 10 ? _npcBotsCost / 2000 : //5 silver
-        level < 30 ? _npcBotsCost / 20 :   //5 gold
+        level < 30 ? _npcBotsCost / 40 :   //5 gold
         level < 50 ? _npcBotsCost / 10 :   //5 gold
         level < 60 ? _npcBotsCost / 5 :   //5 gold
         level < 70 ? _npcBotsCost / 4 :    //20 gold

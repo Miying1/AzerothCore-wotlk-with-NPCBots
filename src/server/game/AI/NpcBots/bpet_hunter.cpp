@@ -282,14 +282,14 @@ public:
                 return;
             }*/
 
-            if (IsSpellReady(TAUNT_1, diff, false) && u && u != me && me->IsWithinMeleeRange(opponent) &&
+           /* if (IsSpellReady(TAUNT_1, diff, false) && u && u != me && me->IsWithinMeleeRange(opponent) &&
                 opponent->CanHaveThreatList() && !CCed(opponent) && !opponent->HasAuraType(SPELL_AURA_MOD_TAUNT) &&
                 (!IsTank(u) || (GetHealthPCT(u) < 30 && GetHealthPCT(me) > 50)) && IsInBotParty(u))
             {
                 me->CastSpell(opponent, GetSpell(TAUNT_1), false);
                 SetSpellCooldown(TAUNT_1, 126000);
                 return;
-            }
+            }*/
 
             if (IsSpellReady(COWER_1, diff, false) && !me->getAttackers().empty() &&
                 me->GetDistance(*me->getAttackers().begin()) < 7 && GetHealthPCT(me) < 90)

@@ -10617,10 +10617,12 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
         if (target->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
         {
     */
+   
     if (HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) || IsNPCBotOrPet())
     {
         if (target->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) || target->IsNPCBotOrPet())
         {
+            if (IsNPCBotOrPet() && target->IsNPCBotOrPet()) return REP_FRIENDLY;
             if (IsInRaidWith(target))
                 return REP_FRIENDLY;
             //end npcbot
@@ -10635,7 +10637,7 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
                     return REP_HOSTILE;
 
                 // same group - checks dependant only on our faction - skip FFA_PVP for example
-                if (selfPlayerOwner->IsInRaidWith(targetPlayerOwner))
+                if (selfPlayerOwner->IsInSameRaidWith(targetPlayerOwner))
                     return REP_FRIENDLY; // return true to allow config option AllowTwoSide.Interaction.Group to work
                 // however client seems to allow mixed group parties, because in 13850 client it works like:
                 // return GetFactionReactionTo(GetFactionTemplateEntry(), target);
@@ -10724,9 +10726,9 @@ ReputationRank Unit::GetFactionReactionTo(FactionTemplateEntry const* factionTem
         return REP_NEUTRAL;
 
     // xinef: check forced reputation for self also
-    if (Player const* selfPlayerOwner = GetAffectingPlayer())
+   /* if (Player const* selfPlayerOwner = GetAffectingPlayer())
         if (ReputationRank const* repRank = selfPlayerOwner->GetReputationMgr().GetForcedRankIfAny(target->GetFactionTemplateEntry()))
-            return *repRank;
+            return *repRank;*/
 
     if (Player const* targetPlayerOwner = target->GetAffectingPlayer())
     {

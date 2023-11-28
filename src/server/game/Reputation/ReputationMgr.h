@@ -106,7 +106,8 @@ public:                                                 // accessors
 
     ReputationRank const* GetForcedRankIfAny(FactionTemplateEntry const* factionTemplateEntry) const
     {
-        if(_forcedReactions.empty() || !factionTemplateEntry) return nullptr;
+        if(_forcedReactions.empty() || factionTemplateEntry == nullptr )
+            return nullptr;
         ForcedReactions::const_iterator forceItr = _forcedReactions.find(factionTemplateEntry->faction);
         return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
     }
