@@ -2598,7 +2598,8 @@ public:
     void SendSystemMessage(std::string_view msg, bool escapeCharacters = false);
 
     std::string GetDebugInfo() const override;
-
+    void SetVip(bool val);
+    bool IsVip() const;
     /*****************************************************************/
     /***                        NPCBOT SYSTEM                      ***/
     /*****************************************************************/
@@ -2886,6 +2887,7 @@ public:
     uint8 m_grantableLevels;
 
     bool m_needZoneUpdate;
+    bool _isvip = false;
 
 private:
     /*****************************************************************/
@@ -2980,6 +2982,7 @@ private:
     PlayerSettingMap m_charSettingsMap;
 
     Seconds m_creationTime;
+   
 };
 
 void AddItemsSetItem(Player* player, Item* item);

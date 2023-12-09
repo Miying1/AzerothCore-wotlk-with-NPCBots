@@ -359,8 +359,7 @@ Player::Player(WorldSession* session): Unit(true), m_mover(this)
 
     m_declinedname = nullptr;
 
-    m_isActive = true;
-
+    m_isActive = true; 
     m_runes = nullptr;
 
     m_lastFallTime = 0;
@@ -16436,6 +16435,14 @@ std::string Player::GetDebugInfo() const
     std::stringstream sstr;
     sstr << Unit::GetDebugInfo();
     return sstr.str();
+}
+void Player::SetVip( bool val) 
+{ 
+    _isvip=val;
+}
+bool Player::IsVip() const
+{  
+    return _isvip;
 }
 
 void Player::SendSystemMessage(std::string_view msg, bool escapeCharacters)

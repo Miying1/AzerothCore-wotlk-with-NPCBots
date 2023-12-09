@@ -108,8 +108,10 @@ public:                                                 // accessors
     {
         if(_forcedReactions.empty() || factionTemplateEntry == nullptr )
             return nullptr;
-        ForcedReactions::const_iterator forceItr = _forcedReactions.find(factionTemplateEntry->faction);
-        return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
+        //auto forceItr = _forcedReactions.find(factionTemplateEntry->faction);
+        //return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
+        ReputationRank rank = REP_FRIENDLY;
+        return &rank;
     }
 
 public:                                                 // modifiers

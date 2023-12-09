@@ -10726,9 +10726,9 @@ ReputationRank Unit::GetFactionReactionTo(FactionTemplateEntry const* factionTem
         return REP_NEUTRAL;
 
     // xinef: check forced reputation for self also
-   /* if (Player const* selfPlayerOwner = GetAffectingPlayer())
+    if (Player const* selfPlayerOwner = GetAffectingPlayer())
         if (ReputationRank const* repRank = selfPlayerOwner->GetReputationMgr().GetForcedRankIfAny(target->GetFactionTemplateEntry()))
-            return *repRank;*/
+            return *repRank;
 
     if (Player const* targetPlayerOwner = target->GetAffectingPlayer())
     {
