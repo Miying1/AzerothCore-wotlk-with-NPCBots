@@ -2829,7 +2829,10 @@ public:
         {
             summons.Summon(s);
         }
-
+        void JustDied(Unit* /* killer */) override
+        {
+            summons.DespawnAll();
+        } 
         void MoveInLineOfSight(Unit* who) override
         {
             if (me->IsAlive() && !me->IsInCombat() && who->GetTypeId() == TYPEID_PLAYER && who->GetExactDist2d(me) < 35.0f)

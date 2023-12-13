@@ -43,8 +43,8 @@ enum Says
 enum Spells
 {
     // Troll Form
-    SPELL_WHIRLWIND               = 17207,
-    SPELL_GRIEVOUS_THROW          = 43093, // remove debuff after full healed
+    SPELL_WHIRLWIND               = 17207,//像旋风一般挥舞手中的武器，攻击周围的所有敌人，对它们造成普通伤害再加上50点伤害，持续2 seconds。
+    SPELL_GRIEVOUS_THROW          = 43093, // remove debuff after full healed一次残忍的攻击，使目标持续大量流血，每2秒造成6500点伤害直到被完全治愈。
     // Bear Form
     SPELL_CREEPING_PARALYSIS      = 43095, // should cast on the whole raid
     SPELL_OVERPOWER               = 43456, // use after melee attack dodged
@@ -399,7 +399,7 @@ public:
 
                     if (Grievous_Throw_Timer <= diff)
                     {
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, false))
                             DoCast(target, SPELL_GRIEVOUS_THROW, false);
                         Grievous_Throw_Timer = 10000;
                     }
@@ -529,13 +529,13 @@ public:
                     if (Flame_Whirl_Timer <= diff)
                     {
                         DoCast(me, SPELL_FLAME_WHIRL);
-                        Flame_Whirl_Timer = 12000;
+                        Flame_Whirl_Timer = 15000;
                     }
                     Flame_Whirl_Timer -= diff;
 
                     if (Pillar_Of_Fire_Timer <= diff)
                     {
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0,50,false))
                             DoCast(target, SPELL_SUMMON_PILLAR);
                         Pillar_Of_Fire_Timer = 10000;
                     }

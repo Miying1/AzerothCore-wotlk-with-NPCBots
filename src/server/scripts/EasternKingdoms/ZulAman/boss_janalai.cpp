@@ -45,7 +45,7 @@ enum Yells
 enum Spells
 {
     // Jan'alai
-    SPELL_FLAME_BREATH          = 43140,
+    SPELL_FLAME_BREATH          = 43140,//对施法者正面锥形区域内的敌人造成18001 to 20000点火焰伤害。
     SPELL_FIRE_WALL             = 43113,
     SPELL_ENRAGE                = 44779,
     SPELL_SUMMON_PLAYERS        = 43097,

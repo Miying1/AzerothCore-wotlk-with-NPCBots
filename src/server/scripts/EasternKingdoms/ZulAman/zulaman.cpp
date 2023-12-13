@@ -625,6 +625,11 @@ public:
             if (me->GetCreatureTemplate()->GossipMenuId == sender && !action)
             {
                 CloseGossipMenuFor(player);
+                if (instance->GetData(DATA_GONGEVENT) == DONE) {
+                    if (GameObject* gate = me->GetMap()->GetGameObject(instance->GetGuidData(GO_MASSIVE_GATE)))
+                        gate->SetGoState(GO_STATE_ACTIVE);
+                    return;
+                }
                 me->SetFacingToObject(player);
                 me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                 Talk(SAY_HARRISON_0);
@@ -673,7 +678,7 @@ public:
                             if (GameObject* gong = me->GetMap()->GetGameObject(instance->GetGuidData(GO_STRANGE_GONG)))
                                 gong->RemoveGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
                             _gongEvent = GONG_EVENT_4;
-                            _gongTimer = 105000;
+                            _gongTimer = 15000;
                             break;
                         case GONG_EVENT_4:
                             me->RemoveAura(SPELL_BANGING_THE_GONG);

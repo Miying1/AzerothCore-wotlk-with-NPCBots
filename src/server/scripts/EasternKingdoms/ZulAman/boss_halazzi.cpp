@@ -22,16 +22,16 @@
 
 enum Spells
 {
-    SPELL_DUAL_WIELD            = 29651,
-    SPELL_SABER_LASH            = 43267,
+    SPELL_DUAL_WIELD            = 29651,//可以在副手上装备单手和副手武器。
+    SPELL_SABER_LASH            = 43267,//造成伤害，由所有被影响的目标平均分担。
     SPELL_FRENZY                = 43139,
-    SPELL_FLAMESHOCK            = 43303,
-    SPELL_EARTHSHOCK            = 43305,
-    SPELL_TRANSFORM_SPLIT       = 43142,
+    SPELL_FLAMESHOCK            = 43303,//立刻用火焰燃烧目标，并继续对其每3秒造成一次额外的火焰伤害，持续12 seconds。
+    SPELL_EARTHSHOCK            = 43305,//以震撼性的力量冲击敌人，造成自然伤害并打断正在施放的法术，持续4 seconds。
+    SPELL_TRANSFORM_SPLIT       = 43142,//施法者变形，释放自然的力量攻击所有邻近敌人，造成0点自然伤害。
     SPELL_TRANSFORM_SPLIT2      = 43573,
     SPELL_TRANSFORM_MERGE       = 43271,
     SPELL_SUMMON_LYNX           = 43143,
-    SPELL_SUMMON_TOTEM          = 43302,
+    SPELL_SUMMON_TOTEM          = 43302,//召唤一个闪电图腾，持续存在60 seconds。该图腾会周期性地攻击附近的敌人。
     SPELL_BERSERK               = 45078,
     SPELL_LYNX_FRENZY           = 43290, // Used by Spirit Lynx
     SPELL_SHRED_ARMOR           = 43243  // Used by Spirit Lynx
@@ -152,8 +152,8 @@ public:
                     }
                     if (Creature* Lynx = ObjectAccessor::GetCreature(*me, LynxGUID))
                         Lynx->DisappearAndDie();
-                    me->SetMaxHealth(600000);
-                    me->SetHealth(600000 - 150000 * TransformCount);
+                    me->SetMaxHealth(2000000);
+                    me->SetHealth(2000000 - 450000 * TransformCount);
                     FrenzyTimer = 16000;
                     SaberlashTimer = 20000;
                     ShockTimer = 10000;
@@ -166,8 +166,8 @@ public:
                 case PHASE_HUMAN:
                     //DoCast(me, SPELL_SUMMON_LYNX, true);
                     DoSpawnCreature(NPC_SPIRIT_LYNX, 5, 5, 0, 0, TEMPSUMMON_CORPSE_DESPAWN, 0);
-                    me->SetMaxHealth(400000);
-                    me->SetHealth(400000);
+                    me->SetMaxHealth(6000000);
+                    me->SetHealth(6000000);
                     ShockTimer = 10000;
                     TotemTimer = 12000;
                     break;
@@ -250,7 +250,7 @@ public:
                             DoCast(target, SPELL_EARTHSHOCK);
                         else
                             DoCast(target, SPELL_FLAMESHOCK);
-                        ShockTimer = urand(10000, 15000);
+                        ShockTimer = urand(10000, 12000);
                     }
                 }
                 else ShockTimer -= diff;
@@ -310,6 +310,7 @@ public:
         {
             instance->SetData(DATA_HALAZZIEVENT, DONE);
             Talk(SAY_DEATH);
+            summons.DespawnAll();
         }
     };
 

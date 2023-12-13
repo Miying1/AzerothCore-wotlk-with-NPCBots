@@ -35,11 +35,11 @@ EndScriptData */
 
 enum Spells
 {
-    SPELL_STATIC_DISRUPTION     = 43622,
+    SPELL_STATIC_DISRUPTION     = 43622,//对区域内的敌人造成0点自然伤害并使其受到的自然伤害提高0%，持续d。
     SPELL_STATIC_VISUAL         = 45265,
-    SPELL_CALL_LIGHTNING        = 43661, // Missing timer
-    SPELL_GUST_OF_WIND          = 43621,
-    SPELL_ELECTRICAL_STORM      = 43648,
+    SPELL_CALL_LIGHTNING        = 43661, // Missing timer造成18001 to 20000点自然伤害。
+    SPELL_GUST_OF_WIND          = 43621,//一阵强风将目标卷上空中。
+    SPELL_ELECTRICAL_STORM      = 43648, //电能风暴包围目标，伤害所有处于暴风眼之外的盟友。电能风暴伤害会随时间提高。
     SPELL_BERSERK               = 45078,
     SPELL_ELECTRICAL_OVERLOAD   = 43658,
     SPELL_EAGLE_SWOOP           = 44732,
@@ -159,24 +159,21 @@ public:
                 // deal damage
                 int32 bp0 = 800;
                 for (uint8 i = 2; i < StormCount; ++i)
-                    bp0 *= 2;
+                    bp0 *= 1.5;
 
-                std::list<Unit*> tempUnitMap;
-
-                Acore::AnyAoETargetUnitInObjectRangeCheck u_check(me, me, SIZE_OF_GRIDS);
-                Acore::UnitListSearcher<Acore::AnyAoETargetUnitInObjectRangeCheck> searcher(me, tempUnitMap, u_check);
-                Cell::VisitAllObjects(me, searcher, SIZE_OF_GRIDS);
-
-                // deal damage
-                for (std::list<Unit*>::const_iterator i = tempUnitMap.begin(); i != tempUnitMap.end(); ++i)
-                {
-                    if (Unit* target = (*i))
+                std::list<Unit*> tempUnitMap; 
+                SelectTargetList(tempUnitMap, 4, SelectTargetMethod::Random, 0, 50.0f, false);
+                if (!tempUnitMap.empty()) { 
+                    // deal damage
+                    for (std::list<Unit*>::const_iterator i = tempUnitMap.begin(); i != tempUnitMap.end(); ++i)
                     {
-                        if (Cloud && !Cloud->IsWithinDist(target, 6, false))
-                            Cloud->CastCustomSpell(target, SPELL_ZAP, &bp0, nullptr, nullptr, true, 0, 0, me->GetGUID());
+                        if (Unit* target = (*i))
+                        { 
+                            if (Cloud && !Cloud->IsWithinDist(target, 6, false))
+                                Cloud->CastCustomSpell(target, SPELL_ZAP, &bp0, nullptr, nullptr, true, 0, 0, me->GetGUID());
+                        }
                     }
                 }
-
                 // visual
                 float x, y, z;
                 z = me->GetPositionZ();
@@ -186,16 +183,15 @@ public:
                     y = 1380.0f + rand() % 60;
                     if (Unit* trigger = me->SummonTrigger(x, y, z, 0, 2000))
                     {
-                        trigger->SetFaction(FACTION_FRIENDLY);
-                        trigger->SetMaxHealth(100000);
-                        trigger->SetHealth(100000);
+                        trigger->SetFaction(FACTION_ENEMY);
+                        trigger->SetMaxHealth(1000000);
+                        trigger->SetHealth(1000000);
                         trigger->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        if (Cloud)
+                        if (Cloud)  
                             Cloud->CastCustomSpell(trigger, /*43661*/SPELL_ZAP, &bp0, nullptr, nullptr, true, 0, 0, Cloud->GetGUID());
                     }
                 }
             }
-
             ++StormCount;
 
             if (StormCount > 10)
@@ -205,9 +201,10 @@ public:
                 me->InterruptNonMeleeSpells(false);
                 CloudGUID.Clear();
                 if (Cloud)
-                    Unit::DealDamage(Cloud, Cloud, Cloud->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                    Cloud->KillSelf();
                 SetWeather(WEATHER_STATE_FINE, 0.0f);
                 isRaining = false;
+                return;
             }
             events.ScheduleEvent(EVENT_STORM_SEQUENCE, 1000);
         }
@@ -241,7 +238,7 @@ public:
                         }
                     case EVENT_GUST_OF_WIND:
                         {
-                            Unit* target = SelectTarget(SelectTargetMethod::Random, 1);
+                            Unit* target = SelectTarget(SelectTargetMethod::Random, 0,50,false,false);
                             if (!target)
                                 target = me->GetVictim();
                             if (target)
@@ -281,10 +278,11 @@ public:
                                 Cloud->SetDisableGravity(true);
                                 Cloud->StopMoving();
                                 Cloud->SetObjectScale(1.0f);
-                                Cloud->SetFaction(FACTION_FRIENDLY);
+                                Cloud->SetFaction(FACTION_ENEMY);
                                 Cloud->SetMaxHealth(9999999);
                                 Cloud->SetHealth(9999999);
                                 Cloud->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                                events.ScheduleEvent(EVENT_STORM_SEQUENCE, 300);
                             }
                             StormCount = 1;
                             events.ScheduleEvent(EVENT_ELECTRICAL_STORM, 60000); // 60 seconds(bosskillers)
@@ -302,13 +300,13 @@ public:
                         break;
                     case EVENT_STORM_SEQUENCE:
                         {
-                            Unit* target = ObjectAccessor::GetUnit(*me, CloudGUID);
+                            Unit* target = ObjectAccessor::GetCreature(*me, CloudGUID);
                             if (!target || !target->IsAlive())
                             {
                                 EnterEvadeMode();
                                 return;
                             }
-                            else if (Unit* Cyclone = ObjectAccessor::GetUnit(*me, CycloneGUID))
+                            else if (Unit* Cyclone = ObjectAccessor::GetCreature(*me, CycloneGUID))
                                 Cyclone->CastSpell(target, SPELL_SAND_STORM, true); // keep casting or...
                             HandleStormSequence(target);
                             break;
@@ -321,7 +319,7 @@ public:
 
                         for (uint8 i = 0; i < 8; ++i)
                         {
-                            Unit* bird = ObjectAccessor::GetUnit(*me, BirdGUIDs[i]);
+                            Unit* bird = ObjectAccessor::GetCreature(*me, BirdGUIDs[i]); 
                             if (!bird) //they despawned on die
                             {
                                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))

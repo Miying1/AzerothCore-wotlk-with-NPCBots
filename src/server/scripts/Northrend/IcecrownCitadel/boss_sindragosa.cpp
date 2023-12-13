@@ -1713,6 +1713,11 @@ public:
                 player->GetMap()->LoadGrid(SindragosaSpawnPos.GetPositionX(), SindragosaSpawnPos.GetPositionY());
                 if (Creature* sindragosa = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SINDRAGOSA)))
                     sindragosa->AI()->DoAction(ACTION_START_FROSTWYRM);
+                else
+                {
+                    if (instance->GetBossState(DATA_SINDRAGOSA) == NOT_STARTED || instance->GetBossState(DATA_SINDRAGOSA) == TO_BE_DECIDED)
+                        instance->SetData(DATA_SUMMON_SINDRAGOSA,0);
+                }
             }
         }
 

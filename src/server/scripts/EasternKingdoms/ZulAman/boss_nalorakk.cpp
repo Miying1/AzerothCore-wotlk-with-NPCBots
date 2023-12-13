@@ -34,16 +34,16 @@ enum Spells
     SPELL_BERSERK           = 45078,
 
     // Troll form
-    SPELL_BRUTALSWIPE       = 42384,
-    SPELL_MANGLE            = 42389,
+    SPELL_BRUTALSWIPE       = 42384,//造成伤害并由所有受影响的目标平均分担。
+    SPELL_MANGLE            = 42389,//造成60%武器伤害并使目标因流血效果而受到的伤害提高100%。
     SPELL_MANGLEEFFECT      = 44955,
-    SPELL_SURGE             = 42402,
-    SPELL_BEARFORM          = 42377,
+    SPELL_SURGE             = 42402,//冲锋敌人，对目标及其邻近的盟友造成16001 to 18000点伤害，并将其击退。
+    SPELL_BEARFORM          = 42377, //变形成为一头熊，造成的伤害提高，但是攻击速度降低25% ，持续30 seconds。
 
     // Bear form
-    SPELL_LACERATINGSLASH   = 42395,
-    SPELL_RENDFLESH         = 42397,
-    SPELL_DEAFENINGROAR     = 42398
+    SPELL_LACERATINGSLASH   = 42395,//每2秒造成9001点伤害。
+    SPELL_RENDFLESH         = 42397,//造成20001 to 22000点物理伤害并使目标流血，每1秒受到5001点伤害。
+    SPELL_DEAFENINGROAR     = 42398//
 };
 
 // Trash Waves

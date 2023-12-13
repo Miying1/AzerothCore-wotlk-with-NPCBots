@@ -1203,6 +1203,10 @@ public:
                         SaveToDB();
                     }
                     break;
+                case DATA_SUMMON_SINDRAGOSA:
+                    if (GetBossState(DATA_SINDRAGOSA) != DONE && !GetCreature(DATA_SINDRAGOSA) && Events.GetTimeUntilEvent(EVENT_RESPAWN_SINDRAGOSA) == Milliseconds::max())
+                        Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30s);
+                    break;
                 case DATA_THE_LICH_KING:
                     {
                         // dramatically increase visibility range during fight to seeing frostmourne room

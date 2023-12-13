@@ -102,7 +102,7 @@ public:
             for (uint8 i = 0; i < RAND_VENDOR; ++i)
                 RandVendor[i] = NOT_STARTED;
 
-            m_auiEncounter[DATA_GONGEVENT] = NOT_STARTED;
+            //m_auiEncounter[DATA_GONGEVENT] = NOT_STARTED;
         }
 
         bool IsEncounterInProgress() const override
@@ -118,6 +118,7 @@ public:
         {
             if (!HarrisonJonesGUID)
                 instance->SummonCreature(NPC_HARRISON_JONES, HarrisonJonesLoc);
+            
         }
 
         void OnCreatureCreate(Creature* creature) override
@@ -208,6 +209,8 @@ public:
 
             if (BossKilled >= DATA_HEXLORDEVENT)
                 HandleGameObject(ZulJinGateGUID, true);
+            if(BossKilled >=0 || GetData(DATA_GONGEVENT) == DONE)
+                HandleGameObject(MassiveGateGUID, true);
         }
 
         std::string GetSaveData() override
@@ -249,11 +252,10 @@ public:
             {
                 case DATA_GONGEVENT:
                     m_auiEncounter[DATA_GONGEVENT] = data;
-                    if (data == IN_PROGRESS)
-                        SaveToDB();
-                    else if (data == DONE)
+                    if (data == DONE)
                         QuestMinute = 21;
-                    break;
+                    SaveToDB();
+                    return;
                 case DATA_NALORAKKEVENT:
                     m_auiEncounter[DATA_NALORAKKEVENT] = data;
                     if (data == DONE)
@@ -297,7 +299,7 @@ public:
                     m_auiEncounter[DATA_HEXLORDEVENT] = data;
                     if (data == IN_PROGRESS)
                         HandleGameObject(HexLordGateGUID, false);
-                    else if (data == NOT_STARTED)
+                    else if (data == NOT_STARTED || data == DONE)
                         CheckInstanceStatus();
                     SaveToDB();
                     break;

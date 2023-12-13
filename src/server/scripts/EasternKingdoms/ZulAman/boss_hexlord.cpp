@@ -295,7 +295,7 @@ public:
         {
             instance->SetData(DATA_HEXLORDEVENT, IN_PROGRESS);
 
-            DoZoneInCombat();
+            DoZoneInCombat(nullptr,100.0f);
             Talk(SAY_AGGRO);
 
             for (uint8 i = 0; i < 4; ++i)
@@ -305,12 +305,19 @@ public:
                     creature->AI()->AttackStart(me->GetVictim());
                 else
                 {
-                    EnterEvadeMode();
+                    EnterEvadeMode(EVADE_REASON_OTHER);
                     break;
                 }
             }
         }
-
+        void EnterEvadeMode(EvadeReason why) override
+        {
+            me->AttackStop();
+            me->CombatStop();
+            instance->SetData(DATA_HEXLORDEVENT, NOT_STARTED);
+            ScriptedAI::EnterEvadeMode(why);
+        }
+       
         void KilledUnit(Unit* /*victim*/) override
         {
             switch (urand(0, 1))
@@ -334,7 +341,7 @@ public:
             {
                 Unit* Temp = ObjectAccessor::GetUnit(*me, AddGUID[i]);
                 if (Temp && Temp->IsAlive())
-                    Unit::DealDamage(Temp, Temp, Temp->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                    Temp->KillSelf();
             }
         }
 
@@ -377,12 +384,16 @@ public:
         {
             if (!UpdateVictim())
                 return;
-
+            Unit* playerhs = SelectTarget(SelectTargetMethod::Random, 0, 70, true);
+            if (!playerhs) {
+                EnterEvadeMode(EVADE_REASON_OTHER);
+                return;
+            }
             if (ResetTimer <= diff)
             {
                 if (me->IsWithinDist3d(119.223f, 1035.45f, 29.4481f, 10))
                 {
-                    EnterEvadeMode();
+                    EnterEvadeMode(EVADE_REASON_OTHER);
                     return;
                 }
                 ResetTimer = 5000;
@@ -429,7 +440,7 @@ public:
                 Unit* trigger = DoSpawnCreature(NPC_TEMP_TRIGGER, 0, 0, 0, 0, TEMPSUMMON_TIMED_DESPAWN, 30000);
                 if (!target || !trigger)
                 {
-                    EnterEvadeMode();
+                    EnterEvadeMode(EVADE_REASON_OTHER);
                     return;
                 }
                 else
