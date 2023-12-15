@@ -746,6 +746,7 @@ public:
 
                             if (GameObject* gate = me->GetMap()->GetGameObject(instance->GetGuidData(GO_MASSIVE_GATE)))
                                 gate->SetGoState(GO_STATE_ACTIVE);
+                            instance->SetData(DATA_GONGEVENT, DONE);
                             _gongTimer = 2000;
                             _gongEvent = GONG_EVENT_8;
                             break;

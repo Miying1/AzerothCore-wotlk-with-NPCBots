@@ -39,8 +39,8 @@ enum WarriorBaseSpells
     CLEAVE_1                                = 845,
     HAMSTRING_1                             = 1715,
     INTERVENE_1                             = 3411,
-    WHIRLWIND_1                             = 1680,
-    BLADESTORM_1                            = 46924,
+    WHIRLWIND_1                             = 1680,//旋风斩
+    BLADESTORM_1                            = 46924,//利刃风暴
     BATTLE_SHOUT_1                          = 6673,
     REND_1                                  = 772,
     EXECUTE_1                               = 5308,
@@ -814,11 +814,11 @@ public:
                     return;
             }
             //SUNDER ARMOR
-            if (IsSpellReady(SUNDER_ARMOR_1, diff) && can_do_normal && IsTank() && Rand() < 55 && mytar->GetHealth() > me->GetMaxHealth() &&
-                dist < 5 && (!HasRole(BOT_ROLE_DPS) || !GetSpell(DEVASTATE_1)) && rage >= rcost(SUNDER_ARMOR_1))
+            if (IsSpellReady(SUNDER_ARMOR_1, diff) && can_do_normal &&  Rand() < 55 && mytar->GetHealth() > me->GetMaxHealth() &&
+                dist < 5 &&  !GetSpell(DEVASTATE_1) && rage >= rcost(SUNDER_ARMOR_1))
             {
                 AuraEffect const* sunder = mytar->GetAuraEffect(SUNDER_ARMOR_DEBUFF, 0);
-                if ((!sunder || sunder->GetBase()->GetStackAmount() < 5 || sunder->GetBase()->GetDuration() < 20000) &&
+                if ((!sunder || sunder->GetBase()->GetStackAmount() < 5 || sunder->GetBase()->GetDuration() < 6000) &&
                     doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
                     return;
             }
@@ -886,7 +886,7 @@ public:
             //WHIRLWIND
             if (IsSpellReady(WHIRLWIND_1, diff) && can_do_normal && HasRole(BOT_ROLE_DPS) && !IsTank() && !CanBlock() && Rand() < 80 &&
                 (isFury || mytar->IsControlledByPlayer() || me->GetLevel() < 60 || !me->GetMap()->IsDungeon()) &&
-                (_inStance(3) || stancetimer <= diff) && dist < 6.f &&
+                _inStance(3) && dist < 6.f &&
                 rage >= rcost(WHIRLWIND_1) && (isFury || rage >= 500 || FindSplashTarget(7.f, mytar, 15.f)))
             {
                 if ((_inStance(3) || stanceChange(diff, 3)) &&

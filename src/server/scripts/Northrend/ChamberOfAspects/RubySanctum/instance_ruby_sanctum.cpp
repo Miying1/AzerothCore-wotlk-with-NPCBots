@@ -66,7 +66,14 @@ public:
                     halionController->AI()->DoAction(ACTION_INTRO_HALION);
             }
         }
-
+        bool IsEncounterInProgress() const override
+        {
+            Map::PlayerList const& pl = instance->GetPlayers();
+            if(pl.IsEmpty()){
+                return false;
+            } 
+            return InstanceScript::IsEncounterInProgress();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
             switch (creature->GetEntry())

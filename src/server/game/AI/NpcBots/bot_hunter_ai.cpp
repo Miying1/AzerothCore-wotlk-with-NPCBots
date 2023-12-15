@@ -1788,7 +1788,7 @@ public:
 
         void OnBotDamageDealt(Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellInfo const* /*spellInfo*/) override
         {
-            if (botPet && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
+            if (botPet && botPet->GetPowerType()== POWER_FOCUS && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
                 (damagetype == DIRECT_DAMAGE || damagetype == SPELL_DIRECT_DAMAGE) && me->GetLevel() >= 20)
             {
                 //Go for the Throat: energize pet

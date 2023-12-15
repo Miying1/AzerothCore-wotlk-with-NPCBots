@@ -235,6 +235,14 @@ public:
                 data << uint32(WORLDSTATE_ATTEMPTS_MAX) << uint32(MaxHeroicAttempts);
             }
         }
+        bool IsEncounterInProgress() const override
+        {
+            Map::PlayerList const& pl = instance->GetPlayers();
+            if (pl.IsEmpty()) {
+                return false;
+            } 
+            return InstanceScript::IsEncounterInProgress();
+        }
 
         void OnPlayerAreaUpdate(Player* player, uint32  /*oldArea*/, uint32 newArea) override
         {

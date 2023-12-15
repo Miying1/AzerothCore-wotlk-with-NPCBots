@@ -192,17 +192,17 @@ public:
 
         bool IsEncounterInProgress() const override
         {
-            for (uint8 i = 0; i < (MAX_ENCOUNTER - 1); ++i)
-            {
-                if (m_auiEncounter[i] == IN_PROGRESS)
-                    return true;
-            }
+            // for (uint8 i = 0; i < (MAX_ENCOUNTER - 1); ++i)
+            // {
+            //     if (m_auiEncounter[i] == IN_PROGRESS)
+            //         return true;
+            // }
 
             // Leviathan does not use IN_PROGRESS type, instead SPECIAL is set and never reset,
             // Check if he is in combat.
-            if (Unit* l = instance->GetCreature(m_uiLeviathanGUID))
-                if (l->IsInCombat())
-                    return true;
+            // if (Unit* l = instance->GetCreature(m_uiLeviathanGUID))
+            //     if (l->IsInCombat())
+            //         return true;
 
             return false;
         }

@@ -159,7 +159,7 @@ public:
                 // deal damage
                 int32 bp0 = 800;
                 for (uint8 i = 2; i < StormCount; ++i)
-                    bp0 *= 1.5;
+                    bp0 *= 1.8;
 
                 std::list<Unit*> tempUnitMap; 
                 SelectTargetList(tempUnitMap, 4, SelectTargetMethod::Random, 0, 50.0f, false);

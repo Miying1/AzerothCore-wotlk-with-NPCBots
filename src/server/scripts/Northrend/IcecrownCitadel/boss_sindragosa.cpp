@@ -1708,7 +1708,7 @@ public:
                 if (Creature* rimefang = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_RIMEFANG)))
                     rimefang->AI()->DoAction(ACTION_START_FROSTWYRM);
 
-            if (!instance->GetData(DATA_SINDRAGOSA_FROSTWYRMS) && instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
+            if (instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
             {
                 player->GetMap()->LoadGrid(SindragosaSpawnPos.GetPositionX(), SindragosaSpawnPos.GetPositionY());
                 if (Creature* sindragosa = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SINDRAGOSA)))

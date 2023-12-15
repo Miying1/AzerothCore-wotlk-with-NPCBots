@@ -65,7 +65,10 @@ public:
                     break;
             }
         }
-
+        bool IsEncounterInProgress() const override
+        { 
+            return false;
+        }
         bool SetBossState(uint32 type, EncounterState state) override
         {
             if (!InstanceScript::SetBossState(type, state))

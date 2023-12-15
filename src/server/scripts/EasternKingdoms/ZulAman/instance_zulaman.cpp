@@ -92,7 +92,7 @@ public:
         void Initialize() override
         {
             SetHeaders(DataHeader);
-            memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
+            //memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
 
             QuestTimer = 0;
             QuestMinute = 0;
@@ -105,14 +105,14 @@ public:
             //m_auiEncounter[DATA_GONGEVENT] = NOT_STARTED;
         }
 
-        bool IsEncounterInProgress() const override
+       /* bool IsEncounterInProgress() const override
         {
             for (uint8 i = 0; i < MAX_ENCOUNTER; ++i)
                 if (m_auiEncounter[i] == IN_PROGRESS)
                     return true;
 
             return false;
-        }
+        }*/
 
         void OnPlayerEnter(Player* /*player*/) override
         {
@@ -204,12 +204,12 @@ public:
 
         void CheckInstanceStatus()
         {
+             
             if (BossKilled >= DATA_HALAZZIEVENT)
-                HandleGameObject(HexLordGateGUID, true);
-
+                HandleGameObject(HexLordGateGUID, true); 
             if (BossKilled >= DATA_HEXLORDEVENT)
                 HandleGameObject(ZulJinGateGUID, true);
-            if(BossKilled >=0 || GetData(DATA_GONGEVENT) == DONE)
+            if(BossKilled >=1 || GetData(DATA_GONGEVENT) == DONE)
                 HandleGameObject(MassiveGateGUID, true);
         }
 
@@ -218,8 +218,16 @@ public:
             OUT_SAVE_INST_DATA;
 
             std::ostringstream ss;
-            ss << "S " << BossKilled << ' ' << ChestLooted << ' ' << QuestMinute;
-
+            ss << "S " << BossKilled << ' '
+                << ChestLooted << ' '
+                << QuestMinute << ' '
+                << m_auiEncounter[0] << ' '
+                << m_auiEncounter[1] << ' '
+                << m_auiEncounter[2] << ' '
+                << m_auiEncounter[3] << ' '
+                << m_auiEncounter[4] << ' '
+                << m_auiEncounter[5] << ' '
+                << m_auiEncounter[6];
             OUT_SAVE_INST_DATA_COMPLETE;
             return ss.str();
         }
@@ -231,14 +239,19 @@ public:
 
             std::istringstream ss(load);
             char dataHead; // S
-            uint16 data1, data2, data3;
-            ss >> dataHead >> data1 >> data2 >> data3;
-
+            ss >> dataHead ;
             if (dataHead == 'S')
             {
-                BossKilled = data1;
-                ChestLooted = data2;
-                QuestMinute = data3;
+                ss >> BossKilled;
+                ss >> ChestLooted;
+                ss >> QuestMinute;
+                ss >> m_auiEncounter[0];
+                ss >> m_auiEncounter[1];
+                ss >> m_auiEncounter[2];
+                ss >> m_auiEncounter[3];
+                ss >> m_auiEncounter[4];
+                ss >> m_auiEncounter[5];
+                ss >> m_auiEncounter[6];
             }
             else
             {
@@ -266,7 +279,6 @@ public:
                             DoUpdateWorldState(WORLDSTATE_TIME_TO_SACRIFICE, QuestMinute);
                         }
                         SummonHostage(0);
-                        SaveToDB();
                     }
                     break;
                 case DATA_AKILZONEVENT:
@@ -280,28 +292,25 @@ public:
                             DoUpdateWorldState(WORLDSTATE_TIME_TO_SACRIFICE, QuestMinute);
                         }
                         SummonHostage(1);
-                        SaveToDB();
                     }
                     break;
                 case DATA_JANALAIEVENT:
                     m_auiEncounter[DATA_JANALAIEVENT] = data;
                     if (data == DONE)
                         SummonHostage(2);
-                    SaveToDB();
                     break;
                 case DATA_HALAZZIEVENT:
                     m_auiEncounter[DATA_HALAZZIEVENT] = data;
-                    HandleGameObject(HalazziDoorGUID, data != IN_PROGRESS);
+                    HandleGameObject(HalazziDoorGUID, data == DONE);
                     if (data == DONE) SummonHostage(3);
-                    SaveToDB();
                     break;
                 case DATA_HEXLORDEVENT:
                     m_auiEncounter[DATA_HEXLORDEVENT] = data;
                     if (data == IN_PROGRESS)
                         HandleGameObject(HexLordGateGUID, false);
-                    else if (data == NOT_STARTED || data == DONE)
+                    else if (data == NOT_STARTED) {
                         CheckInstanceStatus();
-                    SaveToDB();
+                    }
                     break;
                 case DATA_ZULJINEVENT:
                     m_auiEncounter[DATA_ZULJINEVENT] = data;

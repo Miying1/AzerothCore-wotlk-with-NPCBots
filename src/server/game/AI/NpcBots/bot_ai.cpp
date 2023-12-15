@@ -2091,8 +2091,13 @@ bool bot_ai::CanRemoveReflectSpells(Unit const* target, uint32 spellId) const
 void bot_ai::_listAuras(Player const* player, Unit const* unit) const
 {
     //if (player->GetSession()->GetSecurity() == SEC_PLAYER) return;
-    if (!player->IsGameMaster() && (IAmFree() || !IsInBotParty(player))) return;
+    if (IAmFree() || !IsInBotParty(player)) return;
     if (!IsInBotParty(unit)) return;
+    if (unit->IsNPCBot()) {
+        bot_ai const* ai = unit->ToCreature()->GetBotAI();
+        if (!ai->GetBotOwner()) return;
+        if (player->GetEntry() != ai->GetBotOwner()->GetEntry()) return;
+    }
     ChatHandler ch(player->GetSession());
     std::ostringstream botstring;
     botstring.setf(std::ios_base::fixed);
@@ -2108,7 +2113,7 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         botstring << (owner != unit ? owner->GetName() : LocalizedNpcText(player, BOT_TEXT_NONE));
     }
     uint8 locale = player->GetSession()->GetSessionDbcLocale();
-    Unit::AuraMap const &vAuras = unit->GetOwnedAuras();
+    Unit::AuraMap const& vAuras = unit->GetOwnedAuras();
     for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
     {
         SpellInfo const* spellInfo = itr->second->GetSpellInfo();
@@ -2116,11 +2121,12 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
             continue;
         spellInfo = spellInfo->TryGetSpellInfoOverride(me);
         uint32 id = spellInfo->Id;
+        uint32 talentcost = GetTalentSpellCost(id);
+        if (talentcost <= 0) continue;
         SpellInfo const* learnSpellInfo = sSpellMgr->GetSpellInfo(spellInfo->Effects[0].TriggerSpell);
         const std::string name = spellInfo->SpellName[locale];
         botstring << "\n" << id << " - |cffffffff|Hspell:" << id << "|h[" << name;
         botstring << ' ' << localeNames[locale] << "]|h|r";
-        uint32 talentcost = GetTalentSpellCost(id);
         uint32 rank = 0;
         if (talentcost > 0 && (spellInfo->GetNextRankSpell() || spellInfo->GetPrevRankSpell()))
             rank = talentcost;
@@ -2148,12 +2154,12 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         std::string mystat;
         switch (i)
         {
-            case STAT_STRENGTH: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_STR); break;
-            case STAT_AGILITY: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_AGI); break;
-            case STAT_STAMINA: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_STA); break;
-            case STAT_INTELLECT: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_INT); break;
-            case STAT_SPIRIT: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_SPI); break;
-            default: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_UNK); break;
+        case STAT_STRENGTH: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_STR); break;
+        case STAT_AGILITY: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_AGI); break;
+        case STAT_STAMINA: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_STA); break;
+        case STAT_INTELLECT: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_INT); break;
+        case STAT_SPIRIT: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_SPI); break;
+        default: mystat = LocalizedNpcText(player, BOT_TEXT_STAT_UNK); break;
         }
         //ch.PSendSysMessage("base %s: %.1f", mystat.c_str(), unit->GetCreateStat(Stats(i));
         float totalstat = unit->GetTotalStatValue(Stats(i));
@@ -2163,12 +2169,12 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
             BotStatMods t = MAX_BOT_ITEM_MOD;
             switch (i)
             {
-                case STAT_STRENGTH:     t = BOT_STAT_MOD_STRENGTH;  break;
-                case STAT_AGILITY:      t = BOT_STAT_MOD_AGILITY;   break;
-                case STAT_STAMINA:      t = BOT_STAT_MOD_STAMINA;   break;
-                case STAT_INTELLECT:    t = BOT_STAT_MOD_INTELLECT; break;
-                case STAT_SPIRIT:       t = BOT_STAT_MOD_SPIRIT;    break;
-                default:                                            break;
+            case STAT_STRENGTH:     t = BOT_STAT_MOD_STRENGTH;  break;
+            case STAT_AGILITY:      t = BOT_STAT_MOD_AGILITY;   break;
+            case STAT_STAMINA:      t = BOT_STAT_MOD_STAMINA;   break;
+            case STAT_INTELLECT:    t = BOT_STAT_MOD_INTELLECT; break;
+            case STAT_SPIRIT:       t = BOT_STAT_MOD_SPIRIT;    break;
+            default:                                            break;
             }
 
             if (t < MAX_BOT_ITEM_MOD)
@@ -2194,40 +2200,40 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
     //botstring << "\n" << "Resilience pct" << ": -" << resilience_base << " / -" << float(resilience_base * 2.2f) << " / -" << float(resilience_base * 2.0f);
 
     WeaponAttackType type = BASE_ATTACK;
-    float attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type])/1000.f;
+    float attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type]) / 1000.f;
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_RANGE_MAINHAND) << ": " << LocalizedNpcText(player, BOT_TEXT_MIN) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MINDAMAGE)) << ", " << LocalizedNpcText(player, BOT_TEXT_MAX) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + 1.f);
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_MAINHAND) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_MAINHAND, BASE_PCT)*unit->GetModifierValue(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT));
+    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_MAINHAND) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_MAINHAND, BASE_PCT) * unit->GetModifierValue(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT));
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ATTACK_TIME_MAINHAND) << ": " << float(attSpeed)
         << " (" << float(((unit->GetFloatValue(UNIT_FIELD_MINDAMAGE) + unit->GetFloatValue(UNIT_FIELD_MAXDAMAGE)) / 2) / attSpeed) << " " << LocalizedNpcText(player, BOT_TEXT_DPS) << ")";
     if (unit->haveOffhandWeapon())
     {
         type = OFF_ATTACK;
-        attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type])/1000.f;
+        attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type]) / 1000.f;
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_RANGE_OFFHAND) << ": " << LocalizedNpcText(player, BOT_TEXT_MIN) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE)) << ", " << LocalizedNpcText(player, BOT_TEXT_MAX) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE) + 1.f);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_OFFHAND) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_OFFHAND, BASE_PCT)*unit->GetModifierValue(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT));
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_OFFHAND) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_OFFHAND, BASE_PCT) * unit->GetModifierValue(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT));
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ATTACK_TIME_OFFHAND) << ": " << float(attSpeed)
             << " (" << float(((unit->GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE) + unit->GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE)) / 2) / attSpeed) << " " << LocalizedNpcText(player, BOT_TEXT_DPS) << ")";
     }
     if (unit != me ||
         (me->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + uint32(BOT_SLOT_RANGED)) &&
-        _botclass != BOT_CLASS_PALADIN &&
-        _botclass != BOT_CLASS_DEATH_KNIGHT &&
-        _botclass != BOT_CLASS_DRUID &&
-        _botclass != BOT_CLASS_SHAMAN))
+            _botclass != BOT_CLASS_PALADIN &&
+            _botclass != BOT_CLASS_DEATH_KNIGHT &&
+            _botclass != BOT_CLASS_DRUID &&
+            _botclass != BOT_CLASS_SHAMAN))
     {
         type = RANGED_ATTACK;
-        attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type])/1000.f;
+        attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type]) / 1000.f;
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_RANGE_RANGED) << ": " << LocalizedNpcText(player, BOT_TEXT_MIN) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE)) << ", " << LocalizedNpcText(player, BOT_TEXT_MAX) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE) + 1.f);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_RANGED) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_RANGED, BASE_PCT)*unit->GetModifierValue(UNIT_MOD_DAMAGE_RANGED, TOTAL_PCT));
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_MULT_RANGED) << ": " << float(unit->GetModifierValue(UNIT_MOD_DAMAGE_RANGED, BASE_PCT) * unit->GetModifierValue(UNIT_MOD_DAMAGE_RANGED, TOTAL_PCT));
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ATTACK_TIME_RANGED) << ": " << float(attSpeed)
             << " (" << float(((unit->GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE) + unit->GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE)) / 2) / attSpeed) << " " << LocalizedNpcText(player, BOT_TEXT_DPS) << ")";
     }
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BASE_HP) << ": " << int32(unit->GetCreateHealth());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_TOTAL_HP) << ": " << int32(unit->GetMaxHealth());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BASE_MP) << ": " << int32(unit->GetCreateMana());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_TOTAL_MP) << ": " << int32(unit->GetMaxPower(POWER_MANA));
-    if (unit->GetMaxPower(POWER_MANA) > 1 && unit->GetPowerType() != POWER_MANA)
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CURR_MP) << ": " << int32(unit->GetPower(POWER_MANA));
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BASE_HP) << ": " << int32(unit->GetCreateHealth());
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_TOTAL_HP) << ": " << int32(unit->GetMaxHealth());
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BASE_MP) << ": " << int32(unit->GetCreateMana());
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_TOTAL_MP) << ": " << int32(unit->GetMaxPower(POWER_MANA));
+    //if (unit->GetMaxPower(POWER_MANA) > 1 && unit->GetPowerType() != POWER_MANA)
+    //    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CURR_MP) << ": " << int32(unit->GetPower(POWER_MANA));
 
     if (unit == me)
     {
@@ -2243,52 +2249,52 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(expertise) << " (-" << float(float(expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ARMOR_PEN) << ": " << float(me->GetCreatureArmorPenetrationCoef()) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPELL_PEN) << ": " << uint32(spellpen);
-
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_RESISTANCE) << ": ";
         for (uint8 i = SPELL_SCHOOL_HOLY; i != MAX_SPELL_SCHOOL; ++i)
         {
-            uint32 curresist = me->GetResistance(SpellSchools(i)) + resistbonus[i-1];
+            uint32 curresist = me->GetResistance(SpellSchools(i)) + resistbonus[i - 1];
 
             std::string resist;
             switch (i)
             {
-                case 1: resist = LocalizedNpcText(player, BOT_TEXT_HOLY);   break;
-                case 2: resist = LocalizedNpcText(player, BOT_TEXT_FIRE);   break;
-                case 3: resist = LocalizedNpcText(player, BOT_TEXT_NATURE); break;
-                case 4: resist = LocalizedNpcText(player, BOT_TEXT_FROST);  break;
-                case 5: resist = LocalizedNpcText(player, BOT_TEXT_SHADOW); break;
-                case 6: resist = LocalizedNpcText(player, BOT_TEXT_ARCANE); break;
+            case 1: resist = LocalizedNpcText(player, BOT_TEXT_HOLY);   break;
+            case 2: resist = LocalizedNpcText(player, BOT_TEXT_FIRE);   break;
+            case 3: resist = LocalizedNpcText(player, BOT_TEXT_NATURE); break;
+            case 4: resist = LocalizedNpcText(player, BOT_TEXT_FROST);  break;
+            case 5: resist = LocalizedNpcText(player, BOT_TEXT_SHADOW); break;
+            case 6: resist = LocalizedNpcText(player, BOT_TEXT_ARCANE); break;
             }
-            botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_RESISTANCE) << ": " << resist << ": " << uint32(curresist);
+            botstring << resist << "(" << uint32(curresist) << ")| ";
         }
 
         auto scores = GetBotGearScores();
         botstring << "\nGear score total: " << scores.first << ", avg: " << scores.second;
 
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_COMMAND_STATES) << "(" << GetBotCommandState() << "):";
-        if (HasBotCommandState(BOT_COMMAND_FOLLOW))
-            botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_FOLLOW);
-        if (HasBotCommandState(BOT_COMMAND_ATTACK))
-            botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_ATTACK);
-        if (HasBotCommandState(BOT_COMMAND_STAY))
-            botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_STAY);
-        if (HasBotCommandState(BOT_COMMAND_COMBATRESET))
-            botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_RESET);
-        if (HasBotCommandState(BOT_COMMAND_FULLSTOP))
-            botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_FULLSTOP);
-        if (!IAmFree())
-            botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_FOLLOW_DISTANCE) << ": " << uint32(master->GetBotMgr()->GetBotFollowDist());
+        // botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_COMMAND_STATES) << "(" << GetBotCommandState() << "):";
+        // if (HasBotCommandState(BOT_COMMAND_FOLLOW))
+        //     botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_FOLLOW);
+        // if (HasBotCommandState(BOT_COMMAND_ATTACK))
+        //     botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_ATTACK);
+        // if (HasBotCommandState(BOT_COMMAND_STAY))
+        //     botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_STAY);
+        // if (HasBotCommandState(BOT_COMMAND_COMBATRESET))
+        //     botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_RESET);
+        // if (HasBotCommandState(BOT_COMMAND_FULLSTOP))
+        //     botstring << " " << LocalizedNpcText(player, BOT_TEXT_COMMAND_FULLSTOP);
+        // if (!IAmFree())
+        //     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_FOLLOW_DISTANCE) << ": " << uint32(master->GetBotMgr()->GetBotFollowDist());
 
         if (_botclass < BOT_CLASS_EX_START)
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPEC) << ": " << uint32(_spec);
 
-        if (IsWanderer())
-            botstring << "\n_baseLevel: " << uint32(_baseLevel);
+        // if (IsWanderer())
+        //     botstring << "\n_baseLevel: " << uint32(_baseLevel);
 
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_MAIN) << ": " << uint32(_roleMask & BOT_ROLE_MASK_MAIN);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_GATHERING) << ": " << uint32(_roleMask & BOT_ROLE_MASK_GATHERING);
+        //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_MAIN) << ": " << uint32(_roleMask & BOT_ROLE_MASK_MAIN);
+        //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BOT_ROLEMASK_GATHERING) << ": " << uint32(_roleMask & BOT_ROLE_MASK_GATHERING);
 
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_PVP_KILLS) << ": " << uint32(_pvpKillsCount) << ", " << LocalizedNpcText(player, BOT_TEXT_PLAYERS) << ": " << uint32(_playerKillsCount) << ", " << LocalizedNpcText(player, BOT_TEXT_TOTAL) << ": " << uint32(_killsCount);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DIED_) << uint32(_deathsCount) << LocalizedNpcText(player, BOT_TEXT__TIMES);
+        //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_PVP_KILLS) << ": " << uint32(_pvpKillsCount) << ", " << LocalizedNpcText(player, BOT_TEXT_PLAYERS) << ": " << uint32(_playerKillsCount) << ", " << LocalizedNpcText(player, BOT_TEXT_TOTAL) << ": " << uint32(_killsCount);
+        //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DIED_) << uint32(_deathsCount) << LocalizedNpcText(player, BOT_TEXT__TIMES);
 
         //debug
         botstring << "\n_lastWMOAreaId: " << uint32(_lastWMOAreaId);
@@ -3469,7 +3475,7 @@ void bot_ai::SetStats(bool force)
         me->ResetPlayerDamageReq();
     }
 
-    if (botPet)
+    if (botPet && botPet->GetBotPetAI())
         botPet->GetBotPetAI()->SetShouldUpdateStats();
 }
 
@@ -9331,7 +9337,10 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         }
         case GOSSIP_SENDER_EQUIP_RESET: //equips change s4a: reset equipment
         {
-            if (_resetEquipment(action - GOSSIP_ACTION_INFO_DEF, player->GetGUID())){}
+            if (_resetEquipment(action - GOSSIP_ACTION_INFO_DEF, player->GetGUID())){
+                spawned = false;
+                DefaultInit();
+            }
             return OnGossipSelect(player, creature, GOSSIP_SENDER_EQUIPMENT, GOSSIP_ACTION_INFO_DEF + 1);
         }
         //equips change s4b: Equip item
@@ -9831,6 +9840,13 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 _newspec = newSpec;
                 me->CastSpell(me, ACTIVATE_SPEC, false);
                 BotWhisper(LocalizedNpcText(player, BOT_TEXT_CHANGING_MY_SPEC_TO_) + LocalizedNpcText(player, TextForSpec(_newspec)));
+                if ((_botclass == BOT_CLASS_WARRIOR && _newspec != BOT_SPEC_WARRIOR_FURY)
+                    || (_botclass == BOT_CLASS_PALADIN && _newspec == BOT_SPEC_PALADIN_RETRIBUTION))
+                {
+                    //if have incompatible offhand unequip it
+                    if (_equips[BOT_SLOT_OFFHAND] != nullptr)
+                        _unequip(BOT_SLOT_OFFHAND, player->GetGUID());
+                }
                 break;
             }
         }
@@ -9935,7 +9951,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 {
                     if (!(proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR &&
                         (proto->AllowableClass == 0 || (proto->AllowableClass & (1 << (bot->GetBotClass() - 1)))) &&
-                        proto->RequiredSkill == 0 && proto->RequiredSpell == 0 && bot->GetLevel() >= proto->RequiredLevel))
+                        proto->RequiredSkill == 0 && proto->RequiredSpell == 0 && bot->GetLevel() >= proto->RequiredLevel &&
+                        proto->Material == 3 && proto->SubClass == 3 && proto->ItemLevel >= 80))
                         return false;
                     bool has_spell = false;
                     for (auto const& ispell: proto->Spells)
@@ -12485,7 +12502,8 @@ bool bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver)
             SetAIMiscValue(BOTAI_MISC_ENCHANT_CAN_EXPIRE_OH, newItem->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT));
         }
     }
-
+    spawned = false;
+    DefaultInit();
     return true;
 }
 
@@ -14027,7 +14045,7 @@ bool bot_ai::CCed(Unit const* target, bool root)
 //AI initialization common
 //Called at ai reset, level change (spawned = true)
 void bot_ai::DefaultInit()
-{
+{ 
     //only once
     if (spawned)
         return;

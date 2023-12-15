@@ -230,7 +230,7 @@ struct boss_hexlord_addAI : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        DoZoneInCombat();
+        DoZoneInCombat(); 
     }
 
     void UpdateAI(uint32 /*diff*/) override
@@ -279,8 +279,7 @@ public:
 
         void Reset() override
         {
-            instance->SetData(DATA_HEXLORDEVENT, NOT_STARTED);
-
+            instance->SetData(DATA_HEXLORDEVENT, NOT_STARTED); 
             SpiritBolts_Timer = 20000;
             DrainPower_Timer = 60000;
             SiphonSoul_Timer = 100000;
@@ -384,11 +383,11 @@ public:
         {
             if (!UpdateVictim())
                 return;
-            Unit* playerhs = SelectTarget(SelectTargetMethod::Random, 0, 70, true);
+           /* Unit* playerhs = SelectTarget(SelectTargetMethod::Random, 0, 70, true);
             if (!playerhs) {
                 EnterEvadeMode(EVADE_REASON_OTHER);
                 return;
-            }
+            }*/
             if (ResetTimer <= diff)
             {
                 if (me->IsWithinDist3d(119.223f, 1035.45f, 29.4481f, 10))
