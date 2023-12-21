@@ -14,7 +14,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
-#include "World.h"
+#include "World.h" 
 /*
 Hunter NpcBot (reworked by Trickerer onlysuffering@gmail.com)
 Complete - around 95%
@@ -1788,14 +1788,14 @@ public:
 
         void OnBotDamageDealt(Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellInfo const* /*spellInfo*/) override
         {
-            if (botPet && botPet->GetPowerType()== POWER_FOCUS && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
+            if (botPet  && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
                 (damagetype == DIRECT_DAMAGE || damagetype == SPELL_DIRECT_DAMAGE) && me->GetLevel() >= 20)
-            {
+            { 
                 //Go for the Throat: energize pet
-                me->EnergizeBySpell(botPet, GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
+               // me->EnergizeBySpell(botPet, GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
                 //Frenzy hack: proc from hunter's crits
-                if (me->GetLevel() >= 35)
-                    botPet->CastSpell(botPet, FRENZY_BUFF, true);
+               /* if (me->GetLevel() >= 35)
+                    botPet->CastSpell(botPet, FRENZY_BUFF, true);*/
             }
         }
 
@@ -1878,8 +1878,7 @@ public:
             myPet->SetFaction(master->GetFaction());
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
-            myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
-
+            myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1)); 
             //fix scale
             switch (myPetType)
             {
@@ -1910,8 +1909,11 @@ public:
 
         void UnsummonAll() override
         {
-            if (botPet)
-                botPet->ToTempSummon()->UnSummon();
+            if (botPet) {
+                TempSummon * summ = botPet->ToTempSummon();
+                if (summ)
+                    summ->UnSummon();
+            }
         }
 
         void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override

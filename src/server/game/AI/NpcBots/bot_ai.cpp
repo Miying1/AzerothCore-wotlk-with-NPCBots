@@ -2183,22 +2183,21 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_TOTAL) << " " << mystat << ": " << float(totalstat);
     }
     botstring.precision(2);
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_MELEE_AP) << ": " << int32(unit->GetTotalAttackPowerValue(BASE_ATTACK));
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_RANGED_AP) << ": " << int32(unit->GetTotalAttackPowerValue(RANGED_ATTACK));
+  
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ARMOR) << ": " << uint32(unit->GetArmor());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CRIT) << ": " << float(unit->GetUnitCriticalChance(BASE_ATTACK, me));
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DEFENSE) << ": " << uint32(unit->GetDefenseSkillValue());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_MISS) << ": " << float(unit->GetUnitMissChance(BASE_ATTACK));
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DODGE) << ": " << float(unit->GetUnitDodgeChance());
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_PARRY) << ": " << float(unit->GetUnitParryChance());
+    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DODGE) << ": " << float(unit->GetUnitDodgeChance());
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_MISS) << ": " << float(unit->GetUnitMissChance(BASE_ATTACK));
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BLOCK) << ": " << float(unit->GetUnitBlockChance());
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_BLOCKVALUE) << ": " << uint32(unit->GetShieldBlockValue());
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_TAKEN_MELEE) << ": " << float(dmg_taken_phy * unit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_NORMAL));
-    botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_TAKEN_SPELL) << ": " << float(dmg_taken_mag * unit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_MAGIC));
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_TAKEN_MELEE) << ": " << float(dmg_taken_phy * unit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_NORMAL));
+    //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_TAKEN_SPELL) << ": " << float(dmg_taken_mag * unit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_MAGIC));
 
     //float resilience_base = unit->GetMeleeCritChanceReduction();
     //botstring << "\n" << "Resilience pct" << ": -" << resilience_base << " / -" << float(resilience_base * 2.2f) << " / -" << float(resilience_base * 2.0f);
 
+    
     WeaponAttackType type = BASE_ATTACK;
     float attSpeed = (unit->GetAttackTime(type) * unit->m_modAttackSpeedPct[type]) / 1000.f;
     botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DMG_RANGE_MAINHAND) << ": " << LocalizedNpcText(player, BOT_TEXT_MIN) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MINDAMAGE)) << ", " << LocalizedNpcText(player, BOT_TEXT_MAX) << ": " << int32(unit->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + 1.f);
@@ -2237,6 +2236,8 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
 
     if (unit == me)
     {
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_MELEE_AP) << ": " << int32(unit->GetTotalAttackPowerValue(BASE_ATTACK));
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_RANGED_AP) << ": " << int32(unit->GetTotalAttackPowerValue(RANGED_ATTACK));
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPELLPOWER) << ": " << int32(me->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC));
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_REGEN_HP) << ": " << int32(_getTotalBotStat(BOT_STAT_MOD_HEALTH_REGEN));
         if (me->GetMaxPower(POWER_MANA) > 1)
@@ -2244,11 +2245,12 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_REGEN_MP_CAST) << ": " << float((_botclass == BOT_CLASS_SPHYNX ? -1.f : 1.f) * me->GetFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER) * sWorld->getRate(RATE_POWER_MANA) * 5.0f);
             botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_REGEN_MP_NOCAST) << ": " << float((_botclass == BOT_CLASS_SPHYNX ? -1.f : 1.f) * me->GetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER) * sWorld->getRate(RATE_POWER_MANA) * 5.0f);
         }
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CRIT) << ": " << float(unit->GetUnitCriticalChance(BASE_ATTACK, me));
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HASTE) << ": " << (haste >= 0 ? "+" : "-") << float(haste) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HIT) << ": +" << float(hit) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
-        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(expertise) << " (-" << float(float(expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_ARMOR_PEN) << ": " << float(me->GetCreatureArmorPenetrationCoef()) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_SPELL_PEN) << ": " << uint32(spellpen);
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(expertise) << " (-" << float(float(expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_RESISTANCE) << ": ";
         for (uint8 i = SPELL_SCHOOL_HOLY; i != MAX_SPELL_SCHOOL; ++i)
         {
@@ -2297,7 +2299,7 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         //botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_DIED_) << uint32(_deathsCount) << LocalizedNpcText(player, BOT_TEXT__TIMES);
 
         //debug
-        botstring << "\n_lastWMOAreaId: " << uint32(_lastWMOAreaId);
+        //botstring << "\n_lastWMOAreaId: " << uint32(_lastWMOAreaId);
         botstring << "\nGCD: " << uint32(GC_Timer);
         //botstring << "\nPotion CD: " << uint32(_potionTimer);
         //botstring << "\ncurrent Engage timer: " << GetEngageTimer();
@@ -7662,7 +7664,10 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
     if (_ownerGuid)
     {
         Group const* gr = player->GetGroup();
-
+        if (player->IsGameMaster())
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "更改名称", GOSSIP_SENDER_RENAME, GOSSIP_ACTION_INFO_DEF + 1, "输入新名称", 0, true);
+        }
         if (player == master)
         {
             menus = true;
@@ -10860,6 +10865,16 @@ bool bot_ai::OnGossipSelectCode(Player* player, Creature* creature/* == me*/, ui
 
             player->PlayerTalkClass->SendCloseGossip();
             return OnGossipSelect(player, creature, GOSSIP_SENDER_ENGAGE_BEHAVIOR, action);
+        }
+        case GOSSIP_SENDER_RENAME:
+        { 
+            std::string name = std::string(code);
+            if (!BotDataMgr::SetBotName(me, name)) {
+                BotWhisper("改名失败:"+name, player);
+            }
+            else {
+                BotWhisper("改名成功:" + name, player);
+            }
         }
         default:
             break;
@@ -15945,7 +15960,7 @@ bool bot_ai::AddOrder(BotOrder&& order)
 {
     if (_orders.size() >= MAX_BOT_ORDERS_QUEUE_SIZE)
     {
-        LOG_ERROR("scripts", "bot_ai::AddOrder: orders limit reached for {} ({})!", me->GetName().c_str(), uint32(_orders.size()));
+       // LOG_ERROR("scripts", "bot_ai::AddOrder: orders limit reached for {} ({})!", me->GetName().c_str(), uint32(_orders.size()));
         return false;
     }
 

@@ -459,7 +459,7 @@ public:
     [[nodiscard]] InstanceScript* GetInstanceScript() const;
 
     [[nodiscard]] std::string const& GetName() const { return m_name; }
-    void SetName(std::string const& newname) { m_name = newname; }
+    [[nodiscard]] void SetName(std::string const& newname) { m_name = newname; }
 
     [[nodiscard]] virtual std::string const& GetNameForLocaleIdx(LocaleConstant /*locale_idx*/) const { return m_name; }
 

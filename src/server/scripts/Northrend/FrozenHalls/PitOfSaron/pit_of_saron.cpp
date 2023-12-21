@@ -634,8 +634,8 @@ public:
                 case 1:
                     if (pInstance->GetData(DATA_INSTANCE_PROGRESS) != INSTANCE_PROGRESS_FINISHED_KRICK_SCENE)
                         return;
-                    if (me->GetExactDist(&PTSTyrannusWaitPos1) > 3.0f)
-                        return;
+                    /*if (me->GetExactDist(&PTSTyrannusWaitPos1) > 3.0f)
+                        return;*/
                     pInstance->SetData(DATA_INSTANCE_PROGRESS, INSTANCE_PROGRESS_AFTER_WARN_1);
                     Talk(SAY_TYRANNUS_AMBUSH_1);
                     killsLeft = 10;

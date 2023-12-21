@@ -78,53 +78,63 @@ enum MageBaseSpells
 
 enum MagePassives
 {
-//Talents
-    FROSTBITE1                          = 11071,
-    FROSTBITE2                          = 12496,
-    FROSTBITE3                          = 12497,
-    ARCANE_CONCENTRATION                = 12577,//rank 5, clearcast
-    IGNITE                              = 12848,//rank 5
-    BURNING_DETERMINATION               = 54749,//rank 2
-    FROST_WARDING                       = 28332,//rank 2
-    IMPROVED_COUNTERSPELL1              = 11255,
-    IMPROVED_COUNTERSPELL2              = 12598,
-    ARCANE_MEDITATION                   = 18464,//rank 3
-    TORMENT_THE_WEAK                    = 55340,//rank 3
-    IMPACT                              = 12358,//rank 3
-    IMPROVED_BLIZZARD                   = 12488,//rank 3
-    IMPROVED_SCORCH                     = 12873,//rank 3
-    MOLTEN_SHIELDS                      = 13043,//rank 2
-    MASTER_OF_ELEMENTS                  = 29076,//rank 3
-    SHATTER1                            = 11170,
-    SHATTER2                            = 12982,
-    SHATTER3                            = 12983,
-    ARCANE_POTENCY1                     = 31571,
-    ARCANE_POTENCY2                     = 31572,
-    BLAZING_SPEED                       = 31642,//rank 2
-    WINTERS_CHILL1                      = 11180,
-    WINTERS_CHILL2                      = 28592,
-    WINTERS_CHILL3                      = 28593,
-    ARCANE_EMPOWERMENT                  = 31583,//rank 3
-    INCANTERS_ABSORPTION1               = 44394,
-    INCANTERS_ABSORPTION2               = 44395,
-    INCANTERS_ABSORPTION3               = 44396,
-    MISSILE_BARRAGE                     = 54490,//rank 5
-    PYROMANIAC                          = 34296,//rank 3
-    SHATTERED_BARRIER                   = 54787,//rank 2
-    //ARCTIC_WINDS                        = 31678,//rank 5
-    FINGERS_OF_FROST                    = 44545,//rank 2
-    FIRESTARTER1                        = 44442,
-    FIRESTARTER2                        = 44443,
-    HOT_STREAK                          = 44448,//rank 3
-    BRAIN_FREEZE1                       = 44546,
-    BRAIN_FREEZE2                       = 44548,
-    BRAIN_FREEZE3                       = 44549,
+    //Talents
 
-    GLYPH_POLYMORPH                     = 56375,
-    GLYPG_REMOVE_CURSE                  = 56364,
-    GLYPH_ICY_VEINS                     = 56374,
-    GLYPH_LIVING_BOMB                   = 63091,
-    GLYPH_ICE_LANCE                     = 56377
+    IMPROVED_COUNTERSPELL1 = 11255,
+    IMPROVED_COUNTERSPELL2 = 12598,//强化法术反制
+    ARCANE_MEDITATION = 18464,//rank 3奥术冥想
+    TORMENT_THE_WEAK = 55340,//rank 3欺凌弱小
+    ARCANE_CONCENTRATION = 12577,//rank 5, 奥术专注
+    ARCANE_POTENCY1 = 31571,
+    ARCANE_POTENCY2 = 31572,//奥术潜能
+    INCANTERS_ABSORPTION3 = 44396,//咒术吸收
+    ARCANE_EMPOWERMENT = 31583,//rank 3奥术增效
+    MISSILE_BARRAGE = 54490,//rank 5飞弹速射
+    ARCANE_JIZHONG = 12840,//rank 3奥术集中
+    XINGLINGXUEZHE = 44399,//rank 心灵学者
+    AOSHUXINZHI = 12503,//rank 奥术心智
+    XINLINGZHANGWO = 31588,//心灵掌握
+    LINGFENGFUMIAN = 44403,//灵风拂面
+
+
+    IMPACT = 12358,//rank 3冲击
+    IGNITE = 12848,//rank 5点燃
+    BURNING_DETERMINATION = 54749,//rank 2燃烧意志
+    IMPROVED_SCORCH = 12873,//rank 3强化灼烧
+    MOLTEN_SHIELDS = 13043,//rank 2熔岩护盾
+    FIRESTARTER1 = 44442,//一触即燃
+    FIRESTARTER2 = 44443,//一触即燃
+    MASTER_OF_ELEMENTS = 29076,//rank 3元素大师
+    HOT_STREAK = 44448,//rank 3法术连击
+    PYROMANIAC = 34296,//rank 3纵火
+    BLAZING_SPEED = 31642,//rank 2炽热疾速
+    WANHUOZIFENG = 31640,//玩火自焚 
+
+    FROSTBITE1 = 11071,
+    FROSTBITE2 = 12496,
+    FROSTBITE3 = 12497,//霜寒刺骨
+    FROST_WARDING = 28332,//rank 2冰霜障壁
+    SHATTER1 = 11170,//碎冰
+    SHATTER2 = 12982,
+    SHATTER3 = 12983,//碎冰
+    WINTERS_CHILL1 = 11180,
+    WINTERS_CHILL2 = 28592,
+    WINTERS_CHILL3 = 28593,//深冬之寒
+    IMPROVED_BLIZZARD = 12488,//rank 3强化暴风雪
+    INCANTERS_ABSORPTION1 = 44394,
+    INCANTERS_ABSORPTION2 = 44395,
+    SHATTERED_BARRIER = 54787,//rank 2碎裂屏障
+    //ARCTIC_WINDS                        = 31678,//rank 5 极寒之风
+    FINGERS_OF_FROST = 44545,//rank 2寒冰指
+    BRAIN_FREEZE1 = 44546,
+    BRAIN_FREEZE2 = 44548,
+    BRAIN_FREEZE3 = 44549,//思维冷却
+
+    GLYPH_POLYMORPH = 56375,
+    GLYPG_REMOVE_CURSE = 56364,
+    GLYPH_ICY_VEINS = 56374,//冰冷血脉雕文
+    GLYPH_LIVING_BOMB = 63091,//活动炸弹雕文
+    GLYPH_ICE_LANCE = 56377//冰枪雕文
 };
 enum MageSpecial
 {
@@ -1748,6 +1758,11 @@ public:
             RefreshAura(INCANTERS_ABSORPTION2, isArca && level >= 41 && level < 42 ? 1 : 0);
             RefreshAura(INCANTERS_ABSORPTION1, isArca && level >= 40 && level < 41 ? 1 : 0);
             RefreshAura(MISSILE_BARRAGE, isArca && level >= 45 ? 1 : 0);
+            RefreshAura(ARCANE_JIZHONG, isArca && level >= 45 ? 1 : 0);
+            RefreshAura(XINGLINGXUEZHE, isArca && level >= 45 ? 1 : 0);
+            RefreshAura(AOSHUXINZHI, isArca && level >= 75 ? 1 : 0);
+            RefreshAura(XINLINGZHANGWO, isArca && level >= 75 ? 1 : 0);
+            RefreshAura(LINGFENGFUMIAN, isArca && level >= 75 ? 1 : 0);
 
             RefreshAura(IGNITE, level >= 15 ? 1 : 0);
             RefreshAura(BURNING_DETERMINATION, level >= 15 ? 1 : 0);
@@ -1760,6 +1775,7 @@ public:
             RefreshAura(FIRESTARTER2, isFire && level >= 51 ? 1 : 0);
             RefreshAura(FIRESTARTER1, isFire && level >= 50 && level < 51 ? 1 : 0);
             RefreshAura(HOT_STREAK, isFire && level >= 50 ? 1 : 0);
+            RefreshAura(WANHUOZIFENG, isFire && level >= 60 ? 1 : 0);
 
             RefreshAura(FROSTBITE3, level >= 12 ? 1 : 0);
             RefreshAura(FROSTBITE2, level >= 11 && level < 12 ? 1 : 0);

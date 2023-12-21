@@ -133,6 +133,7 @@ enum BotGossips : uint32
     GOSSIP_SENDER_SCAN,
     GOSSIP_SENDER_DEBUG,
     GOSSIP_SENDER_DEBUG_ACTION,
+    GOSSIP_SENDER_RENAME,
 //GOSSIP CONST
     BOT_GOSSIP_MAX_ITEMS                = 32, // Client limitation 3.3.5 code confirmed
 };

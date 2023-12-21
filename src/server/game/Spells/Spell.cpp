@@ -8297,7 +8297,7 @@ SpellEvent::~SpellEvent()
     {
         LOG_ERROR("spells", "~SpellEvent: {} {} tried to delete non-deletable spell {}. Was not deleted, causes memory leak.",
                        (m_Spell->GetCaster()->GetTypeId() == TYPEID_PLAYER ? "Player" : "Creature"), m_Spell->GetCaster()->GetGUID().ToString(), m_Spell->m_spellInfo->Id);
-        ABORT();
+        //ABORT();
     }
 }
 

@@ -246,7 +246,7 @@ struct CreatureTemplate
     WorldPacket queryData; // pussywizard
     [[nodiscard]] uint32  GetRandomValidModelId() const;
     [[nodiscard]] uint32  GetFirstValidModelId() const;
-
+ 
     // helpers
     //npcbot
     bool IsNPCBot() const

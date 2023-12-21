@@ -72,13 +72,13 @@ public:
             else ShadowWordPain_Timer -= diff;
 
             //ManaBurn_Timer
-            if (ManaBurn_Timer <= diff)
+           /* if (ManaBurn_Timer <= diff)
             {
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                     DoCast(target, SPELL_MANABURN);
                 ManaBurn_Timer = 10000;
             }
-            else ManaBurn_Timer -= diff;
+            else ManaBurn_Timer -= diff;*/
 
             //PsychicScream_Timer
             if (PsychicScream_Timer <= diff)

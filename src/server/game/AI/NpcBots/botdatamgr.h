@@ -190,6 +190,8 @@ class BotDataMgr
         static uint8 GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask = 0);
         static uint32 GetNpcBotCountByIp(std::string ip);
 
+        static bool SetBotName(Creature* bot, std::string name);
+
         static void DespawnWandererBot(uint32 entry);
         static void LoadWanderMap(bool reload = false);
         static void GenerateWanderingBots();
