@@ -95,38 +95,43 @@ enum DruidBaseSpells
 enum DruidPassives
 {
 //Talents
-    OMEN_OF_CLARITY                     = 16864,//clearcast
-    NATURESGRACE                        = 61346,//rank 3
+
+    OMEN_OF_CLARITY                     = 16864,//clearcast清晰预兆
+    NATURESGRACE                        = 61346,//rank 3自然之赐
     NATURAL_PERFECTION1                 = 33881,
     NATURAL_PERFECTION2                 = 33882,
-    NATURAL_PERFECTION3                 = 33883,
+    NATURAL_PERFECTION3                 = 33883,//天然完美
     LIVING_SEED1                        = 48496,
     LIVING_SEED2                        = 48499,
-    LIVING_SEED3                        = 48500,
+    LIVING_SEED3                        = 48500,//生命之种
     REVITALIZE1                         = 48539,
     REVITALIZE2                         = 48544,
-    REVITALIZE3                         = 48545,
-    NATURALIST                          = 17073,//rank 5
-    IMPROVED_MARK_OF_THE_WILD           = 17051,//rank 2
-    FUROR                               = 17061,//rank 5
-    INTENSITY                           = 17108,//rank 3
-    LIVING_SPIRIT                       = 34153,//rank 3
-    GIFT_OF_THE_EARTHMOTHER             = 51183,//rank 5
-    ECLIPSE                             = 48525,//rank 3
-    EARTH_AND_MOON                      = 48511,//rank 3
-    SURVIVAL_OF_THE_FITTEST             = 33856,//rank 3
-    DREAMSTATE                          = 33956,//rank 3
-    BALANCE_OF_POWER                    = 33596,//rank 2
-    IMPROVED_MOONKIN_FORM               = 48396,//rank 3
-    OWLKIN_FRENZY                       = 48393,//rank 3 NOT REFRESHAURABLE
-    FERAL_SWIFTNESS                     = 24866,//rank 2 NOT REFRESHAURABLE
-    PRIMAL_PRECISION                    = 48410,//rank 2 expertise only, refund handled in Spell.cpp
-    NATURAL_REACTION                    = 57881,//rank 3 NOT REFRESHAURABLE
-    IMPROVED_LEADER_OF_THE_PACK         = 34300,//rank 2
-    PRIMAL_TENACITY                     = 33957,//rank 3
-    PREDATORY_INSTINCTS                 = 33867,//rank 3 NOT REFRESHAURABLE
-    KING_OF_THE_JUNGLE                  = 48495,//rank 3
-    PRIMAL_GORE                         = 63503,//rank 1
+    REVITALIZE3                         = 48545,//新生
+    LIVING_SPIRIT                       = 34153,//rank 3生命之魂
+    GIFT_OF_THE_EARTHMOTHER             = 51183,//rank 5大地母亲的恩赐
+    INTENSITY                           = 17108,//rank 3强烈
+    NATURALIST                          = 17073,//rank 5自然主义
+    FUROR                               = 17061,//rank 5激怒
+    IMPROVED_MARK_OF_THE_WILD           = 17051,//rank 2强化野性印记
+
+    ECLIPSE                             = 48525,//rank 3月蚀
+    EARTH_AND_MOON                      = 48511,//rank 3大地与月亮
+    DREAMSTATE                          = 33956,//rank 3梦境
+    BALANCE_OF_POWER                    = 33596,//rank 2能量平衡
+    IMPROVED_MOONKIN_FORM               = 48396,//rank 3强化枭兽形态
+    OWLKIN_FRENZY                       = 48393,//rank 3 枭兽狂乱 NOT REFRESHAURABLE
+    YUESHENZHIYING                      = 33591,//rank 月神指引 
+    QIANHUAJINGLINGHUO                  = 33602,//rank 强化精灵之火 
+
+    SURVIVAL_OF_THE_FITTEST             = 33856,//rank 3适者生存
+    FERAL_SWIFTNESS                     = 24866,//rank 2  豹之迅捷 NOT REFRESHAURABLE
+    PRIMAL_PRECISION                    = 48410,//rank 2 原始精准 expertise only, refund handled in Spell.cpp
+    NATURAL_REACTION                    = 57881,//rank 3 自然反射 NOT REFRESHAURABLE
+    IMPROVED_LEADER_OF_THE_PACK         = 34300,//rank 2强化兽群领袖
+    PRIMAL_TENACITY                     = 33957,//rank 3原始坚韧
+    PREDATORY_INSTINCTS                 = 33867,//rank 3 狩猎天性 NOT REFRESHAURABLE
+    KING_OF_THE_JUNGLE                  = 48495,//rank 3丛林之王
+    PRIMAL_GORE                         = 63503,//rank 1原始血瘀
 //Glyphs
     GLYPH_NOURISH                       = 62971,
     GLYPH_SWIFTMEND                     = 54824,//no consumption
@@ -1096,16 +1101,16 @@ public:
             //Starfall
             if (IsSpellReady(STARFALL_1, diff) && Rand() < 40)
             {
-                bool cast = (mytar->GetTypeId() == TYPEID_PLAYER || me->getAttackers().size() > 1);
+               /* bool cast = (mytar->GetTypeId() == TYPEID_PLAYER || me->getAttackers().size() > 1);
                 if (!cast)
                 {
                     std::list<Unit*> targets;
                     GetNearbyTargetsList(targets, 30.f, 0);
                     if (targets.size() > 3)
                         cast = true;
-                }
+                }*/
 
-                if (cast && doCast(me, GetSpell(STARFALL_1)))
+                if (doCast(me, GetSpell(STARFALL_1)))
                     return;
 
                 SetSpellCooldown(STARFALL_1, 1500); //fail
@@ -2757,6 +2762,8 @@ public:
             RefreshAura(IMPROVED_MOONKIN_FORM, !IAmFree() && isBala && level >= 40 ? 1 : 0);
             RefreshAura(ECLIPSE, isBala && level >= 50 ? 1 : 0);
             RefreshAura(EARTH_AND_MOON, isBala && level >= 55 ? 1 : 0);
+            RefreshAura(YUESHENZHIYING, isBala && level >= 65 ? 1 : 0);
+            RefreshAura(QIANHUAJINGLINGHUO, isBala && level >= 65 ? 1 : 0);
 
             RefreshAura(PRIMAL_PRECISION, isFera && level >= 25 ? 1 : 0);
             RefreshAura(SURVIVAL_OF_THE_FITTEST, isFera && level >= 35 ? 1 : 0);

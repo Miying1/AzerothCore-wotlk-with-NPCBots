@@ -21,32 +21,32 @@ TODO: rituals (not directly feasable), demonic circle, demonic empowerment, demo
 
 enum WarlockBaseSpells
 {
-    CURSE_OF_WEAKNESS_1                 = 702,
-    CURSE_OF_AGONY_1                    = 980,
-    CURSE_OF_TONGUES_1                  = 1714,
-    CURSE_OF_EXHAUSTION_1               = 18223,
-    CURSE_OF_THE_ELEMENTS_1             = 1490,
-    CURSE_OF_DOOM_1                     = 603,//NI
-    SHADOW_BOLT_1                       = 686,
-    IMMOLATE_1                          = 348,
-    CORRUPTION_1                        = 172,
-    SEED_OF_CORRUPTION_1                = 27243,
-    INCINERATE_1                        = 29722,
-    SEARING_PAIN_1                      = 5676,
-    SHADOWBURN_1                        = 17877,
-    CONFLAGRATE_1                       = 17962,
-    SOUL_FIRE_1                         = 6353,
-    CHAOS_BOLT_1                        = 50796,
-    RAIN_OF_FIRE_1                      = 5740,
-    HELLFIRE_1                          = 1949,
-    SHADOWFLAME_1                       = 47897,
-    SHADOWFURY_1                        = 30283,
-    HAUNT_1                             = 48181,
-    UNSTABLE_AFFLICTION_1               = 30108,
-    FEAR_1                              = 5782,
-    HOWL_OF_TERROR_1                    = 5484,
-    DEATH_COIL_1                        = 6789,
-    SOULSHATTER_1                       = 29858,
+    CURSE_OF_WEAKNESS_1 = 702,
+    CURSE_OF_AGONY_1 = 980,//痛苦诅咒
+    CURSE_OF_TONGUES_1 = 1714,//语言诅咒
+    CURSE_OF_EXHAUSTION_1 = 18223,//疲劳诅咒
+    CURSE_OF_THE_ELEMENTS_1 = 1490,//元素诅咒
+    CURSE_OF_DOOM_1 = 603,//NI厄运诅咒
+    SHADOW_BOLT_1 = 686,//暗影箭
+    IMMOLATE_1 = 348,//献祭
+    CORRUPTION_1 = 172,//腐蚀术
+    SEED_OF_CORRUPTION_1 = 27243,//腐蚀之种
+    INCINERATE_1 = 29722,//烧尽
+    SEARING_PAIN_1 = 5676,//灼热之痛
+    SHADOWBURN_1 = 17877,//暗影灼烧
+    CONFLAGRATE_1 = 17962,//燃烧
+    SOUL_FIRE_1 = 6353,//灵魂之火
+    CHAOS_BOLT_1 = 50796,//混乱之箭
+    RAIN_OF_FIRE_1 = 5740,//火焰之雨
+    HELLFIRE_1 = 1949,//地狱烈焰
+    SHADOWFLAME_1 = 47897,//暗影烈焰
+    SHADOWFURY_1 = 30283,//暗影之怒
+    HAUNT_1 = 48181,//鬼影缠身
+    UNSTABLE_AFFLICTION_1 = 30108,//痛苦无常
+    FEAR_1 = 5782,//恐惧
+    HOWL_OF_TERROR_1 = 5484,//恐惧嚎叫
+    DEATH_COIL_1 = 6789,//死亡缠绕
+    SOULSHATTER_1 = 29858,//灵魂碎裂
 
     DRAIN_SOUL_1                        = 1120,
     DRAIN_MANA_1                        = 5138,
@@ -183,7 +183,7 @@ static const uint32 Warlock_spells_cc_arr[] =
 static const uint32 Warlock_spells_support_arr[] =
 { CURSE_OF_TONGUES_1, CURSE_OF_EXHAUSTION_1, CURSE_OF_THE_ELEMENTS_1, CURSE_OF_WEAKNESS_1, DARK_PACT_1, DRAIN_MANA_1,
 DEMON_SKIN_1, DEMON_ARMOR_1, DETECT_INVISIBILITY_1, FEL_ARMOR_1, LIFE_TAP_1, SHADOW_WARD_1, SOULSHATTER_1,
-UNENDING_BREATH_1/*, CREATE_HEALTHSTONE_1, CREATE_SOULSTONE_1, RITUAL_OF_SUMMONING_1, RITUAL_OF_SOULS_1*/ };
+UNENDING_BREATH_1,RITUAL_OF_SUMMONING_1/*, CREATE_HEALTHSTONE_1, CREATE_SOULSTONE_1, RITUAL_OF_SUMMONING_1, RITUAL_OF_SOULS_1*/ };
 
 static const std::vector<uint32> Warlock_spells_damage(FROM_ARRAY(Warlock_spells_damage_arr));
 static const std::vector<uint32> Warlock_spells_cc(FROM_ARRAY(Warlock_spells_cc_arr));

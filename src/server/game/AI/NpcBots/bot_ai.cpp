@@ -1711,7 +1711,7 @@ void bot_ai::ResurrectGroup(uint32 spell_id)
 
         return;
     }
-
+    if (master->IsInCombat()) return;
     Group const* group = master->GetGroup();
     std::vector<Creature*> bottargets;
     BotMap const* map;

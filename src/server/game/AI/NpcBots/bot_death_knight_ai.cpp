@@ -115,6 +115,7 @@ enum DeathKnightPassives
     ACCLIMATION                         = 50152,//rank 3
     WANDERING_PLAGUE                    = 49655,//rank 3
     EBON_PLAGUEBRINGER                  = 51161,//rank 3
+    JIANRUOJINGGANG = 50138,//坚若精钢
 
 //Other
     //GLYPH_DANCING_RUNE_WEAPON           = 63330,
@@ -1866,6 +1867,7 @@ public:
             RefreshAura(IMPROVED_ICY_TALONS, !IAmFree() && isFros && level >= 60 ? 1 : 0);
             RefreshAura(THREAT_OF_THASSARIAN, isFros && level >= 62 ? 1 : 0);
             RefreshAura(ACCLIMATION, isFros && level >= 63 ? 1 : 0);
+            RefreshAura(JIANRUOJINGGANG, isFros && level >= 40 ? 1 : 0);
 
             RefreshAura(NECROSIS5, isUnho && level >= 62 ? 1 : 0);
             RefreshAura(NECROSIS4, isUnho && level >= 60 && level < 61 ? 1 : 0);

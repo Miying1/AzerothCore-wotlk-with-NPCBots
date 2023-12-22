@@ -1958,6 +1958,7 @@ public:
             RefreshAura(IMPROVED_DEVOURING_PLAGUE, isShad ? 1 : 0);
             RefreshAura(BAOSHOUZHEMO, isShad ? 1 : 0);
             RefreshAura(NIUQUXINGYANG, isShad ? 1 : 0);
+            RefreshAura(49868, isShad ? 1 : 0);
 
             //RefreshAura(GLYPH_SW_PAIN, level >= 15 ? 1 : 0);
             RefreshAura(GLYPH_KUXIU, isDisc && level >= 75 ? 1 : 0);
