@@ -718,7 +718,7 @@ public:
     {
         Player* owner = handler->GetSession()->GetPlayer();
 
-        if (!owner->HaveBot())
+        if (!owner)
         {
             handler->SendSysMessage(".npcbot command equip");
             handler->SendSysMessage("查看目标机器人的装备信息");
@@ -727,7 +727,7 @@ public:
         }
 
         Unit* target = owner->GetSelectedUnit();
-        if (target)
+        if (target && target->IsNPCBot())
         {
             target->ToCreature()->GetBotAI()->SendEquipList(owner);
         }
