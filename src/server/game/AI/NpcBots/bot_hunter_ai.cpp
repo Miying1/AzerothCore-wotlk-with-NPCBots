@@ -537,7 +537,7 @@ public:
         void CheckMendPet(uint32 diff)
         {
             if (!IsSpellReady(MEND_PET_1, diff) || checkMendTimer > diff || Rand() > 75 ||
-                !botPet || !botPet->IsAlive() || GetHealthPCT(botPet) > 80 ||
+                !botPet || !botPet->IsAlive() || !botPet->IsInWorld() || GetHealthPCT(botPet) > 80 ||
                 me->GetDistance(botPet) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
                 return;
 
@@ -722,7 +722,7 @@ public:
                     return;
             }
 
-            CheckMendPet(diff);
+            //CheckMendPet(diff);
 
             if (master->IsInCombat() || me->IsInCombat())
                 CheckScare(diff);

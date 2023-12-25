@@ -16047,14 +16047,14 @@ void bot_ai::_ProcessOrders()
             }
             else
             {
-                LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid spellCastParams.targetGuid {}!", ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
+               // LOG_ERROR("scripts", "bot_ai:_ProcessOrders: invalid spellCastParams.targetGuid {}!", ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
                 CancelOrder(order);
                 return;
             }
 
             if (!target || !target->IsInWorld())
             {
-                LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!",  ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
+               // LOG_ERROR("scripts", "bot_ai:_ProcessOrders: target {} not found!",  ObjectGuid(order.params.spellCastParams.targetGuid).ToString());
                 CancelOrder(order);
                 return;
             }
