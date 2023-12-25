@@ -84,7 +84,8 @@ enum rbac
     RBAC_PERM_COMMAND_NPCBOT_SPAWNED                         = SEC_GAMEMASTER,
     RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC                    = SEC_PLAYER,
     RBAC_PERM_COMMAND_NPCBOT_CREATENEW                       = SEC_ADMINISTRATOR,
-    RBAC_PERM_COMMAND_NPCBOT_SEND                            = SEC_PLAYER
+    RBAC_PERM_COMMAND_NPCBOT_SEND                            = SEC_PLAYER,
+    RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST                       = SEC_PLAYER
 };
 //end Acore only
 #endif
@@ -560,6 +561,7 @@ public:
 
         static ChatCommandTable npcbotCommandCommandTable =
         {
+            { "equip",      HandleNpcBotCommandEquipListCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST,          Console::No  },
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
             { "follow",     npcbotCommandFollowCommandTable                                                                         },
@@ -641,7 +643,7 @@ public:
         static ChatCommandTable npcbotUseOnBotCommandTable =
         {
             { "spell",      HandleNpcBotUseOnBotSpellCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
-            { "item",       HandleNpcBotUseOnBotItemCommand,        rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            //{ "item",       HandleNpcBotUseOnBotItemCommand,        rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
         };
 
         static ChatCommandTable npcbotCommandTable =
@@ -712,6 +714,30 @@ public:
         return wpc;
     }
 
+    static bool HandleNpcBotCommandEquipListCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command equip");
+            handler->SendSysMessage("查看目标机器人的装备信息");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Unit* target = owner->GetSelectedUnit();
+        if (target)
+        {
+            target->ToCreature()->GetBotAI()->SendEquipList(owner);
+        }
+        else
+        {
+            std::string msg = "请选择机器人目标";
+            handler->SendSysMessage(msg.c_str());
+        }
+        return true;
+    }
     static bool HandleNpcBotWPGenerateCommand(ChatHandler* handler, Optional<bool> save)
     {
         WanderNode::RemoveAllWPs();
@@ -1932,7 +1958,7 @@ public:
         uint8 newdist = uint8(std::min<int32>(std::max<int32>(*dist, 0), 100));
         owner->GetBotMgr()->SetBotFollowDist(newdist);
 
-        handler->PSendSysMessage("Bots' follow distance is set to %u", uint32(newdist));
+        handler->PSendSysMessage("跟随距离设置为: %u", uint32(newdist));
         return true;
     }
 
@@ -1948,7 +1974,7 @@ public:
 
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_SHORT);
 
-        handler->SendSysMessage("Bots' attack distance is set to 'short'");
+        handler->SendSysMessage("机器人将最小远程距离攻击");
         return true;
     }
 
@@ -1964,7 +1990,7 @@ public:
 
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_LONG);
 
-        handler->SendSysMessage("Bots' attack distance is set to 'long'");
+        handler->SendSysMessage("机器人将最大远程距离攻击");
         return true;
     }
 
@@ -1982,7 +2008,7 @@ public:
         uint8 newdist = uint8(std::min<int32>(std::max<int32>(*dist, 0), 50));
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_EXACT, newdist);
 
-        handler->PSendSysMessage("Bots' attack distance is set to %u", uint32(newdist));
+        handler->PSendSysMessage("机器人攻击距离设置为: %u", uint32(newdist));
         return true;
     }
 
@@ -3686,12 +3712,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_STAY);
-            msg = target->GetName() + "'s command state set to 'STAY'";
+            msg = target->GetName() + " 开始原地守卫";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_STAY);
-            msg = "Bots' command state set to 'STAY'";
+            msg = "所有机器人 开始原地守卫";
         }
 
         handler->SendSysMessage(msg.c_str());
@@ -3715,12 +3741,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_FULLSTOP);
-            msg = target->GetName() + "'s command state set to 'FULLSTOP'";
+            msg = target->GetName() + " 开始发呆";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_FULLSTOP);
-            msg = "Bots' command state set to 'FULLSTOP'";
+            msg = "所有机器人 开始发呆";
         }
 
         handler->SendSysMessage(msg.c_str());
@@ -3828,12 +3854,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_FOLLOW);
-            msg = target->GetName() + "'s command state set to 'FOLLOW'";
+            msg = target->GetName() + " 开始跟随你(战斗)";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_FOLLOW);
-            msg = "Bots' command state set to 'FOLLOW'";
+            msg = "所有机器人 开始跟随你(战斗)";
         }
 
         handler->SendSysMessage(msg.c_str());

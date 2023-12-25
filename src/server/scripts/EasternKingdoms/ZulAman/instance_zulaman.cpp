@@ -118,7 +118,7 @@ public:
         {
             if (!HarrisonJonesGUID)
                 instance->SummonCreature(NPC_HARRISON_JONES, HarrisonJonesLoc);
-            
+            CheckInstanceStatus();
         }
 
         void OnCreatureCreate(Creature* creature) override

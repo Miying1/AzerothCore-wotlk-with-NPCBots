@@ -19725,6 +19725,80 @@ void bot_ai::SendUpdateToOutOfRangeBotGroupMembers()
         
 }
 
+void bot_ai::SendEquipList(Player* player)
+{
+    EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(me->GetEntry());
+    ASSERT(einfo, "Trying to send equipment list for bot with no equip info!");
+
+    for (uint8 i = BOT_SLOT_MAINHAND; i != BOT_INVENTORY_SIZE; ++i)
+    {
+        Item const* item = _equips[i];
+        if (!item) continue;
+        std::ostringstream msg;
+        msg << LoadEquipPartName(i);
+        _AddItemLink(player, item, msg/*, false*/);
+        //uncomment if needed
+        //msg << " in slot " << uint32(i) << " (" << _getNameForSlot(i + 1) << ')';
+        if (i <= BOT_SLOT_RANGED && einfo->ItemEntry[i] == item->GetEntry())
+            msg << " |cffe6cc80|h[!" << LocalizedNpcText(player, BOT_TEXT_VISUALONLY) << "!]|h|r";
+        BotWhisper(msg.str(), player);
+    }
+    std::ostringstream msg0;
+    msg0 << me->GetName() << " (" << LocalizedNpcText(player, BOT_TEXT_CLASS) << ") ";
+   
+    Player const* owner = me->GetBotOwner();
+    if (owner) {
+        msg0 << LocalizedNpcText(player, BOT_TEXT_MASTER) << ": ";
+        msg0 <<  owner->GetName();
+    }
+    msg0 << " GS: " << uint32(GetBotGearScores().first);
+    BotWhisper(msg0.str(), player);
+}
+
+std::string bot_ai::LoadEquipPartName(uint8 slot)
+{
+    switch (slot)
+    {
+    case BOT_SLOT_MAINHAND:
+        return "[主]";
+    case BOT_SLOT_OFFHAND:
+        return "[副]";
+    case BOT_SLOT_RANGED:
+        return "[远]";
+    case BOT_SLOT_HEAD:
+        return "[头]";
+    case BOT_SLOT_SHOULDERS:
+        return "[肩]";
+    case BOT_SLOT_CHEST:
+        return "[胸]";
+    case BOT_SLOT_WAIST:
+        return "[腰]";
+    case BOT_SLOT_LEGS:
+        return "[腿]";
+    case BOT_SLOT_FEET:
+        return "[脚]";
+    case BOT_SLOT_WRIST:
+        return "[腕]";
+    case BOT_SLOT_HANDS:
+        return "[手]";
+    case BOT_SLOT_BACK:
+        return "[披]";
+    case BOT_SLOT_BODY:
+        return "[衬]";
+    case BOT_SLOT_FINGER1:
+    case BOT_SLOT_FINGER2:
+        return "[指]";
+    case BOT_SLOT_TRINKET1:
+    case BOT_SLOT_TRINKET2:
+        return "[饰]";
+    case BOT_SLOT_NECK:
+        return "[项]";
+    default:
+        break;
+    }
+    return "";
+}
+
 //BATTLEGROUNDS
 bool bot_ai::IsFlagCarrier(Unit const* unit, BattlegroundTypeId bgTypeId)
 {

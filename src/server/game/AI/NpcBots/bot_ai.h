@@ -183,6 +183,8 @@ class bot_ai : public CreatureAI
         void SetAuraUpdateMaskForRaid(uint8 slot) { _auraRaidUpdateMask |= (uint64(1) << slot); }
         void ResetAuraUpdateMaskForRaid() { _auraRaidUpdateMask = 0; }
         void SendUpdateToOutOfRangeBotGroupMembers();
+        void SendEquipList(Player* player);
+        std::string LoadEquipPartName(uint8 slot);
         void SetBattlegroundOrBattlefieldRaid(Group* group, int8 subgroup);
         void RemoveFromBattlegroundOrBattlefieldRaid();
         Group* GetOriginalGroup() const { return _originalGroup.getTarget(); }
