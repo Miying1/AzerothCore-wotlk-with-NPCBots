@@ -272,9 +272,9 @@ public:
             if (GetBossState(DATA_LADY_DEATHWHISPER) == DONE && GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
                 SpawnGunship();
 
-            if (GetBossState(DATA_SINDRAGOSA) != DONE && IsSindragosaIntroDone && !GetCreature(DATA_SINDRAGOSA) && Events.GetTimeUntilEvent(EVENT_RESPAWN_SINDRAGOSA) == Milliseconds::max())
+            if (GetBossState(DATA_SINDRAGOSA) != DONE && !GetCreature(DATA_SINDRAGOSA) && Events.GetTimeUntilEvent(EVENT_RESPAWN_SINDRAGOSA) == Milliseconds::max())
             {
-                Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30s);
+                Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30);
             }
 
             if (IsBuffAvailable)
