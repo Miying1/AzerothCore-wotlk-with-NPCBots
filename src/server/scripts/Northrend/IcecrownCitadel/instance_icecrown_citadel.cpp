@@ -274,7 +274,7 @@ public:
 
             if (GetBossState(DATA_SINDRAGOSA) != DONE && !GetCreature(DATA_SINDRAGOSA) && Events.GetTimeUntilEvent(EVENT_RESPAWN_SINDRAGOSA) == Milliseconds::max())
             {
-                Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30);
+                Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30s);
             }
 
             if (IsBuffAvailable)
