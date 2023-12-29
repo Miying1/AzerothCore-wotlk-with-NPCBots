@@ -22,31 +22,26 @@ script made by talamortis
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "Chat.h"
+#include "TnEchants.h"
 
-struct ItemEnchants
-{
-    uint32    item_guid;
-    int32     attr_group;
-    int32     oid;
-    int32     refm_count;
-};
+ 
 enum FMITEM
 {
-    TTFUWEN    =60100, //符文
-    TTJINGHUA  =60101 //精华
+    TTFUWEN = 60100, //符文
+    TTJINGHUA = 60101 //精华
 };
-std::unordered_map<int, ItemEnchants> ItemEnchantsStore;
-float rolleh_chance;
-float rolltx_chance;
+
 class ReEnchants_WorldScript : public WorldScript
 {
 public:
     ReEnchants_WorldScript() : WorldScript("ReEnchants_WorldScript") { }
- 
+
     void OnAfterConfigLoad(bool /*reload*/) override
     {
-        rolleh_chance = sConfigMgr->GetOption<float>("RandomEnchants.rolleh_chance", 70.0f);;
-        rolltx_chance = sConfigMgr->GetOption<float>("RandomEnchants.rolltx_chance", 70.0f);;
+        tnEchants->InitConfig();
+    }
+    void OnStartup() override {
+        tnEchants->InitData();
     }
 };
 
@@ -60,11 +55,11 @@ public:
     {
         if (player->IsInCombat())
             return false;
-      
+
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想重新附魔首饰。", GOSSIP_SENDER_MAIN, 1);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想重铸首饰的力量。", GOSSIP_SENDER_MAIN + 1, 2);
-        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "我需要泰坦能量", GOSSIP_SENDER_MAIN+4, 1);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "请介绍下泰坦附魔。", GOSSIP_SENDER_MAIN+5, 1);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想强化首饰的附魔力量。", GOSSIP_SENDER_MAIN + 1, 2);
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "我需要泰坦能量", GOSSIP_SENDER_MAIN + 4, 1);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "请介绍下泰坦附魔。", GOSSIP_SENDER_MAIN + 5, 1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "离开...", GOSSIP_SENDER_MAIN + 2, 3);
         SendGossipMenuFor(player, textId, creature->GetGUID());
         return true;
@@ -73,8 +68,8 @@ public:
     bool OnGossipSelect(Player* player, Creature* creature, uint32  sender, uint32 action)
     {
         player->PlayerTalkClass->ClearMenus();
-         
-        std::set<uint32> itemList ;
+
+        std::set<uint32> itemList;
         int result = 0;
         switch (sender)
         {
@@ -98,7 +93,7 @@ public:
                 SendGossipMenuFor(player, textId + 1, creature->GetGUID());
                 break;
             }
-            GetItemList(player, 100,&itemList);
+            GetItemList(player, 100, &itemList);
             if (itemList.empty()) {
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
                 SendGossipMenuFor(player, textId + 3, creature->GetGUID());
@@ -117,8 +112,8 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
                 SendGossipMenuFor(player, textId + 3, creature->GetGUID());
                 break;
-            } 
-            SendGossipMenuFor(player, textId + 4, creature->GetGUID()); 
+            }
+            SendGossipMenuFor(player, textId + 5, creature->GetGUID());
             break;
 
         case 100:
@@ -129,7 +124,7 @@ public:
             }
             result = RollPossibleEnchant(player, action);
             if (result == 0) {
-                ChatHandler(player->GetSession()).PSendSysMessage("附魔失败！");
+                ChatHandler(player->GetSession()).PSendSysMessage("附魔失败:%u", action);
                 CloseGossipMenuFor(player);
             }
             else
@@ -137,7 +132,7 @@ public:
                 std::string msg = result == 1 ? "泰坦符文能量消散了！" : "泰坦符文能量汇聚于你的装备之上！";
                 ChatHandler(player->GetSession()).PSendSysMessage(msg.c_str());
                 player->DestroyItemCount(TTFUWEN, 1, true);
-                return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 1); 
+                return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 1);
             }
             break;
         case 200:
@@ -146,105 +141,41 @@ public:
                 SendGossipMenuFor(player, textId + 2, creature->GetGUID());
                 break;
             }
-            result = RollTXEnchant(player, action);
+            result = UpdateEnchant(player, action);
             if (result == 0) {
-                ChatHandler(player->GetSession()).PSendSysMessage("附魔失败！");
+                ChatHandler(player->GetSession()).PSendSysMessage("附魔失败:%u",action);
                 CloseGossipMenuFor(player);
             }
             else
             {
-                std::string msg = result == 1 ? "泰坦精华能量消散了！" : "泰坦精华能量汇聚于你的装备之上！";
+                std::string msg = result == 1 ? "泰坦精华能量消散了,但下次成功的机会更多了！" : result == 2 ? "泰坦精华能量汇聚于你的装备之上！":"当前装备的附魔等级已达到最大值.";
                 ChatHandler(player->GetSession()).PSendSysMessage(msg.c_str());
-                player->DestroyItemCount(TTJINGHUA, 1, true);
-                return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN+1, 1);
+                if(result!=3)
+                    player->DestroyItemCount(TTJINGHUA, 1, true);
+                return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN + 1, 1);
             }
             break;
         }
         return true;
     }
     int RollPossibleEnchant(Player* player, uint32 item_guid) {
-         auto guid=ObjectGuid::Create<HighGuid::Item>(item_guid);
-         Item* item = player->GetItemByGuid(guid);
-        if (!item) return 0;
-        if (rand_chance() > rolleh_chance) return 1;
-        uint32 itemtype = item->GetTemplate()->InventoryType;
-      
-        std::string part = "";
-        if (itemtype == 2) {//项链
-            part = "(1,2)";
-        }
-        else
-        {
-            part = "(1)";
-        }
-        QueryResult qr = WorldDatabase.Query("SELECT enchantID,attr_group,oid FROM mod_item_enchantment_random WHERE  part in{} ORDER BY RAND() LIMIT 1", part);
-        if (!qr) return 0;
-        int slotRand = qr->Fetch()[0].Get<uint32>();
-        int attr_group = qr->Fetch()[1].Get<uint32>();
-        int oid = qr->Fetch()[2].Get<uint32>();
-      
-        if (sSpellItemEnchantmentStore.LookupEntry(slotRand)) { //Make sure enchantment id exists
-            player->ApplyEnchantment(item, EnchantmentSlot(0), false);
-            item->SetEnchantment(EnchantmentSlot(0), slotRand, 0, 0);
-            player->ApplyEnchantment(item, EnchantmentSlot(0), true);
-            SaveRandEnchantmentToDB(item->GetGUID().GetCounter(), oid, attr_group);
-            auto its = ItemEnchantsStore.find(item_guid);
-            if (its != ItemEnchantsStore.end()) {
-                auto itemEh = its->second;
-                ItemEnchantsStore[item_guid].attr_group = attr_group;
-                ItemEnchantsStore[item_guid].oid = oid;
-                ItemEnchantsStore[item_guid].refm_count = 0;
-            }
-            else
-            {
-                ItemEnchants newitemEh{};
-                newitemEh.item_guid = item_guid;
-                newitemEh.attr_group = attr_group;
-                newitemEh.oid = oid;
-                newitemEh.refm_count =0;
-                ItemEnchantsStore[item_guid] = newitemEh;
-            }
-            return 2;
-        }
-        else
-        {
-            return 0;
-        }
-
-    }
-    void SaveRandEnchantmentToDB(int itemguid, int oid, int attr_group) {
-        WorldDatabase.Query("REPLACE into mod_item_enchantment_result(item_guid,attr_group,oid)values({},{},{});", itemguid, attr_group, oid);
-    }
-    int RollTXEnchant(Player* player, uint32 item_guid) {
         auto guid = ObjectGuid::Create<HighGuid::Item>(item_guid);
         Item* item = player->GetItemByGuid(guid);
         if (!item) return 0;
-        if (rand_chance() > rolleh_chance) return 1;
-        uint32 itemtype = item->GetTemplate()->InventoryType;
-        auto its = ItemEnchantsStore.find(item_guid);
-        if (its == ItemEnchantsStore.end()) return 0;
-        auto itemEnchants = &its->second;
-        
-        QueryResult qr = WorldDatabase.Query("SELECT enchantID FROM mod_item_enchantment_random WHERE  attr_group={} ORDER BY RAND() LIMIT 1", itemEnchants->attr_group);
-        if (!qr) return 0;
-        int slotRand = qr->Fetch()[0].Get<uint32>(); 
-
-        if (sSpellItemEnchantmentStore.LookupEntry(slotRand)) { //Make sure enchantment id exists
-            player->ApplyEnchantment(item, EnchantmentSlot(0), false);
-            item->SetEnchantment(EnchantmentSlot(0), slotRand, 0, 0);
-            player->ApplyEnchantment(item, EnchantmentSlot(0), true);
-            QueryResult qr = WorldDatabase.Query("update mod_item_enchantment_result set refm_count=refm_count+1 where item_guid={}", itemEnchants->item_guid);
-            ItemEnchantsStore[item_guid].refm_count = itemEnchants->refm_count + 1;
-            return 2;
-        }
-        else
-        {
-            return 0;
-        }
-
+        if (rand_chance() > tnEchants->ReRandChance) return 1;
+        bool res = tnEchants->RandomEnchEffect(player, item);
+        return res ? 2 : 1;
+    }
+    //升级FM值
+    int UpdateEnchant(Player* player, uint32 item_guid) {
+        auto guid = ObjectGuid::Create<HighGuid::Item>(item_guid);
+        Item* item = player->GetItemByGuid(guid);
+        if (!item) return 0;
+        int res_flag= tnEchants->UpEnchLevel(player, item);
+        return res_flag;
     }
 
-    void GetItemList(Player* player, int sender, std::set<uint32>* itemList) { 
+    void GetItemList(Player* player, int sender, std::set<uint32>* itemList) {
         //s2.1.2: other bags
         for (uint8 i = INVENTORY_SLOT_BAG_START; i != INVENTORY_SLOT_BAG_END; ++i)
         {
@@ -261,7 +192,7 @@ public:
                             || (itemtype != 12 && itemtype != 2))
                             continue;
                         int itemid = pItem->GetGUID().GetCounter();
-                        if (!GetItemEnchants(itemid)) continue;
+                        if (!tnEchants->VerifyItemIsTn(itemid)) continue;
 
                         std::ostringstream name;
                         _AddItemLink(player, pItem, name, true);
@@ -271,44 +202,13 @@ public:
                     }
                 }
             }
-        } 
+        }
     }
     bool VerifyReqItem(Player* player, int hasreqItem) {
         auto item = player->GetItemByEntry(hasreqItem);
         if (item) return true;
         return false;
-        // other bags
-        /*for (uint8 i = INVENTORY_SLOT_BAG_START; i != INVENTORY_SLOT_BAG_END; ++i)
-        {
-            if (Bag const* pBag = player->GetBagByPos(i))
-            {
-                for (uint32 j = 0; j != pBag->GetBagSize(); ++j)
-                {
-                    if (Item const* pItem = player->GetItemByPos(i, j))
-                    {
-                        uint32 itemtype = pItem->GetTemplate()->InventoryType;
-                        if (pItem->GetEntry() == hasreqItem)
-                            return true;
-                    }
-                }
-            }
-        }
-        return false;*/
-    }
-    bool GetItemEnchants(int item_guid) {
-        auto its = ItemEnchantsStore.find(item_guid);
-        if (its != ItemEnchantsStore.end()) return true;
-
-        QueryResult qr = WorldDatabase.Query("SELECT attr_group,oid,refm_count FROM mod_item_enchantment_result WHERE  item_guid={} ", item_guid);
-        if (!qr) return false;
-        ItemEnchants itemEnchants{};
-        itemEnchants.item_guid = item_guid;
-        itemEnchants.attr_group = qr->Fetch()[0].Get<uint32>();
-        itemEnchants.oid = qr->Fetch()[1].Get<uint32>();
-        itemEnchants.refm_count = qr->Fetch()[2].Get<uint32>();
-        ItemEnchantsStore[item_guid] = itemEnchants;
-        return true;
-    }
+    } 
     void _AddItemLink(Player const* forPlayer, Item const* item, std::ostringstream& str, bool addIcon)
     {
         ItemTemplate const* proto = item->GetTemplate();
@@ -363,7 +263,7 @@ public:
         str << item->GetItemRandomPropertyId() << ':';
         str << item->GetItemSuffixFactor() << ':';
 
-         
+
 
         //name
         _LocalizeItem(forPlayer, name, item->GetEntry());
@@ -380,7 +280,7 @@ public:
         //TC_LOG_ERROR("entities.player", "bot_ai::_AddItemLink(): %s", str.str().c_str());
     }
     //Localization
-    void _LocalizeItem(Player const* forPlayer, std::string& itemName, uint32 entry) 
+    void _LocalizeItem(Player const* forPlayer, std::string& itemName, uint32 entry)
     {
         uint32 loc = forPlayer->GetSession()->GetSessionDbLocaleIndex();
         std::wstring wnamepart;

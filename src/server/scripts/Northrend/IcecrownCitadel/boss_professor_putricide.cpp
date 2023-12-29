@@ -795,7 +795,7 @@ public:
             else if (targetGUID)
             {
                 Unit* target = ObjectAccessor::GetUnit(*me, targetGUID);
-                if (me->GetVictim()->GetGUID() != targetGUID || !target || target->GetTypeId() != TYPEID_PLAYER || !me->IsValidAttackTarget(target) || target->HasUnitFlag2(UNIT_FLAG2_FEIGN_DEATH) || target->GetExactDist2dSq(4356.0f, 3211.0f) > 80.0f * 80.0f || target->GetPositionZ() < 380.0f || target->GetPositionZ() > 405.0f)
+                if (me->GetVictim()->GetGUID() != targetGUID || !target || !me->IsValidAttackTarget(target) || target->HasUnitFlag2(UNIT_FLAG2_FEIGN_DEATH) || target->GetExactDist2dSq(4356.0f, 3211.0f) > 80.0f * 80.0f || target->GetPositionZ() < 380.0f || target->GetPositionZ() > 405.0f)
                     SelectNewTarget();
             }
         }
@@ -1121,11 +1121,19 @@ public:
                 GetCaster()->ToCreature()->DespawnOrUnsummon(1);    // despawn next update
                 return;
             }
-
-            WorldObject* target = Acore::Containers::SelectRandomContainerElement(targets);
+            for (std::list<WorldObject*>::iterator it = targets.begin(); it != targets.end(); ++it) {
+                WorldObject* obj = *it;
+                if (obj && obj->GetTypeId() == TYPEID_PLAYER) {
+                    targets.clear();
+                    targets.push_back(obj);
+                    _target = obj;
+                    break;
+                }
+            }
+           /* WorldObject* target = Acore::Containers::SelectRandomContainerElement(targets);
             targets.clear();
             targets.push_back(target);
-            _target = target;
+            _target = target;*/
         }
 
         void SetTarget(std::list<WorldObject*>& targets)

@@ -5,15 +5,9 @@
 #include "Player.h"
 #include "Configuration/Config.h"
 #include "Chat.h"
+#include "TnEchants.h"
 
-
-struct RandomEnchant
-{
-    uint32    EnchantID;
-    uint32    AttrGroup;
-    uint32    part;
-    uint32    oid; 
-};
+ 
 
 class RandomEnchantsPlayer : public PlayerScript {
 public:
@@ -41,7 +35,7 @@ public:
             return;
         }
         if (!item) return; 
-        float enchantChance1 = sConfigMgr->GetOption<float>("RandomEnchants.EnchantChance1", 30.0f);
+        float enchantChance1 = sConfigMgr->GetOption<float>("RandomEnchants.LootEnchantChance1", 30.0f);
         if (rand_chance() > enchantChance1) return;
 
         uint32 Quality = item->GetTemplate()->Quality;
@@ -55,38 +49,10 @@ public:
             || (itemtype !=12 && itemtype !=2)
             ) {
             return;
-        } 
-        std::string part = "";
-        if (itemtype == 2) {//项链
-            part = "(1,2)";
         }
-        else
-        {
-            part = "(1)";
-        }
-        QueryResult qr = WorldDatabase.Query("SELECT enchantID,attr_group,oid FROM mod_item_enchantment_random WHERE  part in{} ORDER BY RAND() LIMIT 1", part);
-        if (!qr) return;
-        int slotRand= qr->Fetch()[0].Get<uint32>();
-        int attr_group = qr->Fetch()[1].Get<uint32>();
-        int oid = qr->Fetch()[2].Get<uint32>(); 
-       
-        if (sSpellItemEnchantmentStore.LookupEntry(slotRand)) { //Make sure enchantment id exists
-            player->ApplyEnchantment(item, EnchantmentSlot(0), false);
-            item->SetEnchantment(EnchantmentSlot(0), slotRand, 0, 0);
-            player->ApplyEnchantment(item, EnchantmentSlot(0), true);
-            SaveRandEnchantmentToDB(item->GetGUID().GetCounter(), oid, attr_group);
-         
-        }
-        else
-        {
-            return;
-        }
- 
+        tnEchants->RandomEnchEffect(player, item);  
     }
-    void SaveRandEnchantmentToDB(int itemguid,int oid,int attr_group) {
-         WorldDatabase.Query("REPLACE into mod_item_enchantment_result(item_guid,attr_group,oid)values({},{},{});", itemguid, attr_group, oid );
-    }
-   
+     
 };
 
 void AddRandomEnchantsScripts() {

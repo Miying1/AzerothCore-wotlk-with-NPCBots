@@ -34,13 +34,15 @@ RandomEnchants.OnCreate=1
 
 RandomEnchants.OnGroupRoll = 1
 
-#     RandomEnchants.EnchantChance1
+#     RandomEnchants.LootEnchantChance1
 #        Probability (in percentage) for the first enchant to be applied.
 #        Default:     70.0
 
-RandomEnchants.EnchantChance1=35.0
+RandomEnchants.LootEnchantChance1=45.0
 #重新FM成功率
-RandomEnchants.rolleh_chance=85.0
-#洗属性成功率
-RandomEnchants.rolltx_chance=85.0
+RandomEnchants.ReRandChance=85.0
+#随机FM值的范围%
+RandomEnchants.RandRangeattrMaxPct=0.50
  
+#最高等级属性洗练成功率
+RandomEnchants.MaxAttrChance=20.0

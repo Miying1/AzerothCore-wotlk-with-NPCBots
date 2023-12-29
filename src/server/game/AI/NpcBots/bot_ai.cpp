@@ -11442,7 +11442,7 @@ void bot_ai::_autoLootCreatureGold(Creature* creature) const
             if (p && p->IsAtGroupRewardDistance(creature))
                 players.push_back(p);
         }
-
+        if (players.empty()) return;
         uint32 goldPerPlayer = uint32(loot->gold / uint32(players.size()));
 
         for (std::vector<Player*>::const_iterator i = players.begin(); i != players.end(); ++i)
