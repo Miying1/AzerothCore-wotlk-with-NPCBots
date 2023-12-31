@@ -11,16 +11,16 @@ public:
     TransmogItemScript() : ItemScript("TransmogItemScript") { }
 
     bool OnUse(Player* p, Item* i, const SpellCastTargets&) override
-    {
-        if (p->IsInCombat() || p->IsInFlight() || p->GetMap()->IsBattlegroundOrArena())
-        {
-            ChatHandler(p->GetSession()).PSendSysMessage("你现在还不能使用它!");
-            return false;
+    { 
+        if (p->CastSpell(p->ToUnit(), 100004, false, i) == SPELL_CAST_OK) {
+            if (urand(1, 2) == 1)
+                p->SetDisplayId(11657);
+            else
+            {
+                p->SetDisplayId(4527);
+            }
         }
-
-        p->SetAtLoginFlag(AT_LOGIN_RENAME);
-        p->DestroyItemCount(i->GetEntry(), 1, true);
-        ChatHandler(p->GetSession()).PSendSysMessage("成功: 请返回角色登录界面以修改角色名称.");
+        ChatHandler(p->GetSession()).PSendSysMessage("成功.");
         return true;
     }
 };

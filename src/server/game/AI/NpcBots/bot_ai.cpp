@@ -7799,8 +7799,8 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
             astr << LocalizedNpcText(player, BOT_TEXT_ABANDON_WARN_1) << me->GetName() << "? " << (BotMgr::IsEnrageOnDimissEnabled() ? LocalizedNpcText(player, BOT_TEXT_ABANDON_WARN_2) : "");
             player->PlayerTalkClass->GetGossipMenu().AddMenuItem(-1, GOSSIP_ICON_TAXI, LocalizedNpcText(player, BOT_TEXT_UR_DISMISSED),
                 GOSSIP_SENDER_DISMISS, GOSSIP_ACTION_INFO_DEF + 1, astr.str().c_str(), 0, false);
-
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_PULL_URSELF), GOSSIP_SENDER_TROUBLESHOOTING, GOSSIP_ACTION_INFO_DEF + 1);
+            //LocalizedNpcText(player, BOT_TEXT_PULL_URSELF)
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "状态管理", GOSSIP_SENDER_TROUBLESHOOTING, GOSSIP_ACTION_INFO_DEF + 1);
         }
     }
 
@@ -10565,7 +10565,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             //AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Fix not mounting/following", GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_REMOVE_BUFF) + "...", GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 2);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_FIX_POWER), GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 3);
-            if (player->IsGameMaster())
+            if (player==master)
             {
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "更改机器人名称", GOSSIP_SENDER_RENAME, GOSSIP_ACTION_INFO_DEF + 1, "输入新名称", 0, true);
             }
