@@ -7664,10 +7664,6 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
     if (_ownerGuid)
     {
         Group const* gr = player->GetGroup();
-        if (player->IsGameMaster())
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "更改名称", GOSSIP_SENDER_RENAME, GOSSIP_ACTION_INFO_DEF + 1, "输入新名称", 0, true);
-        }
         if (player == master)
         {
             menus = true;
@@ -10569,6 +10565,10 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             //AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Fix not mounting/following", GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_REMOVE_BUFF) + "...", GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 2);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_FIX_POWER), GOSSIP_SENDER_TROUBLESHOOTING_FIX, GOSSIP_ACTION_INFO_DEF + 3);
+            if (player->IsGameMaster())
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "更改机器人名称", GOSSIP_SENDER_RENAME, GOSSIP_ACTION_INFO_DEF + 1, "输入新名称", 0, true);
+            }
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_BACK), 1, GOSSIP_ACTION_INFO_DEF + 4);
             break;
         }
@@ -10867,13 +10867,20 @@ bool bot_ai::OnGossipSelectCode(Player* player, Creature* creature/* == me*/, ui
             return OnGossipSelect(player, creature, GOSSIP_SENDER_ENGAGE_BEHAVIOR, action);
         }
         case GOSSIP_SENDER_RENAME:
-        { 
+        {
+            auto reqitem = player->GetItemByEntry(60021);
+            if (!reqitem) {
+                ChatHandler(player->GetSession()).PSendSysMessage("你的背包中没有机器人改名卡。");
+                break;
+            }
             std::string name = std::string(code);
             if (!BotDataMgr::SetBotName(me, name)) {
                 BotWhisper("改名失败:"+name, player);
             }
             else {
-                BotWhisper("改名成功:" + name, player);
+                player->DestroyItemCount(60021, 1, true);
+                ChatHandler(player->GetSession()).PSendSysMessage("改名成功，需要删除本地缓存Cache目录重启游戏。");
+                //BotWhisper("改名成功，需要删除本地缓存Cache目录重启游戏。" , player);
             }
         }
         default:
