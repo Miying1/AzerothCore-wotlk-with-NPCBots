@@ -7038,39 +7038,46 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
         }
         case 71519: // Deathbringer's Will Normal
         {
-            if (GetTypeId() != TYPEID_PLAYER || HasSpellCooldown(71484))
-                return false;
 
+            if (HasSpellCooldown(71484))
+                return false;
             AddSpellCooldown(71484, 0, cooldown);
-
             std::vector<uint32> RandomSpells;
-            switch (getClass())
+            if (GetTypeId() == TYPEID_PLAYER) {
+                switch (getClass())
+                {
+                case CLASS_WARRIOR:
+                case CLASS_PALADIN:
+                case CLASS_DEATH_KNIGHT:
+                    RandomSpells.push_back(71484);
+                    RandomSpells.push_back(71491);
+                    RandomSpells.push_back(71492);
+                    break;
+                case CLASS_SHAMAN:
+                case CLASS_ROGUE:
+                    RandomSpells.push_back(71486);
+                    RandomSpells.push_back(71485);
+                    RandomSpells.push_back(71492);
+                    break;
+                case CLASS_DRUID:
+                    RandomSpells.push_back(71484);
+                    RandomSpells.push_back(71485);
+                    RandomSpells.push_back(71492);
+                    break;
+                case CLASS_HUNTER:
+                    RandomSpells.push_back(71486);
+                    RandomSpells.push_back(71491);
+                    RandomSpells.push_back(71485);
+                    break;
+                default:
+                    return false;
+                }
+            }
+            else if(IsNPCBot())
             {
-            case CLASS_WARRIOR:
-            case CLASS_PALADIN:
-            case CLASS_DEATH_KNIGHT:
                 RandomSpells.push_back(71484);
                 RandomSpells.push_back(71491);
                 RandomSpells.push_back(71492);
-                break;
-            case CLASS_SHAMAN:
-            case CLASS_ROGUE:
-                RandomSpells.push_back(71486);
-                RandomSpells.push_back(71485);
-                RandomSpells.push_back(71492);
-                break;
-            case CLASS_DRUID:
-                RandomSpells.push_back(71484);
-                RandomSpells.push_back(71485);
-                RandomSpells.push_back(71492);
-                break;
-            case CLASS_HUNTER:
-                RandomSpells.push_back(71486);
-                RandomSpells.push_back(71491);
-                RandomSpells.push_back(71485);
-                break;
-            default:
-                return false;
             }
             if (RandomSpells.empty()) // shouldn't happen
                 return false;
@@ -7081,40 +7088,49 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
         }
         case 71562: // Deathbringer's Will Heroic
         {
-            if (GetTypeId() != TYPEID_PLAYER || HasSpellCooldown(71561))
+            if (HasSpellCooldown(71561))
                 return false;
 
             AddSpellCooldown(71561, 0, cooldown);
 
             std::vector<uint32> RandomSpells;
-            switch (getClass())
-            {
-            case CLASS_WARRIOR:
-            case CLASS_PALADIN:
-            case CLASS_DEATH_KNIGHT:
-                RandomSpells.push_back(71561);
-                RandomSpells.push_back(71559);
-                RandomSpells.push_back(71560);
-                break;
-            case CLASS_SHAMAN:
-            case CLASS_ROGUE:
-                RandomSpells.push_back(71558);
-                RandomSpells.push_back(71556);
-                RandomSpells.push_back(71560);
-                break;
-            case CLASS_DRUID:
-                RandomSpells.push_back(71561);
-                RandomSpells.push_back(71556);
-                RandomSpells.push_back(71560);
-                break;
-            case CLASS_HUNTER:
-                RandomSpells.push_back(71558);
-                RandomSpells.push_back(71559);
-                RandomSpells.push_back(71556);
-                break;
-            default:
-                return false;
+            if (GetTypeId() == TYPEID_PLAYER) {
+                switch (getClass())
+                {
+                case CLASS_WARRIOR:
+                case CLASS_PALADIN:
+                case CLASS_DEATH_KNIGHT:
+                    RandomSpells.push_back(71561);
+                    RandomSpells.push_back(71559);
+                    RandomSpells.push_back(71560);
+                    break;
+                case CLASS_SHAMAN:
+                case CLASS_ROGUE:
+                    RandomSpells.push_back(71558);
+                    RandomSpells.push_back(71556);
+                    RandomSpells.push_back(71560);
+                    break;
+                case CLASS_DRUID:
+                    RandomSpells.push_back(71561);
+                    RandomSpells.push_back(71556);
+                    RandomSpells.push_back(71560);
+                    break;
+                case CLASS_HUNTER:
+                    RandomSpells.push_back(71558);
+                    RandomSpells.push_back(71559);
+                    RandomSpells.push_back(71556);
+                    break;
+                default:
+                    return false;
+                }
             }
+            else if (IsNPCBot())
+            {
+                RandomSpells.push_back(71561);
+                RandomSpells.push_back(71559);
+                RandomSpells.push_back(71560);
+            }
+
             if (RandomSpells.empty()) // shouldn't happen
                 return false;
 
