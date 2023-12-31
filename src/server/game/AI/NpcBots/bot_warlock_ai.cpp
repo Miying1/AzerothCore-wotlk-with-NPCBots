@@ -1788,15 +1788,17 @@ public:
 
         void UnsummonAll() override
         {
-            if (botPet) {
+            if (botPet && botPet->IsAlive()) {
                 TempSummon* summ = botPet->ToTempSummon();
                 if (summ)
                     summ->UnSummon();
             }
         }
 
-        void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
+        void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
         {
+            if (summon == botPet)
+                botPet = nullptr;
         }
 
         void SummonedCreatureDespawn(Creature* summon) override
