@@ -1,17 +1,10 @@
  
 #include "Player.h"
 #include "Config.h"
-#include "ScriptMgr.h"
-#include "ScriptedGossip.h"
-#include "GameEventMgr.h"
-#include "Item.h"
-#include "ScriptMgr.h"
+#include "ScriptMgr.h" 
+#include "Item.h" 
 #include "Chat.h"
-#include "ItemTemplate.h"
-#include "QuestDef.h"
-#include "ItemTemplate.h"
-#include <unordered_map>
-#include <vector>
+#include "ItemTemplate.h"  
 
  
 struct ItemEnchants

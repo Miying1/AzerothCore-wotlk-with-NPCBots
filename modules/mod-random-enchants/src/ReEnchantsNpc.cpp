@@ -1,16 +1,4 @@
-/*
 
-Database Actions:
-
-1 = item
-2 = gold
-3 = name change
-4 = faction change
-5 = race change
-
-script made by talamortis
-
-*/
 
 #include "Configuration/Config.h"
 #include "Player.h"
