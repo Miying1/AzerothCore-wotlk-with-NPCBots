@@ -128,7 +128,7 @@ public:
         }
         VisualWeaponDataMap[owner_guid].push_back({ item->GetGUID().GetCounter() ,visual_id });
         CharacterDatabase.Execute("REPLACE into `mod_weapon_visual_effect` (`item_guid`, `enchant_visual_id`,owner_guid) VALUES ('{}', '{}','{}')", item->GetGUID().GetCounter(), visual_id, owner_guid);
-
+        player->ModifyMoney(-800000);
     }
 
     void GetMenu(Player* player, Creature* creature, uint32 menuId)
@@ -136,7 +136,7 @@ public:
         for (uint8 i = 0; i < (sizeof(vData) / sizeof(*vData)); i++)
         {
             if (vData[i].Menu == menuId)
-                AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i,"支付金币",500000,false);
+                AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i,"支付金币",800000,false);
         }
 
         player->PlayerTalkClass->SendGossipMenu(DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
