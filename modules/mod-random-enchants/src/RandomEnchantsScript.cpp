@@ -16,6 +16,7 @@ public:
     void OnLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override {
         if (sConfigMgr->GetOption<bool>("RandomEnchants.OnLoot", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
             RollPossibleEnchant(player, item);
+        player->SaveToDB(false, false);
     }
 
     void OnCreateItem(Player* player, Item* item, uint32 /*count*/) override {
@@ -25,8 +26,10 @@ public:
      
 
     void OnGroupRollRewardItem(Player* player, Item* item, uint32 /*count*/, RollVote /*voteType*/, Roll* /*roll*/) override {
+       
         if (sConfigMgr->GetOption<bool>("RandomEnchants.OnGroupRoll", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
             RollPossibleEnchant(player, item);
+        player->SaveToDB(false,false);
     }
 
     void RollPossibleEnchant(Player* player, Item* item) {

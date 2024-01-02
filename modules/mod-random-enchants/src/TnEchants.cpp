@@ -41,14 +41,17 @@ void TnEchants::InitData()
  
 }
 
-bool TnEchants::RandomEnchEffect(Player* player,Item* const item){ 
+bool TnEchants::RandomEnchEffect(Player* player,Item* const item){
+    if (!IsEnable || EnchEffectStore.size() < 1) return false;
     uint32 group_rand=urand(1,EnchEffectStore.size())-1;
     if(group_rand<0) return false; 
     auto efs_its=EnchEffectStore.begin();
     std::advance(efs_its, group_rand);  
     const EnchEffectGroup* group =&efs_its->second;
-    
-    uint32 eff_rand=urand(1,static_cast<uint32>(std::floor(group->size()*RandRangeattrMaxPct)))-1; 
+    if (!group || group->size() < 2) return false;
+    uint32 maxrand = static_cast<uint32>(std::floor(group->size() * RandRangeattrMaxPct));
+    if (maxrand <= 1) return false;
+    uint32 eff_rand=urand(1, maxrand)-1;
     if(eff_rand<0) return false; 
     auto group_its=group->begin();
     std::advance(group_its, eff_rand);  
@@ -134,6 +137,7 @@ float TnEchants::GetUpEnchLevelChance(ItemEnchants* itemEnch)const
 }
 
 uint32 TnEchants::UpEnchLevel(Player* player, Item* item){
+    if (!IsEnable) return 0;
       uint32 itemid=item->GetGUID().GetCounter();
       ItemEnchants* itemEnch=GetItemEnchants(itemid);
       if(!itemEnch) return 0;
