@@ -34,53 +34,53 @@ struct VisualData
 
 VisualData vData[] =
 {
-    { 1, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "Back.." },
-    { 1, 2, GOSSIP_ICON_INTERACT_1, 0, "Next.." },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3789, "Berserking" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3854, "Spell Power" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3273, "Deathfrost" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3225, "Executioner" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3870, "Blood Draining" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 1899, "Unholy Weapon" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2674, "Spellsurge" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2675, "Battlemaster" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2671, "Arcane and Fire Spell Power" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2672, "Shadow and Frost Spell Power" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 3365, "Rune of Swordshattering" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2673, "Mongoose" },
-    { 1, 0, GOSSIP_ICON_BATTLE, 2343, "Spell Power" },
+    { 1, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "返回.." },
+    { 1, 2, GOSSIP_ICON_INTERACT_1, 0, "下一页.." },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3789, "狂暴" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3854, "强效法术能量" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3273, "死亡霜冻" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3225, "斩杀" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3870, "吸血" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 1899, "邪恶武器" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2674, "魔法激荡" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2675, "作战专家" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2671, "阳炎" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2672, "魂霜" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 3365, "裂刃符文" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2673, "猫鼬" },
+    { 1, 0, GOSSIP_ICON_BATTLE, 2343, "法术能量" },
 
-    { 2, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "Back.." },
-    { 2, 3, GOSSIP_ICON_INTERACT_1, 0, "Next.." },
-    { 2, 1, GOSSIP_ICON_INTERACT_1, 0, "Previous.." },
+    { 2, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "返回.." },
+    { 2, 3, GOSSIP_ICON_INTERACT_1, 0, "下一页.." },
+    { 2, 1, GOSSIP_ICON_INTERACT_1, 0, "上一页.." },
     { 2, 0, GOSSIP_ICON_BATTLE, 425, "Black Temple Dummy" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 3855, "Spell Power III" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1894, "Icy Weapon" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1103, "Agility" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1898, "Lifestealing" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 3345, "Earthliving I" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 3855, "极效法术能量" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1894, "冰寒" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1103, "特效敏捷" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1898, "生命偷取" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 3345, "大地生命" },
     { 2, 0, GOSSIP_ICON_BATTLE, 1743, "MHTest02" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 3093, "Attack Power vs Undead and Demons" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1900, "Crusader" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 3846, "Spell Power II" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1606, "Attack Power" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 283, "Windfury I" },
-    { 2, 0, GOSSIP_ICON_BATTLE, 1, "Rockbiter III" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 3093, "亡灵杀手" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1900, "十字军" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 3846, "中级法术能量" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1606, "攻强" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 283, "风怒" },
+    { 2, 0, GOSSIP_ICON_BATTLE, 1, "石化III" },
 
-    { 3, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "Back.." },
-    { 3, 2, GOSSIP_ICON_INTERACT_1, 0, "Previous.." },
-    { 3, 0, GOSSIP_ICON_BATTLE, 3265, "Blessed Weapon Coating" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 2, "Frostbrand I" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 3, "Flametongue III" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 3266, "Righteous Weapon Coating" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 1903, "Spirit" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 13, "Sharpened" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 26, "Frost Oil" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 7, "Deadly Poison" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 803, "Fiery Weapon" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 1896, "Weapon Damage" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 2666, "Intellect" },
-    { 3, 0, GOSSIP_ICON_BATTLE, 25, "Shadow Oil" },
+    { 3, VIS_GOSSIP_MAIN_MENU_ACTION, GOSSIP_ICON_TALK, 0, "返回.." },
+    { 3, 2, GOSSIP_ICON_INTERACT_1, 0, "上一页.." },
+    { 3, 0, GOSSIP_ICON_BATTLE, 3265, "神圣武器涂层" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 2, "冰封武器" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 3, "火舌III" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 3266, "正义武器涂层" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 1903, "精神" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 13, "磨刀石" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 26, "冰霜之油" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 7, "致命毒药" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 803, "灼热武器" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 1896, "武器伤害" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 2666, "智力" },
+    { 3, 0, GOSSIP_ICON_BATTLE, 25, "暗影之油l" },
 };
 struct WeaponVisual
 {
@@ -103,7 +103,7 @@ public:
 
         if (!item)
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("No equipped item available to change the visual effect.");
+            ChatHandler(player->GetSession()).PSendSysMessage("没有装备物品.");
             return;
         }
 
@@ -128,15 +128,22 @@ public:
         }
         VisualWeaponDataMap[owner_guid].push_back({ item->GetGUID().GetCounter() ,visual_id });
         CharacterDatabase.Execute("REPLACE into `mod_weapon_visual_effect` (`item_guid`, `enchant_visual_id`,owner_guid) VALUES ('{}', '{}','{}')", item->GetGUID().GetCounter(), visual_id, owner_guid);
-        player->ModifyMoney(-800000);
+        player->ModifyMoney(-1500000);
     }
 
     void GetMenu(Player* player, Creature* creature, uint32 menuId)
     {
         for (uint8 i = 0; i < (sizeof(vData) / sizeof(*vData)); i++)
         {
-            if (vData[i].Menu == menuId)
-                AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i,"支付金币",800000,false);
+            if (vData[i].Menu == menuId) {
+                if (vData[i].Id == 0) {
+                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i);
+                }
+                else
+                { 
+                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i, "支付金币", 1500000, false);
+                }
+            }
         }
 
         player->PlayerTalkClass->SendGossipMenu(DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
