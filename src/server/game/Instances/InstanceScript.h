@@ -271,7 +271,8 @@ public:
 
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
-
+    //设置挑战模式
+    void SetChallengeMode(uint32 level);
     TaskScheduler scheduler;
 protected:
     void SetHeaders(std::string const& dataHeaders);

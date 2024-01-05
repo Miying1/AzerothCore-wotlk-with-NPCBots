@@ -800,3 +800,7 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
 
     return false;
 }
+
+void InstanceScript::SetChallengeMode(uint32 level) {
+   
+}
