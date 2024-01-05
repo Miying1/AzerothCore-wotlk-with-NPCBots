@@ -18055,7 +18055,7 @@ void Unit::RecalculateObjectScale()
     int32 scaleAuras = GetTotalAuraModifier(SPELL_AURA_MOD_SCALE) + GetTotalAuraModifier(SPELL_AURA_MOD_SCALE_2);
     //float scale = GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras);
     float scale = 1.0f; 
-    if (GetTypeId() == TYPEID_PLAYER && GetAuraEffect(100004, 0)) { 
+    if (GetAuraEffect(100004, 0)) { 
         scale = GetObjectScale(); 
     }  
     else

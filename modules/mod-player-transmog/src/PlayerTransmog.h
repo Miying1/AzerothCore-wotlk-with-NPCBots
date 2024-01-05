@@ -33,7 +33,9 @@ class PlayerTransmog
     }
     std::map<uint32, QualityGroupMap> ModelDataStore;
     std::map<uint32, CcList> CollectionDataStore;
-    void InitData(); 
+    void InitData();
+    bool CastTransmogBot(Unit* target, int modelid);
+
     //变身
     bool CastTransmog(Player* player,int modelid);
     bool AddModelData(uint32 account_id, Creature* const creature);

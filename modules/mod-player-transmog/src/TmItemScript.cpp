@@ -8,6 +8,7 @@
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include <SpellScript.h>
+#include "bot_ai.h"
 
 class TransmogItem_WorldScript : public WorldScript
 {
@@ -74,6 +75,7 @@ public:
         player->PlayerTalkClass->ClearMenus();
         uint16 account_id = player->GetSession()->GetAccountId();
         uint32 modelId = action;
+        Unit* target = player->GetSelectedUnit();
 
         switch (sender)
         {
@@ -117,8 +119,12 @@ public:
             OnGossipSelect(player, item, sender - GOSSIP_SENDER_DEL, action);
             break;
         case GOSSIP_SENDER_USE://变身
-            pTransmog->CastTransmog(player, action);
-            CloseGossipMenuFor(player);
+            CloseGossipMenuFor(player); 
+            if (player->IsVip() && target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
+                pTransmog->CastTransmogBot(target, action);
+                return;
+            } 
+            pTransmog->CastTransmog(player, action); 
             return;
         case GOSSIP_SENDER_USE + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_PT:
         case GOSSIP_SENDER_USE + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_JY:
@@ -396,7 +402,7 @@ public:
         void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
         {
             Unit* target = GetTarget();
-            if (target && target->GetTypeId() == TYPEID_PLAYER) {
+            if (target) {
                 target->SetObjectScale(1);
             }
         }

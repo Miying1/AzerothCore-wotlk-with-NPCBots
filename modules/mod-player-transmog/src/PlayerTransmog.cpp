@@ -58,7 +58,23 @@ void PlayerTransmog::InitData()
         }
     } while (result->NextRow());
 }
+bool PlayerTransmog::CastTransmogBot(Unit* target, int modelid)
+{
+    target->RemoveAurasByType(SPELL_AURA_TRANSFORM);
+    CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.AssertEntry(modelid);
+    if (!minfo) return false;
+    CreatureDisplayInfoEntry const* pminfo = sCreatureDisplayInfoStore.AssertEntry(target->GetNativeDisplayId());
 
+    if (target->CastSpell(target, 100004, false) == SPELL_CAST_OK) {
+        target->SetDisplayId(modelid);
+
+        if (minfo->scale > (pminfo->scale * 1.1)) {
+            float scale = pminfo->scale / (minfo->scale);
+            target->SetObjectScale(scale);
+        }
+    }
+    return true;
+}
 bool PlayerTransmog::CastTransmog(Player* player, int modelid)
 {
     player->RemoveAurasByType(SPELL_AURA_TRANSFORM);
