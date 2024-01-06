@@ -1,0 +1,27 @@
+#
+# Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license: https://github.com/azerothcore/azerothcore-wotlk/blob/master/LICENSE-AGPL3
+#
+
+[worldserver]
+
+########################################
+# ModZoneDifficulty
+########################################
+#
+#    ModZoneDifficulty.Enable
+#        Description: Enable my module.
+#        Default:     0 - Disabled
+#                     1 - Enabled
+#
+
+ModZoneDifficulty.Enable = 1
+
+#
+#    ModZoneDifficulty.DebugInfo
+#        Description: Displays debug data for absorbs.
+#        Default:     0 - Disabled
+#                     1 - Enabled
+#
+
+ModZoneDifficulty.DebugInfo = 0
+   

@@ -467,7 +467,7 @@ struct npc_echo_of_medivh : public ScriptedAI
                                 break;
                             default:
                                 break;
-                        }
+                        } 
                         if (_boards[newRow][newCol].pieceGUID) {
                             if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
                             {

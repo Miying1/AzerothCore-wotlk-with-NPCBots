@@ -30,9 +30,12 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "WorldSession.h"
+#include "TypeContainer.h" 
+#include "../../../../modules/mod-zone-difficulty/src/ChallengeDifficulty.h"
 
-//npcbot
+ //npcbot
 #include "botmgr.h"
+#include "Log.h"
 //end npcbot
 
 BossBoundaryData::~BossBoundaryData()
@@ -200,25 +203,25 @@ void InstanceScript::UpdateMinionState(Creature* minion, EncounterState state)
 {
     switch (state)
     {
-        case NOT_STARTED:
-            if (!minion->IsAlive())
-                minion->Respawn();
-            else if (minion->IsInCombat())
-                minion->AI()->EnterEvadeMode();
-            break;
-        case IN_PROGRESS:
-            if (!minion->IsAlive())
-                minion->Respawn();
-            else
+    case NOT_STARTED:
+        if (!minion->IsAlive())
+            minion->Respawn();
+        else if (minion->IsInCombat())
+            minion->AI()->EnterEvadeMode();
+        break;
+    case IN_PROGRESS:
+        if (!minion->IsAlive())
+            minion->Respawn();
+        else
+        {
+            if (minion->GetReactState() == REACT_AGGRESSIVE)
             {
-                if (minion->GetReactState() == REACT_AGGRESSIVE)
-                {
-                    minion->AI()->DoZoneInCombat(nullptr, 100.0f);
-                }
+                minion->AI()->DoZoneInCombat(nullptr, 100.0f);
             }
-            break;
-        default:
-            break;
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -240,17 +243,17 @@ void InstanceScript::UpdateDoorState(GameObject* door)
         DoorInfo const& info = range.first->second;
         switch (info.type)
         {
-            case DOOR_TYPE_ROOM:
-                open &= (info.bossInfo->state != IN_PROGRESS);
-                break;
-            case DOOR_TYPE_PASSAGE:
-                open &= (info.bossInfo->state == DONE);
-                break;
-            case DOOR_TYPE_SPAWN_HOLE:
-                open &= (info.bossInfo->state == IN_PROGRESS);
-                break;
-            default:
-                break;
+        case DOOR_TYPE_ROOM:
+            open &= (info.bossInfo->state != IN_PROGRESS);
+            break;
+        case DOOR_TYPE_PASSAGE:
+            open &= (info.bossInfo->state == DONE);
+            break;
+        case DOOR_TYPE_SPAWN_HOLE:
+            open &= (info.bossInfo->state == IN_PROGRESS);
+            break;
+        default:
+            break;
         }
     }
 
@@ -515,15 +518,15 @@ void InstanceScript::DoRespawnGameObject(ObjectGuid uiGuid, uint32 uiTimeToDespa
     {
         switch (go->GetGoType())
         {
-            case GAMEOBJECT_TYPE_DOOR:
-            case GAMEOBJECT_TYPE_BUTTON:
-            case GAMEOBJECT_TYPE_TRAP:
-            case GAMEOBJECT_TYPE_FISHINGNODE:
-                // not expect any of these should ever be handled
-                LOG_ERROR("scripts", "InstanceScript: DoRespawnGameObject can't respawn gameobject entry {}, because type is {}.", go->GetEntry(), go->GetGoType());
-                return;
-            default:
-                break;
+        case GAMEOBJECT_TYPE_DOOR:
+        case GAMEOBJECT_TYPE_BUTTON:
+        case GAMEOBJECT_TYPE_TRAP:
+        case GAMEOBJECT_TYPE_FISHINGNODE:
+            // not expect any of these should ever be handled
+            LOG_ERROR("scripts", "InstanceScript: DoRespawnGameObject can't respawn gameobject entry {}, because type is {}.", go->GetEntry(), go->GetGoType());
+            return;
+        default:
+            break;
         }
 
         if (go->isSpawned())
@@ -715,7 +718,7 @@ void InstanceScript::DoCastSpellOnPlayer(Player* player, uint32 spell, bool incl
 bool InstanceScript::CheckAchievementCriteriaMeet(uint32 criteria_id, Player const* /*source*/, Unit const* /*target*/ /*= nullptr*/, uint32 /*miscvalue1*/ /*= 0*/)
 {
     LOG_ERROR("scripts.ai", "Achievement system call InstanceScript::CheckAchievementCriteriaMeet but instance script for map {} not have implementation for achievement criteria {}",
-                   instance->GetId(), criteria_id);
+        instance->GetId(), criteria_id);
     return false;
 }
 
@@ -746,24 +749,24 @@ void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= nullptr*/, ui
 
     switch (type)
     {
-        case ENCOUNTER_FRAME_ENGAGE:
-        case ENCOUNTER_FRAME_DISENGAGE:
-        case ENCOUNTER_FRAME_UPDATE_PRIORITY:
-            data << unit->GetPackGUID();
-            data << uint8(param1);
-            break;
-        case ENCOUNTER_FRAME_ADD_TIMER:
-        case ENCOUNTER_FRAME_ENABLE_OBJECTIVE:
-        case ENCOUNTER_FRAME_DISABLE_OBJECTIVE:
-            data << uint8(param1);
-            break;
-        case ENCOUNTER_FRAME_UPDATE_OBJECTIVE:
-            data << uint8(param1);
-            data << uint8(param2);
-            break;
-        case ENCOUNTER_FRAME_REFRESH_FRAMES:
-        default:
-            break;
+    case ENCOUNTER_FRAME_ENGAGE:
+    case ENCOUNTER_FRAME_DISENGAGE:
+    case ENCOUNTER_FRAME_UPDATE_PRIORITY:
+        data << unit->GetPackGUID();
+        data << uint8(param1);
+        break;
+    case ENCOUNTER_FRAME_ADD_TIMER:
+    case ENCOUNTER_FRAME_ENABLE_OBJECTIVE:
+    case ENCOUNTER_FRAME_DISABLE_OBJECTIVE:
+        data << uint8(param1);
+        break;
+    case ENCOUNTER_FRAME_UPDATE_OBJECTIVE:
+        data << uint8(param1);
+        data << uint8(param2);
+        break;
+    case ENCOUNTER_FRAME_REFRESH_FRAMES:
+    default:
+        break;
     }
 
     instance->SendToPlayers(&data);
@@ -774,20 +777,20 @@ std::string InstanceScript::GetBossStateName(uint8 state)
     // See enum EncounterState in InstanceScript.h
     switch (state)
     {
-        case NOT_STARTED:
-            return "NOT_STARTED";
-        case IN_PROGRESS:
-            return "IN_PROGRESS";
-        case FAIL:
-            return "FAIL";
-        case DONE:
-            return "DONE";
-        case SPECIAL:
-            return "SPECIAL";
-        case TO_BE_DECIDED:
-            return "TO_BE_DECIDED";
-        default:
-            return "INVALID";
+    case NOT_STARTED:
+        return "NOT_STARTED";
+    case IN_PROGRESS:
+        return "IN_PROGRESS";
+    case FAIL:
+        return "FAIL";
+    case DONE:
+        return "DONE";
+    case SPECIAL:
+        return "SPECIAL";
+    case TO_BE_DECIDED:
+        return "TO_BE_DECIDED";
+    default:
+        return "INVALID";
     }
 }
 
@@ -801,6 +804,66 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
     return false;
 }
 
-void InstanceScript::SetChallengeMode(uint32 level) {
-   
+void InstanceScript::SetChallengeMode(Creature* creature) {
+    if (!creature->IsAlive()) return;
+    uint32 curId = instance->GetInstanceId();
+    if (isOpenChallenge) {
+        if (creature->GetAura(100006)) return;
+        uint32 ench = sChallengeDiff->ChallengeInstanceData[curId].enhance;
+        CustomSpellValues values;
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0, ench);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1, ench);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT2, ench);
+        creature->CastCustomSpell(100006, values, creature);
+
+        for (size_t i = 0; i < 3; i++)
+        {
+            uint32 spellid = sChallengeDiff->ChallengeInstanceData[curId].apply_spell[i];
+            if (spellid <= 0) continue;
+            if(urand(1,100)<= sChallengeDiff->ZoneChallengeSpellData[spellid].chance)
+                creature->CastSpell(creature, spellid, true);
+        }
+    }
+    else
+    {
+        Unit::AuraMap const& vAuras = creature->GetOwnedAuras();
+        for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
+        {
+            SpellInfo const* spellInfo = itr->second->GetSpellInfo();
+            if (!spellInfo)
+                continue;
+            if (spellInfo->Id > 100000) {
+                creature->RemoveAura(itr->second);
+            }
+        }
+    }
+
+}
+
+
+
+void InstanceScript::AddChallengeCreature(Creature* creature)
+{
+    if (!instance->IsHeroic()) return;
+    auto ctemp = creature->GetCreatureTemplate();
+    if (ctemp->rank < 1 && !creature->IsSummon()) return;
+    if (creature->IsControlledByPlayer()) return;
+    AllChallengeCreature.push_back(creature);
+    if (isOpenChallenge) {
+        SetChallengeMode(creature);
+    }
+}
+
+void InstanceScript::CheckChallengeMode()
+{
+    if (sChallengeDiff->HasChallengMode(instance->GetInstanceId())) {
+        SetCMode(true); 
+    }
+    else
+    {
+        SetCMode(false);
+    }
+    for (auto creature : AllChallengeCreature) {
+        SetChallengeMode(creature);
+    }
 }

@@ -22,7 +22,7 @@
 #include "ObjectMgr.h"
 #include "TaskScheduler.h"
 #include "World.h"
-#include "ZoneScript.h"
+#include "ZoneScript.h" 
 #include <set>
 
 #define OUT_SAVE_INST_DATA             LOG_DEBUG("scripts.ai", "Saving Instance Data for Instance {} (Map {}, Instance Id {})", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
@@ -145,10 +145,10 @@ public:
     ~InstanceScript() override {}
 
     Map* instance;
-
+    std::vector<Creature*> AllChallengeCreature;
     //On creation, NOT load.
     virtual void Initialize() {}
-
+   
     // On load
     virtual void Load(char const* data);
 
@@ -271,8 +271,13 @@ public:
 
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
-    //设置挑战模式
-    void SetChallengeMode(uint32 level);
+    //设置生物挑战模式
+    void SetChallengeMode(Creature* creature);
+    //重新设置所有生物挑战模式
+    void CheckChallengeMode();
+    //添加挑战模式生物
+    void AddChallengeCreature(Creature* creature);
+    void SetCMode(bool isopen) { isOpenChallenge = isopen; }
     TaskScheduler scheduler;
 protected:
     void SetHeaders(std::string const& dataHeaders);
@@ -305,7 +310,7 @@ protected:
 
 private:
     static void LoadObjectData(ObjectData const* creatureData, ObjectInfoMap& objectInfo);
-
+    bool isOpenChallenge =false;
     std::vector<char> headers;
     std::vector<BossInfo> bosses;
     std::vector<uint32> persistentData;

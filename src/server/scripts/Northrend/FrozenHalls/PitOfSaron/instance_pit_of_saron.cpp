@@ -79,6 +79,7 @@ public:
             instance->LoadGrid(LeaderIntroPos.GetPositionX(), LeaderIntroPos.GetPositionY());
             if (Creature* c = instance->GetCreature(GetGuidData(DATA_LEADER_FIRST_GUID)))
                 c->AI()->SetData(DATA_START_INTRO, 0);
+            CheckChallengeMode();
         }
 
         uint32 GetCreatureEntry(ObjectGuid::LowType /*guidLow*/, CreatureData const* data) override
@@ -103,20 +104,23 @@ public:
                         return 0;
                     break;
             }
-
+           
             return entry;
         }
 
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             if (teamIdInInstance == TEAM_NEUTRAL)
             {
                 Map::PlayerList const& players = instance->GetPlayers();
                 if (!players.IsEmpty())
-                    if (Player* player = players.begin()->GetSource())
-                        teamIdInInstance = player->GetTeamId();
+                    if (Player* player = players.begin()->GetSource()) {
+                        teamIdInInstance = player->GetTeamId(); 
+                    }
             }
-
+           
+           
             switch (creature->GetEntry())
             {
                 case NPC_SYLVANAS_PART1:
