@@ -134,6 +134,9 @@ public:
                     });
                 _scheduler.Schedule(57s, [this](TaskContext /*context*/)
                     {
+                        if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
+                            _scheduler.CancelAll();
+                        }
                         me->Yell("再见冒险者!", LANG_UNIVERSAL);
                     });
                 _scheduler.Schedule(60s, [this](TaskContext context)
@@ -211,7 +214,7 @@ public:
                 sChallengeDiff->OpenChallenge(instanceId, sender, player);
                 std::ostringstream str;
                 str << "我已经为你们开启了"<< sender<<"级挑战, 开始冒险吧!" ;
-                sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
+                sChallengeDiff->SendWhisperToRaid(str.str(), creature, player); 
             }
 
             CloseGossipMenuFor(player);
@@ -228,7 +231,7 @@ public:
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn off Mythicmode for id {}", instanceId);
                 sChallengeDiff->CloseChallenge(instanceId,player); 
                 sChallengeDiff->SendWhisperToRaid("现在已经变为了正常模式了，再见!", creature, player); 
-                //creature->DespawnOrUnsummon(2000);
+                creature->DespawnOrUnsummon(2000);
             }
             CloseGossipMenuFor(player);
         }
