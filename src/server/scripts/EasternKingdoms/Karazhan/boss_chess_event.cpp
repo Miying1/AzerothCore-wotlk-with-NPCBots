@@ -467,13 +467,15 @@ struct npc_echo_of_medivh : public ScriptedAI
                                 break;
                             default:
                                 break;
-                        } 
-                        if (_boards[newRow][newCol].pieceGUID) {
-                            if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
-                            {
-                                if (!IsFriendly(piece, targetPiece))
+                        }
+                        if (newRow < _boards.size() && newCol < _boards[newRow].size()) {
+                            if (_boards[newRow][newCol].pieceGUID) {
+                                if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
                                 {
-                                    return targetPiece;
+                                    if (!IsFriendly(piece, targetPiece))
+                                    {
+                                        return targetPiece;
+                                    }
                                 }
                             }
                         }
