@@ -19,6 +19,7 @@
 #include "Tokenize.h"
 #include "Unit.h"
 #include "ChallengeDifficulty.h"
+#include "botmgr.h"
 
 ChallengeDifficulty* ChallengeDifficulty::instance()
 {
@@ -33,14 +34,14 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
         return;
     }
 
-    sChallengeDiff->MythicmodeAI.clear();
-    sChallengeDiff->DisallowedBuffs.clear();
+    sChallengeDiff->MythicmodeAI.clear(); 
     sChallengeDiff->DiffLevelData.clear();
     sChallengeDiff->ZoneChallengeSpellData.clear();
     sChallengeDiff->ZoneChallengeSpellGroupData.clear();
     sChallengeDiff->PlayerLevelData.clear();
+    sChallengeDiff->BaseEnhanceMapData.clear();
     //挑战难度等级
-    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,global_spell_num FROM zone_difficulty_level"))
+    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score FROM zone_difficulty_level"))
     {
         do
         {
@@ -48,7 +49,9 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
             ZoneDifficultyLevel level;
             level.difflevel = difflevel;
             level.enhance = (*result)[1].Get<uint32>();
-            level.global_spell_num = (*result)[2].Get<uint32>();
+            level.diff_player = (*result)[2].Get<uint32>();
+            level.global_spell_num = (*result)[3].Get<uint32>();
+            level.boss_score = (*result)[4].Get<uint32>();
             sChallengeDiff->DiffLevelData[difflevel] = level;
 
         } while (result->NextRow());
@@ -89,45 +92,23 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
         do
         {
             uint32 player_guid = (*result)[0].Get<uint32>(); 
-            sChallengeDiff->PlayerLevelData[player_guid] = (*result)[1].Get<uint32>();;
+            sChallengeDiff->PlayerLevelData[player_guid] = (*result)[1].Get<uint32>();
 
         } while (result->NextRow());
     }
-    if (QueryResult result = WorldDatabase.Query("SELECT * FROM zone_difficulty_disallowed_buffs"))
+    //地图基础增强
+    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct FROM zone_difficulty_mapbase"))
     {
         do
         {
-            std::vector<uint32> debuffs;
-            uint32 mapId;
-            if ((*result)[2].Get<bool>())
-            {
-                std::string spellString = (*result)[1].Get<std::string>();
-                std::vector<std::string_view> tokens = Acore::Tokenize(spellString, ' ', false);
+            uint32 mapid = (*result)[0].Get<uint32>();
+            uint32 base_hp_pct = (*result)[1].Get<uint32>();
+            uint32 base_damage_pct = (*result)[2].Get<uint32>();
+            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct };
 
-                mapId = (*result)[0].Get<uint32>();
-                for (auto token : tokens)
-                {
-                    if (token.empty())
-                    {
-                        continue;
-                    }
-
-                    uint32 spell;
-                    if ((spell = Acore::StringTo<uint32>(token).value()))
-                    {
-                        debuffs.push_back(spell);
-                    }
-                    else
-                    {
-                        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Disabling buffs for spell '{}' is invalid, skipped.", spell);
-                    }
-                }
-                sChallengeDiff->DisallowedBuffs[mapId] = debuffs;
-            }
         } while (result->NextRow());
     }
-
-
+    
     if (QueryResult result = WorldDatabase.Query("SELECT * FROM zone_difficulty_mythicmode_ai"))
     {
         do
@@ -184,7 +165,7 @@ void ChallengeDifficulty::LoadMythicmodeInstanceData()
 {
     std::vector<bool> instanceIDs = sMapMgr->GetInstanceIDs();
 
-    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
+    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
     {
         do
         {
@@ -195,10 +176,11 @@ void ChallengeDifficulty::LoadMythicmodeInstanceData()
             {
                 ZoneChallengeData cdata;
                 cdata.level = fields[1].Get<uint32>();
-                cdata.enhance = fields[2].Get<uint32>();
-                cdata.apply_spell[0] = fields[3].Get<uint32>();
-                cdata.apply_spell[1] = fields[4].Get<uint32>();
-                cdata.apply_spell[2] = fields[5].Get<uint32>();
+                cdata.enhance_damage = fields[2].Get<uint32>();
+                cdata.enhance_hp = fields[3].Get<uint32>();
+                cdata.apply_spell[0] = fields[4].Get<uint32>();
+                cdata.apply_spell[1] = fields[5].Get<uint32>();
+                cdata.apply_spell[2] = fields[6].Get<uint32>();
                 sChallengeDiff->ChallengeInstanceData[InstanceId] = cdata;
             }
             else
@@ -249,16 +231,21 @@ bool ChallengeDifficulty::OpenChallenge(uint32 inst_id, uint32 level, Player* pl
     if (!insScript) return false;
      
     auto levelinfo = DiffLevelData.find(level);
-    if (levelinfo == DiffLevelData.end()) return false;
+    if (levelinfo == DiffLevelData.end()) return false; 
     ZoneChallengeData cdata;
     cdata.level = level;
-    cdata.enhance = (*levelinfo).second.enhance;
+    cdata.enhance_damage = (*levelinfo).second.enhance;
+    cdata.enhance_hp = (*levelinfo).second.enhance;
+    if (BaseEnhanceMapData.find(player->GetMapId()) != BaseEnhanceMapData.end()) {
+        cdata.enhance_damage = cdata.enhance_damage+ BaseEnhanceMapData[player->GetMapId()].base_damage_pct;
+        cdata.enhance_hp = cdata.enhance_hp +BaseEnhanceMapData[player->GetMapId()].base_hp_pct;
+    }
     cdata.apply_spell = { 0, 0, 0 };
     GetRandomGlobalSpell((*levelinfo).second.global_spell_num, &cdata.apply_spell); 
    
     ChallengeInstanceData[inst_id] = cdata; 
     insScript->CheckChallengeMode();
-    CharacterDatabase.Execute("REPLACE INTO zone_difficulty_instance_saves (InstanceID, level,enhance,spell_id1,spell_id2,spell_id3) VALUES ({}, {}, {}, {}, {}, {})", inst_id, cdata.level, cdata.enhance, cdata.apply_spell[0], cdata.apply_spell[1], cdata.apply_spell[2]);
+    CharacterDatabase.Execute("REPLACE INTO zone_difficulty_instance_saves (InstanceID, level,enhance_damage,enhance_hp,spell_id1,spell_id2,spell_id3) VALUES ({}, {},{},{}, {}, {}, {})", inst_id, cdata.level, cdata.enhance_damage,cdata.enhance_hp, cdata.apply_spell[0], cdata.apply_spell[1], cdata.apply_spell[2]);
     return true;
 }
 
@@ -285,5 +272,132 @@ void ChallengeDifficulty::GetRandomGlobalSpell(uint8 count, std::array<uint32, 3
         (*apply_spell)[i] =group->spellIds[i]; 
     }
 }
+void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
+{
+    if (!map || !HasChallengMode(map->GetInstanceId()))
+    {
+        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in AddMythicmodeScore.");
+        return;
+    }
+    auto cdata = &ChallengeInstanceData[map->GetInstanceId()];
+    //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Called AddMythicmodeScore for map id: {} and type: {}", map->GetId(), type);
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+    {
+        uint32 playerid = i->GetSource()->GetGUID().GetCounter();
+        if (PlayerLevelData[playerid] >= cdata->level) continue;
+        PlayerLevelData[playerid]= PlayerLevelData[playerid]+1;
+        CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid,PlayerLevelData[playerid]);
+        ChatHandler(i->GetSource()->GetSession()).PSendSysMessage("你当前的挑战等级: %i", PlayerLevelData[playerid]);
+    }
+}
+void ChallengeDifficulty::AddBossScore(Map* map)
+{
+    if (!map || !HasChallengMode(map->GetInstanceId()))
+    {
+        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in AddMythicmodeScore.");
+        return;
+    } 
+    auto cdata = &ChallengeInstanceData[map->GetInstanceId()];
+    //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Called AddMythicmodeScore for map id: {} and type: {}", map->GetId(), type);
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+    {
+        Player* player = i->GetSource();
+        player->AddItem(SCORE_CURRENCY, DiffLevelData[cdata->level].boss_score); 
+        //ChatHandler(player->GetSession()).PSendSysMessage("你获得了挑战值: %i", DiffLevelData[cdata->level].boss_score);
+        
+    }
+}
 
+void ChallengeDifficulty::SendChallengLoot(Map* map)
+{
+    
+    if (!map || !HasChallengMode(map->GetInstanceId()))
+    {
+        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in AddMythicmodeScore.");
+        return;
+    }
+    auto cdata = &ChallengeInstanceData[map->GetInstanceId()];
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+    {
+        Player* player = i->GetSource();
+        
+    }
+}
+void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
 
+    RemoveChallengeAureBuff(creature);
+    if (creature->GetTypeId() == TYPEID_PLAYER) {
+
+        if (creature->ToPlayer()->HaveBot())
+        {
+            for (auto const& bitr : *creature->ToPlayer()->GetBotMgr()->GetBotMap())
+                if (bitr.second && bitr.second->IsInWorld())
+                {
+                    RemoveChallengeAureBuff(bitr.second);
+                    if (Unit* botpet = bitr.second->GetBotsPet())
+                    {
+                        RemoveChallengeAureBuff(botpet);
+                    }
+                }
+        } 
+    }  
+}
+void ChallengeDifficulty::RemoveChallengeAureBuff(Unit* unit) {
+    Unit::AuraMap const& vAuras = unit->GetOwnedAuras();
+    for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
+    {
+        SpellInfo const* spellInfo = itr->second->GetSpellInfo();
+        if (!spellInfo)
+            continue;
+        if (spellInfo->Id > 100000) {
+            unit->RemoveAura(itr->second);
+        }
+    }
+}
+void ChallengeDifficulty::ApplyChallengeAure(Unit* creature,uint32 instanceId) {
+
+    bool isplayer = creature->GetTypeId() == TYPEID_PLAYER || creature->IsNPCBot();
+    uint32 spellid = isplayer ? SPELL_DEFF_PLAYER : SPELL_ENHANCE_CREATURE;
+    if (creature->GetAura(spellid)) return; 
+    auto ench = &ChallengeInstanceData[instanceId];
+    CustomSpellValues values;
+    if (isplayer) {
+        uint32 diff_player = DiffLevelData[ench->level].diff_player;
+        if (diff_player == 0) return;
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0,-1- diff_player);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1,-1- diff_player);
+        creature->CastCustomSpell(spellid, values, creature);
+        if (creature->IsNPCBot()) return;
+        if (creature->ToPlayer()->HaveBot())
+        {
+            for (auto const& bitr : *creature->ToPlayer()->GetBotMgr()->GetBotMap())
+                if (bitr.second && bitr.second->IsInWorld())
+                {
+                    bitr.second->CastCustomSpell(spellid, values, bitr.second);
+                    if (Unit* botpet = bitr.second->GetBotsPet())
+                        botpet->CastCustomSpell(spellid, values, botpet);
+                }
+        }
+        return;
+    }
+    else
+    {
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0, ench->enhance_hp);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1, ench->enhance_damage);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT2, ench->enhance_damage);
+        creature->CastCustomSpell(spellid, values, creature);
+    }
+    for (uint8 i = 0; i < 3; i++)
+    {
+        uint32 spellid = ChallengeInstanceData[instanceId].apply_spell[i];
+        if (spellid <= 0) continue;
+        //LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Spell:{} chance:{}", spellid, sChallengeDiff->ZoneChallengeSpellData[spellid].chance); 
+        if (urand(1, 100) <= ZoneChallengeSpellData[spellid].chance) {
+            creature->CastSpell(creature, spellid, true);
+            // LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Spell:{} chance:{}", spellid, chance);
+        }
+    }
+}

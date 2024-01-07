@@ -210,9 +210,13 @@ public:
         {
             return (instance->HavePlayers() && WaveNumber)  || IsDuringLKFight; // during LK fight npcs are active and will unset this variable
         }
-
+        void OnPlayerEnter(Player*  /*plr*/) override
+        { 
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             if (TeamIdInInstance == TEAM_NEUTRAL)
             {
                 Map::PlayerList const& players = instance->GetPlayers();

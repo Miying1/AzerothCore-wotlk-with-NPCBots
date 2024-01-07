@@ -359,7 +359,7 @@ public:
         if (GetEntry() && !GetEntry()->IsDungeon())
             LOG_ERROR("maps.script", "InstanceMapScript for map {} is invalid.", GetEntry()->MapID);
     }
-
+    
     // Gets an InstanceScript object for this instance.
     virtual InstanceScript* GetInstanceScript(InstanceMap* /*map*/) const { return nullptr; }
 };

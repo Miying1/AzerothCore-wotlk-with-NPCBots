@@ -35,9 +35,13 @@ public:
             SetBossNumber(MAX_ENCOUNTER);
             teldaramSpheres.fill(NOT_STARTED);
         }
-
+        void OnPlayerEnter(Player* plr) override
+        {
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* pCreature) override
         {
+            AddChallengeCreature(pCreature);
             switch (pCreature->GetEntry())
             {
                 case NPC_ELDER_NADOX:

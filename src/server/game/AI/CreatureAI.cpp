@@ -27,6 +27,7 @@
 #include "Vehicle.h"
 #include "ScriptMgr.h"
 #include "ZoneScript.h"
+#include "../../../../modules/mod-zone-difficulty/src/ChallengeDifficulty.h"
 
 //Disable CreatureAI when charmed
 void CreatureAI::OnCharmed(bool /*apply*/)
@@ -227,8 +228,7 @@ void CreatureAI::EnterEvadeMode(EvadeReason why)
     if (cInfo && cInfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_HARD_RESET))
     {
         me->DespawnOnEvade();
-    }
-
+    } 
     sScriptMgr->OnUnitEnterEvadeMode(me, why);
 }
 
@@ -312,6 +312,9 @@ bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
     if (ZoneScript* zoneScript = me->GetZoneScript() ? me->GetZoneScript() : (ZoneScript*)me->GetInstanceScript())
         zoneScript->OnCreatureEvade(me);
 
+    if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
+        me->GetInstanceScript()->SetChallengeMode(me);
+    }
     if (me->IsInEvadeMode())
     {
         return false;

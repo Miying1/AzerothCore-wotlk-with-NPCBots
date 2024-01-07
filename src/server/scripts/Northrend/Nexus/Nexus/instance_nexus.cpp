@@ -47,9 +47,13 @@ public:
             SetBossNumber(MAX_ENCOUNTERS);
             LoadDoorData(doorData);
         }
-
+        void OnPlayerEnter(Player* plr) override
+        { 
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             Map::PlayerList const& players = instance->GetPlayers();
             TeamId TeamIdInInstance = TEAM_NEUTRAL;
             if (!players.IsEmpty())

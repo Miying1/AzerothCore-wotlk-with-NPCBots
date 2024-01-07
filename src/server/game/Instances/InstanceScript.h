@@ -182,11 +182,11 @@ public:
 
     //Called when a player successfully enters the instance.
     virtual void OnPlayerEnter(Player* /*player*/) {}
-
+    void OnPlayerLeave(Player* player);
     virtual void OnPlayerAreaUpdate(Player* /*player*/, uint32 /*oldArea*/, uint32 /*newArea*/) {}
 
     //npcbot: map hooks
-    virtual void OnNPCBotEnter(Creature* /*bot*/) { }
+    void OnNPCBotEnter(Creature* bot);
     virtual void OnNPCBotLeave(Creature* /*bot*/) { }
     void DoRemoveAurasDueToSpellOnNPCBot(Creature* bot, uint32 spell);
     void DoCastSpellOnNPCBot(Creature* bot, uint32 spell);
@@ -272,7 +272,7 @@ public:
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
     //设置生物挑战模式
-    void SetChallengeMode(Creature* creature);
+    void SetChallengeMode(Unit* creature);  
     //重新设置所有生物挑战模式
     void CheckChallengeMode();
     //添加挑战模式生物

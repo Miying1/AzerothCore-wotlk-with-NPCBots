@@ -30,12 +30,12 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "WorldSession.h"
-#include "TypeContainer.h" 
-#include "../../../../modules/mod-zone-difficulty/src/ChallengeDifficulty.h"
+#include "TypeContainer.h"  
 
  //npcbot
 #include "botmgr.h"
 #include "Log.h"
+#include "../../../../modules/mod-zone-difficulty/src/ChallengeDifficulty.h"
 //end npcbot
 
 BossBoundaryData::~BossBoundaryData()
@@ -110,6 +110,15 @@ Creature* InstanceScript::GetCreature(uint32 type)
 GameObject* InstanceScript::GetGameObject(uint32 type)
 {
     return instance->GetGameObject(GetObjectGuid(type));
+}
+
+void InstanceScript::OnPlayerLeave(Player* player)
+{
+    if (instance->IsRaid()) return; 
+    uint32 curId = instance->GetInstanceId();
+    if (sChallengeDiff->HasChallengMode(curId)) {
+        sChallengeDiff->RemoveChallengeAure(player);
+    }
 }
 
 void InstanceScript::HandleGameObject(ObjectGuid GUID, bool open, GameObject* go)
@@ -668,6 +677,20 @@ void InstanceScript::DoCastSpellOnPlayers(uint32 spell)
             }
 }
 
+void InstanceScript::OnNPCBotEnter(Creature* bot)
+{
+    if (!instance->IsHeroic() || bot->IsFreeBot()) return;
+    //LOG_ERROR("scripts.ai", "InstanceScript: bot:{} Instance:{} ", bot->GetName(), instance->GetMapName());
+    uint32 curId = instance->GetInstanceId();
+    if (sChallengeDiff->HasChallengMode(curId)) {
+        auto player = bot->GetBotOwner();
+        if (player->GetMapId() == bot->GetMapId()) {
+            SetChallengeMode(bot);
+        }
+        
+    }
+}
+
 //npcbot: hooks
 void InstanceScript::DoRemoveAurasDueToSpellOnNPCBot(Creature* bot, uint32 spell)
 {
@@ -804,50 +827,25 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
     return false;
 }
 
-void InstanceScript::SetChallengeMode(Creature* creature) {
-    if (!creature->IsAlive()) return;
-    uint32 curId = instance->GetInstanceId();
+void InstanceScript::SetChallengeMode(Unit* creature) {
+    //if (!creature->IsAlive()) return;
     if (isOpenChallenge) {
-        if (creature->GetAura(100006)) return;
-        uint32 ench = sChallengeDiff->ChallengeInstanceData[curId].enhance;
-        CustomSpellValues values;
-        values.AddSpellMod(SPELLVALUE_BASE_POINT0, ench);
-        values.AddSpellMod(SPELLVALUE_BASE_POINT1, ench);
-        values.AddSpellMod(SPELLVALUE_BASE_POINT2, ench);
-        creature->CastCustomSpell(100006, values, creature);
-
-        for (size_t i = 0; i < 3; i++)
-        {
-            uint32 spellid = sChallengeDiff->ChallengeInstanceData[curId].apply_spell[i];
-            if (spellid <= 0) continue;
-            if(urand(1,100)<= sChallengeDiff->ZoneChallengeSpellData[spellid].chance)
-                creature->CastSpell(creature, spellid, true);
-        }
+        sChallengeDiff->ApplyChallengeAure(creature, instance->GetInstanceId());
     }
     else
     {
-        Unit::AuraMap const& vAuras = creature->GetOwnedAuras();
-        for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
-        {
-            SpellInfo const* spellInfo = itr->second->GetSpellInfo();
-            if (!spellInfo)
-                continue;
-            if (spellInfo->Id > 100000) {
-                creature->RemoveAura(itr->second);
-            }
-        }
-    }
-
+        sChallengeDiff->RemoveChallengeAure(creature); 
+    } 
 }
-
+ 
 
 
 void InstanceScript::AddChallengeCreature(Creature* creature)
 {
-    if (!instance->IsHeroic()) return;
+    if (!instance->IsHeroic() || instance->IsRaid()) return;
     auto ctemp = creature->GetCreatureTemplate();
-    if (ctemp->rank < 1 && !creature->IsSummon()) return;
-    if (creature->IsControlledByPlayer()) return;
+    if ((ctemp->rank < 1 && !creature->IsSummon())|| ctemp->faction==35) return;
+    if (creature->IsControlledByPlayer() || creature->IsNPCBotOrPet()) return;
     AllChallengeCreature.push_back(creature);
     if (isOpenChallenge) {
         SetChallengeMode(creature);
@@ -856,7 +854,8 @@ void InstanceScript::AddChallengeCreature(Creature* creature)
 
 void InstanceScript::CheckChallengeMode()
 {
-    if (sChallengeDiff->HasChallengMode(instance->GetInstanceId())) {
+    uint32 curId = instance->GetInstanceId(); 
+    if (sChallengeDiff->HasChallengMode(curId)) {
         SetCMode(true); 
     }
     else
@@ -865,5 +864,14 @@ void InstanceScript::CheckChallengeMode()
     }
     for (auto creature : AllChallengeCreature) {
         SetChallengeMode(creature);
+    }
+    Map::PlayerList const& PlayerList = instance->GetPlayers();
+    if (PlayerList.IsEmpty()) return; 
+    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+    { 
+        if (Player* player = i->GetSource())
+        {
+            SetChallengeMode(player);
+        }
     }
 }

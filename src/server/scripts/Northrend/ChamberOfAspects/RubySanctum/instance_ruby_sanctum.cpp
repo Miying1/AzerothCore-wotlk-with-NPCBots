@@ -76,6 +76,7 @@ public:
         }
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             switch (creature->GetEntry())
             {
                 case NPC_BALTHARUS_THE_WARBORN:

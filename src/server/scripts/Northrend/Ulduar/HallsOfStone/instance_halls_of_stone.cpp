@@ -120,9 +120,13 @@ public:
                     break;
             }
         }
-
+        void OnPlayerEnter(Player* plr) override
+        {
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             switch(creature->GetEntry())
             {
                 case NPC_SJONNIR:

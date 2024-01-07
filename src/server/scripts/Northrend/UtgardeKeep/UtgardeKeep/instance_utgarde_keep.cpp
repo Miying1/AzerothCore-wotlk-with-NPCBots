@@ -84,10 +84,12 @@ public:
                 else if(c->IsVisible())
                     c->SetVisible(false);
             }
+            CheckChallengeMode(); 
         }
 
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             switch(creature->GetEntry())
             {
                 case NPC_KELESETH:

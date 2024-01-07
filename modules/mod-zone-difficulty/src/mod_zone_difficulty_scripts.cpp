@@ -45,19 +45,68 @@ class mod_zone_difficulty_globalscript : public GlobalScript
 {
 public:
     mod_zone_difficulty_globalscript() : GlobalScript("mod_zone_difficulty_globalscript") { }
-     
+
+    //void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
+    //{
+
+    //    LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
+    //    uint32 instanceId = instance->GetInstanceId();
+    //    if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
+    //    {
+    //        //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
+    //        return;
+    //    }
+    //    if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
+    //    {
+    //        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: IN_PROGRESS is on.");
+    //        sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
+    //       
+    //    }
+    //    else if (oldState == IN_PROGRESS && newState == DONE)
+    //    { 
+    //        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: DONE is on.");
+    //        if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
+    //        {
+    //            sChallengeDiff->AddBossScore(instance);
+    //        } 
+    //    }
+    //}
+ 
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32  dungeonCompleted , bool /*updated*/) override
+    {
+       
+        if (!source || !source->ToCreature())
+        {
+            //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: source is a nullptr in OnAfterUpdateEncounterState");
+            return;
+        }
+
+        if (sChallengeDiff->HasChallengMode(map->GetInstanceId()))
+        {
+           /* LOG_ERROR("module", "UpdateEncounterState: mapid:{}  source:{} dungeonCompleted:{} isBoss:{} ", map->GetId(),source->GetName(), dungeonCompleted, source->ToCreature()->IsDungeonBoss());*/
+            //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Encounter completed. Map relevant. Checking for source: {}", source->GetEntry());
+
+            if (source->ToCreature()->IsDungeonBoss()) {
+                sChallengeDiff->AddBossScore(map);
+            }
+            if (dungeonCompleted > 0) {
+                sChallengeDiff->SetPlayerChallengeLevel(map);
+            }
+            
+        }
+    }
     void OnInstanceIdRemoved(uint32 instanceId) override
     {
         //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnInstanceIdRemoved: instanceId = {}", instanceId);
         if (sChallengeDiff->ChallengeInstanceData.find(instanceId) != sChallengeDiff->ChallengeInstanceData.end())
         {
             sChallengeDiff->ChallengeInstanceData.erase(instanceId);
-        }
-
-        CharacterDatabase.Execute("DELETE FROM zone_difficulty_instance_saves WHERE InstanceID = {};", instanceId);
-    } 
+            CharacterDatabase.Execute("DELETE FROM zone_difficulty_instance_saves WHERE InstanceID = {};", instanceId);
+        } 
+    }
+    
 };
- 
+
 
 class mod_zone_difficulty_dungeonmaster : public CreatureScript
 {
@@ -79,18 +128,18 @@ public:
                     return;
                 }
                  
-                _scheduler.Schedule(6s, [this](TaskContext /*context*/)
+                _scheduler.Schedule(4s, [this](TaskContext /*context*/)
                     {
                         me->Yell("如果你想开启挑战， 请尽快和我交谈，冒险者!", LANG_UNIVERSAL);
                     });
-                _scheduler.Schedule(55s, [this](TaskContext /*context*/)
+                _scheduler.Schedule(57s, [this](TaskContext /*context*/)
                     {
                         me->Yell("再见冒险者!", LANG_UNIVERSAL);
                     });
-                /*_scheduler.Schedule(60s, [this](TaskContext context)
+                _scheduler.Schedule(60s, [this](TaskContext context)
                     {
                         me->DespawnOrUnsummon();
-                    });  */
+                    });  
             }
             else
             {
@@ -133,11 +182,11 @@ public:
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Try turn on");
             bool canTurnOn = true;
             uint32 playerLevel = sChallengeDiff->PlayerLevelData[player->GetGUID().GetCounter()];
-           /* if (playerLevel + 1 < sender) {
+            if (playerLevel + 1 < sender) {
                 canTurnOn = false;
                 creature->Whisper("冒险者，你的挑战等级还不足以开启这项挑战！", LANG_UNIVERSAL, player);
                 return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 99);
-            }*/
+            }
             // Forbid turning Mythicmode on ...
             // ...if a single encounter was completed on normal mode
             if (sChallengeDiff->ChallengeInstanceData.find(instanceId) != sChallengeDiff->ChallengeInstanceData.end())
@@ -159,8 +208,10 @@ public:
             if (canTurnOn)
             {
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn on Mythicmode for id {}", instanceId);
-                sChallengeDiff->OpenChallenge(instanceId, sender, player); 
-                sChallengeDiff->SendWhisperToRaid("开始冒险吧，我已经为你们开启了挑战！", creature, player);
+                sChallengeDiff->OpenChallenge(instanceId, sender, player);
+                std::ostringstream str;
+                str << "我已经为你们开启了"<< sender<<"级挑战, 开始冒险吧!" ;
+                sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
             }
 
             CloseGossipMenuFor(player);
@@ -177,7 +228,7 @@ public:
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn off Mythicmode for id {}", instanceId);
                 sChallengeDiff->CloseChallenge(instanceId,player); 
                 sChallengeDiff->SendWhisperToRaid("现在已经变为了正常模式了，再见!", creature, player); 
-                creature->DespawnOrUnsummon(2000);
+                //creature->DespawnOrUnsummon(2000);
             }
             CloseGossipMenuFor(player);
         }

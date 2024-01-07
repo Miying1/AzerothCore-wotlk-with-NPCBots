@@ -58,9 +58,13 @@ public:
             LoadDoorData(doorData);
             LoadObjectData(creatureData, nullptr);
         };
-
+        void OnPlayerEnter(Player* plr) override
+        {
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             switch (creature->GetEntry())
             {
                 case NPC_SKITTERING_SWARMER:

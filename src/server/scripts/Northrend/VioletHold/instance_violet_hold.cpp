@@ -103,9 +103,10 @@ public:
         {
             return false;
         }
-
+         
         void OnCreatureCreate(Creature* creature) override
         {
+            AddChallengeCreature(creature);
             switch(creature->GetEntry())
             {
                 case NPC_SINCLARI:
@@ -534,6 +535,7 @@ public:
                 plr->SendUpdateWorldState(WORLD_STATE_VH_SHOW, 0);
 
             events.RescheduleEvent(EVENT_CHECK_PLAYERS, 5s);
+            CheckChallengeMode();
         }
 
         bool DoNeedCleanup(bool enter)

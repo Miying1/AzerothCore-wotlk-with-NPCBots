@@ -145,7 +145,7 @@ public:
             {
                 damage = 0;
                 me->InterruptNonMeleeSpells(true);
-                me->RemoveAllAuras();
+               // me->RemoveAllAuras();
                 me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
                 me->SetControlled(false, UNIT_STATE_ROOT);
                 me->DisableRotate(false);
