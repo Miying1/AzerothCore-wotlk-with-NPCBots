@@ -3570,8 +3570,10 @@ void InstanceMap::Update(const uint32 t_diff, const uint32 s_diff, bool /*thread
     Map::Update(t_diff, s_diff);
 
     if (t_diff)
-        if (instance_data)
+        if (instance_data) {
             instance_data->Update(t_diff);
+            instance_data->TimeLimitUpdate(t_diff);
+        }
 }
 
 void InstanceMap::RemovePlayerFromMap(Player* player, bool remove)

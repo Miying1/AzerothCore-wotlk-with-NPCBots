@@ -23,6 +23,10 @@ struct ZoneDifficultyLevel
     uint32 diff_player = 0;
     uint32 global_spell_num;
     uint32 boss_score;
+    uint32 award1;
+    uint32 award2;
+    uint32 award3;
+
 };
 //实例开启的挑战信息
 struct ZoneChallengeData
@@ -30,6 +34,8 @@ struct ZoneChallengeData
     uint32 level=0;
     uint32 enhance_damage;
     uint32 enhance_hp;
+    uint32 kill_boss;
+    uint32 residue_time;
     std::array<uint32,3> apply_spell; 
 };
 //全局法术信息
@@ -46,6 +52,8 @@ struct ZoneChallengeBaseEnhance
 {
     uint32 base_hp_pct;
     uint32 base_damage_pct;
+    uint32 time_limit;
+    uint32 boss_count;
 };
 struct ZoneChallengeSpellGroup
 {
@@ -82,7 +90,7 @@ public:
     bool HasChallengMode(uint32 inst_id);
     //开启挑战
     bool OpenChallenge(uint32 inst_id, uint32 level, Player* player);
-    bool CloseChallenge(uint32 inst_id, Player* player);
+    bool CloseChallenge(Map* instance);
     //随机获取一个全局法术
     void GetRandomGlobalSpell(uint8 count, std::array<uint32, 3>* apply_spell);
     void SetPlayerChallengeLevel(Map* map); 
@@ -96,7 +104,7 @@ public:
     void ApplyChallengeAure(Unit* creature, uint32 instanceId);
 
     bool IsEnabled{ false };
-    bool IsDebugInfoEnabled{ false };
+    bool IsSendLoot{ true };
     std::map<uint32, uint32> EncountersInProgress;
  
     typedef std::map<uint32, ZoneChallengeBaseEnhance > ZoneChallengeBaseEnhanceMap;

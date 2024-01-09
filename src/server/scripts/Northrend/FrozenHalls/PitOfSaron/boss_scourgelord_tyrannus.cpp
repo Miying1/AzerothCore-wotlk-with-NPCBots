@@ -116,7 +116,9 @@ public:
 
                 // start real fight
                 me->RemoveAllAuras();
-                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE); 
+                pInstance->SetChallengeMode(me);
+                
                 DoZoneInCombat();
                 me->CastSpell(me, 43979, true);
                 Talk(SAY_AGGRO);

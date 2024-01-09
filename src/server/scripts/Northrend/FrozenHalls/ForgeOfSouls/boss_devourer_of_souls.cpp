@@ -104,8 +104,10 @@ public:
             me->SetReactState(REACT_AGGRESSIVE);
             events.Reset();
             summons.DespawnAll();
-            if (pInstance)
+            if (pInstance) {
                 pInstance->SetData(DATA_DEVOURER, NOT_STARTED);
+                pInstance->SetChallengeMode(me);
+            }
         }
 
         uint32 GetData(uint32 id) const override

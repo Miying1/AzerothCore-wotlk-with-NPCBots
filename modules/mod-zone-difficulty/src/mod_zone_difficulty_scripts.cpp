@@ -12,6 +12,7 @@
 #include "PoolMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptMgr.h"
+#include "SpellScript.h"
 #include "SpellAuras.h"
 #include "SpellAuraEffects.h"
 #include "StringConvert.h"
@@ -30,7 +31,7 @@ public:
     void OnAfterConfigLoad(bool /*reload*/) override
     {
         sChallengeDiff->IsEnabled = sConfigMgr->GetOption<bool>("ModZoneDifficulty.Enable", false);
-        sChallengeDiff->IsDebugInfoEnabled = sConfigMgr->GetOption<bool>("ModZoneDifficulty.DebugInfo", false); 
+        sChallengeDiff->IsSendLoot = sConfigMgr->GetOption<bool>("ModZoneDifficulty.IsSendLoot", true);
        
         sChallengeDiff->LoadMapDifficultySettings();
     }
@@ -46,31 +47,31 @@ class mod_zone_difficulty_globalscript : public GlobalScript
 public:
     mod_zone_difficulty_globalscript() : GlobalScript("mod_zone_difficulty_globalscript") { }
 
-    //void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
-    //{
+    void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
+    {
 
-    //    LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
-    //    uint32 instanceId = instance->GetInstanceId();
-    //    if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
-    //    {
-    //        //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
-    //        return;
-    //    }
-    //    if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
-    //    {
-    //        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: IN_PROGRESS is on.");
-    //        sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
-    //       
-    //    }
-    //    else if (oldState == IN_PROGRESS && newState == DONE)
-    //    { 
-    //        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: DONE is on.");
-    //        if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
-    //        {
-    //            sChallengeDiff->AddBossScore(instance);
-    //        } 
-    //    }
-    //}
+        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
+        uint32 instanceId = instance->GetInstanceId();
+        if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
+        {
+            //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
+            return;
+        }
+        if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
+        {
+            LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:BOSS IN_PROGRESS.");
+            sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
+           
+        }
+        else if (oldState == IN_PROGRESS && newState == DONE)
+        { 
+            LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:BOSS  DONE .");
+            if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
+            {
+                sChallengeDiff->AddBossScore(instance);
+            } 
+        }
+    }
  
     void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32  dungeonCompleted , bool /*updated*/) override
     {
@@ -80,18 +81,23 @@ public:
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: source is a nullptr in OnAfterUpdateEncounterState");
             return;
         }
-
-        if (sChallengeDiff->HasChallengMode(map->GetInstanceId()))
+        uint32 instId = map->GetInstanceId();
+        if (sChallengeDiff->HasChallengMode(instId))
         {
            /* LOG_ERROR("module", "UpdateEncounterState: mapid:{}  source:{} dungeonCompleted:{} isBoss:{} ", map->GetId(),source->GetName(), dungeonCompleted, source->ToCreature()->IsDungeonBoss());*/
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Encounter completed. Map relevant. Checking for source: {}", source->GetEntry());
-
+            auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
             if (source->ToCreature()->IsDungeonBoss()) {
                 sChallengeDiff->AddBossScore(map);
+                sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
+                CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
+                LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:DONE:{} killcount:{} mapid:{} .", source->GetName(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss,map->GetId());
             }
-            if (dungeonCompleted > 0) {
+            if (sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[map->GetId()].boss_count) {
                 sChallengeDiff->SetPlayerChallengeLevel(map);
-            }
+                sChallengeDiff->SendChallengLoot(map); //完成 
+                sChallengeDiff->CloseChallenge(map);
+            } 
             
         }
     }
@@ -136,6 +142,7 @@ public:
                     {
                         if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
                             _scheduler.CancelAll();
+                            return;
                         }
                         me->Yell("再见冒险者!", LANG_UNIVERSAL);
                     });
@@ -229,7 +236,7 @@ public:
             if (sChallengeDiff->HasChallengMode(instanceId))
             {
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn off Mythicmode for id {}", instanceId);
-                sChallengeDiff->CloseChallenge(instanceId,player); 
+                sChallengeDiff->CloseChallenge(player->GetMap());
                 sChallengeDiff->SendWhisperToRaid("现在已经变为了正常模式了，再见!", creature, player); 
                 creature->DespawnOrUnsummon(2000);
             }
@@ -288,11 +295,96 @@ public:
         return true;
     }
 };
- 
+class spell_kuangbaonuhou_aura : public SpellScriptLoader
+{
+public:
+    spell_kuangbaonuhou_aura() : SpellScriptLoader("spell_kuangbaonuhou_aura") { }
+
+    class spell_kuangbaonuhou_aura_AuraScript : public AuraScript
+    {
+        PrepareAuraScript(spell_kuangbaonuhou_aura_AuraScript);
+
+        bool CheckProc(ProcEventInfo& eventInfo)
+        {
+            Unit* caster = GetCaster();
+            if (!caster) return false;
+            if (caster->HealthBelowPct(25)) {
+                return true;
+            }
+            else
+            {
+                iscasted = false;
+                return false;
+            }
+        }
+
+        void HandleProc(AuraEffect const*  /*aurEff*/, ProcEventInfo& eventInfo)
+        {
+            PreventDefaultAction();
+            if (iscasted) return;
+            Unit* caster = GetCaster();
+            if (caster->CastSpell(caster, 100014, false))
+                iscasted = true;  
+            return;
+        }
+
+        void Register() override
+        {
+            DoCheckProc += AuraCheckProcFn(spell_kuangbaonuhou_aura_AuraScript::CheckProc);
+            OnEffectProc += AuraEffectProcFn(spell_kuangbaonuhou_aura_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        }
+    private:
+        bool iscasted = false;
+    };
+
+    AuraScript* GetAuraScript() const override
+    {
+        return new spell_kuangbaonuhou_aura_AuraScript();
+    }
+};
+
+class spell_challenge_periodic_trigger : public SpellScriptLoader
+{
+public:
+    spell_challenge_periodic_trigger() : SpellScriptLoader("spell_challenge_periodic_trigger") { }
+
+    class spell_challenge_periodic_trigger_AuraScript : public AuraScript
+    {
+        PrepareAuraScript(spell_challenge_periodic_trigger_AuraScript);
+
+        void HandleTriggerSpell(AuraEffect const* aurEff)
+        {
+            PreventDefaultAction();
+            Unit* caster = GetCaster();
+            if (!caster)
+                return;
+            auto target= caster->GetAI()->SelectTarget(SelectTargetMethod::Random, 0, 30.0f);
+            if (!target || !target->IsAlive() || !target->IsInWorld()) return;
+            //caster->GetThreatMgr().GetThreatList
+            uint32 triggerSpell = GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell;
+            SpellInfo const* spell = sSpellMgr->AssertSpellInfo(triggerSpell); 
+            if (!spell) return;
+            caster->CastSpell(target, triggerSpell,true);
+        }
+         
+        void Register() override
+        {
+            OnEffectPeriodic += AuraEffectPeriodicFn(spell_challenge_periodic_trigger_AuraScript::HandleTriggerSpell, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+            
+        }
+    };
+
+    AuraScript* GetAuraScript() const override
+    {
+        return new spell_challenge_periodic_trigger_AuraScript();
+    }
+};
 // Add all scripts in one
 void AddModZoneDifficultyScripts()
 { 
     new mod_zone_difficulty_worldscript();
     new mod_zone_difficulty_globalscript(); 
-    new mod_zone_difficulty_dungeonmaster(); 
+    new mod_zone_difficulty_dungeonmaster();
+    new spell_kuangbaonuhou_aura();
+    new spell_challenge_periodic_trigger();
 }

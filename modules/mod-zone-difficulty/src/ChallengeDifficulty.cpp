@@ -41,7 +41,7 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
     sChallengeDiff->PlayerLevelData.clear();
     sChallengeDiff->BaseEnhanceMapData.clear();
     //挑战难度等级
-    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score FROM zone_difficulty_level"))
+    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score,award1,award2,award3 FROM zone_difficulty_level"))
     {
         do
         {
@@ -52,6 +52,9 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
             level.diff_player = (*result)[2].Get<uint32>();
             level.global_spell_num = (*result)[3].Get<uint32>();
             level.boss_score = (*result)[4].Get<uint32>();
+            level.award1 = (*result)[5].Get<uint32>();
+            level.award2 = (*result)[6].Get<uint32>();
+            level.award3 = (*result)[7].Get<uint32>();
             sChallengeDiff->DiffLevelData[difflevel] = level;
 
         } while (result->NextRow());
@@ -97,14 +100,16 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
         } while (result->NextRow());
     }
     //地图基础增强
-    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct FROM zone_difficulty_mapbase"))
+    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct,time_limit,boss_count FROM zone_difficulty_mapbase"))
     {
         do
         {
             uint32 mapid = (*result)[0].Get<uint32>();
             uint32 base_hp_pct = (*result)[1].Get<uint32>();
             uint32 base_damage_pct = (*result)[2].Get<uint32>();
-            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct };
+            uint32 time_limit = (*result)[3].Get<uint32>();
+            uint32 boss_count = (*result)[4].Get<uint32>();
+            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct,time_limit,boss_count };
 
         } while (result->NextRow());
     }
@@ -165,7 +170,7 @@ void ChallengeDifficulty::LoadMythicmodeInstanceData()
 {
     std::vector<bool> instanceIDs = sMapMgr->GetInstanceIDs();
 
-    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
+    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,kill_boss,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
     {
         do
         {
@@ -178,9 +183,10 @@ void ChallengeDifficulty::LoadMythicmodeInstanceData()
                 cdata.level = fields[1].Get<uint32>();
                 cdata.enhance_damage = fields[2].Get<uint32>();
                 cdata.enhance_hp = fields[3].Get<uint32>();
-                cdata.apply_spell[0] = fields[4].Get<uint32>();
-                cdata.apply_spell[1] = fields[5].Get<uint32>();
-                cdata.apply_spell[2] = fields[6].Get<uint32>();
+                cdata.kill_boss= fields[4].Get<uint32>();
+                cdata.apply_spell[0] = fields[5].Get<uint32>();
+                cdata.apply_spell[1] = fields[6].Get<uint32>();
+                cdata.apply_spell[2] = fields[7].Get<uint32>();
                 sChallengeDiff->ChallengeInstanceData[InstanceId] = cdata;
             }
             else
@@ -236,26 +242,34 @@ bool ChallengeDifficulty::OpenChallenge(uint32 inst_id, uint32 level, Player* pl
     cdata.level = level;
     cdata.enhance_damage = (*levelinfo).second.enhance;
     cdata.enhance_hp = (*levelinfo).second.enhance;
+    cdata.residue_time = 0;
+    cdata.kill_boss = 0;
     if (BaseEnhanceMapData.find(player->GetMapId()) != BaseEnhanceMapData.end()) {
         cdata.enhance_damage = cdata.enhance_damage+ BaseEnhanceMapData[player->GetMapId()].base_damage_pct;
         cdata.enhance_hp = cdata.enhance_hp +BaseEnhanceMapData[player->GetMapId()].base_hp_pct;
+        cdata.residue_time = BaseEnhanceMapData[player->GetMapId()].time_limit;
     }
     cdata.apply_spell = { 0, 0, 0 };
     GetRandomGlobalSpell((*levelinfo).second.global_spell_num, &cdata.apply_spell); 
    
-    ChallengeInstanceData[inst_id] = cdata; 
-    insScript->CheckChallengeMode();
-    CharacterDatabase.Execute("REPLACE INTO zone_difficulty_instance_saves (InstanceID, level,enhance_damage,enhance_hp,spell_id1,spell_id2,spell_id3) VALUES ({}, {},{},{}, {}, {}, {})", inst_id, cdata.level, cdata.enhance_damage,cdata.enhance_hp, cdata.apply_spell[0], cdata.apply_spell[1], cdata.apply_spell[2]);
+    ChallengeInstanceData[inst_id] = cdata;  
+    insScript->SetCMode(true);
+    insScript->RefreshChallengeBuff();
+    insScript->SetTimeLimitMinute(cdata.residue_time);
+    CharacterDatabase.Execute("REPLACE INTO zone_difficulty_instance_saves (InstanceID, level,enhance_damage,enhance_hp,residue_time,spell_id1,spell_id2,spell_id3) VALUES ({}, {},{},{}, {}, {}, {}, {})", inst_id, cdata.level, cdata.enhance_damage,cdata.enhance_hp, cdata.residue_time,cdata.apply_spell[0], cdata.apply_spell[1], cdata.apply_spell[2]);
     return true;
 }
 
-bool ChallengeDifficulty::CloseChallenge(uint32 inst_id, Player* player)
+bool ChallengeDifficulty::CloseChallenge(Map* instance)
 {
-    auto insScript = player->GetInstanceScript();
+    auto insScript = instance->IsDungeon() ? instance->ToInstanceMap()->GetInstanceScript() : nullptr;
     if (!insScript) return false;
-    ChallengeInstanceData.erase(inst_id); 
-    insScript->CheckChallengeMode();
-    CharacterDatabase.Execute("DELETE FROM zone_difficulty_instance_saves WHERE InstanceID = {}", inst_id);
+    if (HasChallengMode(instance->GetInstanceId()))
+        ChallengeInstanceData.erase(instance->GetInstanceId());
+    insScript->SetCMode(false);
+    insScript->RefreshChallengeBuff();
+    insScript->SetTimeLimitMinute(0); 
+    CharacterDatabase.Execute("DELETE FROM zone_difficulty_instance_saves WHERE InstanceID = {}", instance->GetInstanceId());
     return true;
 }
 
@@ -293,6 +307,8 @@ void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
 }
 void ChallengeDifficulty::AddBossScore(Map* map)
 {
+    if (!IsSendLoot)
+        return;
     if (!map || !HasChallengMode(map->GetInstanceId()))
     {
         LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in AddMythicmodeScore.");
@@ -312,19 +328,30 @@ void ChallengeDifficulty::AddBossScore(Map* map)
 
 void ChallengeDifficulty::SendChallengLoot(Map* map)
 {
-    
+    if (!IsSendLoot) return;
     if (!map || !HasChallengMode(map->GetInstanceId()))
     {
-        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in AddMythicmodeScore.");
+        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: No object for map in ChallengMode.");
         return;
     }
+    auto insScript = map->IsDungeon() ? map->ToInstanceMap()->GetInstanceScript() : nullptr;
+    if (!insScript) return ;
+    uint32 instId = map->GetInstanceId();
+    uint32 sendloot = DiffLevelData[ChallengeInstanceData[instId].level].award2;
+    //限时完成
+    if (insScript->GetTimeLimitMinute() > 0) {
+        LOG_ERROR("module", "限时完成 killcount:{} mapid:{} .", ChallengeInstanceData[instId].kill_boss, map->GetId());
+        sendloot= DiffLevelData[ChallengeInstanceData[instId].level].award1;
+    } 
     auto cdata = &ChallengeInstanceData[map->GetInstanceId()];
     Map::PlayerList const& PlayerList = map->GetPlayers();
     for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
     {
         Player* player = i->GetSource();
-        
-    }
+        if (!player->AddItem(sendloot, 1)) {
+            player->SendItemRetrievalMail(sendloot, 1);
+        }
+    } 
 }
 void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
 

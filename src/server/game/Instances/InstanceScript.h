@@ -146,6 +146,7 @@ public:
 
     Map* instance;
     std::vector<Creature*> AllChallengeCreature;
+   
     //On creation, NOT load.
     virtual void Initialize() {}
    
@@ -161,7 +162,7 @@ public:
     void SaveToDB();
 
     virtual void Update(uint32 /*diff*/);
-
+    virtual void TimeLimitUpdate(uint32 diff);
     //Used by the map's CanEnter function.
     //This is to prevent players from entering during boss encounters.
     virtual bool IsEncounterInProgress() const;
@@ -275,9 +276,13 @@ public:
     void SetChallengeMode(Unit* creature);  
     //重新设置所有生物挑战模式
     void CheckChallengeMode();
+    //根据挑战模式刷新生物BUFF
+    void RefreshChallengeBuff();
     //添加挑战模式生物
     void AddChallengeCreature(Creature* creature);
     void SetCMode(bool isopen) { isOpenChallenge = isopen; }
+    void SetTimeLimitMinute(uint32 timelimit);
+    uint32 GetTimeLimitMinute() { return timeLimitMinute; }
     TaskScheduler scheduler;
 protected:
     void SetHeaders(std::string const& dataHeaders);
@@ -320,6 +325,8 @@ private:
     ObjectInfoMap _gameObjectInfo;
     ObjectGuidMap _objectGuids;
     uint32 completedEncounters; // completed encounter mask, bit indexes are DungeonEncounter.dbc boss numbers, used for packets
+    uint32 limitTimer = 0;
+    uint32 timeLimitMinute = 0;
     std::unordered_set<uint32> _activatedAreaTriggers;
 };
 

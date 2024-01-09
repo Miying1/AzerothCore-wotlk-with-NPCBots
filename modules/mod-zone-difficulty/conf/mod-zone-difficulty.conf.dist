@@ -17,11 +17,11 @@
 ModZoneDifficulty.Enable = 1
 
 #
-#    ModZoneDifficulty.DebugInfo
-#        Description: Displays debug data for absorbs.
+#    ModZoneDifficulty.IsSendLoot
+#        Description: LOOT发放
 #        Default:     0 - Disabled
 #                     1 - Enabled
 #
 
-ModZoneDifficulty.DebugInfo = 0
+ModZoneDifficulty.IsSendLoot = 0
    

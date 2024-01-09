@@ -239,6 +239,25 @@ void InstanceScript::Update(uint32 diff)
     scheduler.Update(diff);
 }
 
+void InstanceScript::TimeLimitUpdate(uint32 diff)
+{
+    if (timeLimitMinute)
+    {
+        if (limitTimer <= diff)
+        {
+            timeLimitMinute--;
+            limitTimer += 60000;
+            if (timeLimitMinute)
+            {
+                DoUpdateWorldState(6000 + instance->GetId(), 1);
+                DoUpdateWorldState(6001, timeLimitMinute);
+            }
+            else DoUpdateWorldState(6000 + instance->GetId(), 0);
+        }
+        limitTimer -= diff;
+    }
+}
+
 void InstanceScript::UpdateDoorState(GameObject* door)
 {
     DoorInfoMapBounds range = doors.equal_range(door->GetEntry());
@@ -828,7 +847,7 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
 }
 
 void InstanceScript::SetChallengeMode(Unit* creature) {
-    //if (!creature->IsAlive()) return;
+    if (!creature->IsInWorld()) return;
     if (isOpenChallenge) {
         sChallengeDiff->ApplyChallengeAure(creature, instance->GetInstanceId());
     }
@@ -837,7 +856,13 @@ void InstanceScript::SetChallengeMode(Unit* creature) {
         sChallengeDiff->RemoveChallengeAure(creature); 
     } 
 }
- 
+void InstanceScript::SetTimeLimitMinute(uint32 timelimit) {
+    timeLimitMinute = timelimit;
+    if (timelimit == 0) {
+
+        DoUpdateWorldState(6000+instance->GetId(), 0);
+    }
+}
 
 
 void InstanceScript::AddChallengeCreature(Creature* creature)
@@ -855,20 +880,33 @@ void InstanceScript::AddChallengeCreature(Creature* creature)
 void InstanceScript::CheckChallengeMode()
 {
     uint32 curId = instance->GetInstanceId(); 
-    if (sChallengeDiff->HasChallengMode(curId)) {
-        SetCMode(true); 
+    if (!isOpenChallenge && sChallengeDiff->HasChallengMode(curId)) {
+        SetCMode(true);
+        RefreshChallengeBuff();
+        return;
     }
-    else
-    {
-        SetCMode(false);
+    if (isOpenChallenge) {
+        Map::PlayerList const& PlayerList = instance->GetPlayers();
+        if (PlayerList.IsEmpty()) return;
+        for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+        {
+            if (Player* player = i->GetSource())
+            {
+                SetChallengeMode(player);
+            }
+        }
     }
+}
+
+void InstanceScript::RefreshChallengeBuff()
+{
     for (auto creature : AllChallengeCreature) {
         SetChallengeMode(creature);
     }
     Map::PlayerList const& PlayerList = instance->GetPlayers();
-    if (PlayerList.IsEmpty()) return; 
+    if (PlayerList.IsEmpty()) return;
     for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-    { 
+    {
         if (Player* player = i->GetSource())
         {
             SetChallengeMode(player);
