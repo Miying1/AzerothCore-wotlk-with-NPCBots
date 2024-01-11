@@ -869,7 +869,7 @@ void InstanceScript::AddChallengeCreature(Creature* creature)
 {
     if (!instance->IsHeroic() || instance->IsRaid()) return;
     auto ctemp = creature->GetCreatureTemplate();
-    if ((ctemp->rank < 1 && !creature->IsSummon())|| ctemp->faction==35) return;
+    if (ctemp->faction==35) return;
     if (creature->IsControlledByPlayer() || creature->IsNPCBotOrPet()) return;
     AllChallengeCreature.push_back(creature);
     if (isOpenChallenge) {
