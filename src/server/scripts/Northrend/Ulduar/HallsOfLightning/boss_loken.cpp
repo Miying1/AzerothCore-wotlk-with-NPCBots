@@ -89,17 +89,18 @@ public:
 
         void Reset() override
         {
-            events.Reset();
+            events.Reset(); 
+            me->RemoveAllAuras();
             if (m_pInstance)
             {
                 m_pInstance->DoStopTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEVEMENT_TIMELY_DEATH);
                 m_pInstance->SetData(TYPE_LOKEN, NOT_STARTED);
+                m_pInstance->SetChallengeMode(me);
             }
 
             HealthCheck = 75;
             IntroTimer = 0;
-            me->RemoveAllAuras();
-
+            
             if (!isActive)
             {
                 me->SetControlled(true, UNIT_STATE_STUNNED);

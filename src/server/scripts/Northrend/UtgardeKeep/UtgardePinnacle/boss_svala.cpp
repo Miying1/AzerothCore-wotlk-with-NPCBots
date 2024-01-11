@@ -253,6 +253,8 @@ public:
                             Arthas->InterruptNonMeleeSpells(false);
                         me->RemoveAllAuras();
                         me->SetWalk(false);
+                        if (instance)
+                            instance->SetChallengeMode(me);
                         events2.ScheduleEvent(EVENT_SVALA_TALK5, 2s);
 
                         std::list<Creature*> creatureList;

@@ -286,6 +286,8 @@ public:
                 me->SetUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
                 me->SetDynamicFlag(UNIT_DYNFLAG_DEAD);
                 events.RescheduleEvent(EVENT_RESURRECT, 12s);
+                if (pInstance)
+                    pInstance->SetChallengeMode(me);
             }
         }
 

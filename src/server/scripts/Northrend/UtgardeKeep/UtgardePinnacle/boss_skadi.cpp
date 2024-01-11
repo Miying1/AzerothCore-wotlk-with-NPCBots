@@ -154,6 +154,7 @@ public:
                 m_pInstance->SetData(SKADI_IN_RANGE, 0);
                 m_pInstance->SetData(SKADI_HITS, 0);
                 m_pInstance->SetData(DATA_SKADI_ACHIEVEMENT, false);
+                m_pInstance->SetChallengeMode(me);
             }
         }
 
@@ -297,6 +298,8 @@ public:
             currentPos = 0;
             AchievementHitCount = 0;
             me->RemoveAllAuras();
+            if (m_pInstance)
+                m_pInstance->SetChallengeMode(me);
         }
 
         void DoAction(int32 param) override

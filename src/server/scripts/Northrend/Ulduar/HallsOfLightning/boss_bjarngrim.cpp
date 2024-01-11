@@ -162,8 +162,10 @@ public:
             me->CastSpell(me, SPELL_TEMPORARY_ELECTRICAL_CHARGE, true);
             RollStance(0, STANCE_DEFENSIVE);
 
-            if (m_pInstance)
+            if (m_pInstance) {
                 m_pInstance->SetData(TYPE_BJARNGRIM, NOT_STARTED);
+                m_pInstance->SetChallengeMode(me);
+            }
         }
 
         void JustEngagedWith(Unit*) override

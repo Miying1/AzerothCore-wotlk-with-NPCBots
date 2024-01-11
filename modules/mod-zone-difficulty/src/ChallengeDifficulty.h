@@ -35,6 +35,7 @@ struct ZoneChallengeData
     uint32 enhance_damage;
     uint32 enhance_hp;
     uint32 kill_boss;
+    bool last_boss_killed = false;
     uint32 residue_time;
     std::array<uint32,3> apply_spell; 
 };
@@ -54,6 +55,7 @@ struct ZoneChallengeBaseEnhance
     uint32 base_damage_pct;
     uint32 time_limit;
     uint32 boss_count;
+    uint32 lastboss;
 };
 struct ZoneChallengeSpellGroup
 {

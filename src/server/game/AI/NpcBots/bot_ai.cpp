@@ -9068,6 +9068,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         {
             if (!_unequip(action - GOSSIP_ACTION_INFO_DEF, player->GetGUID()))
             {} //BotWhisper("Impossible...", player);
+            if (master && master->IsInWorld())
+                master->SaveToDB(false, false);
             return OnGossipSelect(player, creature, GOSSIP_SENDER_EQUIPMENT, GOSSIP_ACTION_INFO_DEF + 1);
         }
         case GOSSIP_SENDER_UNEQUIP_ALL:
@@ -9086,7 +9088,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             if (suc)
                 me->HandleEmoteCommand(EMOTE_ONESHOT_CRY);
-
+            if (master && master->IsInWorld())
+                master->SaveToDB(false, false);
             break;
         }
         //autoequips change s5b: AtoEquip item

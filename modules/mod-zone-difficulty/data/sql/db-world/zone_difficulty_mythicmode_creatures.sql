@@ -13,7 +13,8 @@ DELETE FROM `spell_custom_attr` WHERE `spell_id`=100007;
 INSERT INTO `spell_custom_attr` (`spell_id`, `attributes`) VALUES (100008, 4194304);
 DELETE FROM `spell_custom_attr` WHERE `spell_id`=100009;
 INSERT INTO `spell_custom_attr` (`spell_id`, `attributes`) VALUES (1000010, 4194304);
-
+DELETE FROM `spell_custom_attr` WHERE `spell_id`=100014;
+INSERT INTO `spell_custom_attr` (`spell_id`, `attributes`) VALUES (100014, 4194304);
 
 # cost:4031-4052   5- 500
 DELETE FROM `item_template` WHERE (`entry` = 62000);

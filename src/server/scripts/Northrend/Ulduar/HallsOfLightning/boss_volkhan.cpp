@@ -524,7 +524,7 @@ public:
             {
                 me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                 me->CastSpell(me, SPELL_AWAKEN, true);
-                me->RemoveAllAuras();
+                //me->RemoveAllAuras();
                 _isActive = true;
                 if (Unit* target = ObjectAccessor::GetUnit(*me, _attackGUID))
                     AttackStart(target);

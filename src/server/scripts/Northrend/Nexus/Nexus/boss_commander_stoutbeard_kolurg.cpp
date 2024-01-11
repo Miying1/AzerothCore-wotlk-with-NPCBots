@@ -73,7 +73,8 @@ public:
             events.ScheduleEvent(EVENT_FRIGHTENING_SHOUT, 10s);
             events.ScheduleEvent(EVENT_WHIRLWIND, 15s);
             events.ScheduleEvent(EVENT_COMMANDER_CHARGE, 1s);
-            me->RemoveAllAuras();
+            me->RemoveAllAuras(); 
+            instance->SetChallengeMode(me);
         }
 
         void KilledUnit(Unit*) override

@@ -16,7 +16,8 @@
 enum FMITEM
 {
     TTFUWEN = 60100, //符文
-    TTJINGHUA = 60101 //精华
+    TTJINGHUA = 60101, //精华
+    TTZHILI=60102 //泰坦之力
 };
 
 class ReEnchants_WorldScript : public WorldScript
@@ -43,7 +44,7 @@ public:
     {
         if (player->IsInCombat())
             return false;
-
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "请帮我给首饰附件泰坦之力。", GOSSIP_SENDER_MAIN+6, 1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想重新附魔首饰。", GOSSIP_SENDER_MAIN, 1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想强化首饰的附魔力量。", GOSSIP_SENDER_MAIN + 1, 2);
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, "我需要泰坦能量", GOSSIP_SENDER_MAIN + 4, 1);
@@ -74,6 +75,39 @@ public:
         case 6:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
             SendGossipMenuFor(player, textId + 6, creature->GetGUID());
+            break;
+        case 7://FM
+            if (!VerifyReqItem(player, TTZHILI)) {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
+                SendGossipMenuFor(player, textId + 7, creature->GetGUID());
+                break;
+            }
+            GetItemList(player, 300, &itemList,true);
+            if (itemList.empty()) {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
+                SendGossipMenuFor(player, textId + 8, creature->GetGUID());
+                break;
+            }
+            SendGossipMenuFor(player, textId + 8, creature->GetGUID());
+            break;
+        case 300:
+            if (!VerifyReqItem(player, TTZHILI)) {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_MAIN + 3, 3);
+                SendGossipMenuFor(player, textId + 7, creature->GetGUID());
+                break;
+            }
+            result = RollPossibleEnchant(player, action,101);
+            if (result == 0) {
+                ChatHandler(player->GetSession()).PSendSysMessage("附魔失败:%u", action);
+                CloseGossipMenuFor(player);
+            }
+            else
+            {
+                std::string msg = "泰坦符文能量汇聚于你的装备之上！";
+                ChatHandler(player->GetSession()).PSendSysMessage(msg.c_str());
+                player->DestroyItemCount(TTZHILI, 1, true);
+                return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 1);
+            }
             break;
         case 1://随机FM
             if (!VerifyReqItem(player, TTFUWEN)) {
@@ -110,7 +144,7 @@ public:
                 SendGossipMenuFor(player, textId + 2, creature->GetGUID());
                 break;
             }
-            result = RollPossibleEnchant(player, action);
+            result = RollPossibleEnchant(player, action, tnEchants->ReRandChance);
             if (result == 0) {
                 ChatHandler(player->GetSession()).PSendSysMessage("附魔失败:%u", action);
                 CloseGossipMenuFor(player);
@@ -146,11 +180,11 @@ public:
         }
         return true;
     }
-    int RollPossibleEnchant(Player* player, uint32 item_guid) {
+    int RollPossibleEnchant(Player* player, uint32 item_guid,float chance) {
         auto guid = ObjectGuid::Create<HighGuid::Item>(item_guid);
         Item* item = player->GetItemByGuid(guid);
         if (!item) return 0;
-        if (rand_chance() > tnEchants->ReRandChance) return 1;
+        if (rand_chance() > chance) return 1;
         bool res = tnEchants->RandomEnchEffect(player, item);
         return res ? 2 : 1;
     }
@@ -163,7 +197,7 @@ public:
         return res_flag;
     }
 
-    void GetItemList(Player* player, int sender, std::set<uint32>* itemList) {
+    void GetItemList(Player* player, int sender, std::set<uint32>* itemList,bool all=false) {
         //s2.1.2: other bags
         for (uint8 i = INVENTORY_SLOT_BAG_START; i != INVENTORY_SLOT_BAG_END; ++i)
         {
@@ -180,7 +214,7 @@ public:
                             || (itemtype != 12 && itemtype != 2))
                             continue;
                         int itemid = pItem->GetGUID().GetCounter();
-                        if (!tnEchants->VerifyItemIsTn(itemid)) continue;
+                        if (!all && !tnEchants->VerifyItemIsTn(itemid)) continue;
 
                         std::ostringstream name;
                         _AddItemLink(player, pItem, name, true);

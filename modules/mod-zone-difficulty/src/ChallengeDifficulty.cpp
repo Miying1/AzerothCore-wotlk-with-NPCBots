@@ -100,7 +100,7 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
         } while (result->NextRow());
     }
     //地图基础增强
-    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct,time_limit,boss_count FROM zone_difficulty_mapbase"))
+    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct,time_limit,boss_count,lastboss FROM zone_difficulty_mapbase"))
     {
         do
         {
@@ -109,7 +109,8 @@ void ChallengeDifficulty::LoadMapDifficultySettings()
             uint32 base_damage_pct = (*result)[2].Get<uint32>();
             uint32 time_limit = (*result)[3].Get<uint32>();
             uint32 boss_count = (*result)[4].Get<uint32>();
-            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct,time_limit,boss_count };
+            uint32 lastboss = (*result)[5].Get<uint32>();
+            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct,time_limit,boss_count,lastboss };
 
         } while (result->NextRow());
     }

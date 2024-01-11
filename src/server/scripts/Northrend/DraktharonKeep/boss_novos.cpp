@@ -226,6 +226,7 @@ public:
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     me->InterruptNonMeleeSpells(false);
+                    instance->SetChallengeMode(me);
                     break;
                 case EVENT_CAST_OFFENSIVE_SPELL:
                     if (!me->HasUnitState(UNIT_STATE_CASTING))

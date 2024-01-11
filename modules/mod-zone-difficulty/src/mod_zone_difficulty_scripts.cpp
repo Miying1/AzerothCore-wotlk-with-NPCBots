@@ -47,31 +47,30 @@ class mod_zone_difficulty_globalscript : public GlobalScript
 public:
     mod_zone_difficulty_globalscript() : GlobalScript("mod_zone_difficulty_globalscript") { }
 
-    void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
-    {
+    //void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
+    //{
 
-        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
-        uint32 instanceId = instance->GetInstanceId();
-        if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
-        {
-            //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
-            return;
-        }
-        if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
-        {
-            LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:BOSS IN_PROGRESS.");
-            sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
-           
-        }
-        else if (oldState == IN_PROGRESS && newState == DONE)
-        { 
-            LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:BOSS  DONE .");
-            if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
-            {
-                sChallengeDiff->AddBossScore(instance);
-            } 
-        }
-    }
+    //    LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
+    //    uint32 instanceId = instance->GetInstanceId();
+    //    if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
+    //    {
+    //        //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
+    //        return;
+    //    }
+    //    if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
+    //    { 
+    //        sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
+    //       
+    //    }
+    //    else if (oldState == IN_PROGRESS && newState == DONE)
+    //    { 
+    //        LOG_ERROR("module", "BOSS State DONE :{}.");
+    //       /* if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
+    //        {
+    //            sChallengeDiff->AddBossScore(instance);
+    //        }*/ 
+    //    }
+    //}
  
     void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32  dungeonCompleted , bool /*updated*/) override
     {
@@ -84,16 +83,18 @@ public:
         uint32 instId = map->GetInstanceId();
         if (sChallengeDiff->HasChallengMode(instId))
         {
-           /* LOG_ERROR("module", "UpdateEncounterState: mapid:{}  source:{} dungeonCompleted:{} isBoss:{} ", map->GetId(),source->GetName(), dungeonCompleted, source->ToCreature()->IsDungeonBoss());*/
-            //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Encounter completed. Map relevant. Checking for source: {}", source->GetEntry());
-            auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
-            if (source->ToCreature()->IsDungeonBoss()) {
-                sChallengeDiff->AddBossScore(map);
-                sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
-                CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
-                LOG_ERROR("module", "MOD-ZONE-DIFFICULTY:DONE:{} killcount:{} mapid:{} .", source->GetName(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss,map->GetId());
-            }
-            if (sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[map->GetId()].boss_count) {
+            uint32 mapid = map->GetId();
+            auto instanceScript = map->ToInstanceMap()->GetInstanceScript(); 
+            sChallengeDiff->AddBossScore(map);
+            sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
+            CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
+            LOG_ERROR("module", "BOSS DONE:{} killcount:{} mapid:{} .", source->GetName(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, mapid);
+            uint32 lastboss = sChallengeDiff->BaseEnhanceMapData[mapid].lastboss;
+            bool iskilledfinsh = sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[mapid].boss_count;
+            if (lastboss == source->GetEntry())
+                sChallengeDiff->ChallengeInstanceData[instId].last_boss_killed = true;
+            if ((lastboss==0 && iskilledfinsh)
+                || (sChallengeDiff->ChallengeInstanceData[instId].last_boss_killed && iskilledfinsh)) {
                 sChallengeDiff->SetPlayerChallengeLevel(map);
                 sChallengeDiff->SendChallengLoot(map); //完成 
                 sChallengeDiff->CloseChallenge(map);
