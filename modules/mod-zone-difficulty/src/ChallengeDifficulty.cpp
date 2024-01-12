@@ -355,7 +355,7 @@ void ChallengeDifficulty::SendChallengLoot(Map* map)
     } 
 }
 void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
-
+    if (!creature || !creature->IsInWorld()) return; 
     RemoveChallengeAureBuff(creature);
     if (creature->GetTypeId() == TYPEID_PLAYER) {
 
@@ -371,22 +371,22 @@ void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
                     }
                 }
         } 
-    }  
+    }
+   
 }
 void ChallengeDifficulty::RemoveChallengeAureBuff(Unit* unit) {
-    Unit::AuraMap const& vAuras = unit->GetOwnedAuras();
+    if (!unit) return; 
+    auto vAuras = unit->GetOwnedAuras();
+    if (vAuras.empty()) return;
     for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
-    {
-        SpellInfo const* spellInfo = itr->second->GetSpellInfo();
-        if (!spellInfo)
-            continue;
-        if (spellInfo->Id > 100000) {
+    { 
+        if (itr->first > 100000) {
             unit->RemoveAura(itr->second);
         }
     }
 }
 void ChallengeDifficulty::ApplyChallengeAure(Unit* creature,uint32 instanceId) {
-
+    if (!creature->IsInWorld()) return;
     bool isplayer = creature->GetTypeId() == TYPEID_PLAYER || creature->IsNPCBot();
     uint32 spellid = isplayer ? SPELL_DEFF_PLAYER : SPELL_ENHANCE_CREATURE;
     if (creature->GetAura(spellid)) return; 

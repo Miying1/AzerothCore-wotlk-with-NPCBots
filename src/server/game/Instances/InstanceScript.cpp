@@ -847,7 +847,7 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
 }
 
 void InstanceScript::SetChallengeMode(Unit* creature) {
-    if (!creature->IsInWorld()) return;
+    if (!creature || !creature->IsInWorld()) return;
     if (isOpenChallenge) {
         sChallengeDiff->ApplyChallengeAure(creature, instance->GetInstanceId());
     }

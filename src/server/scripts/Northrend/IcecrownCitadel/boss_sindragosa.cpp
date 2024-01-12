@@ -718,7 +718,7 @@ public:
         {
             me->RemoveAllGameObjects();
 
-            if (Player* player = ObjectAccessor::GetPlayer(*me, _trappedPlayerGUID))
+            if (Unit* player = ObjectAccessor::GetUnit(*me, _trappedPlayerGUID))
             {
                 _trappedPlayerGUID.Clear();
                 player->RemoveAurasDueToSpell(SPELL_ICE_TOMB_DAMAGE);
@@ -735,7 +735,7 @@ public:
 
             if (_existenceCheckTimer <= diff)
             {
-                Player* player = ObjectAccessor::GetPlayer(*me, _trappedPlayerGUID);
+                Unit* player = ObjectAccessor::GetUnit(*me, _trappedPlayerGUID);
                 if (!player || !player->IsAlive() || !player->HasAura(SPELL_ICE_TOMB_DAMAGE))
                 {
                     // Remove object
@@ -753,7 +753,7 @@ public:
                 if (_asphyxiationTimer <= diff)
                 {
                     _asphyxiationTimer = 0;
-                    if (Player* player = ObjectAccessor::GetPlayer(*me, _trappedPlayerGUID))
+                    if (Unit* player = ObjectAccessor::GetUnit(*me, _trappedPlayerGUID))
                     {
                         player->RemoveAurasDueToSpell(SPELL_ICE_TOMB_UNTARGETABLE);
                         player->CastSpell(player, SPELL_ASPHYXIATION, true);

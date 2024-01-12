@@ -88,7 +88,7 @@ public:
             sChallengeDiff->AddBossScore(map);
             sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
             CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
-            LOG_ERROR("module", "BOSS DONE:{} killcount:{} mapid:{} .", source->GetName(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, mapid);
+            LOG_ERROR("module", "BOSS:{}({}) killcount:{} map:{} .", source->GetName(), source->GetEntry(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, map->GetMapName());
             uint32 lastboss = sChallengeDiff->BaseEnhanceMapData[mapid].lastboss;
             bool iskilledfinsh = sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[mapid].boss_count;
             if (lastboss == source->GetEntry())
@@ -268,7 +268,6 @@ public:
         if ((group && group->IsLeader(player->GetGUID())))
         {
             uint32 instanceId = player->GetMap()->GetInstanceId();
-            LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: OnGossipHello Is Leader");
             if (!sChallengeDiff->HasChallengMode(instanceId))
             {
                 npcText = 61000;
@@ -283,7 +282,6 @@ public:
             else
             {
                 auto data= sChallengeDiff->ChallengeInstanceData.find(instanceId);
-                 LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: IsOpened level:{} spell1:{}", (*data).second.level, (*data).second.apply_spell[0]);
                 npcText = 61001;
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想关闭挑战模式", GOSSIP_SENDER_MAIN, 101); 
             }  
