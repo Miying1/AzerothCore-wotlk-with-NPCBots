@@ -261,16 +261,16 @@ public:
                     }
                 case EVENT_YMIRON_ACTIVATE_BOAT:
                     {
+                        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                        me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
+                        me->GetMotionMaster()->MoveChase(me->GetVictim());
                         // Spawn it!
                         if (Creature* king = me->SummonCreature(BoatStructure[BoatOrder[BoatNum - 1]].npc, BoatStructure[BoatOrder[BoatNum - 1]].SpawnX, BoatStructure[BoatOrder[BoatNum - 1]].SpawnY, BoatStructure[BoatOrder[BoatNum - 1]].SpawnZ, BoatStructure[BoatOrder[BoatNum - 1]].SpawnO, TEMPSUMMON_CORPSE_DESPAWN, 0))
-                        {
-                            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                        { 
                             king->CastSpell(me, SPELL_CHANNEL_SPIRIT_TO_YMIRON, true);
                             summons.Summon(king);
                             king->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-                            king->SetDisableGravity(true);
-                            me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
-                            me->GetMotionMaster()->MoveChase(me->GetVictim());
+                            king->SetDisableGravity(true); 
                             switch(BoatOrder[BoatNum - 1])
                             {
                                 case 0:

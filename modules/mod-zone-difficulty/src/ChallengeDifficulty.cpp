@@ -15,7 +15,6 @@
 #include "SpellAuras.h"
 #include "SpellAuraEffects.h"
 #include "StringConvert.h"
-#include "TaskScheduler.h"
 #include "Tokenize.h"
 #include "Unit.h"
 #include "ChallengeDifficulty.h"
@@ -23,152 +22,19 @@
 
 ChallengeDifficulty* ChallengeDifficulty::instance()
 {
-    static ChallengeDifficulty instance;
+    static ChallengeDifficulty instance; 
     return &instance;
 }
 
-void ChallengeDifficulty::LoadMapDifficultySettings()
+ 
+void ChallengeDifficulty::LoadIntiData()
 {
-    if (!sChallengeDiff->IsEnabled)
-    {
-        return;
-    }
-
-    sChallengeDiff->MythicmodeAI.clear(); 
-    sChallengeDiff->DiffLevelData.clear();
     sChallengeDiff->ZoneChallengeSpellData.clear();
     sChallengeDiff->ZoneChallengeSpellGroupData.clear();
     sChallengeDiff->PlayerLevelData.clear();
+    sChallengeDiff->MythicmodeAI.clear();
+    sChallengeDiff->DiffLevelData.clear();
     sChallengeDiff->BaseEnhanceMapData.clear();
-    //挑战难度等级
-    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score,award1,award2,award3 FROM zone_difficulty_level"))
-    {
-        do
-        {
-            uint32 difflevel = (*result)[0].Get<uint32>();
-            ZoneDifficultyLevel level;
-            level.difflevel = difflevel;
-            level.enhance = (*result)[1].Get<uint32>();
-            level.diff_player = (*result)[2].Get<uint32>();
-            level.global_spell_num = (*result)[3].Get<uint32>();
-            level.boss_score = (*result)[4].Get<uint32>();
-            level.award1 = (*result)[5].Get<uint32>();
-            level.award2 = (*result)[6].Get<uint32>();
-            level.award3 = (*result)[7].Get<uint32>();
-            sChallengeDiff->DiffLevelData[difflevel] = level;
-
-        } while (result->NextRow());
-    }
-    //法术集合
-    if (QueryResult result = WorldDatabase.Query("SELECT spell_id,chance,delay,cooldown,triggered_cast FROM zone_difficulty_spells"))
-    {
-        do
-        {
-            uint32 spell_id = (*result)[0].Get<uint32>(); 
-            ZoneChallengeSpell data;
-            data.spell_id = spell_id;
-            data.chance = (*result)[1].Get<uint8>();;
-            data.delay = (*result)[2].Get<Milliseconds>();;
-            data.cooldown = (*result)[3].Get<Milliseconds>();;
-            data.triggered_cast = (*result)[4].Get<bool>();;
-            sChallengeDiff->ZoneChallengeSpellData[spell_id] = data;
-
-        } while (result->NextRow());
-    }
-    //法术组合
-    if (QueryResult result = WorldDatabase.Query("SELECT gid,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_spell_group"))
-    {
-        do
-        {
-            uint32 gid = (*result)[0].Get<uint32>(); 
-            ZoneChallengeSpellGroup group = {};
-            group.spellIds[0]= (*result)[1].Get<uint32>();
-            group.spellIds[1] = (*result)[2].Get<uint32>();
-            group.spellIds[2] = (*result)[3].Get<uint32>(); 
-            sChallengeDiff->ZoneChallengeSpellGroupData[gid] = group;
-
-        } while (result->NextRow());
-    }
-    //玩家等级
-    if (QueryResult result = CharacterDatabase.Query("SELECT player_guid,challenge_level FROM zone_diffculty_playerlevel"))
-    {
-        do
-        {
-            uint32 player_guid = (*result)[0].Get<uint32>(); 
-            sChallengeDiff->PlayerLevelData[player_guid] = (*result)[1].Get<uint32>();
-
-        } while (result->NextRow());
-    }
-    //地图基础增强
-    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct,time_limit,boss_count,lastboss FROM zone_difficulty_mapbase"))
-    {
-        do
-        {
-            uint32 mapid = (*result)[0].Get<uint32>();
-            uint32 base_hp_pct = (*result)[1].Get<uint32>();
-            uint32 base_damage_pct = (*result)[2].Get<uint32>();
-            uint32 time_limit = (*result)[3].Get<uint32>();
-            uint32 boss_count = (*result)[4].Get<uint32>();
-            uint32 lastboss = (*result)[5].Get<uint32>();
-            sChallengeDiff->BaseEnhanceMapData[mapid] = { base_hp_pct ,base_damage_pct,time_limit,boss_count,lastboss };
-
-        } while (result->NextRow());
-    }
-    
-    if (QueryResult result = WorldDatabase.Query("SELECT * FROM zone_difficulty_mythicmode_ai"))
-    {
-        do
-        {
-            bool enabled = (*result)[12].Get<bool>();
-
-            if (enabled)
-            {
-                uint32 creatureEntry = (*result)[0].Get<uint32>();
-                ZoneDifficultyHAI data;
-                data.Chance = (*result)[1].Get<uint8>();
-                data.Spell = (*result)[2].Get<uint32>();
-                data.Spellbp0 = (*result)[3].Get<int32>();
-                data.Spellbp1 = (*result)[4].Get<int32>();
-                data.Spellbp2 = (*result)[5].Get<int32>();
-                data.Target = (*result)[6].Get<uint8>();
-                data.TargetArg = (*result)[7].Get<int8>();
-                data.TargetArg2 = (*result)[8].Get<uint8>();
-                data.Delay = (*result)[9].Get<Milliseconds>();
-                data.Cooldown = (*result)[10].Get<Milliseconds>();
-                data.Repetitions = (*result)[11].Get<uint8>();
-                data.TriggeredCast = (*result)[13].Get<bool>();
-
-                if (data.Chance != 0 && data.Spell != 0 && ((data.Target >= 1 && data.Target <= 6) || data.Target == 18))
-                {
-                    sChallengeDiff->MythicmodeAI[creatureEntry].push_back(data);
-                    LOG_INFO("module", "MOD-ZONE-DIFFICULTY: New AI for entry {} with spell {}", creatureEntry, data.Spell);
-                }
-                else
-                {
-                    LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Unknown type for `Target`: {} in zone_difficulty_mythicmode_ai", data.Target);
-                }
-                //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: New creature with entry: {} has exception for hp: {}", creatureEntry, hpModifier);
-            }
-        } while (result->NextRow());
-    }
-    else
-    {
-        LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Query failed: SELECT * FROM zone_difficulty_mythicmode_ai");
-    }
-
-}
-
-/**
- *  @brief Loads the MythicmodeInstanceData from the database. Fetch from zone_difficulty_instance_saves.
- *
- *  `InstanceID` INT NOT NULL DEFAULT 0,
- *  `MythicmodeOn` TINYINT NOT NULL DEFAULT 0,
- *
- *  Exclude data not in the IDs stored in GetInstanceIDs() and delete
- *  zone_difficulty_instance_saves for instances that no longer exist.
- */
-void ChallengeDifficulty::LoadMythicmodeInstanceData()
-{
     std::vector<bool> instanceIDs = sMapMgr->GetInstanceIDs();
 
     if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,kill_boss,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
@@ -196,6 +62,152 @@ void ChallengeDifficulty::LoadMythicmodeInstanceData()
             }
         } while (result->NextRow());
     }
+    else
+    {
+        LOG_ERROR("module", "zone_difficulty_instance_saves: Query error");
+    }
+    //每日激活地图
+    if (QueryResult result = CharacterDatabase.Query("select mdayticker,active_mapid1,active_mapid2,active_mapid3,active_mapid4  from zone_diffculty_activemap"))
+    {
+        DayActiveMaps = {};
+        DayActiveMaps.mdayticker = (*result)[0].Get<uint32>();
+        DayActiveMaps.active_mapid[0] = (*result)[1].Get<uint32>();
+        DayActiveMaps.active_mapid[1] = (*result)[2].Get<uint32>();
+        DayActiveMaps.active_mapid[2] = (*result)[3].Get<uint32>();
+        DayActiveMaps.active_mapid[3] = (*result)[4].Get<uint32>(); 
+    }
+    else
+    {
+        LOG_ERROR("module", "zone_diffculty_activemap: Query error");
+    }
+    //挑战难度等级
+    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score,award1,award2,award3  FROM zone_difficulty_level"))
+    {
+        do
+        {
+            uint32 difflevel = (*result)[0].Get<uint32>();
+            ZoneDifficultyLevel level;
+            level.difflevel = difflevel;
+            level.enhance = (*result)[1].Get<uint32>();
+            level.diff_player = (*result)[2].Get<uint32>();
+            level.global_spell_num = (*result)[3].Get<uint32>();
+            level.boss_score = (*result)[4].Get<uint32>();
+            level.award1 = (*result)[5].Get<uint32>();
+            level.award2 = (*result)[6].Get<uint32>();
+            level.award3 = (*result)[7].Get<uint32>();
+            sChallengeDiff->DiffLevelData[difflevel] = level;
+
+        } while (result->NextRow());
+    }
+    else
+    {
+        LOG_ERROR("module", "zone_difficulty_level: Query error");
+    } 
+    //地图基础增强
+    if (QueryResult result = WorldDatabase.Query("SELECT mapid,base_hp_pct,base_damage_pct,time_limit,boss_count,lastboss,descp  FROM zone_difficulty_mapbase where status=1"))
+    {
+        do
+        {
+            ZoneChallengeBaseEnhance baseEn = {};
+            uint32 mapid = (*result)[0].Get<uint32>();
+            baseEn.base_hp_pct = (*result)[1].Get<uint32>();
+            baseEn.base_damage_pct = (*result)[2].Get<uint32>();
+            baseEn.time_limit = (*result)[3].Get<uint32>();
+            baseEn.boss_count = (*result)[4].Get<uint32>();
+            baseEn.lastboss = (*result)[5].Get<uint32>();
+            baseEn.descp = (*result)[6].Get<std::string>();
+            BaseEnhanceMapData[mapid] = baseEn; 
+
+        } while (result->NextRow());
+    }
+    else
+    {
+        LOG_ERROR("module", "zone_difficulty_mapbase: Query error");
+    }
+    //法术集合
+    if (QueryResult result = WorldDatabase.Query("SELECT spell_id,chance,delay,cooldown,triggered_cast  FROM zone_difficulty_spells"))
+    {
+        do
+        {
+            uint32 spell_id = (*result)[0].Get<uint32>();
+            ZoneChallengeSpell data;
+            data.spell_id = spell_id;
+            data.chance = (*result)[1].Get<uint8>();;
+            data.delay = (*result)[2].Get<Milliseconds>();;
+            data.cooldown = (*result)[3].Get<Milliseconds>();;
+            data.triggered_cast = (*result)[4].Get<bool>();;
+            sChallengeDiff->ZoneChallengeSpellData[spell_id] = data;
+
+        } while (result->NextRow()); 
+    }
+    else
+    {
+        LOG_ERROR("module", "zone_difficulty_spells: Query error");
+    }
+    //法术组合
+    if (QueryResult result = WorldDatabase.Query("SELECT gid,spell_id1,spell_id2,spell_id3  FROM zone_difficulty_spell_group"))
+    {
+        do
+        {
+            uint32 gid = (*result)[0].Get<uint32>();
+            ZoneChallengeSpellGroup group = {};
+            group.spellIds[0] = (*result)[1].Get<uint32>();
+            group.spellIds[1] = (*result)[2].Get<uint32>();
+            group.spellIds[2] = (*result)[3].Get<uint32>();
+            sChallengeDiff->ZoneChallengeSpellGroupData[gid] = group;
+
+        } while (result->NextRow()); 
+    }
+    else
+    {
+        LOG_ERROR("module", "zone_difficulty_spells: Query error");
+    }
+    //玩家等级
+    if (QueryResult result = CharacterDatabase.Query("SELECT player_guid,challenge_level  FROM zone_diffculty_playerlevel"))
+    {
+        do
+        {
+            uint32 player_guid = (*result)[0].Get<uint32>();
+            sChallengeDiff->PlayerLevelData[player_guid] = (*result)[1].Get<uint32>();
+
+        } while (result->NextRow()); 
+    }
+     
+
+    if (QueryResult result = WorldDatabase.Query("SELECT *  FROM zone_difficulty_mythicmode_ai"))
+    {
+        do
+        {
+            bool enabled = (*result)[12].Get<bool>();
+
+            if (enabled)
+            {
+                uint32 creatureEntry = (*result)[0].Get<uint32>();
+                ZoneDifficultyHAI data;
+                data.Chance = (*result)[1].Get<uint8>();
+                data.Spell = (*result)[2].Get<uint32>();
+                data.Spellbp0 = (*result)[3].Get<int32>();
+                data.Spellbp1 = (*result)[4].Get<int32>();
+                data.Spellbp2 = (*result)[5].Get<int32>();
+                data.Target = (*result)[6].Get<uint8>();
+                data.TargetArg = (*result)[7].Get<int8>();
+                data.TargetArg2 = (*result)[8].Get<uint8>();
+                data.Delay = (*result)[9].Get<Milliseconds>();
+                data.Cooldown = (*result)[10].Get<Milliseconds>();
+                data.Repetitions = (*result)[11].Get<uint8>();
+                data.TriggeredCast = (*result)[13].Get<bool>();
+
+                if (data.Chance != 0 && data.Spell != 0 && ((data.Target >= 1 && data.Target <= 6) || data.Target == 18))
+                {
+                    sChallengeDiff->MythicmodeAI[creatureEntry].push_back(data);
+                    LOG_INFO("module", "MOD-ZONE-DIFFICULTY: New AI for entry {} with spell {}", creatureEntry, data.Spell);
+                }
+                
+            }
+        } while (result->NextRow());
+    }
+   
+
 }
 
 
@@ -303,7 +315,7 @@ void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
         if (PlayerLevelData[playerid] >= cdata->level) continue;
         PlayerLevelData[playerid]= PlayerLevelData[playerid]+1;
         CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid,PlayerLevelData[playerid]);
-        ChatHandler(i->GetSource()->GetSession()).PSendSysMessage("你当前的挑战等级: %i", PlayerLevelData[playerid]);
+        ChatHandler(i->GetSource()->GetSession()).PSendSysMessage("你的挑战等级提升了: %i", PlayerLevelData[playerid]);
     }
 }
 void ChallengeDifficulty::AddBossScore(Map* map)
@@ -338,13 +350,16 @@ void ChallengeDifficulty::SendChallengLoot(Map* map)
     auto insScript = map->IsDungeon() ? map->ToInstanceMap()->GetInstanceScript() : nullptr;
     if (!insScript) return ;
     uint32 instId = map->GetInstanceId();
-    uint32 sendloot = DiffLevelData[ChallengeInstanceData[instId].level].award2;
+    auto cdata = &ChallengeInstanceData[instId];
+    uint32 sendloot = DiffLevelData[cdata->level].award2;
+    std::string notice = "恭喜你，已完成 %i 级挑战！";
     //限时完成
     if (insScript->GetTimeLimitMinute() > 0) {
-        LOG_ERROR("module", "限时完成 killcount:{} mapid:{} .", ChallengeInstanceData[instId].kill_boss, map->GetId());
-        sendloot= DiffLevelData[ChallengeInstanceData[instId].level].award1;
-    } 
-    auto cdata = &ChallengeInstanceData[map->GetInstanceId()];
+        LOG_ERROR("module", "限时完成 Level:{} killcount:{} mapid:{} dytime:{} .", ChallengeInstanceData[instId].level, ChallengeInstanceData[instId].kill_boss, map->GetMapName(), insScript->GetTimeLimitMinute());
+        sendloot= DiffLevelData[cdata->level].award1;
+        notice = "恭喜你，已限时完成 %i 级挑战！";
+    }
+   
     Map::PlayerList const& PlayerList = map->GetPlayers();
     for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
     {
@@ -352,6 +367,8 @@ void ChallengeDifficulty::SendChallengLoot(Map* map)
         if (!player->AddItem(sendloot, 1)) {
             player->SendItemRetrievalMail(sendloot, 1);
         }
+        ChatHandler(player->GetSession()).PSendSysMessage(notice.c_str(), cdata->level);
+        
     } 
 }
 void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
@@ -376,13 +393,26 @@ void ChallengeDifficulty::RemoveChallengeAure(Unit* creature) {
 }
 void ChallengeDifficulty::RemoveChallengeAureBuff(Unit* unit) {
     if (!unit) return; 
-    auto vAuras = unit->GetOwnedAuras();
+    Unit::AuraMap const& vAuras = unit->GetOwnedAuras();
     if (vAuras.empty()) return;
-    for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
+   // LOG_ERROR("module", "RemoveChallengeAureBuff: {}",unit->GetName());
+    std::list<uint32> removeList;
+    for (auto& itr : vAuras)
+    {
+        if (itr.first > 100000) {
+            removeList.push_back(itr.first);
+        }
+    }
+    /*for (Unit::AuraMap::const_iterator itr = vAuras.begin(); itr != vAuras.end(); ++itr)
     { 
         if (itr->first > 100000) {
-            unit->RemoveAura(itr->second);
+            removeList.push_back(itr->first);
         }
+    }*/
+    if (removeList.empty()) return;
+    for (std::list<uint32>::const_iterator itr = removeList.begin(); itr != removeList.end(); ++itr)
+    {
+        unit->RemoveAurasDueToSpell(*itr);
     }
 }
 void ChallengeDifficulty::ApplyChallengeAure(Unit* creature,uint32 instanceId) {
@@ -428,4 +458,41 @@ void ChallengeDifficulty::ApplyChallengeAure(Unit* creature,uint32 instanceId) {
             // LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: Spell:{} chance:{}", spellid, chance);
         }
     }
+}
+
+void ChallengeDifficulty::CheckUpdateActiveMap()
+{
+    auto now = std::chrono::system_clock::now();  
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now); 
+    // 转换为 tm 结构体以获取年月日  
+    std::tm* local_time = std::localtime(&now_time);
+    if (local_time->tm_hour != 7) return;
+    uint32 dayticke=  (local_time->tm_mon + 1)*100 + local_time->tm_mday ;
+    if (DayActiveMaps.mdayticker == dayticke) return;
+    DayActiveMaps.mdayticker = dayticke;
+    uint32 rand = urand(1, BaseEnhanceMapData.size()) - 1;
+    if (rand < 0) return;
+    auto map_its = BaseEnhanceMapData.begin();
+    std::advance(map_its, rand);
+    int countMap = 0;
+    do {
+        DayActiveMaps.active_mapid[countMap] = (*map_its).first;
+        ++countMap;
+        ++map_its;
+        if (map_its == BaseEnhanceMapData.end()) {
+            map_its = BaseEnhanceMapData.begin();
+        }
+    } while (countMap<=4);
+    LOG_ERROR("module", " {} ActiveMap:{},{},{},{}", DayActiveMaps.mdayticker, DayActiveMaps.active_mapid[0], DayActiveMaps.active_mapid[1], DayActiveMaps.active_mapid[2], DayActiveMaps.active_mapid[3]);
+    CharacterDatabase.Execute("update zone_diffculty_activemap set mdayticker={},active_mapid1={},active_mapid2={},active_mapid3={},active_mapid4={} where id=1", DayActiveMaps.mdayticker, DayActiveMaps.active_mapid[0], DayActiveMaps.active_mapid[1], DayActiveMaps.active_mapid[2], DayActiveMaps.active_mapid[3]);
+}
+
+bool ChallengeDifficulty::MapIsActive(uint32 mapId)
+{
+    for (uint8 i = 0; i < 4; i++)
+    {
+        if (DayActiveMaps.active_mapid[i] == mapId)
+            return true;
+    }
+    return false;
 }

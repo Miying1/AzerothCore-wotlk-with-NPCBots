@@ -51,15 +51,21 @@ struct ZoneChallengeSpell
 //实例基础提升值
 struct ZoneChallengeBaseEnhance
 {
-    uint32 base_hp_pct;
-    uint32 base_damage_pct;
-    uint32 time_limit;
-    uint32 boss_count;
-    uint32 lastboss;
+    uint32 base_hp_pct=0;
+    uint32 base_damage_pct=0;
+    uint32 time_limit=0;
+    uint32 boss_count=0;
+    uint32 lastboss=0;
+    std::string descp;
 };
 struct ZoneChallengeSpellGroup
 {
     std::array<uint32, 3> spellIds;
+};
+//每日更新计算器
+struct DayActiveMapData {
+    uint32 mdayticker;
+    std::array<uint32, 4> active_mapid; 
 };
 
 struct ZoneDifficultyHAI
@@ -83,9 +89,8 @@ class ChallengeDifficulty
 {
 public:
     static ChallengeDifficulty* instance();
-
-    void LoadMapDifficultySettings(); 
-    void LoadMythicmodeInstanceData();
+     
+    void LoadIntiData();
 
     void SendWhisperToRaid(std::string message, Creature* creature, Player* player);
     //是否已开启挑战模式
@@ -104,9 +109,14 @@ public:
     void RemoveChallengeAureBuff(Unit* unit);
 
     void ApplyChallengeAure(Unit* creature, uint32 instanceId);
+    //检查激活地图的更新-每日7点
+    void CheckUpdateActiveMap();
+
+    bool MapIsActive(uint32 mapId);
 
     bool IsEnabled{ false };
     bool IsSendLoot{ true };
+    DayActiveMapData DayActiveMaps;
     std::map<uint32, uint32> EncountersInProgress;
  
     typedef std::map<uint32, ZoneChallengeBaseEnhance > ZoneChallengeBaseEnhanceMap;
