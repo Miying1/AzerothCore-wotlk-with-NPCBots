@@ -233,7 +233,7 @@ public:
                                     cr->AddAura(SPELL_FLAMES, cr);
                                     summons2.Summon(cr);
                                 }
-
+                            events.ScheduleEvent(20, 10s);
                             BoatNum++;
                         }
 
@@ -259,6 +259,11 @@ public:
                         events.Repeat(30s, 35s);
                         break;
                     }
+                case 20:
+                    if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE)) {
+                        events.ScheduleEvent(EVENT_YMIRON_ACTIVATE_BOAT, 0);
+                    }
+                    break;
                 case EVENT_YMIRON_ACTIVATE_BOAT:
                     {
                         me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
@@ -287,7 +292,7 @@ public:
                                     break;
                             }
                         }
-
+                      
                         break;
                     }
                 case EVENT_YMIRON_BJORN_ABILITY:
