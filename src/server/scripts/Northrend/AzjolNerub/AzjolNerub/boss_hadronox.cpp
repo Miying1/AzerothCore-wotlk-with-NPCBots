@@ -88,7 +88,8 @@ public:
         {
             summons.DoAction(ACTION_DESPAWN_ADDS);
             BossAI::Reset();
-            me->SummonCreature(NPC_ANUB_AR_CRUSHER, 542.9f, 519.5f, 741.24f, 2.14f);
+            me->SummonCreature(NPC_ANUB_AR_CRUSHER, 520.7f, 537.0f, 734.1f, 4.35f);
+            //instance->SetBossState(DATA_HADRONOX_EVENT, NOT_STARTED);
         }
 
         void DoAction(int32 param) override

@@ -37,7 +37,8 @@ struct ZoneChallengeData
     uint32 kill_boss;
     bool last_boss_killed = false;
     uint32 residue_time;
-    std::array<uint32,3> apply_spell; 
+    std::array<uint32,3> apply_spell;
+    bool is_complete=false;
 };
 //全局法术信息
 struct ZoneChallengeSpell
@@ -51,8 +52,8 @@ struct ZoneChallengeSpell
 //实例基础提升值
 struct ZoneChallengeBaseEnhance
 {
-    uint32 base_hp_pct=0;
-    uint32 base_damage_pct=0;
+    int base_hp_pct=0;
+    int base_damage_pct=0;
     uint32 time_limit=0;
     uint32 boss_count=0;
     uint32 lastboss=0;

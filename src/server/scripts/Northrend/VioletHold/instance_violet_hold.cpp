@@ -628,8 +628,13 @@ public:
             // reinitialize variables and events
             DoUpdateWorldState(WORLD_STATE_VH_SHOW, 0);
             EncounterStatus = NOT_STARTED;
-            GateHealth = 100;
-            WaveCount = 0;
+            //GateHealth = 100;
+            if(WaveCount>0 && m_auiEncounter[MAX_ENCOUNTER - 1] != DONE)
+                --WaveCount;
+            else
+            {
+                WaveCount = 0;
+            }
             bDefensesUsed = false;
             if (m_auiEncounter[MAX_ENCOUNTER - 1] == DONE)
                 EncounterStatus = DONE;

@@ -84,6 +84,7 @@ public:
         {
             uint32 mapid = map->GetId();
             auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
+            if (sChallengeDiff->ChallengeInstanceData[instId].is_complete) return;
             sChallengeDiff->AddBossScore(map);
             sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
             CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
@@ -411,7 +412,7 @@ public:
             return false;
         }
         if (player->CastSpell(target, 90010, true) == SPELL_CAST_OK) {
-            player->DestroyItemCount(item->GetEntry(), 1, true);
+            //player->DestroyItemCount(item->GetEntry(), 1, true);
             return true;
         }
         return false;

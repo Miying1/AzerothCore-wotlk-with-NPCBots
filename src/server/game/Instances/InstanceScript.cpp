@@ -709,7 +709,16 @@ void InstanceScript::OnNPCBotEnter(Creature* bot)
         
     }
 }
-
+void InstanceScript::OnNPCBotLeave(Creature* bot)
+{
+    if (!instance->IsHeroic() || bot->IsFreeBot()) return;
+    //LOG_ERROR("scripts.ai", "InstanceScript: bot:{} Instance:{} ", bot->GetName(), instance->GetMapName());
+   
+    uint32 curId = instance->GetInstanceId();
+    if (sChallengeDiff->HasChallengMode(curId)) { 
+        sChallengeDiff->RemoveChallengeAureBuff(bot);
+    }
+}
 //npcbot: hooks
 void InstanceScript::DoRemoveAurasDueToSpellOnNPCBot(Creature* bot, uint32 spell)
 {

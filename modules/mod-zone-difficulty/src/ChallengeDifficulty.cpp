@@ -37,7 +37,7 @@ void ChallengeDifficulty::LoadIntiData()
     sChallengeDiff->BaseEnhanceMapData.clear();
     std::vector<bool> instanceIDs = sMapMgr->GetInstanceIDs();
 
-    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,kill_boss,spell_id1,spell_id2,spell_id3 FROM zone_difficulty_instance_saves"))
+    if (QueryResult result = CharacterDatabase.Query("SELECT InstanceID,level,enhance_damage,enhance_hp,kill_boss,spell_id1,spell_id2,spell_id3,is_complete FROM zone_difficulty_instance_saves"))
     {
         do
         {
@@ -54,6 +54,7 @@ void ChallengeDifficulty::LoadIntiData()
                 cdata.apply_spell[0] = fields[5].Get<uint32>();
                 cdata.apply_spell[1] = fields[6].Get<uint32>();
                 cdata.apply_spell[2] = fields[7].Get<uint32>();
+                cdata.is_complete = fields[8].Get<bool>();
                 sChallengeDiff->ChallengeInstanceData[InstanceId] = cdata;
             }
             else
@@ -110,8 +111,8 @@ void ChallengeDifficulty::LoadIntiData()
         {
             ZoneChallengeBaseEnhance baseEn = {};
             uint32 mapid = (*result)[0].Get<uint32>();
-            baseEn.base_hp_pct = (*result)[1].Get<uint32>();
-            baseEn.base_damage_pct = (*result)[2].Get<uint32>();
+            baseEn.base_hp_pct = (*result)[1].Get<int>();
+            baseEn.base_damage_pct = (*result)[2].Get<int>();
             baseEn.time_limit = (*result)[3].Get<uint32>();
             baseEn.boss_count = (*result)[4].Get<uint32>();
             baseEn.lastboss = (*result)[5].Get<uint32>();
@@ -256,7 +257,7 @@ bool ChallengeDifficulty::OpenChallenge(uint32 inst_id, uint32 level, Player* pl
     cdata.enhance_damage = (*levelinfo).second.enhance;
     cdata.enhance_hp = (*levelinfo).second.enhance;
     cdata.residue_time = 0;
-    cdata.kill_boss = 0;
+    cdata.kill_boss = 0; 
     if (BaseEnhanceMapData.find(player->GetMapId()) != BaseEnhanceMapData.end()) {
         cdata.enhance_damage = cdata.enhance_damage+ BaseEnhanceMapData[player->GetMapId()].base_damage_pct;
         cdata.enhance_hp = cdata.enhance_hp +BaseEnhanceMapData[player->GetMapId()].base_hp_pct;
@@ -315,7 +316,7 @@ void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
         if (PlayerLevelData[playerid] >= cdata->level) continue;
         PlayerLevelData[playerid]= PlayerLevelData[playerid]+1;
         CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid,PlayerLevelData[playerid]);
-        ChatHandler(i->GetSource()->GetSession()).PSendSysMessage("你的挑战等级提升了: %i", PlayerLevelData[playerid]);
+        ChatHandler(i->GetSource()->GetSession()).SendSysMessage("你的挑战等级提升了: %i", PlayerLevelData[playerid]);
     }
 }
 void ChallengeDifficulty::AddBossScore(Map* map)
@@ -359,7 +360,8 @@ void ChallengeDifficulty::SendChallengLoot(Map* map)
         sendloot= DiffLevelData[cdata->level].award1;
         notice = "恭喜你，已限时完成 %i 级挑战！";
     }
-   
+    cdata->is_complete = true;
+    CharacterDatabase.Execute("update zone_difficulty_instance_saves set is_complete=1 where InstanceID={} ", instId);
     Map::PlayerList const& PlayerList = map->GetPlayers();
     for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
     {
@@ -399,7 +401,7 @@ void ChallengeDifficulty::RemoveChallengeAureBuff(Unit* unit) {
     std::list<uint32> removeList;
     for (auto& itr : vAuras)
     {
-        if (itr.first > 100000) {
+        if (itr.first > 100000 || itr.first==90010) {
             removeList.push_back(itr.first);
         }
     }

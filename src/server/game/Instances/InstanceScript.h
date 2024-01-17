@@ -188,7 +188,7 @@ public:
 
     //npcbot: map hooks
     void OnNPCBotEnter(Creature* bot);
-    virtual void OnNPCBotLeave(Creature* /*bot*/) { }
+    void OnNPCBotLeave(Creature* bot);
     void DoRemoveAurasDueToSpellOnNPCBot(Creature* bot, uint32 spell);
     void DoCastSpellOnNPCBot(Creature* bot, uint32 spell);
     //end npcbot

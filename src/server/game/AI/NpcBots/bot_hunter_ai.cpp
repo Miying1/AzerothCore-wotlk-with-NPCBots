@@ -1878,7 +1878,8 @@ public:
             myPet->SetFaction(master->GetFaction());
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
-            myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1)); 
+            myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
+            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             //fix scale
             switch (myPetType)
             {
@@ -1890,7 +1891,7 @@ public:
                 case BOT_PET_BEAR:
                 case BOT_PET_WARPSTALKER:
                 case BOT_PET_COREHOUND:
-                    myPet->SetObjectScale(0.75f);
+                    myPet->SetObjectScale(0.68f);
                     break;
                 case BOT_PET_CHIMAERA:
                     myPet->SetObjectScale(0.67f);
