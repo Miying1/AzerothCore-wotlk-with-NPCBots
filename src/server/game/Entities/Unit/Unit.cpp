@@ -10640,7 +10640,7 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
     {
         if (target->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) || target->IsNPCBotOrPet())
         {
-            if (IsNPCBotOrPet() && target->IsNPCBotOrPet()) return REP_FRIENDLY;
+            //if (IsNPCBotOrPet() && target->IsNPCBotOrPet()) return REP_FRIENDLY;
             if (IsInRaidWith(target))
                 return REP_FRIENDLY;
             //end npcbot

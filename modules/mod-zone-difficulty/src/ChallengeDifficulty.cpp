@@ -316,7 +316,7 @@ void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
         if (PlayerLevelData[playerid] >= cdata->level) continue;
         PlayerLevelData[playerid]= PlayerLevelData[playerid]+1;
         CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid,PlayerLevelData[playerid]);
-        ChatHandler(i->GetSource()->GetSession()).SendSysMessage("你的挑战等级提升了: %i", PlayerLevelData[playerid]);
+        ChatHandler(i->GetSource()->GetSession()).SendSysMessage("你的挑战等级提升了,当前: "+ PlayerLevelData[playerid]);
     }
 }
 void ChallengeDifficulty::AddBossScore(Map* map)
