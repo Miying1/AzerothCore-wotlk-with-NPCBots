@@ -260,9 +260,10 @@ public:
 
         InstanceScript* pInstance;
         EventMap events;
-
+        bool isonedie= false;
         void Reset() override
         {
+            isonedie = false;
             events.Reset();
             events.RescheduleEvent(EVENT_SPELL_DECREPIFY, 10s, 20s);
             if( IsHeroic() )
@@ -271,9 +272,10 @@ public:
 
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            if (damage >= me->GetHealth())
+            if (!isonedie && damage >= me->GetHealth())
             {
                 damage = 0;
+                isonedie = true;
                 me->InterruptNonMeleeSpells(true);
                 me->RemoveAllAuras();
                 me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
@@ -324,6 +326,7 @@ public:
                     break;
                 case EVENT_RESURRECT:
                     events.DelayEvents(3500ms);
+                    isonedie = false;
                     DoCast(me, SPELL_SCOURGE_RESURRECTION, true);
                     me->SetStandState(UNIT_STAND_STATE_STAND);
                     me->RemoveUnitFlag(UNIT_FLAG_PREVENT_EMOTES_FROM_CHAT_TEXT);

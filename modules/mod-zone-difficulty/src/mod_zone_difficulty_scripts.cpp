@@ -126,13 +126,17 @@ public:
 
         void Reset() override
         {
-            _scheduler.CancelAll();
+            _scheduler.CancelAll(); 
             if (!sChallengeDiff->MapIsActive(me->GetMap()->GetId())) {
                 me->SetVisible(false);
                 return;
             }
             else
             {
+                if (sChallengeDiff->HasChallengMode(me->GetMap()->GetInstanceId())) {
+                    me->SetVisible(false);
+                    return;
+                }
                 me->SetVisible(true);
             }
           
@@ -203,7 +207,7 @@ public:
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Try turn on");
             bool canTurnOn = true;
             uint32 playerLevel = sChallengeDiff->PlayerLevelData[player->GetGUID().GetCounter()];
-            if (playerLevel + 1 < sender) {
+            if (!player->IsGameMaster() && playerLevel + 1 < sender) {
                 canTurnOn = false;
                 creature->Whisper("冒险者，你的挑战等级还不足以开启这项挑战！", LANG_UNIVERSAL, player);
                 return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 99);
@@ -268,7 +272,7 @@ public:
             creature->Whisper("对不起，冒险者!你不能在随机地下城中开启挑战！", LANG_UNIVERSAL, player);
             return true;
         }
-        if (!group)
+        if (!player->IsGameMaster() && !group)
         {
             creature->Whisper("我现在不能帮你开启挑战, 这太过危险，你可以召集你的朋友组队一起来挑战。", LANG_UNIVERSAL, player);
             return true;
@@ -276,7 +280,7 @@ public:
 
         uint32 npcText = 61000;
         //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnGossipHello Has Group");
-        if ((group && group->IsLeader(player->GetGUID())))
+        if (player->IsGameMaster() || (group && group->IsLeader(player->GetGUID())))
         {
             uint32 instanceId = player->GetMap()->GetInstanceId();
             if (!sChallengeDiff->HasChallengMode(instanceId))
