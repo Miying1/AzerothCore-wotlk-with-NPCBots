@@ -97,7 +97,7 @@ public:
                     break;
                 case GO_TRIBUNAL_ACCESS_DOOR:
                     goTribunalDoorGUID = go->GetGUID();
-                    go->SetGoState(GO_STATE_READY);
+                    go->SetGoState(GetData(BOSS_MAIDEN_OF_GRIEF)==DONE? GO_STATE_ACTIVE: GO_STATE_READY);
                     break;
                 case GO_SKY_FLOOR:
                     goSkyRoomFloorGUID = go->GetGUID();
@@ -209,7 +209,7 @@ public:
                 isKrystalusDead = type == BOSS_KRYSTALLUS || isKrystalusDead;
             }
 
-            if (isMaidenOfGriefDead && isKrystalusDead)
+            if (isMaidenOfGriefDead)
                 if (GameObject* tribunalDoor = instance->GetGameObject(goTribunalDoorGUID))
                     tribunalDoor->SetGoState(GO_STATE_ACTIVE);
 
