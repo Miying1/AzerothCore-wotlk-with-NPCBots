@@ -93,28 +93,34 @@ bool PlayerTransmog::CastTransmog(Player* player, int modelid)
     return true;
 }
 
-bool PlayerTransmog::AddModelData(uint32 account_id, Creature* const creature)
+ModelData* PlayerTransmog::AddModelData(uint32 account_id, Creature* const creature)
 {
     const CreatureTemplate* ctemp = creature->GetCreatureTemplate();
-    ModelData mdata = {};
+   
     uint32 modelid = creature->GetNativeDisplayId();
     CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.AssertEntry(modelid);
-    if (!minfo) return false;
-    if (GetModelDataById(account_id, minfo->Displayid)) {
-        return false;
+    if (!minfo) return nullptr;
+    return AddModelDataById(account_id, ctemp->Name, minfo->Displayid, ctemp->rank == 4 ? 2 : ctemp->rank);
+}
+
+ModelData* PlayerTransmog::AddModelDataById(uint32 account_id, std::string name, uint32 modelid,uint32 quality)
+{
+    if (GetModelDataById(account_id, modelid)) {
+        return nullptr;
     }
-    mdata.modelid = minfo->Displayid; 
-    mdata.modelname = ctemp->Name;
+    ModelData mdata = {};
+    mdata.modelid = modelid;
+    mdata.modelname = name;
     mdata.ccflag = 0;
-    mdata.quality = ctemp->rank == 4 ? 2 : ctemp->rank;
+    mdata.quality = quality;
     QualityGroupMap* qgroup = GetAccountQualityGroupMap(account_id);
     if (qgroup->find(mdata.quality) == qgroup->end()) {
         qgroup->emplace(mdata.quality, ModelDataList());
 
     }
     qgroup->operator[](mdata.quality).push_back(mdata);
-    CharacterDatabase.Query("insert into mod_player_transmog(account_id,modelid,modelname,ccflag,quality)values({},{},'{}',{},{})", account_id, mdata.modelid, mdata.modelname, mdata.ccflag, mdata.quality);
-    return true;
+    CharacterDatabase.Query("insert into mod_player_transmog(account_id,modelid,modelname,ccflag,quality)values({},{},'{}',{},{})", account_id, mdata.modelid, mdata.modelname, mdata.ccflag, mdata.quality); 
+    return  &qgroup->operator[](mdata.quality).back();
 }
 
 QualityGroupMap* PlayerTransmog::GetAccountQualityGroupMap(uint32 account_id)

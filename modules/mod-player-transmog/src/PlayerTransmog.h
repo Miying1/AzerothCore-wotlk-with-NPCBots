@@ -38,7 +38,8 @@ class PlayerTransmog
 
     //变身
     bool CastTransmog(Player* player,int modelid);
-    bool AddModelData(uint32 account_id, Creature* const creature);
+    ModelData* AddModelData(uint32 account_id, Creature* const creature);
+    ModelData* AddModelDataById(uint32 account_id, std::string name, uint32 modelid, uint32 quality);
     QualityGroupMap* GetAccountQualityGroupMap(uint32 account_id); 
     ModelData* GetModelDataById(uint32 account_id,uint32 modelId);
     //设置喜欢标记

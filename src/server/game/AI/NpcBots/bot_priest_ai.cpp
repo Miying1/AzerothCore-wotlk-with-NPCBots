@@ -1760,7 +1760,7 @@ public:
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SHADOWFIEND_1);
-
+            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPet = myPet;
 
             myPet->Attack(target, true);
