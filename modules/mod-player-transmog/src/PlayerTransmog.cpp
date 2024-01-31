@@ -141,16 +141,19 @@ ModelData* PlayerTransmog::GetModelDataById(uint32 account_id, uint32 modelId)
     return nullptr;
 }
 
-bool PlayerTransmog::SetCcFlag(uint32 account_id, int modelid, int flag)
+uint8 PlayerTransmog::SetCcFlag(uint32 account_id, int modelid, int flag)
 {
     auto data = GetModelDataById(account_id, modelid);
-    if (!data) return false;
+    if (!data) return 0;
     data->ccflag = flag;
     auto cc_its = CollectionDataStore.find(account_id);
     if (cc_its == CollectionDataStore.end()) {
         CollectionDataStore[account_id] = CcList();
     }
     if (flag == 1) {
+        if(CollectionDataStore[account_id].size()>=15){
+          return ERROR_CCMax;
+        }
         CollectionDataStore[account_id].push_back(*data);
     }
     else
@@ -165,7 +168,7 @@ bool PlayerTransmog::SetCcFlag(uint32 account_id, int modelid, int flag)
         }
     }
     CharacterDatabase.Query("update mod_player_transmog set ccflag={} WHERE  account_id={} and modelid={} ", flag, account_id, modelid);
-    return true;
+    return 1;
 }
 
 bool PlayerTransmog::DeleteCcModel(uint32 account_id, int modelid)

@@ -6,7 +6,11 @@
 #include <unordered_map>
 #include <vector>
 
- 
+enum ResultStatus{
+  ERROR_CCMax=2,
+  ERROR_ADDMax=2
+}
+
 struct ModelData
 {
     //uint32          account_id;
@@ -42,7 +46,7 @@ class PlayerTransmog
     QualityGroupMap* GetAccountQualityGroupMap(uint32 account_id); 
     ModelData* GetModelDataById(uint32 account_id,uint32 modelId);
     //设置喜欢标记
-    bool SetCcFlag(uint32 account_id, int modelid,int flag);
+    uint8 SetCcFlag(uint32 account_id, int modelid,int flag);
     //删除收集的模型
     bool DeleteCcModel(uint32 account_id, int modelid);
 
