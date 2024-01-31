@@ -99,9 +99,8 @@ public:
         case GOSSIP_SENDER_FLAG_OK + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_PT:
         case GOSSIP_SENDER_FLAG_OK + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_JY:
         case GOSSIP_SENDER_FLAG_OK + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_XY:
-        case GOSSIP_SENDER_FLAG_OK + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_BOSS:
-            uint8 status= pTransmog->SetCcFlag(account_id, action, 1);
-            if(status==ERROR_CCMax){
+        case GOSSIP_SENDER_FLAG_OK + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_BOSS:  
+            if (pTransmog->SetCcFlag(account_id, action, 1) == ERROR_CCMax) {
                 ChatHandler(player->GetSession()).SendSysMessage("你的收藏列表已经满了,最多15个收藏!");
             }
             OnGossipSelect(player, item, sender - GOSSIP_SENDER_FLAG_OK, action);

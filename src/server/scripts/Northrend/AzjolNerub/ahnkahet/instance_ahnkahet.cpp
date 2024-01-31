@@ -57,29 +57,12 @@ public:
         void OnCreatureCreate(Creature* pCreature) override
         {
             AddChallengeCreature(pCreature);
-            switch (pCreature->GetEntry())
-            {
-                case NPC_ELDER_NADOX:
-                    elderNadox_GUID = pCreature->GetGUID();
-                    break;
-                case NPC_PRINCE_TALDARAM:
-                    princeTaldaram_GUID = pCreature->GetGUID();
-                    break;
-                case NPC_JEDOGA_SHADOWSEEKER:
-                    jedogaShadowseeker_GUID = pCreature->GetGUID();
-                    break;
-                case NPC_HERALD_JOLAZJ:
-                    heraldVolazj_GUID = pCreature->GetGUID();
-                    break;
-                case NPC_AMANITAR:
-                    amanitar_GUID = pCreature->GetGUID();
-                    break;
-            }
+            
         }
 
-        void OnGameObjectCreate(GameObject* pGo) override
+        void OnGameObjectCreate(GameObject* go) override
         {
-            switch (pGo->GetEntry())
+            switch (go->GetEntry())
             {
                 case GO_TELDARAM_PLATFORM:
                 {
@@ -131,6 +114,7 @@ public:
                 }
             }
         }
+
 
     private:
         // Teldaram related

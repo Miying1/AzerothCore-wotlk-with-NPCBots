@@ -6,10 +6,10 @@
 #include <unordered_map>
 #include <vector>
 
-enum ResultStatus{
-  ERROR_CCMax=2,
-  ERROR_ADDMax=2
-}
+enum ResultStatus {
+    ERROR_CCMax = 2,
+    ERROR_ADDMax = 2
+};
 
 struct ModelData
 {
