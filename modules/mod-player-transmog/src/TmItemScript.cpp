@@ -192,7 +192,7 @@ public:
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
-        if (ctemp->type == 8 || ctemp->type == 10) {
+        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12) {
             ch.SendSysMessage("这是一个无效的目标");
             //target->Whisper("这是一个无效的目标", LANG_UNIVERSAL, player, true);
             return false;
@@ -205,9 +205,9 @@ public:
         }
 
         uint16 account_id = player->GetSession()->GetAccountId();
-        if (pTransmog->AddModelData(account_id, creature)) {
+        if (auto data = pTransmog->AddModelData(account_id, creature)) {
             std::ostringstream msg;
-            msg << "成功了！" << ctemp->Name << " 幻象已成功收集到了你的哈哈镜中。";
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
             //target->Whisper(msg.str(), LANG_UNIVERSAL, player, true);
             player->DestroyItemCount(item->GetEntry(), 1, true);
@@ -241,7 +241,7 @@ public:
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
-        if (ctemp->type == 8 || ctemp->type == 10 || !(ctemp->rank == 3 || creature->isWorldBoss())) {
+        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || !(ctemp->rank == 3 || creature->isWorldBoss())) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
@@ -252,9 +252,9 @@ public:
         }
 
         uint16 account_id = player->GetSession()->GetAccountId();
-        if (pTransmog->AddModelData(account_id, creature)) {
+        if (auto data = pTransmog->AddModelData(account_id, creature)) {
             std::ostringstream msg;
-            msg << "成功了！" << ctemp->Name << " 幻象已成功收集到了你的哈哈镜中。";
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str()); 
             player->DestroyItemCount(item->GetEntry(), 1, true);
         }
@@ -288,14 +288,14 @@ public:
         }
         auto ctemp = creature->GetCreatureTemplate();
 
-        if (ctemp->type == 8 || ctemp->type == 10 || !(ctemp->rank == 2 || ctemp->rank == 4)) {
+        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || !(ctemp->rank == 2 || ctemp->rank == 4)) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         } 
         uint16 account_id = player->GetSession()->GetAccountId();
-        if (pTransmog->AddModelData(account_id, creature)) {
+        if (auto data = pTransmog->AddModelData(account_id, creature)) {
             std::ostringstream msg;
-            msg << "成功了！" << ctemp->Name << " 幻象已成功收集到了你的哈哈镜中。";
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
             player->DestroyItemCount(item->GetEntry(), 1, true);
         }
@@ -330,14 +330,14 @@ public:
         }
         auto ctemp = creature->GetCreatureTemplate();
 
-        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->rank != 1) {
+        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || ctemp->rank != 1) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
         uint16 account_id = player->GetSession()->GetAccountId();
-        if (pTransmog->AddModelData(account_id, creature)) {
+        if (auto data = pTransmog->AddModelData(account_id, creature)) {
             std::ostringstream msg;
-            msg << "成功了！" << ctemp->Name << " 幻象已成功收集到了你的哈哈镜中。";
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
             player->DestroyItemCount(item->GetEntry(), 1, true);
         }
@@ -372,14 +372,41 @@ public:
         }
         auto ctemp = creature->GetCreatureTemplate();
 
-        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->rank != 0) {
+        if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || ctemp->rank != 0) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
         uint16 account_id = player->GetSession()->GetAccountId();
-        if (pTransmog->AddModelData(account_id, creature)) {
+        if (auto data = pTransmog->AddModelData(account_id, creature)) {
             std::ostringstream msg;
-            msg << "成功了！" << ctemp->Name << " 幻象已成功收集到了你的哈哈镜中。";
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
+            ch.SendSysMessage(msg.str());
+            player->DestroyItemCount(item->GetEntry(), 1, true);
+        }
+        else
+        {
+            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            return false;
+        }
+        return true;
+    }
+
+};
+//武僧
+class Transmog_PandanScript : public ItemScript
+{
+public:
+    Transmog_PandanScript() : ItemScript("Transmog_PandanScript") { }
+
+    bool OnUse(Player* player, Item* item, const SpellCastTargets&) override
+    {
+        ChatHandler ch(player->GetSession());
+        std::string name = "熊猫人武僧";
+        uint16 account_id = player->GetSession()->GetAccountId();
+        uint32 modelid = 32755;
+        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid,3)) {
+            std::ostringstream msg;
+            msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
             player->DestroyItemCount(item->GetEntry(), 1, true);
         }
@@ -429,5 +456,6 @@ void AddSC_TransmogItemScript()
     new TransmogCcJewel_XYScript();
     new TransmogCcJewel_JYScript();
     new TransmogCcJewel_PTScript();
+    new Transmog_PandanScript();
     new spell_player_transmog();
 }

@@ -235,7 +235,7 @@ public:
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn on Mythicmode for id {}", instanceId);
                 sChallengeDiff->OpenChallenge(instanceId, sender, player);
                 std::ostringstream str;
-                str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀"+ sChallengeDiff ->ChallengeInstanceData[instanceId].kill_boss << "个BOSS!";
+                str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀"+ std::to_string(sChallengeDiff ->ChallengeInstanceData[instanceId].kill_boss) << "个BOSS!";
                 sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
             }
 

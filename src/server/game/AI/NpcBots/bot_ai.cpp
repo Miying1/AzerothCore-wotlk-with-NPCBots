@@ -8050,6 +8050,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                                         std::ostringstream name;
                                         _AddItemLink(player, item, name, false);
                                         AddGossipItemFor(player, GOSSIP_ICON_CHAT, name.str().c_str(), GOSSIP_SENDER_CLASS_ACTION1, GOSSIP_ACTION_INFO_DEF + item->GetGUID().GetCounter());
+                                        count++;
                                         break;
                                     }
                                 }

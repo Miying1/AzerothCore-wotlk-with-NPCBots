@@ -1703,8 +1703,12 @@ public:
             if (!instance->GetData(DATA_RIMEFANG))
                 if (Creature* rimefang = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_RIMEFANG)))
                     rimefang->AI()->DoAction(ACTION_START_FROSTWYRM);
-
-            if (instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
+            bool IsAlive = false;
+            if (Creature* spinestalker = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SPINESTALKER)))
+                IsAlive = IsAlive ||  spinestalker->IsAlive();
+            if (Creature* rimefang = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_RIMEFANG)))
+                IsAlive = IsAlive || rimefang->IsAlive();
+            if (!IsAlive && instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
             {
                 player->GetMap()->LoadGrid(SindragosaSpawnPos.GetPositionX(), SindragosaSpawnPos.GetPositionY());
                 if (Creature* sindragosa = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SINDRAGOSA)))
