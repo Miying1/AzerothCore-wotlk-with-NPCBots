@@ -287,8 +287,10 @@ public:
                     ArgelmachGUID = creature->GetGUID();
                     break;
                 case NPC_IRONHAND_GUARDIAN:
-                    IronhandGUID[IronhandCounter] = creature->GetGUID();
-                    IronhandCounter++;
+                    if (IronhandCounter < 6) {
+                        IronhandGUID[IronhandCounter] = creature->GetGUID();
+                        IronhandCounter++;
+                    }
                     break;
                 case NPC_ARENA_SPECTATOR:
                     ArenaSpectators.push_back(creature->GetGUID());
