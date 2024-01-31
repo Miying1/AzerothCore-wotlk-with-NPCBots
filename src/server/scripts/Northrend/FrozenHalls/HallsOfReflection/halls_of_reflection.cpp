@@ -15,8 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "halls_of_reflection.h"
+#include "AreaTriggerScript.h"
+#include "CreatureScript.h"
 #include "MotionMaster.h"
+#include "SpellScriptLoader.h"
+#include "halls_of_reflection.h"
 
 enum Events
 {
@@ -1497,7 +1500,7 @@ public:
                     pInstance->SetData(ACTION_SPIRITUAL_REFLECTIONS_ACTIVATE, 1);
                     break;
                 case EVENT_THROW_SHIELD:
-                    if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                    if (Unit* target =  SelectTarget(SelectTargetMethod::Random,0, 40.0f))
                         me->CastSpell(target, SPELL_THROW_SHIELD, false);
                     events.ScheduleEvent(EVENT_THROW_SHIELD, 10s);
                     break;

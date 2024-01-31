@@ -16,12 +16,13 @@
  */
 
 #include "CreatureGroups.h"
+#include "CreatureScript.h"
 #include "Opcodes.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "WorldSession.h"
 #include "pit_of_saron.h"
 
@@ -240,7 +241,7 @@ public:
                     break;
                 case EVENT_SPELL_THROW_SARONITE:
                     bCanSayBoulderHit = true;
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 140.0f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 140.0f, false))
                     {
                         Talk(WHISPER_BOULDER, target);
                         me->CastSpell(target, SPELL_THROW_SARONITE, false);
@@ -260,7 +261,7 @@ public:
                     events.Repeat(35s);
                     break;
                 case EVENT_SPELL_DEEP_FREEZE:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, false))
                     {
                         Talk(EMOTE_DEEP_FREEZE, target);
                         me->CastSpell(target, SPELL_DEEP_FREEZE, false);
@@ -380,3 +381,4 @@ void AddSC_boss_garfrost()
 
     new spell_garfrost_permafrost();
 }
+
