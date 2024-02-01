@@ -1072,7 +1072,7 @@ ShowBanInWorld = 0
 #        Default:     49 - (stable)
 
 MaxWhoListReturns = 49
-
+WhoListOnlineBot = 1
 #
 #    PreventAFKLogout
 #        Description: Prevent players AFK from being logged out

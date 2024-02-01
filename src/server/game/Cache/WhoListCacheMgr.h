@@ -87,6 +87,7 @@ public:
     static WhoListCacheMgr* instance();
 
     void Update();
+    void AddOnlineBot(uint32 count);
     WhoListInfoVector const& GetWhoList() const { return _whoListStorage; }
 
 protected:
