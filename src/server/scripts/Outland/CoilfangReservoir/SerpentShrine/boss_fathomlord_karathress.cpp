@@ -25,11 +25,9 @@ enum Talk
 {
     SAY_AGGRO                       = 0,
     SAY_GAIN_BLESSING               = 1,
-    SAY_GAIN_ABILITY1               = 2,
-    SAY_GAIN_ABILITY2               = 3,
-    SAY_GAIN_ABILITY3               = 4,
-    SAY_SLAY                        = 5,
-    SAY_DEATH                       = 6
+    SAY_GAIN_ABILITY                = 2,
+    SAY_SLAY                        = 3,
+    SAY_DEATH                       = 4
 };
 
 enum Spells
@@ -250,7 +248,7 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
             me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS, true);
-            karathress->AI()->Talk(SAY_GAIN_ABILITY2);
+            karathress->AI()->Talk(SAY_GAIN_ABILITY);
             me->DespawnOrUnsummon(1000);
         }
     }
@@ -424,7 +422,7 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
             me->CastSpell(karathress, SPELL_POWER_OF_TIDALVESS, true);
-            karathress->AI()->Talk(SAY_GAIN_ABILITY1);
+            karathress->AI()->Talk(SAY_GAIN_ABILITY);
             me->DespawnOrUnsummon(1000);
         }
     }
@@ -509,7 +507,7 @@ struct boss_fathomguard_caribdis : public ScriptedAI
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
             me->CastSpell(karathress, SPELL_POWER_OF_CARIBDIS, true);
-            karathress->AI()->Talk(SAY_GAIN_ABILITY3);
+            karathress->AI()->Talk(SAY_GAIN_ABILITY);
             me->DespawnOrUnsummon(1000);
         }
     }

@@ -370,8 +370,8 @@ public:
                         {
                             if (c->GetEntry() == NPC_MORLEN_COLDGRIP && summons.size() != 1)
                                 continue;
-                            else
-                                c->AI()->Talk(SAY_MORLEN_4);
+                            //else
+                            //    c->AI()->Talk(SAY_MORLEN_4);
                             c->SetImmuneToAll(false);
                             c->AI()->AttackStart(me);
                         }
