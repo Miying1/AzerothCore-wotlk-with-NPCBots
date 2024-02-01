@@ -564,7 +564,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!botPet || !botPet->IsAlive() || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             if (IsPotionReady())

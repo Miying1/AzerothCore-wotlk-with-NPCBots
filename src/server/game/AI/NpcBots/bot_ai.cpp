@@ -1575,9 +1575,8 @@ void bot_ai::BuffAndHealGroup(uint32 diff)
                             (GetHealthPCT(u) > 95 && !IsTank(u))))
                             targets5.push_back(u);
 
-                        u = bitr->second->GetBotsPet(); 
-                        //if (!(!u || !u->IsAlive() || u->HasUnitState(UNIT_STATE_ISOLATED) || me->GetDistance(u) > 40 || GetHealthPCT(u) > 95))
-                        if (!(!u || !u->IsAlive() || u->HasUnitState(UNIT_STATE_ISOLATED) || GetHealthPCT(u) > 95))
+                        u = bitr->second->GetBotsPet();  
+                        if (!(!u || !u->IsAlive() || !u->IsInWorld() || u->HasUnitState(UNIT_STATE_ISOLATED) || me->GetDistance(u) > 40 || GetHealthPCT(u) > 95))
                             targets5.push_back(u);
 
                         u = bitr->second->GetVehicleBase();
