@@ -67,7 +67,7 @@ void WhoListCacheMgr::Update()
 }
 void WhoListCacheMgr::AddOnlineBot(uint32 count)
 {
-    count= std::max(count,10);
+    count= count<10?10:count;
     QueryResult result = CharacterDatabase.Query("select guid,level,name,race,class,gender,zone from characters where online=0 and level>20 order by rand()  limit {}", count);
     if (result) {
         do
@@ -76,7 +76,7 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
             uint32 pid=fields[0].Get<uint32>();
             ObjectGuid playerguid = ObjectGuid(HighGuid::Player, 0, pid);
             uint32 level=fields[1].Get<uint32>();
-            uint32 name=fields[2].Get<std::string>();
+            std::string name=fields[2].Get<std::string>();
             std::wstring widePlayerName;
             if (!Utf8toWStr(name, widePlayerName))
                 continue;
@@ -88,7 +88,7 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
             uint8 classid=fields[4].Get<uint8>();
             uint8 gender=fields[5].Get<uint8>();
             uint32 zoneid=fields[6].Get<uint32>();
-            _whoListStorage.emplace_back(playerid, 1, 0, level,classid, race,
+            _whoListStorage.emplace_back(playerguid, TeamId::TEAM_HORDE, AccountTypes::SEC_PLAYER, level,classid, race,
              zoneid, gender, true,  widePlayerName, wideGuildName, name, guildName);
         } while (result->NextRow());
        

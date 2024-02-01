@@ -6608,7 +6608,7 @@ uint32 bot_ai::InitSpell(Unit const* caster, uint32 spell)
     SpellInfo const* info = sSpellMgr->GetSpellInfo(spell);
     if (!info)
     {
-        LOG_ERROR("entities.player", "InitSpell(): No SpellInfo found for spell {} by:{}", spell,me->GetEntry();
+        LOG_ERROR("entities.player", "InitSpell(): No SpellInfo found for spell {}", spell);
         return 0; //weird spell with no info, disable it
     }
 
