@@ -61,7 +61,12 @@ void WhoListCacheMgr::Update()
         
     }
     if(sConfigMgr->GetOption<uint32>("WhoListOnlineBot", 0)){
-        AddOnlineBot(sWorld->GetPlayerCount());
+        if(botupdatetimer>0)
+            --botupdatetimer;
+        else{
+            AddOnlineBot(sWorld->GetPlayerCount());
+            botupdatetimer=200;
+        }
     }
 
 }

@@ -92,6 +92,7 @@ public:
 
 protected:
     WhoListInfoVector _whoListStorage;
+    uint32 botupdatetimer=200;
 };
 
 #define sWhoListCacheMgr WhoListCacheMgr::instance()
