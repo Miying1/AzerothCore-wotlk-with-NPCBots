@@ -92,6 +92,7 @@ public:
 
 protected:
     WhoListInfoVector _whoListStorage;
+    WhoListInfoVector _botwhoListStorage;
     uint32 botupdatetimer=200;
 };
 

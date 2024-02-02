@@ -60,21 +60,20 @@ void WhoListCacheMgr::Update()
             widePlayerName, wideGuildName, playerName, guildName);
         
     }
-    if(sConfigMgr->GetOption<uint32>("WhoListOnlineBot", 0)){
-        if(botupdatetimer>0)
-            --botupdatetimer;
-        else{
-            AddOnlineBot(sWorld->GetPlayerCount());
-            botupdatetimer=200;
-        }
+    if(sConfigMgr->GetOption<uint32>("WhoListOnlineBot", 0)){ 
+        AddOnlineBot(sWorld->GetPlayerCount());  
     }
 
 }
 void WhoListCacheMgr::AddOnlineBot(uint32 count)
 {
-    count= count<10?10:count;
-    QueryResult result = CharacterDatabase.Query("select guid,level,name,race,class,gender,zone from characters where online=0 and level>20 order by rand()  limit {}", count);
-    if (result) {
+    if(botupdatetimer>0){
+        --botupdatetimer; 
+    }else{
+        count= count<10?10:count;
+        _botwhoListStorage.clear();
+        QueryResult result = CharacterDatabase.Query("select guid,level,name,race,class,gender,zone from characters where online=0 and level>20 order by rand()  limit {}", count);
+        if (!result)  return;
         do
         {
             Field* fields = result->Fetch();  
@@ -93,9 +92,14 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
             uint8 classid=fields[4].Get<uint8>();
             uint8 gender=fields[5].Get<uint8>();
             uint32 zoneid=fields[6].Get<uint32>();
-            _whoListStorage.emplace_back(playerguid, TeamId::TEAM_HORDE, AccountTypes::SEC_PLAYER, level,classid, race,
-             zoneid, gender, true,  widePlayerName, wideGuildName, name, guildName);
-        } while (result->NextRow());
-       
+            _botwhoListStorage.emplace_back(playerguid, TeamId::TEAM_HORDE, AccountTypes::SEC_PLAYER, level,classid, race,
+              zoneid, gender, true,  widePlayerName, wideGuildName, name, guildName);
+        } while (result->NextRow()); 
+        botupdatetimer=200;
     }
+    for (auto const& target : _botwhoListStorage)
+    {
+        _whoListStorage.back(target);
+    }
+     
 }
