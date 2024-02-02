@@ -84,7 +84,7 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
             std::wstring widePlayerName;
             if (!Utf8toWStr(name, widePlayerName))
                 continue;
-            std::string guildName = sGuildMgr->GetGuildNameById(pid);
+            std::string guildName = sGuildMgr->GetGuildNameById(urand(1,10));
             std::wstring wideGuildName; 
             if (!Utf8toWStr(guildName, wideGuildName))
                 continue;
