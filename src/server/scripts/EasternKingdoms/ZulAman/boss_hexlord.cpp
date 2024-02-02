@@ -508,7 +508,7 @@ public:
                     }
                     break;
             }
-            if (target)
+            if (target && PlayerClass<PlayerAbility.size())
                 DoCast(target, PlayerAbility[PlayerClass][random].spell, false);
         }
     };
