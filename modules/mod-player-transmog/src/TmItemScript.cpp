@@ -402,10 +402,9 @@ public:
         ChatHandler ch(player->GetSession()); 
         uint16 account_id = player->GetSession()->GetAccountId();
         ItemTemplate const* proto = item->GetTemplate();
-        _Spell const& spellData = proto->Spells[1]; 
-        if (!spellData.SpellId) return false; 
-        std::string name = proto->Name.substr(3); 
-        if (auto data= pTransmog->AddModelDataById(account_id, name, spellData.SpellId,3)) {
+        std::string name = proto->Name1;
+        uint32 modelid= static_cast<uint32>(std::stoll(proto->Description));
+        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid,3)) {
             std::ostringstream msg;
             msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());

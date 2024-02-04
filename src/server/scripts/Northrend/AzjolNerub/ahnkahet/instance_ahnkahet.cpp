@@ -105,7 +105,7 @@ public:
                     Creature* teldaram = GetCreature(DATA_PRINCE_TALDARAM);
                     if (teldaram && teldaram->IsAlive())
                     {
-                        taldaram->AI()->Talk(SAY_SPHERE_ACTIVATED);
+                        teldaram->AI()->Talk(SAY_SPHERE_ACTIVATED);
                         teldaram->AI()->DoAction(ACTION_REMOVE_PRISON);
                     }
                 } 
