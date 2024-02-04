@@ -185,7 +185,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature) {
+        if (!creature || creature->IsNPCBot()) {
             ch.SendSysMessage("这是一个无效的目标");
             //target->Whisper("这是一个无效的目标", LANG_UNIVERSAL, player, true);
             return false;
@@ -213,7 +213,7 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个");
             //target->Whisper("哦！No!失败了,Why??", LANG_UNIVERSAL, player, true);
             return false;
         }
@@ -235,7 +235,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature) { 
+        if (!creature || creature->IsNPCBot()) { 
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
@@ -259,7 +259,7 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！"); 
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个"); 
             return false;
         }
         return true;
@@ -281,7 +281,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature) {
+        if (!creature || creature->IsNPCBot()) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
@@ -300,7 +300,7 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个");
             return false;
         }
         return true;
@@ -323,7 +323,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature) {
+        if (!creature || creature->IsNPCBot()) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
@@ -342,7 +342,7 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个");
             return false;
         }
         return true;
@@ -365,7 +365,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature) {
+        if (!creature || creature->IsNPCBot()) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
@@ -384,26 +384,28 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个");
             return false;
         }
         return true;
     }
 
 };
-//武僧
-class Transmog_PandanScript : public ItemScript
+//使用物品收藏变身模型
+class PlayerTransmog_ItemScript : public ItemScript
 {
 public:
-    Transmog_PandanScript() : ItemScript("Transmog_PandanScript") { }
+    PlayerTransmog_ItemScript() : ItemScript("PlayerTransmog_ItemScript") { }
 
     bool OnUse(Player* player, Item* item, const SpellCastTargets&) override
     {
-        ChatHandler ch(player->GetSession());
-        std::string name = "熊猫人武僧";
+        ChatHandler ch(player->GetSession()); 
         uint16 account_id = player->GetSession()->GetAccountId();
-        uint32 modelid = 32755;
-        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid,3)) {
+        ItemTemplate const* proto = item->GetTemplate();
+        _Spell const& spellData = proto->Spells[1]; 
+        if (!spellData.SpellId) return false; 
+        std::string name = proto->Name.substr(3); 
+        if (auto data= pTransmog->AddModelDataById(account_id, name, spellData.SpellId,3)) {
             std::ostringstream msg;
             msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
@@ -411,7 +413,7 @@ public:
         }
         else
         {
-            ch.SendSysMessage("哦！No!失败了,你可能已经拥有了这个幻象！");
+            ch.SendSysMessage("失败了,你可能已经拥有了这个幻象！或该类幻象已满30个");
             return false;
         }
         return true;
@@ -455,6 +457,6 @@ void AddSC_TransmogItemScript()
     new TransmogCcJewel_XYScript();
     new TransmogCcJewel_JYScript();
     new TransmogCcJewel_PTScript();
-    new Transmog_PandanScript();
+    new PlayerTransmog_ItemScript();
     new spell_player_transmog();
 }

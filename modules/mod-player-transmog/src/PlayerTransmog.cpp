@@ -115,8 +115,10 @@ ModelData* PlayerTransmog::AddModelDataById(uint32 account_id, std::string name,
     mdata.quality = quality;
     QualityGroupMap* qgroup = GetAccountQualityGroupMap(account_id);
     if (qgroup->find(mdata.quality) == qgroup->end()) {
-        qgroup->emplace(mdata.quality, ModelDataList());
-
+        qgroup->emplace(mdata.quality, ModelDataList()); 
+    }
+    if(qgroup->operator[](mdata.quality).size()>=30){
+      return nullptr;
     }
     qgroup->operator[](mdata.quality).push_back(mdata);
     CharacterDatabase.Query("insert into mod_player_transmog(account_id,modelid,modelname,ccflag,quality)values({},{},'{}',{},{})", account_id, mdata.modelid, mdata.modelname, mdata.ccflag, mdata.quality); 
