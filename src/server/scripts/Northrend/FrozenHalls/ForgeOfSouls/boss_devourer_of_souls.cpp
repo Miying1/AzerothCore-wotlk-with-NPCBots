@@ -215,7 +215,7 @@ public:
                     events.Repeat(5s);
                     break;
                 case EVENT_SPELL_MIRRORED_SOUL:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 90.0f, false))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 90.0f, true))
                     {
                         me->CastSpell(target, SPELL_MIRRORED_SOUL, false);
                         me->setAttackTimer(BASE_ATTACK, 2500);
@@ -224,7 +224,7 @@ public:
                     events.Repeat(20s, 30s);
                     break;
                 case EVENT_SPELL_WELL_OF_SOULS:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, false))
                         me->CastSpell(target, SPELL_WELL_OF_SOULS, false);
                     events.Repeat(25s, 30s);
                     events.DelayEventsToMax(4000, 0);

@@ -98,20 +98,17 @@ public:
             {
                 StorePersistentData(index, DONE);
                 SaveToDB();
-
-                if (Creature* taldaram = GetCreature(DATA_PRINCE_TALDARAM))
+                if (IsAllSpheresActivated())
                 {
-                    if (taldaram->IsAlive())
+                    HandleGameObject(taldaramPlatform_GUID, true, nullptr);
+
+                    Creature* teldaram = GetCreature(DATA_PRINCE_TALDARAM);
+                    if (teldaram && teldaram->IsAlive())
                     {
                         taldaram->AI()->Talk(SAY_SPHERE_ACTIVATED);
-
-                        if (IsAllSpheresActivated())
-                        {
-                            HandleGameObject(taldaramPlatform_GUID, true, nullptr);
-                            taldaram->AI()->DoAction(ACTION_REMOVE_PRISON);
-                        }
+                        teldaram->AI()->DoAction(ACTION_REMOVE_PRISON);
                     }
-                }
+                } 
             }
         }
 
