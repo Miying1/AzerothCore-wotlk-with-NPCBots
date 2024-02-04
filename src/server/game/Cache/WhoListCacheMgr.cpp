@@ -99,7 +99,7 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
     }
     for (auto const& target : _botwhoListStorage)
     {
-        _whoListStorage.back(target);
+        _whoListStorage.emplace_back(target);
     }
      
 }

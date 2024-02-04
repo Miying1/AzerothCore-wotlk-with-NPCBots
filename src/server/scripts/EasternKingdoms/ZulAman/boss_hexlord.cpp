@@ -508,7 +508,7 @@ public:
                     }
                     break;
             }
-            if (target && PlayerClass<PlayerAbility.size())
+            if (target && PlayerAbility[PlayerClass][random].spell < 100000)
                 DoCast(target, PlayerAbility[PlayerClass][random].spell, false);
         }
     };
