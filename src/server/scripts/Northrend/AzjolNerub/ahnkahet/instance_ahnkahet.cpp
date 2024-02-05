@@ -57,7 +57,7 @@ public:
         void OnCreatureCreate(Creature* pCreature) override
         {
             AddChallengeCreature(pCreature);
-            
+            InstanceScript::OnCreatureCreate(pCreature);
         }
 
         void OnGameObjectCreate(GameObject* go) override

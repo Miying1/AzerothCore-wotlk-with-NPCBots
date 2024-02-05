@@ -1482,7 +1482,7 @@ void bot_ai::BuffAndHealGroup(uint32 diff)
 
                 u = itr->second->GetBotsPet();
 
-                if (!(!u || !u->IsAlive() || u->HasUnitState(UNIT_STATE_ISOLATED) || me->GetDistance(u) > 40 || GetHealthPCT(u) > 95))
+                if (!(!u || !u->IsAlive()|| !u->IsInWorld() || u->HasUnitState(UNIT_STATE_ISOLATED) || me->GetDistance(u) > 40 || GetHealthPCT(u) > 95))
                     targets3.push_back(u);
 
                 u = itr->second->GetVehicleBase();

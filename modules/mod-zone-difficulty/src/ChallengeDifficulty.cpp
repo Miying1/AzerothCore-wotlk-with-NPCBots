@@ -468,7 +468,7 @@ void ChallengeDifficulty::CheckUpdateActiveMap()
     std::time_t now_time = std::chrono::system_clock::to_time_t(now); 
     // 转换为 tm 结构体以获取年月日  
     std::tm* local_time = std::localtime(&now_time);
-    if (local_time->tm_hour != 7) return;
+    if (local_time->tm_hour != 8) return;
     uint32 dayticke=  (local_time->tm_mon + 1)*100 + local_time->tm_mday ;
     if (DayActiveMaps.mdayticker == dayticke) return;
     DayActiveMaps.mdayticker = dayticke;
