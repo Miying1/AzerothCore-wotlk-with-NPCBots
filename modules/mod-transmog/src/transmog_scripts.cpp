@@ -425,10 +425,10 @@ public:
                 break;
             case EQUIPMENT_SLOT_END: // Show items you can use
                 //ShowTransmogItems(player, creature, action, sender);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "优秀品质", EQUIPMENT_QUALITY_LV, slot);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "精良品质", EQUIPMENT_QUALITY_LAN, slot);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "史诗品质", EQUIPMENT_QUALITY_ZI, slot);
-                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "传说品质", EQUIPMENT_QUALITY_CHENG, slot);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "优秀品质", EQUIPMENT_QUALITY_LV, action);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "精良品质", EQUIPMENT_QUALITY_LAN, action);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "史诗品质", EQUIPMENT_QUALITY_ZI, action);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "传说品质", EQUIPMENT_QUALITY_CHENG, action);
                 SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
                 break;
             case EQUIPMENT_SLOT_END + 1: // Main menu

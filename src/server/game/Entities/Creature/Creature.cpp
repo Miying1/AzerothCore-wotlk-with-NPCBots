@@ -720,8 +720,8 @@ void Creature::Update(uint32 diff)
             //npcbot - skip dead state for bots (handled by AI)
             if (!bot_AI && !bot_pet_AI)
             //end npcbot
-            if (!IsAlive())
-                break;
+                if (!IsAlive())
+                    break;
 
             // if creature is charmed, switch to charmed AI
             if (NeedChangeAI)

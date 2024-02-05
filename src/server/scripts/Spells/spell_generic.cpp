@@ -771,7 +771,7 @@ class spell_gen_proc_not_self : public AuraScript
                 uint32 spellID = aurEff->GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell;
                 caster->m_Events.AddEventAtOffset([caster, target, spellID]()
                 {
-                    if (target)
+                    if (target && target->IsAlive()  && target->IsInWorld())
                     {
                         caster->CastSpell(target, spellID, true);
                     }
