@@ -409,15 +409,27 @@ public:
         WorldSession* session = player->GetSession();
         LocaleConstant locale = session->GetSessionDbLocaleIndex();
         // Next page
-        if (sender > EQUIPMENT_SLOT_END + 10)
+        if (sender > EQUIPMENT_SLOT_END + 10 + EQUIPMENT_QUALITY_G)
         {
-            ShowTransmogItems(player, creature, action, sender);
+            uint32 ql=sender/EQUIPMENT_QUALITY_G;
+            ShowTransmogItems(player, creature, action,ql, sender-(ql*EQUIPMENT_QUALITY_G));
             return true;
         }
         switch (sender)
         {
+           case EQUIPMENT_QUALITY_LV: 
+           case EQUIPMENT_QUALITY_LAN: 
+           case EQUIPMENT_QUALITY_ZI: 
+           case EQUIPMENT_QUALITY_CHENG:  
+                ShowTransmogItems(player, creature, action,sender-EQUIPMENT_QUALITY_G,EQUIPMENT_SLOT_END);
+                break;
             case EQUIPMENT_SLOT_END: // Show items you can use
-                ShowTransmogItems(player, creature, action, sender);
+                //ShowTransmogItems(player, creature, action, sender);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "优秀品质", EQUIPMENT_QUALITY_LV, slot);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "精良品质", EQUIPMENT_QUALITY_LAN, slot);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "史诗品质", EQUIPMENT_QUALITY_ZI, slot);
+                AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "传说品质", EQUIPMENT_QUALITY_CHENG, slot);
+                SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
                 break;
             case EQUIPMENT_SLOT_END + 1: // Main menu
                 OnGossipHello(player, creature);
@@ -684,7 +696,7 @@ public:
     }
 #endif
 
-    void ShowTransmogItems(Player* player, Creature* creature, uint8 slot, uint16 gossipPageNumber) // Only checks bags while can use an item from anywhere in inventory
+    void ShowTransmogItems(Player* player, Creature* creature, uint8 slot,uint8 quality, uint16 gossipPageNumber) // Only checks bags while can use an item from anywhere in inventory
     {
         WorldSession* session = player->GetSession();
         LocaleConstant locale = session->GetSessionDbLocaleIndex();
@@ -757,10 +769,13 @@ public:
                         if (!sObjectMgr->GetItemTemplate(newItemEntryId))
                             continue;
                         Item* newItem = Item::CreateItem(newItemEntryId, 1, 0);
+                        uint32 newItemQuality=newItem->GetTemplate()->Quality;
                         if (!newItem)
                             continue;
                         if (!sT->CanTransmogrifyItemWithItem(player, oldItem->GetTemplate(), newItem->GetTemplate()))
                             continue;
+                        if ((quality>2 && newItemQuality!=quality ) || (quality==2 && newItemQuality>2))
+                            continue; 
                         if (sT->GetFakeEntry(oldItem->GetGUID()) == newItem->GetEntry())
                             continue;
                         if (hasSearchString && newItem->GetTemplate()->Name1.find(searchDisplayValue) == std::string::npos)
@@ -783,20 +798,20 @@ public:
                     AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "previous_page"), EQUIPMENT_SLOT_END, slot);
                     if (!lastPage)
                     {
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "next_page"), gossipPageNumber + 1, slot);
+                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "next_page"), gossipPageNumber  + 1 + (EQUIPMENT_QUALITY_G * quality), slot);
                     }
                 }
                 else if (gossipPageNumber > EQUIPMENT_SLOT_END + 11)
                 {
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "previous_page"), gossipPageNumber - 1, slot);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "previous_page"), gossipPageNumber - 1+ (EQUIPMENT_QUALITY_G * quality), slot);
                     if (!lastPage)
                     {
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "next_page"), gossipPageNumber + 1, slot);
+                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GetLocaleText(locale, "next_page"), gossipPageNumber + 1+ (EQUIPMENT_QUALITY_G * quality), slot);
                     }
                 }
                 else if (!lastPage)
                 {
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Next Page", EQUIPMENT_SLOT_END + 11, slot);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Next Page", EQUIPMENT_SLOT_END + 11+ (EQUIPMENT_QUALITY_G * quality), slot);
                 }
 
                 AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "|TInterface/ICONS/INV_Enchant_Disenchant:30:30:-18:0|t" + GetLocaleText(locale, "remove_transmog"), EQUIPMENT_SLOT_END + 3, slot, GetLocaleText(locale, "remove_transmog_slot"), 0, false);
