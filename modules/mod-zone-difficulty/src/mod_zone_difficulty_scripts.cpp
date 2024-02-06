@@ -46,31 +46,6 @@ class mod_zone_difficulty_globalscript : public GlobalScript
 public:
     mod_zone_difficulty_globalscript() : GlobalScript("mod_zone_difficulty_globalscript") { }
 
-    //void OnBeforeSetBossState(uint32 id, EncounterState newState, EncounterState oldState, Map* instance) override
-    //{
-
-    //    LOG_ERROR("module", "MOD-ZONE-DIFFICULTY: EncounterState {}" , newState);
-    //    uint32 instanceId = instance->GetInstanceId();
-    //    if (!instance->IsHeroic() || !sChallengeDiff->HasChallengMode(instanceId))
-    //    {
-    //        //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnBeforeSetBossState: Instance not handled because there is no Mythicmode loot data for map id: {}", instance->GetId());
-    //        return;
-    //    }
-    //    if (oldState != IN_PROGRESS && newState == IN_PROGRESS)
-    //    { 
-    //        sChallengeDiff->EncountersInProgress[instanceId] = GameTime::GetGameTime().count();
-    //       
-    //    }
-    //    else if (oldState == IN_PROGRESS && newState == DONE)
-    //    { 
-    //        LOG_ERROR("module", "BOSS State DONE :{}.");
-    //       /* if (sChallengeDiff->EncountersInProgress.find(instanceId) != sChallengeDiff->EncountersInProgress.end() && sChallengeDiff->EncountersInProgress[instanceId] != 0)
-    //        {
-    //            sChallengeDiff->AddBossScore(instance);
-    //        }*/ 
-    //    }
-    //}
-
     void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32  dungeonCompleted, bool /*updated*/) override
     {
 
@@ -80,7 +55,8 @@ public:
             return;
         }
         uint32 instId = map->GetInstanceId();
-        if (sChallengeDiff->HasChallengMode(instId))
+         auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
+        if (instanceScript->IsDungeon() && instance->IsHeroic() && sChallengeDiff->HasChallengMode(instId))
         {
             uint32 mapid = map->GetId();
             auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
