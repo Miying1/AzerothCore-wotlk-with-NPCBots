@@ -14,6 +14,10 @@ void TnEchants::InitConfig()
 
 void TnEchants::InitData()
 {
+       QueryResult delres = WorldDatabase.Query("delete from mod_item_enchantment_result where item_guid not in (select guid from acore_characters.item_instance)");
+       if(delres){
+          LOG_INFO("module", "随机附魔废弃装备删除:{} 个",(*delres)[0].Get<uint32>());
+       }
        QueryResult result = WorldDatabase.Query("SELECT enchantID,attr_group,oid FROM mod_item_enchantment_random where active=1 order by attr_group,oid ");
         if (!result) {
             IsEnable=false;
