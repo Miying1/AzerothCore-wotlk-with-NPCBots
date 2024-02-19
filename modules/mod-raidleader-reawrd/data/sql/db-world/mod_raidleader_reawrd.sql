@@ -1,10 +1,7 @@
 /*
  Navicat Premium Data Transfer
 
- Source Server         : 125.122.24.125
- Source Server Type    : MySQL
- Source Server Version : 50743
- Source Host           : 125.122.24.125:3306
+ 
  Source Schema         : acore_world
 
  Target Server Type    : MySQL
