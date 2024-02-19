@@ -31,12 +31,12 @@ public:
     void OnAfterConfigLoad(bool /*reload*/) override
     {
         sChallengeDiff->IsEnabled = sConfigMgr->GetOption<bool>("ModZoneDifficulty.Enable", false);
-        sChallengeDiff->IsSendLoot = sConfigMgr->GetOption<bool>("ModZoneDifficulty.IsSendLoot", true); 
+        sChallengeDiff->IsSendLoot = sConfigMgr->GetOption<bool>("ModZoneDifficulty.IsSendLoot", true);
 
     }
 
     void OnStartup() override
-    { 
+    {
         sChallengeDiff->LoadIntiData();
     }
 };
@@ -55,8 +55,7 @@ public:
             return;
         }
         uint32 instId = map->GetInstanceId();
-         auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
-        if (instanceScript->IsDungeon() && instance->IsHeroic() && sChallengeDiff->HasChallengMode(instId))
+        if (map->IsDungeon() && map->IsHeroic() && sChallengeDiff->HasChallengMode(instId))
         {
             uint32 mapid = map->GetId();
             auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
@@ -64,7 +63,7 @@ public:
             sChallengeDiff->AddBossScore(map);
             sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
             CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
-           // LOG_ERROR("module", "BOSS:{}({}) killcount:{} map:{} .", source->GetName(), source->GetEntry(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, map->GetMapName());
+            // LOG_ERROR("module", "BOSS:{}({}) killcount:{} map:{} .", source->GetName(), source->GetEntry(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, map->GetMapName());
             uint32 lastboss = sChallengeDiff->BaseEnhanceMapData[mapid].lastboss;
             bool iskilledfinsh = sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[mapid].boss_count;
             if (lastboss == source->GetEntry())
@@ -102,7 +101,7 @@ public:
 
         void Reset() override
         {
-            _scheduler.CancelAll(); 
+            _scheduler.CancelAll();
             if (!sChallengeDiff->MapIsActive(me->GetMap()->GetId())) {
                 me->SetVisible(false);
                 return;
@@ -115,7 +114,7 @@ public:
                 }
                 me->SetVisible(true);
             }
-          
+
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: mod_zone_difficulty_dungeonmasterAI: Reset happens.");
             if (me->GetMap() && me->GetMap()->IsHeroic())
             {
@@ -130,10 +129,10 @@ public:
                     });
                 _scheduler.Schedule(85s, [this](TaskContext /*context*/)
                     {
-                       /* if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
-                            _scheduler.CancelAll();
-                            return;
-                        }*/
+                        /* if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
+                             _scheduler.CancelAll();
+                             return;
+                         }*/
                         me->Yell("再见冒险者!", LANG_UNIVERSAL);
                     });
                 _scheduler.Schedule(90s, [this](TaskContext context)
@@ -211,7 +210,7 @@ public:
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn on Mythicmode for id {}", instanceId);
                 sChallengeDiff->OpenChallenge(instanceId, sender, player);
                 std::ostringstream str;
-                str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀"+ std::to_string(sChallengeDiff ->BaseEnhanceMapData[player->GetMap()->GetId()].boss_count) << "个BOSS!";
+                str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀" + std::to_string(sChallengeDiff->BaseEnhanceMapData[player->GetMap()->GetId()].boss_count) << "个BOSS!";
                 sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
             }
 
@@ -337,9 +336,9 @@ public:
 
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
     {
-       
+
         if (action == 1) {
-            auto id = sChallengeDiff->DayActiveMaps.active_mapid[0];  
+            auto id = sChallengeDiff->DayActiveMaps.active_mapid[0];
             std::ostringstream str;
             str << "今日挑战地图有:";
             if (sChallengeDiff->DayActiveMaps.active_mapid[0] > 0)
@@ -353,11 +352,11 @@ public:
             creature->Whisper(str.str(), LANG_UNIVERSAL, player);
             CloseGossipMenuFor(player);
         }
-        else if(action==2)
+        else if (action == 2)
         {
-           player->PlayerTalkClass->ClearMenus();
-           player->PrepareQuestMenu(creature->GetGUID());  
-           SendGossipMenuFor(player, 68, creature);
+            player->PlayerTalkClass->ClearMenus();
+            player->PrepareQuestMenu(creature->GetGUID());
+            SendGossipMenuFor(player, 68, creature);
         }
         return true;
     }
@@ -373,7 +372,7 @@ public:
 class TMItemStrong_Script : public ItemScript
 {
 public:
-    TMItemStrong_Script() : ItemScript("TMItemStrong_Script") { } 
+    TMItemStrong_Script() : ItemScript("TMItemStrong_Script") { }
     bool OnUse(Player* player, Item* item, const SpellCastTargets&) override
     {
         ChatHandler ch(player->GetSession());
@@ -382,11 +381,11 @@ public:
             player->GetSession()->SendNotification("我还没有目标!");
             return false;
         }
-        if (target->GetTypeId()!= TYPEID_PLAYER && !target->IsNPCBot()) {
+        if (target->GetTypeId() != TYPEID_PLAYER && !target->IsNPCBot()) {
             player->GetSession()->SendNotification("这是一个无效的目标!");
             return false;
         }
-        uint32 instid= player->GetMap()-> GetInstanceId();
+        uint32 instid = player->GetMap()->GetInstanceId();
         if (!sChallengeDiff->HasChallengMode(instid)) {
             ch.SendSysMessage("你必须在挑战模式中使用该物品！");
             return false;

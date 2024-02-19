@@ -8,7 +8,7 @@ void AddSC_mod_challenge_modes();
 // Add all
 // cf. the naming convention https://github.com/azerothcore/azerothcore-wotlk/blob/master/doc/changelog/master.md#how-to-upgrade-4
 // additionally replace all '-' in the module folder name with '_' here
-void Addmod_challenge_modesScripts()
+void Addmod_playerchallenge_modesScripts()
 {
     AddSC_mod_challenge_modes();
 }

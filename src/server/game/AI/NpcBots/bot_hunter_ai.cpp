@@ -1910,7 +1910,7 @@ public:
 
         void UnsummonAll() override
         {
-            if (botPet && botPet->IsAlive()) {
+            if (botPet && botPet->IsAlive() && botPet->IsInWorld()) {
                 TempSummon * summ = botPet->ToTempSummon();
                 if (summ)
                     summ->UnSummon();

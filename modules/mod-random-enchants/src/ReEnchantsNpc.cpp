@@ -198,6 +198,7 @@ public:
     }
 
     void GetItemList(Player* player, int sender, std::set<uint32>* itemList,bool all=false) {
+        uint8 item_count = 0;
         //s2.1.2: other bags
         for (uint8 i = INVENTORY_SLOT_BAG_START; i != INVENTORY_SLOT_BAG_END; ++i)
         {
@@ -205,6 +206,7 @@ public:
             {
                 for (uint32 j = 0; j != pBag->GetBagSize(); ++j)
                 {
+                    if (item_count >= 25) return;
                     if (Item const* pItem = player->GetItemByPos(i, j))
                     {
                         uint32 itemtype = pItem->GetTemplate()->InventoryType;
@@ -221,6 +223,7 @@ public:
                         name << " [" << pItem->GetTemplate()->ItemLevel << "]";
                         AddGossipItemFor(player, GOSSIP_ICON_CHAT, name.str().c_str(), sender, itemid);
                         itemList->insert(itemid);
+                        item_count++;
                     }
                 }
             }
