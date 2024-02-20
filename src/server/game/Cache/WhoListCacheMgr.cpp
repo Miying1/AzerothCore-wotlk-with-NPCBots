@@ -99,6 +99,10 @@ void WhoListCacheMgr::AddOnlineBot(uint32 count)
     }
     for (auto const& target : _botwhoListStorage)
     {
+        auto iter = std::find_if(_whoListStorage.begin(), _whoListStorage.end(), [target.GetGuid()](const WhoListPlayerInfo& playerInfo) {
+            return playerInfo.GetGuid() == target.GetGuid();
+        });
+        if(iter != whoList.end()) continue;
         _whoListStorage.emplace_back(target);
     }
      
