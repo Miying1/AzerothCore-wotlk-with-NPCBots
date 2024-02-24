@@ -70,39 +70,71 @@ enum PriestBaseSpells
 enum PriestPassives
 {
 //Talents
-    UNBREAKABLE_WILL                = 14791,//rank 5
-    SPIRIT_TAP                      = 15336,//rank 3
-    IMPROVED_SPIRIT_TAP             = 15338,//rank 2
-    MEDITATION                      = 14777,//rank 3
-    INSPIRATION1                    = 14892,
-    INSPIRATION2                    = 15362,
-    INSPIRATION3                    = 15363,
-    SHADOW_WEAVING1                 = 15257,
+    UNBREAKABLE_WILL                = 14791,//rank 5坚定意志
+    SPIRIT_TAP                      = 15336,//rank 3精神分流
+    IMPROVED_SPIRIT_TAP             = 15338,//rank 2强化精神分流
+    HEIAN                           = 15310,//rank 2黑暗
+    QH_ANYANSHU = 15317,//rank 2强化暗言术：痛
+    QH_JIZHONG = 15328,//暗影集中
+    QH_XINGLINGBAOZHENG = 15316,//强化心灵震爆
+    QH_ZHEBIZHIYING = 15311,//遮蔽之影 
+    SHADOW_WEAVING1                 = 15257,//暗影交织
     SHADOW_WEAVING2                 = 15331,
     SHADOW_WEAVING3                 = 15332,
-    SURGE_OF_LIGHT                  = 33154,//rank 2
-    IMPROVED_DEVOURING_PLAGUE       = 63627,//rank 3
-    HOLY_CONCENTRATION              = 34860,//rank 3
-    RENEWED_HOPE                    = 57472,//rank 3
-    RAPTURE                         = 47537,//rank 3
-    BODY_AND_SOUL1                  = 64127,
-    SERENDIPITY                     = 63737,//rank 3
-    IMPROVED_SHADOWFORM             = 47570,//rank 2
+    QH_XIXUEGUI = 27840,//强化吸血鬼的拥抱
+    QH_RONGHUA = 33371,//心灵熔化
+    QH_ANYINGNENGLIANG = 33225,//暗影能量
     MISERY1                         = 33191,
     MISERY2                         = 33192,
-    MISERY3                         = 33193,
-    DIVINE_AEGIS                    = 47515,//rank 3
-    GRACE                           = 47517,//rank 2
-    EMPOWERED_RENEW1                = 63534,
+    MISERY3                         = 33193,//悲惨
+    QH_ANYINGXINGTAI = 47570,//强化暗影形态
+    IMPROVED_DEVOURING_PLAGUE       = 63627,//rank 3强化噬灵疫病
+    BAOSHOUZHEMO = 47582,//饱受折磨
+    NIUQUXINGYANG = 51167,//扭曲信仰
+    SHUANGSHENGJIELV = 52803,//双生戒律
+    XINGLINGZHIHUO = 14771,//强化心灵之火
+    SHENSHENGZHUANJING = 15011,//神圣专精
+    MEDITATION                      = 14777,//rank 3冥想
+    INSPIRATION1                    = 14892,//灵感
+    INSPIRATION2                    = 15362,
+    INSPIRATION3                    = 15363,//灵感
+    SURGE_OF_LIGHT                  = 33154,//rank 2圣光涌动
+    QH_ZHILIAOSHU = 15014,//rank 3强化治疗术
+    QH_ZHILIAOQIDAO = 15018,//rank 3治疗祈祷
+    JINGSHENZHIYING = 15031,//rank 5精神指引
+    JINGSHENZHILIAO = 15356,//rank 5精神治疗
+    QUANXINGQUANYI = 64129,//rank 全心全意
+    ZHILIAOZENGXIAO = 33162,//rank 5治疗增效
+    SHENSHENGJUANGU = 47567,//rank 5神圣眷顾
+    EMPOWERED_RENEW1                = 63534,//恢复增效
     EMPOWERED_RENEW2                = 63542,
     EMPOWERED_RENEW3                = 63543,
-    BORROWED_TIME                   = 52800,//rank 5
+    HOLY_CONCENTRATION              = 34860,//rank 3神圣专注
+    RENEWED_HOPE                    = 57472,//rank 3新生希望
+    RAPTURE                         = 47537,//rank 3全神贯注
+    BODY_AND_SOUL1                  = 64127,//全心全意
+    SERENDIPITY                     = 63737,//rank 3好运
+    IMPROVED_SHADOWFORM             = 47570,//rank 2强化暗影形态
+    DIVINE_AEGIS                    = 47515,//rank 3神圣庇护
+    GRACE                           = 47517,//rank 2恩赐
+    BORROWED_TIME                   = 52800,//rank 5争分夺秒
+    QH_DUN = 14769,//强化真言术：盾
+    QH_SHEMINA = 33172,//赦免
+    JINGSHENMINGRUI = 14781,//精神敏锐
+    XINGLINGZHILI = 18555,//心灵之力
+    XINGLINGSHOUHU = 63574,//灵魂守护
+    NENGLIANGJIZHONG = 33190,//能量集中
+    QIDI = 34910,//启迪
+    KUAISUZHIL = 63506,//强化快速治疗
+    KEWANG = 47508,//渴望 
 //Glyphs
     //GLYPH_SW_PAIN                   = 55681,
+    GLYPH_KUXIU = 63235,//苦修雕文
     GLYPH_PW_SHIELD                 = 55672,
     GLYPH_DISPEL_MAGIC              = 55677,
     GLYPH_PRAYER_OF_HEALING         = 55680,
-    GLYPH_SHADOW                    = 55689,
+    GLYPH_SHADOW                    = 55689,//暗影雕文
+    GLYPH_BIANCHI = 55687,//精神鞭笞雕文
 //other
     PRIEST_T10_2P_BONUS             = 70770 //33% renew
 };
@@ -1728,7 +1760,7 @@ public:
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SHADOWFIEND_1);
-
+            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPet = myPet;
 
             myPet->Attack(target, true);
@@ -1864,14 +1896,25 @@ public:
             bool isDisc = GetSpec() == BOT_SPEC_PRIEST_DISCIPLINE;
             bool isHoly = GetSpec() == BOT_SPEC_PRIEST_HOLY;
             bool isShad = GetSpec() == BOT_SPEC_PRIEST_SHADOW;
-
+            RefreshAura(SHUANGSHENGJIELV, level >= 10 ? 1 : 0);
             RefreshAura(UNBREAKABLE_WILL, level >= 10 ? 1 : 0);
+            RefreshAura(XINGLINGZHIHUO, level >= 60 ? 1 : 0);
+            RefreshAura(SHENSHENGZHUANJING, level >= 50 ? 1 : 0);
             RefreshAura(MEDITATION, level >= 20 ? 1 : 0);
             RefreshAura(RENEWED_HOPE, isDisc && level >= 45 ? 1 : 0);
             RefreshAura(RAPTURE, isDisc && level >= 45 ? 1 : 0);
             RefreshAura(DIVINE_AEGIS, isDisc && level >= 50 ? 1 : 0);
             RefreshAura(GRACE, isDisc && level >= 50 ? 1 : 0);
             RefreshAura(BORROWED_TIME, isDisc && level >= 55 ? 1 : 0);
+            RefreshAura(QH_DUN, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(QH_SHEMINA, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(JINGSHENMINGRUI, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(XINGLINGZHILI, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(XINGLINGSHOUHU, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(NENGLIANGJIZHONG, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(QIDI, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(KUAISUZHIL, isDisc && level >= 70 ? 1 : 0);
+            RefreshAura(KEWANG, isDisc && level >= 70 ? 1 : 0);
 
             RefreshAura(INSPIRATION3, isHoly && level >= 25 ? 1 : 0);
             RefreshAura(INSPIRATION2, isHoly && level >= 23 && level < 25 ? 1 : 0);
@@ -1883,6 +1926,15 @@ public:
             RefreshAura(EMPOWERED_RENEW3, isHoly && level >= 55 ? 1 : 0);
             RefreshAura(EMPOWERED_RENEW2, isHoly && level >= 53 && level < 55 ? 1 : 0);
             RefreshAura(EMPOWERED_RENEW1, isHoly && level >= 50 && level < 53 ? 1 : 0);
+            RefreshAura(QH_ZHILIAOSHU, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(QH_ZHILIAOQIDAO, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(JINGSHENZHIYING, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(JINGSHENZHILIAO, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(QUANXINGQUANYI, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(ZHILIAOZENGXIAO, isHoly && level >= 70 ? 1 : 0);
+            RefreshAura(SHENSHENGJUANGU, isHoly && level >= 70 ? 1 : 0);
+
+
 
             RefreshAura(SPIRIT_TAP, isShad && level >= 10 ? 1 : 0);
             RefreshAura(IMPROVED_SPIRIT_TAP, isShad && level >= 10 ? 1 : 0);
@@ -1894,12 +1946,27 @@ public:
             RefreshAura(MISERY3, isShad && level >= 50 ? 1 : 0);
             RefreshAura(MISERY2, isShad && level >= 48 && level < 50 ? 1 : 0);
             RefreshAura(MISERY1, isShad && level >= 45 && level < 48 ? 1 : 0);
+            RefreshAura(HEIAN, isShad ? 1 : 0);
+            RefreshAura(QH_ANYANSHU, isShad ? 1 : 0);
+            RefreshAura(QH_JIZHONG, isShad ? 1 : 0);
+            RefreshAura(QH_XINGLINGBAOZHENG, isShad ? 1 : 0);
+            RefreshAura(QH_ZHEBIZHIYING, isShad ? 1 : 0);
+            RefreshAura(QH_XIXUEGUI, isShad ? 1 : 0);
+            RefreshAura(QH_RONGHUA, isShad ? 1 : 0);
+            RefreshAura(QH_ANYINGNENGLIANG, isShad ? 1 : 0);
+            RefreshAura(QH_ANYINGXINGTAI, isShad ? 1 : 0);
+            RefreshAura(IMPROVED_DEVOURING_PLAGUE, isShad ? 1 : 0);
+            RefreshAura(BAOSHOUZHEMO, isShad ? 1 : 0);
+            RefreshAura(NIUQUXINGYANG, isShad ? 1 : 0);
+            RefreshAura(49868, isShad ? 1 : 0);
 
             //RefreshAura(GLYPH_SW_PAIN, level >= 15 ? 1 : 0);
+            RefreshAura(GLYPH_KUXIU, isDisc && level >= 75 ? 1 : 0);
             RefreshAura(GLYPH_PW_SHIELD, level >= 15 ? 1 : 0);
             RefreshAura(GLYPH_DISPEL_MAGIC, level >= 18 ? 1 : 0);
             RefreshAura(GLYPH_PRAYER_OF_HEALING, level >= 30 ? 1 : 0);
             RefreshAura(GLYPH_SHADOW, level >= 30 ? 1 : 0);
+            RefreshAura(GLYPH_BIANCHI, isShad && level >= 30 ? 1 : 0);
             RefreshAura(PRIEST_T10_2P_BONUS, level >= 70 ? 1 : 0);
         }
 
