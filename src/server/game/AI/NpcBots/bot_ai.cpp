@@ -18068,7 +18068,7 @@ bool bot_ai::FinishTeleport(bool reset)
     {
         TeleportHomeStart(true);
         _evadeMode = false;
-
+        LOG_ERROR("module", "FinishTeleport IAmFree=true:{}", me->GetName());
         return false;
     }
 
