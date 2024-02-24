@@ -1692,9 +1692,9 @@ uint32 BotMgr::GetNpcBotCost(uint8 level, uint8 botclass)
         level < 10 ? _npcBotsCost / 2000 : //5 silver
         level < 30 ? _npcBotsCost / 40 :   //5 gold
         level < 50 ? _npcBotsCost / 10 :   //5 gold
-        level < 60 ? _npcBotsCost / 5 :   //5 gold
-        level < 70 ? _npcBotsCost / 4 :    //20 gold
-        level < 79 ? _npcBotsCost / 2 :    //20 gold
+        level < 60 ? _npcBotsCost / 8 :   //5 gold
+        level < 70 ? _npcBotsCost / 6 :    //20 gold
+        level < 79 ? _npcBotsCost / 4 :    //20 gold
         _npcBotsCost*2 ; //50 - 100 gold
 
     switch (botclass)
