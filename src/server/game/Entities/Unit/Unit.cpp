@@ -7124,9 +7124,7 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
             else if(IsNPCBot())
             {
                 AddSpellCooldown(71491, 0, cooldown);
-                //RandomSpells.push_back(71484);
                 RandomSpells.push_back(71491);
-                //RandomSpells.push_back(71492);
             }
             if (RandomSpells.empty()) // shouldn't happen
                 return false;
@@ -7176,9 +7174,7 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
             else if (IsNPCBot())
             {
                 AddSpellCooldown(71559, 0, cooldown);
-                //RandomSpells.push_back(71561);
                 RandomSpells.push_back(71559);
-                //RandomSpells.push_back(71560);
             }
 
             if (RandomSpells.empty()) // shouldn't happen
