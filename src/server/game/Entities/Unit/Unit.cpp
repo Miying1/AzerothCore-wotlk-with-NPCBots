@@ -22202,15 +22202,15 @@ int32 Unit::CalculateAOEDamageReduction(int32 damage, uint32 schoolMask, Unit* c
     return damage;
 }
 
-bool ConflagrateAuraStateDelayEvent::Execute(uint64 /*e_time*/, uint32  /*p_time*/)
-{
-    if (m_owner->IsInWorld())
-        if (m_owner->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0, 0, m_casterGUID) || // immolate
-            m_owner->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0, 0, 0x2, m_casterGUID)) // shadowflame
-            m_owner->ModifyAuraState(AURA_STATE_CONFLAGRATE, true);
-
-    return true;
-}
+//bool ConflagrateAuraStateDelayEvent::Execute(uint64 /*e_time*/, uint32  /*p_time*/)
+//{
+//    if (m_owner->IsInWorld())
+//        if (m_owner->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0, 0, m_casterGUID) || // immolate
+//            m_owner->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0, 0, 0x2, m_casterGUID)) // shadowflame
+//            m_owner->ModifyAuraState(AURA_STATE_CONFLAGRATE, true);
+//
+//    return true;
+//}
 
 void Unit::ExecuteDelayedUnitRelocationEvent()
 {
