@@ -3119,6 +3119,8 @@ void InstanceMap::CreateInstanceScript(bool load, std::string data, uint32 compl
         if (data != "")
             instance_data->Load(data.c_str());
     }
+
+    instance_data->LoadInstanceSavedGameobjectStateData();
 }
 
 /*
