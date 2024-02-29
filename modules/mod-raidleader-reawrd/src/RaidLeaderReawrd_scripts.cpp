@@ -14,6 +14,7 @@
 struct RaidLeaderReawrd
 {
     uint32 bossid;
+    uint8 is25raid;
     uint8 player_count1;
     uint32 reawrd1;
     uint8 player_count2;
@@ -29,16 +30,17 @@ public:
 
     void OnStartup() override
     {
-        if (QueryResult result = WorldDatabase.Query("SELECT bossid,player_count1,reawrd1,player_count2,reawrd2 FROM mod_raidleader_reawrd where active=1"))
+        if (QueryResult result = WorldDatabase.Query("SELECT bossid,is25raid,player_count1,reawrd1,player_count2,reawrd2 FROM mod_raidleader_reawrd where active=1"))
         {
             do
             {
                 RaidLeaderReawrd data = {};
                 data.bossid = (*result)[0].Get<uint32>();
-                data.player_count1 = (*result)[1].Get<uint8>();
-                data.reawrd1 = (*result)[2].Get<uint32>();
-                data.player_count2 = (*result)[3].Get<uint8>();
-                data.reawrd2 = (*result)[4].Get<uint32>();
+                data.is25raid = (*result)[1].Get<uint8>();
+                data.player_count1 = (*result)[2].Get<uint8>();
+                data.reawrd1 = (*result)[3].Get<uint32>();
+                data.player_count2 = (*result)[4].Get<uint8>();
+                data.reawrd2 = (*result)[5].Get<uint32>();
                 LeaderReawrdData.push_back(data);
 
             } while (result->NextRow());
@@ -101,9 +103,10 @@ public:
         {
             return;
         }
+        uint8 is25raid = map->Is25ManRaid() ? 1 : 0;
         for (auto itr = LeaderReawrdData.begin(); itr != LeaderReawrdData.end(); ++itr)
         {
-            if ((*itr).bossid != source->GetEntry())
+            if ((*itr).bossid != source->GetEntry() || (*itr).is25raid!=is25raid)
                 continue;
             Map::PlayerList const& playerList = map->GetPlayers();
             uint32 plcount = playerList.getSize();

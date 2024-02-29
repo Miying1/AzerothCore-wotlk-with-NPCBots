@@ -7171,7 +7171,7 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
             {
                 if (!me->HasAura(itr->second->spellId))
                     me->CastSpell(me, itr->second->spellId, true);
-                if (botPet && !botPet->HasAura(itr->second->spellId))
+                if (botPet && botPet->IsInWorld() && !botPet->HasAura(itr->second->spellId))
                     botPet->CastSpell(botPet, itr->second->spellId, true);
             }
         }
