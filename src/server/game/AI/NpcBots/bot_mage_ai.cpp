@@ -1612,7 +1612,7 @@ public:
 
         void UnsummonAll() override
         {
-            if (botPet)
+            if (botPet && botPet->IsInWorld())
                 botPet->ToTempSummon()->UnSummon();
         }
 
