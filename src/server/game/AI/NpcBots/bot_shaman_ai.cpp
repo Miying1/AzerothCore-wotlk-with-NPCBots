@@ -133,6 +133,9 @@ enum ShamanPassives
     MAELSTROM_WEAPON4                   = 51531,
     MAELSTROM_WEAPON5                   = 51532,
     EARTHEN_POWER                       = 51524,//rank 2
+    BINGSHUANG_POWER                    = 63374,//rank 2
+    LINGHUNWUQI                         = 16268,//灵魂武器
+    CONGHUI                             = 51885,//聪慧 
     //Restoration
     ANCESTRAL_HEALING                   = 16240,//rank 3
     ANCESTRAL_AWAKENING                 = 51558,//rank 3
@@ -1983,7 +1986,7 @@ public:
             //Lightning Overload
             if ((GetSpec() == BOT_SPEC_SHAMAN_ELEMENTAL) &&
                 me->GetLevel() >= 45 && (baseId == LIGHTNING_BOLT_1 || baseId == CHAIN_LIGHTNING_1) &&
-                urand(1,100) <= 33)
+                urand(1,100) <= 60)
             {
                 uint32 procId = 0;
                 switch (spellId)
@@ -2553,6 +2556,9 @@ public:
             bool isEnha = GetSpec() == BOT_SPEC_SHAMAN_ENHANCEMENT;
             bool isRest = GetSpec() == BOT_SPEC_SHAMAN_RESTORATION;
 
+            RefreshAura(CONGHUI, isEnha && level >= 60 ? 1 : 0);
+            RefreshAura(LINGHUNWUQI, isEnha && level >= 40 ? 1 : 0);
+            RefreshAura(BINGSHUANG_POWER, isEnha && level >= 40 ? 1 : 0);
             RefreshAura(ELEMENTAL_DEVASTATION3, isEnha && level >= 18 ? 1 : 0);
             RefreshAura(ELEMENTAL_DEVASTATION2, isEnha && level >= 15 && level < 18 ? 1 : 0);
             RefreshAura(ELEMENTAL_DEVASTATION1, isEnha && level >= 12 && level < 15 ? 1 : 0);

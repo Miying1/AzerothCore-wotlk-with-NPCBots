@@ -2247,7 +2247,7 @@ public:
   /*Talent*/lvl >= 50 && isProt ? InitSpellMap(AVENGERS_SHIELD_1) : RemoveSpell(AVENGERS_SHIELD_1);
   /*Talent*/lvl >= 60 && isProt ? InitSpellMap(HAMMER_OF_THE_RIGHTEOUS_1) : RemoveSpell(HAMMER_OF_THE_RIGHTEOUS_1);
 
-  /*Talent*/lvl >= 20 && isRetr ? InitSpellMap(SEAL_OF_COMMAND_1) : RemoveSpell(SEAL_OF_COMMAND_1);
+  /*Talent*/lvl >= 20 && (isRetr||isProt) ? InitSpellMap(SEAL_OF_COMMAND_1) : RemoveSpell(SEAL_OF_COMMAND_1);
   /*Talent*/lvl >= 40 && isRetr ? InitSpellMap(REPENTANCE_1) : RemoveSpell(REPENTANCE_1);
   /*Talent*/lvl >= 50 && isRetr ? InitSpellMap(CRUSADER_STRIKE_1) : RemoveSpell(CRUSADER_STRIKE_1);
   /*Talent*/lvl >= 60 && isRetr ? InitSpellMap(DIVINE_STORM_1) : RemoveSpell(DIVINE_STORM_1);
