@@ -1187,13 +1187,13 @@ public:
                 pctbonus += 0.1f;
             //Improved Shadow Word: Pain: 6% bonus damage for Shadow Word: Pain
             if (lvl >= 15 && baseId == SW_PAIN_1)
-                pctbonus += 0.06f;
+                pctbonus += 0.46f;
             //Focused Power part 1: 4% bonus damage for all spells
             if ((GetSpec() == BOT_SPEC_PRIEST_DISCIPLINE) && lvl >= 35)
                 pctbonus += 0.04f;
             //Improved Devouring Plague part 1: 15% bonus damage Devouring Plague
             if ((GetSpec() == BOT_SPEC_PRIEST_SHADOW) && lvl >= 35 && baseId == DEVOURING_PLAGUE_1)
-                pctbonus += 0.15f;
+                pctbonus += 0.55f;
             //Shadowform: 15% bonus damage for shadow spells (handled)
             //if (lvl >= 40 && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_SHADOW) && me->GetShapeshiftForm() == FORM_SHADOW)
             //    pctbonus += 0.15f;

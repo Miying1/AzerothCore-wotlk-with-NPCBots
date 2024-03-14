@@ -1133,7 +1133,7 @@ public:
 
             //Empowered Corruption: 36% spellpower bonus for Corruption
             if (lvl >= 25 && baseId == CORRUPTION_1)
-                fdamage += me->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * 0.36f * me->CalculateDefaultCoefficient(spellInfo, DOT) * me->CalculateLevelPenalty(spellInfo);
+                fdamage += me->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * 0.86f * me->CalculateDefaultCoefficient(spellInfo, DOT) * me->CalculateLevelPenalty(spellInfo);
             //Shadow and Flame: 20% spellpower bonus for Shadow Bolt, Shadowburn, Chaos Bolt and Incineration
             if ((GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) && lvl >= 45 &&
                 (baseId == SHADOW_BOLT_1 || baseId == CHAOS_BOLT_1 || baseId == SHADOWBURN_1 || baseId == INCINERATE_1))
@@ -1152,10 +1152,10 @@ public:
                 pctbonus += 0.1f;
             //Improved Corruption and Immolate (Updated) (61992): 5% bonus damage for Corruption and Immolate
             if (lvl >= 10 && (baseId == CORRUPTION_1 || baseId == IMMOLATE_1))
-                pctbonus += 0.05f;
+                pctbonus += 0.15f;
             //Improved Curse of Agony: 10% bonus damage for Curse of Agony
             if (lvl >= 10 && baseId == CURSE_OF_AGONY_1)
-                pctbonus += 0.1f;
+                pctbonus += 0.6f;
             //Shadow Mastery: 15% bonus damage for Shadow Spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) &&
                 lvl >= 35 && ((spellInfo->SpellFamilyFlags[0] & 0x80091) || spellInfo->SpellFamilyFlags[1] & 0x451910))
@@ -1177,7 +1177,7 @@ public:
 
             //Glyph of Immolate: 10% bonus damage for Immolate
             if (lvl >= 15 && baseId == IMMOLATE_1)
-                pctbonus += 0.1f;
+                pctbonus += 0.5f;
 
             //Demonic Pact part 1: 10% bonus damage for all spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && lvl >= 55)
@@ -1788,7 +1788,7 @@ public:
 
         void UnsummonAll() override
         {
-            if (botPet && botPet->IsAlive()) {
+            if (botPet && botPet->IsAlive() && botPet->IsInWorld()) {
                 TempSummon* summ = botPet->ToTempSummon();
                 if (summ)
                     summ->UnSummon();
