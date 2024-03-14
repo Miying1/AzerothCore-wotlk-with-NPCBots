@@ -8044,7 +8044,7 @@ bool Spell::UpdatePointers()
         if (!m_CastItem)
             return false;
     }
-    else
+    else if (!m_caster->IsNPCBot())
         m_CastItem = nullptr;
 
     m_targets.Update(m_caster);
