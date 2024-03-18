@@ -412,7 +412,7 @@ public:
             return false;
         if (!target->IsAlive())
             return false;
-        if (_playerOnly && target->GetTypeId() != TYPEID_PLAYER)
+        if (_playerOnly && !target->IsNPlayer())
             return false;
         if (target == _source->GetVictim())
             return false;
@@ -974,7 +974,11 @@ public:
             if (!((1 << _phase) & PHASE_MASK_NO_VICTIM))
                 if (!UpdateVictim())
                     return;
-
+            Unit* player = SelectTarget(SelectTargetMethod::MaxThreat,0,75,true);
+            if(!player){
+              EnterEvadeMode(EVADE_REASON_OTHER);
+              return;
+            }
             // handle falling players so they don't fall infinitely
             if (_positionCheckTimer <= diff)
             {
@@ -2440,7 +2444,7 @@ class VehicleCheck
 public:
     bool operator()(WorldObject* unit)
     {
-        return (unit->GetTypeId() != TYPEID_UNIT && unit->GetTypeId() != TYPEID_PLAYER) || unit->ToUnit()->GetVehicle();
+        return (unit->GetTypeId() != TYPEID_UNIT && !unit->IsNPlayer()) || unit->ToUnit()->GetVehicle();
     }
 };
 
@@ -3761,7 +3765,7 @@ public:
 
         bool CanAIAttack(Unit const* target) const override
         {
-            return me->GetReactState() == REACT_AGGRESSIVE && target->GetTypeId() == TYPEID_PLAYER && target->GetExactDistSq(495.708f, -2523.76f, 1049.95f) < 40.0f * 40.0f;
+            return me->GetReactState() == REACT_AGGRESSIVE && target->IsNPlayer() && target->GetExactDistSq(495.708f, -2523.76f, 1049.95f) < 40.0f * 40.0f;
         }
     };
 
