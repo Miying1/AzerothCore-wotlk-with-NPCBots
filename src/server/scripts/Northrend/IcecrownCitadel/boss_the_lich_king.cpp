@@ -975,7 +975,7 @@ public:
                 if (!UpdateVictim())
                     return;
             Unit* player = SelectTarget(SelectTargetMethod::MaxThreat,0,75,true);
-            if(!player){
+            if(!player && HealthAbovePct(12)){
               EnterEvadeMode(EVADE_REASON_OTHER);
               return;
             }
