@@ -548,8 +548,16 @@ void bot_ai::CheckOwnerExpiry()
                 draft.SendMailTo(trans, MailReceiver(npcBotData->owner), MailSender(me, MAIL_STATIONERY_GM));
             }
             CharacterDatabase.CommitTransaction(trans);
-
-            BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_EQUIPS, _equips);
+            for (uint8 i = BOT_SLOT_MAINHAND; i != BOT_INVENTORY_SIZE; ++i)
+            {
+                if (i <= BOT_SLOT_RANGED)
+                    _resetEquipment(i, ObjectGuid::Empty);
+                else
+                {
+                    _unequip(i, ObjectGuid::Empty);
+                } 
+            }
+            //BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_EQUIPS, _equips);
         }
 
         //hard reset owner
