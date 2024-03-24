@@ -51,6 +51,7 @@ static std::list<BotMgr::delayed_teleport_callback_type> delayed_bot_teleports;
 //config
 uint8 _basefollowdist;
 uint8 _maxNpcBots;
+uint8 _IpMaxBots;
 uint8 _maxClassNpcBots;
 uint8 _xpReductionAmount;
 uint8 _xpReductionStartingNumber;
@@ -281,6 +282,7 @@ void BotMgr::LoadConfig(bool reload)
 
     _enableNpcBots                  = sConfigMgr->GetBoolDefault("NpcBot.Enable", true);
     _maxNpcBots                     = sConfigMgr->GetIntDefault("NpcBot.MaxBots", 1);
+    _IpMaxBots = sConfigMgr->GetIntDefault("NpcBot.IpMaxBots", 8);
     _maxClassNpcBots                = sConfigMgr->GetIntDefault("NpcBot.MaxBotsPerClass", 1);
     _filterRaces                    = sConfigMgr->GetBoolDefault("NpcBot.Botgiver.FilterRaces", false);
     _basefollowdist                 = sConfigMgr->GetIntDefault("NpcBot.BaseFollowDistance", 30);
@@ -829,6 +831,10 @@ uint8 BotMgr::GetNpcBotXpReductionStartingNumber()
 uint8 BotMgr::GetMaxNpcBots()
 {
     return _maxNpcBots <= MAXRAIDSIZE - 1 ? _maxNpcBots : MAXRAIDSIZE - 1;
+}
+
+uint8 BotMgr::GetIPMaxBots() {
+    return _IpMaxBots;
 }
 
 int32 BotMgr::GetBotInfoPacketsLimit()
