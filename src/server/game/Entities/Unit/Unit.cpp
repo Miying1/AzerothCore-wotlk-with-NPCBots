@@ -10418,9 +10418,6 @@ bool Unit::HandleProcTriggerSpell(Unit* victim, uint32 damage, AuraEffect* trigg
             return false;
 
         AddSpellCooldown(triggerEntry->Id, 0, cooldown);
-
-        if (IsNPCBot() && triggeredByAura->GetBase()->GetCastItemGUID() != ObjectGuid::Empty)
-            ToCreature()->AddBotSpellCooldown(triggerEntry->Id, cooldown);
     }
 
     if (basepoints0)
