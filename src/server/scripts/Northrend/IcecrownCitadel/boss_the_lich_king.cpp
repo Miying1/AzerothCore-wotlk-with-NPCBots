@@ -974,11 +974,7 @@ public:
             if (!((1 << _phase) & PHASE_MASK_NO_VICTIM))
                 if (!UpdateVictim())
                     return;
-            Unit* player = SelectTarget(SelectTargetMethod::MaxThreat,0,75,true);
-            if(!player && HealthAbovePct(12)){
-              EnterEvadeMode(EVADE_REASON_OTHER);
-              return;
-            }
+           
             // handle falling players so they don't fall infinitely
             if (_positionCheckTimer <= diff)
             {
