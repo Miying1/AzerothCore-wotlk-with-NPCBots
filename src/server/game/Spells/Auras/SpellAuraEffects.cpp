@@ -364,7 +364,7 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandleNoImmediateEffect,                         //301 SPELL_AURA_SCHOOL_HEAL_ABSORB implemented in Unit::CalcHealAbsorb
     &AuraEffect::HandleNULL,                                      //302 0 spells in 3.3.5
     &AuraEffect::HandleNoImmediateEffect,                         //303 SPELL_AURA_MOD_DAMAGE_DONE_VERSUS_AURASTATE implemented in Unit::SpellDamageBonus, Unit::MeleeDamageBonus
-    &AuraEffect::HandleAuraModFakeInebriation,                    //304 SPELL_AURA_MOD_DRUNK
+    &AuraEffect::HandleAuraModFakeInebriation,                    //304 SPELL_AURA_MOD_FAKE_INEBRIATE
     &AuraEffect::HandleAuraModIncreaseSpeed,                      //305 SPELL_AURA_MOD_MINIMUM_SPEED
     &AuraEffect::HandleNULL,                                      //306 0 spells in 3.3.5
     &AuraEffect::HandleNULL,                                      //307 0 spells in 3.3.5
@@ -1060,6 +1060,29 @@ float AuraEffect::CalcPeriodicCritChance(Unit const* caster, Unit const* target)
     float critChance = 0.0f;
     if (caster)
     {
+        //npcbot
+        if (caster->IsNPCBotOrPet())
+        {
+            Unit::AuraEffectList const& mPeriodicCritAuras = caster->GetAuraEffectsByType(SPELL_AURA_ABILITY_PERIODIC_CRIT);
+            for (Unit::AuraEffectList::const_iterator itr = mPeriodicCritAuras.begin(); itr != mPeriodicCritAuras.end(); ++itr)
+            {
+                if ((*itr)->IsAffectedOnSpell(GetSpellInfo()))
+                {
+                    critChance = caster->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), (GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED ? RANGED_ATTACK : BASE_ATTACK), true);
+                    break;
+                }
+            }
+
+            switch(GetSpellInfo()->SpellFamilyName)
+            {
+                // Rupture - since 3.3.3 can crit
+                case SPELLFAMILY_ROGUE:
+                    if (GetSpellInfo()->SpellFamilyFlags[0] & 0x100000)
+                        critChance = caster->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), BASE_ATTACK, true);
+                    break;
+            }
+        }
+        //end npcbot
         if (Player* modOwner = caster->GetSpellModOwner())
         {
             Unit::AuraEffectList const& mPeriodicCritAuras = modOwner->GetAuraEffectsByType(SPELL_AURA_ABILITY_PERIODIC_CRIT);
@@ -6172,40 +6195,12 @@ void AuraEffect::HandleAuraModFakeInebriation(AuraApplication const* aurApp, uin
     if (!(mode & AURA_EFFECT_HANDLE_CHANGE_AMOUNT_MASK))
         return;
 
-    Unit* target = aurApp->GetTarget();
+    Player* target = aurApp->GetTarget()->ToPlayer();
+    if (!target)
+        return;
 
-    if (apply)
-    {
-        target->m_invisibilityDetect.AddFlag(INVISIBILITY_DRUNK);
-        target->m_invisibilityDetect.AddValue(INVISIBILITY_DRUNK, GetAmount());
-
-        if (target->GetTypeId() == TYPEID_PLAYER)
-        {
-            int32 oldval = target->ToPlayer()->GetInt32Value(PLAYER_FAKE_INEBRIATION);
-            target->ToPlayer()->SetInt32Value(PLAYER_FAKE_INEBRIATION, oldval + GetAmount());
-        }
-    }
-    else
-    {
-        bool removeDetect = !target->HasAuraType(SPELL_AURA_MOD_FAKE_INEBRIATE);
-
-        target->m_invisibilityDetect.AddValue(INVISIBILITY_DRUNK, -GetAmount());
-
-        if (target->GetTypeId() == TYPEID_PLAYER)
-        {
-            int32 oldval = target->ToPlayer()->GetInt32Value(PLAYER_FAKE_INEBRIATION);
-            target->ToPlayer()->SetInt32Value(PLAYER_FAKE_INEBRIATION, oldval - GetAmount());
-
-            if (removeDetect)
-                removeDetect = !target->ToPlayer()->GetDrunkValue();
-        }
-
-        if (removeDetect)
-            target->m_invisibilityDetect.DelFlag(INVISIBILITY_DRUNK);
-    }
-
-    // call functions which may have additional effects after chainging state of unit
-    target->UpdateObjectVisibility(false);
+    target->ApplyModInt32Value(PLAYER_FAKE_INEBRIATION, GetAmount(), apply);
+    target->UpdateInvisibilityDrunkDetect();
 }
 
 void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 mode, bool apply) const

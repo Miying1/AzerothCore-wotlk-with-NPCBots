@@ -395,38 +395,39 @@ struct npc_echo_of_medivh : public ScriptedAI
             for (uint8 col = 0; col < MAX_COL; ++col)
             {
                 BoardCell const& cell = _boards[row][col];
-                if (cell.pieceGUID == piece->GetGUID())
+                if (cell.pieceGUID != piece->GetGUID())
+                    continue;
+
+                std::vector<KarazhanChessOrientationType> orientations;
+                switch (orientation)
                 {
-                    std::vector<KarazhanChessOrientationType> orientations;
-                    switch (orientation)
-                    {
-                        case ORI_SE:
-                            orientations = { ORI_NE, ORI_E, ORI_S, ORI_SW };
-                            break;
-                        case ORI_S:
-                            orientations = { ORI_E, ORI_SE, ORI_SW, ORI_W };
-                            break;
-                        case ORI_SW:
-                            orientations = { ORI_SE, ORI_S, ORI_W, ORI_NW };
-                            break;
-                        case ORI_W:
-                            orientations = { ORI_NE, ORI_SW, ORI_NW, ORI_N };
-                            break;
-                        case ORI_NW:
-                            orientations = { ORI_SW, ORI_W, ORI_N, ORI_NE };
-                            break;
-                        case ORI_N:
-                            orientations = { ORI_W, ORI_NW, ORI_NE, ORI_E };
-                            break;
-                        case ORI_NE:
-                            orientations = { ORI_NW, ORI_N, ORI_E, ORI_SE };
-                            break;
-                        case ORI_E:
-                            orientations = { ORI_N, ORI_NE, ORI_SE, ORI_S };
-                            break;
-                        default:
-                            break;
-                    }
+                    case ORI_SE:
+                        orientations = { ORI_NE, ORI_E, ORI_S, ORI_SW };
+                        break;
+                    case ORI_S:
+                        orientations = { ORI_E, ORI_SE, ORI_SW, ORI_W };
+                        break;
+                    case ORI_SW:
+                        orientations = { ORI_SE, ORI_S, ORI_W, ORI_NW };
+                        break;
+                    case ORI_W:
+                        orientations = { ORI_NE, ORI_SW, ORI_NW, ORI_N };
+                        break;
+                    case ORI_NW:
+                        orientations = { ORI_SW, ORI_W, ORI_N, ORI_NE };
+                        break;
+                    case ORI_N:
+                        orientations = { ORI_W, ORI_NW, ORI_NE, ORI_E };
+                        break;
+                    case ORI_NE:
+                        orientations = { ORI_NW, ORI_N, ORI_E, ORI_SE };
+                        break;
+                    case ORI_E:
+                        orientations = { ORI_N, ORI_NE, ORI_SE, ORI_S };
+                        break;
+                    default:
+                        break;
+                }
 
                     for (KarazhanChessOrientationType orient : orientations)
                     {
@@ -465,21 +466,17 @@ struct npc_echo_of_medivh : public ScriptedAI
                             default:
                                 break;
                         }
-                        if (newRow < _boards.size() && newCol < _boards[newRow].size()) {
-                            if (_boards[newRow][newCol].pieceGUID) {
-                                if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
-                                {
-                                    if (!IsFriendly(piece, targetPiece))
-                                    {
-                                        return targetPiece;
-                                    }
-                                }
-                            }
-                        }
+                        if (newRow < MAX_ROW && newCol < MAX_COL)
+                          if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
+                          {
+                              if (!IsFriendly(piece, targetPiece))
+                              {
+                                  return targetPiece;
+                              }
+                          }
                     }
 
-                    return nullptr;
-                }
+                return nullptr;
             }
         }
 
@@ -1947,13 +1944,13 @@ struct npc_chesspiece : public ScriptedAI
     void sGossipHello(Player* player) override
     {
         uint32 chessPhase = _instance->GetData(DATA_CHESS_GAME_PHASE);
-        if (player->GetTeamId() == TEAM_ALLIANCE && me->GetFaction() != CHESS_FACTION_ALLIANCE && chessPhase < CHESS_PHASE_PVE_FINISHED)
+        if (_instance->GetData(CHESS_EVENT_TEAM) == TEAM_ALLIANCE && me->GetFaction() != CHESS_FACTION_ALLIANCE && chessPhase < CHESS_PHASE_PVE_FINISHED)
         {
             SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
             return;
         }
 
-        if (player->GetTeamId() == TEAM_HORDE && me->GetFaction() != CHESS_FACTION_HORDE && chessPhase < CHESS_PHASE_PVE_FINISHED)
+        if (_instance->GetData(CHESS_EVENT_TEAM) == TEAM_HORDE && me->GetFaction() != CHESS_FACTION_HORDE && chessPhase < CHESS_PHASE_PVE_FINISHED)
         {
             SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
             return;

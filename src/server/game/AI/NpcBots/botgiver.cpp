@@ -77,7 +77,7 @@ public:
                     gossipTextId = GOSSIP_BOTGIVER_HIRE;
                     uint32 allcount = BotDataMgr::GetNpcBotCountByIp(player->GetSession()->GetRemoteAddress()); 
                     if (!player-> IsGameMaster() &&
-                        ( player->GetNpcBotsCount() >= BotMgr::GetMaxNpcBots() || (allcount >=BotMgr::GetIPMaxBots() && !player->IsVip()) || allcount >= 16))
+                        ( player->GetNpcBotsCount() >= BotMgr::GetMaxNpcBots(player->GetLevel()) || (allcount >=BotMgr::GetIPMaxBots() && !player->IsVip()) || allcount >= 16))
                     {
                         WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
                         break;
