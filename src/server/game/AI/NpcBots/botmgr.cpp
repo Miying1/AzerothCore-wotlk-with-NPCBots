@@ -901,7 +901,7 @@ uint8 BotMgr::GetNpcBotMountLevel100()
     return _mountLevel100;
 }
 
-uint8 BotMgr::GetMaxNpcBots(uint8 level)
+uint8 BotMgr::GetMaxNpcBots()
 {
     return _maxNpcBots <= MAXRAIDSIZE - 1 ? _maxNpcBots : MAXRAIDSIZE - 1;
 }
@@ -1648,7 +1648,7 @@ BotAddResult BotMgr::AddBot(Creature* bot)
     if ((!owned && owned_count >= GetMaxNpcBots()))
     {
         ChatHandler ch(_owner->GetSession());
-        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), GetMaxNpcBots(_owner->GetLevel()));
+        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), GetMaxNpcBots());
         return BOT_ADD_MAX_EXCEED;
     }
     if (!owned && _maxClassNpcBots && class_count >= _maxClassNpcBots)
