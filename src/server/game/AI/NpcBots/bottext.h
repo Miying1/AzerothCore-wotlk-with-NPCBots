@@ -266,7 +266,7 @@ enum BotTexts : uint32
     BOT_TEXT_HIREFAIL_LVL55                 = 70529, //"%s will not join you until you are level 55"
     BOT_TEXT_HIREFAIL_LVL40                 = 70530, //"%s will not join you until you are level 40"
     BOT_TEXT_HIREFAIL_LVL20                 = 70531, //"%s will not join you until you are level 20"
-    BOT_TEXT_HIREFAIL_MAXBOTS               = 70532, //"You exceed max npcbots (%u)"
+    BOT_TEXT_HIREFAIL_MAXBOTS               = 70532, //"You exceed max npcbots for your level (%u)"
     BOT_TEXT_HIREFAIL_COST                  = 70533, //"You don't have enough money"
     BOT_TEXT_HIREFAIL_MAXCLASSBOTS          = 70534, //"You cannot have more bots of that class! %u of %u"
     BOT_TEXT_CANT_DISMISS_EQUIPMENT         = 70535, //"Cannot reset equipment in slot %u (%s)! Cannot dismiss bot!"
@@ -408,7 +408,18 @@ enum BotTexts : uint32
     BOT_TEXT_REFLECT                        = 70671, //"Reflect"
     BOT_TEXT_LOCUSTS                        = 70672, //"Locusts"
     BOT_TEXT_HEAL_TARGET_HEALTH_THRESHOLD   = 70673, //"Heal target health threshold"
-    //70674-70799 reserved for custom localization strings
+    BOT_TEXT_I_NEED_A_PORTAL                = 70674, //"I need a portal"
+    BOT_TEXT_STORMWIND                      = 70675, //"Stormwind"
+    BOT_TEXT_IRONFORGE                      = 70676, //"Ironforge"
+    BOT_TEXT_DARNASSUS                      = 70677, //"Darnassus"
+    BOT_TEXT_EXORDAR                        = 70678, //"Exordar"
+    BOT_TEXT_ORGRIMMAR                      = 70679, //"Orgrimmar"
+    BOT_TEXT_UNDERCITY                      = 70680, //"Undercity"
+    BOT_TEXT_THUNDER_BLUFF                  = 70681, //"Thunder Bluff"
+    BOT_TEXT_SILVERMOON                     = 70682, //"Silvermoon"
+    BOT_TEXT_SHATTRATH                      = 70683, //"Shattrath"
+    BOT_TEXT_DALARAN                        = 70684, //"Dalaran"
+    //70685-70799 reserved for custom localization strings
 };
 
 #endif //BOTTEXT_H
