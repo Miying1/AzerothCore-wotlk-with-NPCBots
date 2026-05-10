@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -74,7 +74,7 @@ bool WardenPayloadMgr::RegisterPayload(std::string const& payload, uint16 payloa
     wCheck.Str = payload;
     wCheck.CheckId = payloadId;
 
-    std::string idStr = Acore::StringFormat("%04u", payloadId);
+    std::string idStr = Acore::StringFormat("{:04}", payloadId);
     ASSERT(idStr.size() == 4);
     std::copy(idStr.begin(), idStr.end(), wCheck.IdStr.begin());
 
@@ -128,7 +128,7 @@ void WardenPayloadMgr::QueuePayload(uint16 payloadId, bool pushToFront)
 
 bool WardenPayloadMgr::DequeuePayload(uint16 payloadId)
 {
-    size_t const queueSize = QueuedPayloads.size();
+    std::size_t const queueSize = QueuedPayloads.size();
     QueuedPayloads.remove(payloadId);
 
     return queueSize != QueuedPayloads.size();

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -18,8 +18,6 @@
 #ifndef __ACORE_VEHICLE_H
 #define __ACORE_VEHICLE_H
 
-#include "EventProcessor.h"
-#include "ObjectDefines.h"
 #include "Unit.h"
 #include "VehicleDefines.h"
 
@@ -43,6 +41,7 @@ public:
     bool HasEmptySeat(int8 seatId) const;
     Unit* GetPassenger(int8 seatId) const;
     int8 GetNextEmptySeat(int8 seatId, bool next) const;
+    VehicleSeatAddon const* GetSeatAddonForSeatOfPassenger(Unit const* passenger) const;
     uint8 GetAvailableSeatCount() const;
 
     bool AddPassenger(Unit* passenger, int8 seatId = -1);
@@ -52,6 +51,7 @@ public:
     void RemoveAllPassengers();
     void Dismiss();
     bool IsVehicleInUse();
+    [[nodiscard]] bool IsControllableVehicle() const;
     void TeleportVehicle(float x, float y, float z, float ang);
 
     SeatMap Seats;
@@ -102,6 +102,18 @@ private:
     uint32 _usableSeatNum;         // Number of seats that match VehicleSeatEntry::UsableByPlayer, used for proper display flags
     uint32 _creatureEntry;         // Can be different than me->GetBase()->GetEntry() in case of players
     Status _status;
+    bool _accessoriesInstalled;
+};
+
+class VehicleDespawnEvent : public BasicEvent
+{
+public:
+    VehicleDespawnEvent(Unit& self, Milliseconds duration) : _self(self), _duration(duration) { }
+    bool Execute(uint64 e_time, uint32 p_time) override;
+
+protected:
+    Unit& _self;
+    Milliseconds _duration;
 };
 
 #endif

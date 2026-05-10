@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -29,6 +29,7 @@
 #include "Timer.h"
 #include "Tokenize.h"
 #include <chrono>
+#include <memory>
 
 Log::Log() : AppenderId(0), highestLogLevel(LOG_LEVEL_FATAL)
 {
@@ -39,7 +40,6 @@ Log::Log() : AppenderId(0), highestLogLevel(LOG_LEVEL_FATAL)
 
 Log::~Log()
 {
-    delete _strand;
     Close();
 }
 
@@ -73,7 +73,7 @@ void Log::CreateAppenderFromConfig(std::string const& appenderName)
 
     std::vector<std::string_view> tokens = Acore::Tokenize(options, ',', true);
 
-    size_t const size = tokens.size();
+    std::size_t const size = tokens.size();
     std::string name = appenderName.substr(9);
 
     if (size < 2)
@@ -211,13 +211,16 @@ void Log::ReadLoggersFromConfig()
         AppenderConsole* appender = new AppenderConsole(NextAppenderId(), "Console", LOG_LEVEL_DEBUG, APPENDER_FLAGS_NONE, {});
         appenders[appender->getId()].reset(appender);
 
-        Logger* rootLogger = new Logger(LOGGER_ROOT, LOG_LEVEL_ERROR);
+        Logger* rootLogger = new Logger(LOGGER_ROOT, LOG_LEVEL_WARN);
         rootLogger->addAppender(appender->getId(), appender);
         loggers[LOGGER_ROOT].reset(rootLogger);
 
         Logger* serverLogger = new Logger("server", LOG_LEVEL_INFO);
         serverLogger->addAppender(appender->getId(), appender);
         loggers["server"].reset(serverLogger);
+
+        highestLogLevel = LOG_LEVEL_INFO;
+        return;
     }
 }
 
@@ -265,7 +268,7 @@ Logger const* Log::GetLoggerByType(std::string const& type) const
     }
 
     std::string parentLogger = LOGGER_ROOT;
-    size_t found = type.find_last_of('.');
+    std::size_t found = type.find_last_of('.');
     if (found != std::string::npos)
     {
         parentLogger = type.substr(0, found);
@@ -369,7 +372,7 @@ void Log::Initialize(Acore::Asio::IoContext* ioContext)
     if (ioContext)
     {
         _ioContext = ioContext;
-        _strand = new Acore::Asio::Strand(*ioContext);
+        _strand = std::make_unique<Acore::Asio::Strand>(*ioContext);
     }
 
     LoadFromConfig();
@@ -377,8 +380,7 @@ void Log::Initialize(Acore::Asio::IoContext* ioContext)
 
 void Log::SetSynchronous()
 {
-    delete _strand;
-    _strand = nullptr;
+    _strand.reset();
     _ioContext = nullptr;
 }
 

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -304,7 +304,7 @@ void PlayerDump::InitializeTables()
             // item0 - item18
             for (uint32 j = 0; j < EQUIPMENT_SLOT_END; ++j)
             {
-                std::string itColumn = Acore::StringFormat("item%u", j);
+                std::string itColumn = Acore::StringFormat("item{}", j);
                 MarkDependentColumn(t, itColumn, GUID_TYPE_ITEM);
             }
             break;
@@ -426,7 +426,7 @@ inline std::string GetTableName(std::string const& str)
     return str.substr(s, e - s);
 }
 
-inline bool ValidateFields(TableStruct const& ts, std::string const& str, size_t lineNumber)
+inline bool ValidateFields(TableStruct const& ts, std::string const& str, std::size_t lineNumber)
 {
     std::string::size_type s = str.find("` VALUES (");
     if (s != std::string::npos) // old dump format (no column names)
@@ -753,7 +753,7 @@ DumpReturn PlayerDumpWriter::WriteDumpToString(std::string& dump, ObjectGuid::Lo
 inline void FixNULLfields(std::string& line)
 {
     static std::string const NullString("'NULL'");
-    size_t pos = line.find(NullString);
+    std::size_t pos = line.find(NullString);
     while (pos != std::string::npos)
     {
         line.replace(pos, NullString.length(), "NULL");
@@ -823,7 +823,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
     uint8 level = 1;
 
     // for logs
-    size_t lineNumber = 0;
+    std::size_t lineNumber = 0;
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     while (std::getline(input, line))
@@ -831,7 +831,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
         ++lineNumber;
 
         // skip empty strings
-        size_t nw_pos = line.find_first_not_of(" \t\n\r\7");
+        std::size_t nw_pos = line.find_first_not_of(" \t\n\r\7");
         if (nw_pos == std::string::npos)
             continue;
 
@@ -923,7 +923,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
             if (name.empty())
             {
                 // generate a temporary name
-                std::string guidPart = Acore::StringFormat("%X", guid);
+                std::string guidPart = Acore::StringFormat("{:X}", guid);
                 std::size_t maxCharsFromOriginalName = MAX_PLAYER_NAME - guidPart.length();
 
                 name = GetColumn(ts, line, "name").substr(0, maxCharsFromOriginalName) + guidPart;

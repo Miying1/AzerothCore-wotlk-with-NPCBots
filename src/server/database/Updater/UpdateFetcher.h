@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -31,12 +31,12 @@ struct AC_DATABASE_API UpdateResult
     UpdateResult()
         : updated(0), recent(0), archived(0) { }
 
-    UpdateResult(size_t const updated_, size_t const recent_, size_t const archived_)
+    UpdateResult(std::size_t const updated_, std::size_t const recent_, std::size_t const archived_)
         : updated(updated_), recent(recent_), archived(archived_) { }
 
-    size_t updated;
-    size_t recent;
-    size_t archived;
+    std::size_t updated;
+    std::size_t recent;
+    std::size_t archived;
 };
 
 class AC_DATABASE_API UpdateFetcher
@@ -72,6 +72,7 @@ private:
     {
         RELEASED,
         CUSTOM,
+        PENDING,
         MODULE,
         ARCHIVED
     };
@@ -92,6 +93,8 @@ private:
                 return RELEASED;
             else if (state == "CUSTOM")
                 return CUSTOM;
+            else if (state == "PENDING")
+                return PENDING;
             else if (state == "MODULE")
                 return MODULE;
 
@@ -106,6 +109,8 @@ private:
                     return "RELEASED";
                 case CUSTOM:
                     return "CUSTOM";
+                case PENDING:
+                    return "PENDING";
                 case MODULE:
                     return "MODULE";
                 case ARCHIVED:

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -18,7 +18,6 @@
 #ifndef _FIELD_H
 #define _FIELD_H
 
-#include "DatabaseEnvFwd.h"
 #include "Define.h"
 #include "Duration.h"
 #include <array>
@@ -133,7 +132,7 @@ public:
         return GetDataBinary();
     }
 
-    template <typename T, size_t S>
+    template <typename T, std::size_t S>
     inline std::enable_if_t<std::is_same_v<Binary, T>, std::array<uint8, S>> Get() const
     {
         std::array<uint8, S> buf = {};
@@ -173,7 +172,7 @@ private:
     QueryResultFieldMetadata const* meta;
     void LogWrongType(std::string_view getter, std::string_view typeName) const;
     void SetMetadata(QueryResultFieldMetadata const* fieldMeta);
-    void GetBinarySizeChecked(uint8* buf, size_t size) const;
+    void GetBinarySizeChecked(uint8* buf, std::size_t size) const;
 };
 
 #endif

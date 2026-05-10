@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,6 +19,7 @@
 #include "ScriptedCreature.h"
 #include "SpellScriptLoader.h"
 #include "gundrak.h"
+#include "SpellScript.h"
 
 enum Spells
 {
@@ -26,6 +27,7 @@ enum Spells
     SPELL_MOJO_WAVE                     = 55626,
     SPELL_FREEZE_ANIM                   = 52656,
     SPELL_MIGHTY_BLOW                   = 54719,
+    SPELL_MORTAL_STRIKE                 = 54715,
 
     SPELL_ELEMENTAL_SPAWN_EFFECT        = 54888,
     SPELL_EMERGE                        = 54850,
@@ -53,9 +55,8 @@ enum Misc
     EMOTE_ALTAR                         = 1,
 
     EVENT_COLOSSUS_MIGHTY_BLOW          = 1,
-    EVENT_COLOSSUS_HEALTH_1             = 2,
-    EVENT_COLOSSUS_HEALTH_2             = 3,
-    EVENT_COLOSSUS_START_FIGHT          = 4,
+    EVENT_COLOSSUS_MORTAL_STRIKE        = 2,
+    EVENT_COLOSSUS_START_FIGHT          = 3,
 
     EVENT_ELEMENTAL_HEALTH              = 10,
     EVENT_ELEMENTAL_SURGE               = 11,
@@ -105,6 +106,8 @@ public:
         {
         }
 
+        bool _secondEmerge;
+
         void MoveInLineOfSight(Unit*  /*who*/) override
         {
         }
@@ -122,17 +125,21 @@ public:
         void Reset() override
         {
             BossAI::Reset();
-            for (uint8 i = 0; i < 5; i++)
-                me->SummonCreature(NPC_LIVING_MOJO, mojoPosition[i].GetPositionX(), mojoPosition[i].GetPositionY(), mojoPosition[i].GetPositionZ(), 0, TEMPSUMMON_MANUAL_DESPAWN, 0);
+            if (!me->IsInEvadeMode())
+            {
+              me->CastSpell(me, SPELL_FREEZE_ANIM, true);
+              me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+              for (const auto & i : mojoPosition)
+                  me->SummonCreature(NPC_LIVING_MOJO, i.GetPositionX(), i.GetPositionY(), i.GetPositionZ(), 0, TEMPSUMMON_MANUAL_DESPAWN, 0);
+            }
+            else
+            {
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            }
 
-            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-        }
-
-        void InitializeAI() override
-        {
-            BossAI::InitializeAI();
-            me->CastSpell(me, SPELL_FREEZE_ANIM, true);
+            SetInvincibility(true);
+            _secondEmerge = false;
         }
 
         void JustReachedHome() override
@@ -141,12 +148,26 @@ public:
             me->CastSpell(me, SPELL_FREEZE_ANIM, true);
         }
 
-        void JustEngagedWith(Unit* who) override
+        void ScheduleTasks() override
         {
-            BossAI::JustEngagedWith(who);
+            events.ScheduleEvent(EVENT_COLOSSUS_START_FIGHT, 1s);
             events.ScheduleEvent(EVENT_COLOSSUS_MIGHTY_BLOW, 10s);
-            events.ScheduleEvent(EVENT_COLOSSUS_HEALTH_1, 1s);
-            events.ScheduleEvent(EVENT_COLOSSUS_HEALTH_2, 1s);
+            events.ScheduleEvent(EVENT_COLOSSUS_MORTAL_STRIKE, 7s);
+
+            ScheduleHealthCheckEvent(51, [&] {
+                me->CastSpell(me, SPELL_EMERGE, false);
+                me->CastSpell(me, SPELL_EMERGE_SUMMON, true);
+                me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                me->GetMotionMaster()->Clear();
+            });
+
+            ScheduleHealthCheckEvent(2, [&] {
+                _secondEmerge = true;
+                me->CastSpell(me, SPELL_EMERGE, false);
+                me->CastSpell(me, SPELL_EMERGE_SUMMON, true);
+                me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                me->GetMotionMaster()->Clear();
+            });
         }
 
         void JustSummoned(Creature* summon) override
@@ -155,8 +176,8 @@ public:
             {
                 summon->SetRegeneratingHealth(false);
                 summon->SetReactState(REACT_PASSIVE);
-                summon->m_Events.AddEvent(new RestoreFight(summon), summon->m_Events.CalculateTime(3000));
-                if (events.GetNextEventTime(EVENT_COLOSSUS_HEALTH_2) == 0)
+                summon->m_Events.AddEventAtOffset(new RestoreFight(summon), 3s);
+                if (_secondEmerge)
                 {
                     summon->SetHealth(summon->GetMaxHealth() / 2);
                     summon->LowerPlayerDamageReq(summon->GetMaxHealth() / 2);
@@ -179,17 +200,12 @@ public:
             summons.Despawn(summon);
             if (summon->GetEntry() == NPC_DRAKKARI_ELEMENTAL)
             {
+                me->SetHealth(me->GetMaxHealth() / 2);
                 me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 me->RemoveAurasDueToSpell(SPELL_FREEZE_ANIM);
                 if (me->GetVictim())
                     me->GetMotionMaster()->MoveChase(me->GetVictim());
             }
-        }
-
-        void DamageTaken(Unit*  /*attacker*/, uint32& damage, DamageEffectType, SpellSchoolMask) override
-        {
-            if (damage >= me->GetHealth())
-                damage = 0;
         }
 
         void UpdateAI(uint32 diff) override
@@ -211,27 +227,9 @@ public:
                     me->CastSpell(me->GetVictim(), SPELL_MIGHTY_BLOW, false);
                     events.ScheduleEvent(EVENT_COLOSSUS_MIGHTY_BLOW, 10s);
                     break;
-                case EVENT_COLOSSUS_HEALTH_1:
-                    if (me->HealthBelowPct(51))
-                    {
-                        me->CastSpell(me, SPELL_EMERGE, false);
-                        me->CastSpell(me, SPELL_EMERGE_SUMMON, true);
-                        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        me->GetMotionMaster()->Clear();
-                        break;
-                    }
-                    events.ScheduleEvent(EVENT_COLOSSUS_HEALTH_1, 1s);
-                    break;
-                case EVENT_COLOSSUS_HEALTH_2:
-                    if (me->HealthBelowPct(21))
-                    {
-                        me->CastSpell(me, SPELL_EMERGE, false);
-                        me->CastSpell(me, SPELL_EMERGE_SUMMON, true);
-                        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        me->GetMotionMaster()->Clear();
-                        break;
-                    }
-                    events.ScheduleEvent(EVENT_COLOSSUS_HEALTH_2, 1s);
+                case EVENT_COLOSSUS_MORTAL_STRIKE:
+                    DoCastVictim(SPELL_MORTAL_STRIKE);
+                    events.ScheduleEvent(EVENT_COLOSSUS_MORTAL_STRIKE, 7s);
                     break;
             }
 
@@ -293,12 +291,12 @@ public:
             switch (events.ExecuteEvent())
             {
                 case EVENT_ELEMENTAL_HEALTH:
-                    if (me->HealthBelowPct(51))
+                    if (me->HealthBelowPct(56))
                     {
                         me->CastSpell(me, SPELL_FACE_ME, true);
                         me->CastSpell(me, SPELL_SURGE_VISUAL, true);
                         me->CastSpell(me, SPELL_MERGE, false);
-                        me->DespawnOrUnsummon(2000);
+                        me->DespawnOrUnsummon(2s);
                         events.Reset();
                         break;
                     }
@@ -307,7 +305,7 @@ public:
                 case EVENT_ELEMENTAL_SURGE:
                     Talk(SAY_SURGE);
                     me->CastSpell(me, SPELL_SURGE_VISUAL, true);
-                    me->CastSpell(me->GetVictim(), SPELL_SURGE, false);
+                    DoCastRandomTarget(SPELL_SURGE, 0, 40, true, false, true);
                     events.ScheduleEvent(EVENT_ELEMENTAL_SURGE, 15s);
                     break;
                 case EVENT_ELEMENTAL_VOLLEY:
@@ -353,15 +351,23 @@ public:
             ScriptedAI::MoveInLineOfSight(who);
         }
 
-        void AttackStart(Unit* who) override
+        void JustEngagedWith(Unit* who) override
         {
             if (me->ToTempSummon())
             {
-                if (who->GetTypeId() == TYPEID_PLAYER || who->GetOwnerGUID().IsPlayer())
+                if (who->IsPlayer() || who->GetOwnerGUID().IsPlayer())
                     if (Unit* summoner = me->ToTempSummon()->GetSummonerUnit())
                         summoner->GetAI()->DoAction(ACTION_INFORM);
                 return;
             }
+
+            ScriptedAI::JustEngagedWith(who);
+        }
+
+        void AttackStart(Unit* who) override
+        {
+            if (me->ToTempSummon())
+                return;
 
             ScriptedAI::AttackStart(who);
         }
@@ -372,7 +378,7 @@ public:
             {
                 me->SetReactState(REACT_PASSIVE);
                 me->GetMotionMaster()->MoveCharge(1672.96f, 743.488f, 143.338f, 7.0f, POINT_MERGE);
-                me->DespawnOrUnsummon(1200);
+                me->DespawnOrUnsummon(1200ms);
             }
         }
 
@@ -406,86 +412,63 @@ public:
     };
 };
 
-class spell_drakkari_colossus_emerge : public SpellScriptLoader
+class spell_drakkari_colossus_emerge : public SpellScript
 {
-public:
-    spell_drakkari_colossus_emerge() : SpellScriptLoader("spell_drakkari_colossus_emerge") { }
+    PrepareSpellScript(spell_drakkari_colossus_emerge);
 
-    class spell_drakkari_colossus_emerge_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_drakkari_colossus_emerge_SpellScript);
+        return ValidateSpellInfo({ SPELL_FREEZE_ANIM });
+    }
 
-        void HandleDummy(SpellEffIndex /*effIndex*/)
-        {
-            GetCaster()->CastSpell(GetCaster(), SPELL_FREEZE_ANIM, true);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_emerge_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        return new spell_drakkari_colossus_emerge_SpellScript();
+        GetCaster()->CastSpell(GetCaster(), SPELL_FREEZE_ANIM, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_emerge::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_drakkari_colossus_surge : public SpellScriptLoader
+class spell_drakkari_colossus_surge : public SpellScript
 {
-public:
-    spell_drakkari_colossus_surge() : SpellScriptLoader("spell_drakkari_colossus_surge") { }
+    PrepareSpellScript(spell_drakkari_colossus_surge);
 
-    class spell_drakkari_colossus_surge_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_drakkari_colossus_surge_SpellScript);
+        return ValidateSpellInfo({ SPELL_SURGE_DAMAGE });
+    }
 
-        void HandleDummy(SpellEffIndex /*effIndex*/)
-        {
-            if (Unit* target = GetHitUnit())
-                GetCaster()->CastSpell(target, SPELL_SURGE_DAMAGE, true);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_surge_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void HandleDummy(SpellEffIndex /*effIndex*/)
     {
-        return new spell_drakkari_colossus_surge_SpellScript();
+        if (Unit* target = GetHitUnit())
+            GetCaster()->CastSpell(target, SPELL_SURGE_DAMAGE, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_surge::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_drakkari_colossus_face_me : public SpellScriptLoader
+class spell_drakkari_colossus_face_me : public SpellScript
 {
-public:
-    spell_drakkari_colossus_face_me() : SpellScriptLoader("spell_drakkari_colossus_face_me") { }
+    PrepareSpellScript(spell_drakkari_colossus_face_me);
 
-    class spell_drakkari_colossus_face_me_SpellScript : public SpellScript
+    void HandleScriptEffect(SpellEffIndex /*effIndex*/)
     {
-        PrepareSpellScript(spell_drakkari_colossus_face_me_SpellScript);
-
-        void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+        if (Unit* target = GetHitUnit())
         {
-            if (Unit* target = GetHitUnit())
-            {
-                GetCaster()->SetInFront(target);
-                GetCaster()->SetFacingTo(GetCaster()->GetAngle(target));
-            }
+            GetCaster()->SetInFront(target);
+            GetCaster()->SetFacingTo(GetCaster()->GetAngle(target));
         }
+    }
 
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_face_me_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_drakkari_colossus_face_me_SpellScript();
+        OnEffectHitTarget += SpellEffectFn(spell_drakkari_colossus_face_me::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
@@ -494,8 +477,7 @@ void AddSC_boss_drakkari_colossus()
     new boss_drakkari_colossus();
     new boss_drakkari_elemental();
     new npc_living_mojo();
-    new spell_drakkari_colossus_emerge();
-    new spell_drakkari_colossus_surge();
-    new spell_drakkari_colossus_face_me();
+    RegisterSpellScript(spell_drakkari_colossus_emerge);
+    RegisterSpellScript(spell_drakkari_colossus_surge);
+    RegisterSpellScript(spell_drakkari_colossus_face_me);
 }
-

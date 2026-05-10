@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,7 +19,6 @@
 #define _WORLDPACKET_H_
 
 #include "ByteBuffer.h"
-#include "Common.h"
 #include "Duration.h"
 #include "Opcodes.h"
 
@@ -29,7 +28,7 @@ public:
     // just container for later use
     WorldPacket() : ByteBuffer(0) { }
 
-    explicit WorldPacket(uint16 opcode, size_t res = 200) :
+    explicit WorldPacket(uint16 opcode, std::size_t res = 200) :
         ByteBuffer(res), m_opcode(opcode) { }
 
     WorldPacket(WorldPacket&& packet) noexcept :
@@ -66,7 +65,7 @@ public:
     WorldPacket(uint16 opcode, MessageBuffer&& buffer) :
         ByteBuffer(std::move(buffer)), m_opcode(opcode) { }
 
-    void Initialize(uint16 opcode, size_t newres = 200)
+    void Initialize(uint16 opcode, std::size_t newres = 200)
     {
         clear();
         _storage.reserve(newres);

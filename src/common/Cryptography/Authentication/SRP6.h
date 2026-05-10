@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -28,13 +28,13 @@ namespace Acore::Crypto
     class AC_COMMON_API SRP6
     {
     public:
-        static constexpr size_t SALT_LENGTH = 32;
+        static constexpr std::size_t SALT_LENGTH = 32;
         using Salt = std::array<uint8, SALT_LENGTH>;
 
-        static constexpr size_t VERIFIER_LENGTH = 32;
+        static constexpr std::size_t VERIFIER_LENGTH = 32;
         using Verifier = std::array<uint8, VERIFIER_LENGTH>;
 
-        static constexpr size_t EPHEMERAL_KEY_LENGTH = 32;
+        static constexpr std::size_t EPHEMERAL_KEY_LENGTH = 32;
         using EphemeralKey = std::array<uint8, EPHEMERAL_KEY_LENGTH>;
 
         static std::array<uint8, 1> const g;

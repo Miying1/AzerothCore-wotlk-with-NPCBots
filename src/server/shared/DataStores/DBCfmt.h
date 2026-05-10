@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -32,11 +32,11 @@ char constexpr CharStartOutfitEntryfmt[] = "dbbbXiiiiiiiiiiiiiiiiiiiiiiiixxxxxxx
 char constexpr CharTitlesEntryfmt[] = "nxssssssssssssssssxssssssssssssssssxi";
 char constexpr ChatChannelsEntryfmt[] = "nixssssssssssssssssxxxxxxxxxxxxxxxxxx"; // ChatChannelsEntryfmt, index not used (more compact store)
 char constexpr ChrClassesEntryfmt[] = "nxixssssssssssssssssxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxixii";
-char constexpr ChrRacesEntryfmt[] = "niixiixixxxxixssssssssssssssssxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxi";
+char constexpr ChrRacesEntryfmt[] = "niixiixixxxxiissssssssssssssssxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxi";
 char constexpr CinematicCameraEntryfmt[] = "nsiffff";
 char constexpr CinematicSequencesEntryfmt[] = "nxixxxxxxx";
 char constexpr CreatureDisplayInfofmt[] = "nixifxxxxxxxxxxx";
-char constexpr CreatureDisplayInfoExtrafmt[] = "diixxxxxxxxxxxxxxxxxx";
+char constexpr CreatureDisplayInfoExtrafmt[] = "dixxxxxxxxxxxxxxxxxxx";
 char constexpr CreatureFamilyfmt[] = "nfifiiiiixssssssssssssssssxx";
 char constexpr CreatureModelDatafmt[] = "nixxfxxxxxxxxxfffxxxxxxxxxxx";
 char constexpr CreatureSpellDatafmt[] = "niiiixxxx";
@@ -53,7 +53,7 @@ char constexpr FactionTemplateEntryfmt[] = "niiiiiiiiiiiii";
 char constexpr GameObjectArtKitfmt[] = "nxxxxxxx";
 char constexpr GameObjectDisplayInfofmt[] = "nsxxxxxxxxxxffffffx";
 char constexpr GemPropertiesEntryfmt[] = "nixxi";
-char constexpr GlyphPropertiesfmt[] = "niii";
+char constexpr GlyphPropertiesfmt[] = "niix";
 char constexpr GlyphSlotfmt[] = "nii";
 char constexpr GtBarberShopCostBasefmt[] = "df";
 char constexpr GtCombatRatingsfmt[] = "df";
@@ -82,7 +82,7 @@ char constexpr LightEntryfmt[] = "nifffxxxxxxxxxx";
 char constexpr LiquidTypefmt[] = "nxxixixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr LockEntryfmt[] = "niiiiiiiiiiiiiiiiiiiiiiiixxxxxxxx";
 char constexpr MailTemplateEntryfmt[] = "nxxxxxxxxxxxxxxxxxssssssssssssssssx";
-char constexpr MapEntryfmt[] = "nxiixssssssssssssssssxixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxixiffxiii";
+char constexpr MapEntryfmt[] = "nxiixssssssssssssssssxixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxixiffxixi";
 char constexpr MapDifficultyEntryfmt[] = "diisxxxxxxxxxxxxxxxxiix";
 char constexpr MovieEntryfmt[] = "nxx";
 char constexpr NamesReservedfmt[] = "xsx";
@@ -112,7 +112,7 @@ char constexpr SpellItemEnchantmentConditionfmt[] = "nbbbbbxxxxxbbbbbbbbbbiiiiiX
 char constexpr SpellRadiusfmt[] = "nfff";
 char constexpr SpellRangefmt[] = "nffffixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr SpellRuneCostfmt[] = "niiii";
-char constexpr SpellShapeshiftfmt[] = "nxxxxxxxxxxxxxxxxxxiixiiixxiiiiiiii";
+char constexpr SpellShapeshiftFormEntryfmt[] = "nxxxxxxxxxxxxxxxxxxiixiiixxiiiiiiii";
 char constexpr SpellVisualfmt[] = "dxxxxxxiixxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr StableSlotPricesfmt[] = "ni";
 char constexpr SummonPropertiesfmt[] = "niiiii";

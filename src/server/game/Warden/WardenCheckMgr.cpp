@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -18,6 +18,7 @@
 #include "WardenCheckMgr.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
+#include "QueryResult.h"
 #include "Util.h"
 #include "Warden.h"
 #include "WorldSession.h"
@@ -137,7 +138,7 @@ void WardenCheckMgr::LoadWardenChecks()
                     continue;
                 }
 
-                std::string str2 = Acore::StringFormat("%04u", id);
+                std::string str2 = Acore::StringFormat("{:04}", id);
                 ASSERT(str2.size() == 4);
                 std::copy(str2.begin(), str2.end(), wardenCheck.IdStr.begin());
 

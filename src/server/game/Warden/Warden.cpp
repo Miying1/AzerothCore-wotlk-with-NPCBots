@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -24,7 +24,6 @@
 #include "Opcodes.h"
 #include "Player.h"
 #include "SharedDefines.h"
-#include "Util.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -39,9 +38,12 @@ Warden::Warden() : _session(nullptr), _checkTimer(10000/*10 sec*/), _clientRespo
 
 Warden::~Warden()
 {
-    delete[] _module->CompressedData;
-    delete _module;
-    _module = nullptr;
+    if (_module)
+    {
+        delete[] _module->CompressedData;
+        delete _module;
+        _module = nullptr;
+    }
     _initialized = false;
 }
 
@@ -168,7 +170,7 @@ union keyData
 uint32 Warden::BuildChecksum(const uint8* data, uint32 length)
 {
     keyData hash{};
-    hash.bytes = Acore::Crypto::SHA1::GetDigestOf(data, size_t(length));
+    hash.bytes = Acore::Crypto::SHA1::GetDigestOf(data, std::size_t(length));
     uint32 checkSum = 0;
 
     for (uint8 i = 0; i < 5; ++i)
@@ -246,14 +248,14 @@ void Warden::ApplyPenalty(uint16 checkId, std::string const& reason)
         if (Player const* plr = _session->GetPlayer())
         {
             std::string const reportFormat = "Player {} (guid {}, account id: {}) failed warden {} check ({}). Action: {}";
-            reportMsg = Acore::StringFormatFmt(reportFormat, plr->GetName(), plr->GetGUID().GetCounter(), _session->GetAccountId(),
+            reportMsg = Acore::StringFormat(reportFormat, plr->GetName(), plr->GetGUID().GetCounter(), _session->GetAccountId(),
                                            checkId, ((checkData && !checkData->Comment.empty()) ? checkData->Comment : "<warden comment is not set>"),
                                            GetWardenActionStr(action));
         }
         else
         {
             std::string const reportFormat = "Account id: {} failed warden {} check. Action: {}";
-            reportMsg = Acore::StringFormatFmt(reportFormat, _session->GetAccountId(), checkId, GetWardenActionStr(action));
+            reportMsg = Acore::StringFormat(reportFormat, _session->GetAccountId(), checkId, GetWardenActionStr(action));
         }
     }
     else
@@ -261,12 +263,12 @@ void Warden::ApplyPenalty(uint16 checkId, std::string const& reason)
         if (Player const* plr = _session->GetPlayer())
         {
             std::string const reportFormat = "Player {} (guid {}, account id: {}) triggered warden penalty by reason: {}. Action: {}";
-            reportMsg = Acore::StringFormatFmt(reportFormat, plr->GetName(), plr->GetGUID().GetCounter(), _session->GetAccountId(), causeMsg, GetWardenActionStr(action));
+            reportMsg = Acore::StringFormat(reportFormat, plr->GetName(), plr->GetGUID().GetCounter(), _session->GetAccountId(), causeMsg, GetWardenActionStr(action));
         }
         else
         {
             std::string const reportFormat = "Account id: {} failed warden {} check. Action: {}";
-            reportMsg = Acore::StringFormatFmt(reportFormat, _session->GetAccountId(), causeMsg, GetWardenActionStr(action));
+            reportMsg = Acore::StringFormat(reportFormat, _session->GetAccountId(), causeMsg, GetWardenActionStr(action));
         }
     }
 

@@ -1,21 +1,20 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "CreatureScript.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "wailing_caverns.h"
@@ -23,7 +22,7 @@
 class instance_wailing_caverns : public InstanceMapScript
 {
 public:
-    instance_wailing_caverns() : InstanceMapScript("instance_wailing_caverns", 43) { }
+    instance_wailing_caverns() : InstanceMapScript("instance_wailing_caverns", MAP_WAILING_CAVERNS) { }
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override
     {
@@ -65,7 +64,6 @@ public:
 
             if (type == TYPE_LORD_COBRAHN && _encounters[TYPE_LORD_SERPENTIS] != DONE)
             {
-                instance->LoadGrid(-120.163f, -24.624f);
                 if (Creature* serpentis = instance->GetCreature(SerpentisGUID))
                     serpentis->AI()->Talk(SAY_SERPENTIS);
             }
@@ -73,7 +71,6 @@ public:
             if (type != TYPE_MUTANUS && _encounters[TYPE_LORD_COBRAHN] == DONE && _encounters[TYPE_LORD_PYTHAS] == DONE &&
                     _encounters[TYPE_LADY_ANACONDRA] == DONE && _encounters[TYPE_LORD_SERPENTIS] == DONE)
             {
-                instance->LoadGrid(-134.97f, 125.402f);
                 if (Creature* disciple = instance->GetCreature(DiscipleOfNaralexGUID))
                     disciple->AI()->Talk(SAY_DISCIPLE);
             }

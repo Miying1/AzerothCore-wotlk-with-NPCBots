@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -17,10 +17,10 @@
 
 #include "Chat.h"
 #include "CommandScript.h"
-#include "DatabaseEnv.h"
 #include "GroupMgr.h"
 #include "Language.h"
 #include "Player.h"
+#include "RBAC.h"
 
 using namespace Acore::ChatCommands;
 
@@ -33,11 +33,12 @@ public:
     {
         static ChatCommandTable groupCommandTable =
         {
-            { "list",    HandleGroupListCommand,    SEC_GAMEMASTER, Console::Yes },
-            { "join",    HandleGroupJoinCommand,    SEC_GAMEMASTER, Console::No },
-            { "remove",  HandleGroupRemoveCommand,  SEC_GAMEMASTER, Console::No },
-            { "disband", HandleGroupDisbandCommand, SEC_GAMEMASTER, Console::No },
-            { "leader",  HandleGroupLeaderCommand,  SEC_GAMEMASTER, Console::No }
+            { "list",    HandleGroupListCommand,    rbac::RBAC_PERM_COMMAND_GROUP_LIST,    Console::Yes },
+            { "join",    HandleGroupJoinCommand,    rbac::RBAC_PERM_COMMAND_GROUP_JOIN,    Console::No },
+            { "remove",  HandleGroupRemoveCommand,  rbac::RBAC_PERM_COMMAND_GROUP_REMOVE,  Console::No },
+            { "disband", HandleGroupDisbandCommand, rbac::RBAC_PERM_COMMAND_GROUP_DISBAND, Console::No },
+            { "revive",  HandleGroupReviveCommand,  rbac::RBAC_PERM_COMMAND_GROUP_REVIVE,  Console::No },
+            { "leader",  HandleGroupLeaderCommand,  rbac::RBAC_PERM_COMMAND_GROUP_LEADER,  Console::No }
         };
 
         static ChatCommandTable commandTable =
@@ -157,7 +158,7 @@ public:
                         {
                             groupSource->AddMember(playerTarget);
                             groupSource->BroadcastGroupUpdate();
-                            handler->PSendSysMessage(LANG_GROUP_PLAYER_JOINED, playerTarget->GetName().c_str(), playerSource->GetName().c_str());
+                            handler->PSendSysMessage(LANG_GROUP_PLAYER_JOINED, playerTarget->GetName(), playerSource->GetName());
                             return true;
                         }
                         else
@@ -170,7 +171,7 @@ public:
                     else
                     {
                         // group is full or target player already in a group
-                        handler->PSendSysMessage(LANG_GROUP_ALREADY_IN_GROUP, playerTarget->GetName().c_str());
+                        handler->PSendSysMessage(LANG_GROUP_ALREADY_IN_GROUP, playerTarget->GetName());
                         return true;
                     }
                 }
@@ -178,7 +179,7 @@ public:
             else
             {
                 // specified source player is not in a group
-                handler->PSendSysMessage(LANG_GROUP_NOT_IN_GROUP, playerSource->GetName().c_str());
+                handler->PSendSysMessage(LANG_GROUP_NOT_IN_GROUP, playerSource->GetName());
                 return true;
             }
         }
@@ -215,7 +216,7 @@ public:
 
         if (!groupTarget)
         {
-            handler->PSendSysMessage(LANG_GROUP_NOT_IN_GROUP, target->GetName().c_str());
+            handler->PSendSysMessage(LANG_GROUP_NOT_IN_GROUP, target->GetName());
             return true;
         }
 
@@ -253,6 +254,39 @@ public:
             if (flags.empty())
             {
                 flags = "None";
+            }
+        }
+
+        return true;
+    }
+
+    static bool HandleGroupReviveCommand(ChatHandler* handler, Optional<PlayerIdentifier> target)
+    {
+        if (!target)
+            target = PlayerIdentifier::FromTargetOrSelf(handler);
+
+        if (!target)
+            return false;
+
+        Player* targetPlayer = target->GetConnectedPlayer();
+        Group* group = targetPlayer->GetGroup();
+        std::string nameLink = handler->playerLink(target->GetName());
+
+        if (!group)
+        {
+            handler->SendErrorMessage(LANG_NOT_IN_GROUP, nameLink);
+            return false;
+        }
+
+        for (GroupReference* it = group->GetFirstMember(); it != nullptr; it = it->next())
+        {
+            Player* target = it->GetSource();
+            if (target)
+            {
+                target->RemoveAurasDueToSpell(27827); // Spirit of Redemption
+                target->ResurrectPlayer(!AccountMgr::IsPlayerAccount(target->GetSession()->GetSecurity()) ? 1.0f : 0.5f);
+                target->SpawnCorpseBones();
+                target->SaveToDB(false, false);
             }
         }
 

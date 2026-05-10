@@ -1,24 +1,25 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Define.h"
 #include "LogCommon.h"
+#include "Define.h"
 #include "SmartEnum.h"
 #include <stdexcept>
+#include <vector>
 
 namespace Acore::Impl::EnumUtilsImpl
 {
@@ -43,10 +44,10 @@ AC_API_EXPORT EnumText EnumUtils<LogLevel>::ToString(LogLevel value)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<LogLevel>::Count() { return 7; }
+AC_API_EXPORT std::size_t EnumUtils<LogLevel>::Count() { return 7; }
 
 template <>
-AC_API_EXPORT LogLevel EnumUtils<LogLevel>::FromIndex(size_t index)
+AC_API_EXPORT LogLevel EnumUtils<LogLevel>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -62,7 +63,7 @@ AC_API_EXPORT LogLevel EnumUtils<LogLevel>::FromIndex(size_t index)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<LogLevel>::ToIndex(LogLevel value)
+AC_API_EXPORT std::size_t EnumUtils<LogLevel>::ToIndex(LogLevel value)
 {
     switch (value)
     {
@@ -94,10 +95,10 @@ AC_API_EXPORT EnumText EnumUtils<AppenderType>::ToString(AppenderType value)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<AppenderType>::Count() { return 4; }
+AC_API_EXPORT std::size_t EnumUtils<AppenderType>::Count() { return 4; }
 
 template <>
-AC_API_EXPORT AppenderType EnumUtils<AppenderType>::FromIndex(size_t index)
+AC_API_EXPORT AppenderType EnumUtils<AppenderType>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -110,7 +111,7 @@ AC_API_EXPORT AppenderType EnumUtils<AppenderType>::FromIndex(size_t index)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<AppenderType>::ToIndex(AppenderType value)
+AC_API_EXPORT std::size_t EnumUtils<AppenderType>::ToIndex(AppenderType value)
 {
     switch (value)
     {
@@ -141,10 +142,10 @@ AC_API_EXPORT EnumText EnumUtils<AppenderFlags>::ToString(AppenderFlags value)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<AppenderFlags>::Count() { return 6; }
+AC_API_EXPORT std::size_t EnumUtils<AppenderFlags>::Count() { return 6; }
 
 template <>
-AC_API_EXPORT AppenderFlags EnumUtils<AppenderFlags>::FromIndex(size_t index)
+AC_API_EXPORT AppenderFlags EnumUtils<AppenderFlags>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -159,7 +160,7 @@ AC_API_EXPORT AppenderFlags EnumUtils<AppenderFlags>::FromIndex(size_t index)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<AppenderFlags>::ToIndex(AppenderFlags value)
+AC_API_EXPORT std::size_t EnumUtils<AppenderFlags>::ToIndex(AppenderFlags value)
 {
     switch (value)
     {

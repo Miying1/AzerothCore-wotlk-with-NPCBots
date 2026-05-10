@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -62,19 +62,19 @@ namespace
     inline std::string MakeMessage(std::string_view messageType, std::string_view file, uint32 line, std::string_view function,
         std::string_view message, std::string_view fmtMessage = {}, std::string_view debugInfo = {})
     {
-        std::string msg = Acore::StringFormatFmt("\n>> {}\n\n# Location: {}:{}\n# Function: {}\n# Condition: {}\n", messageType, file, line, function, message);
+        std::string msg = Acore::StringFormat("\n>> {}\n\n# Location: {}:{}\n# Function: {}\n# Condition: {}\n", messageType, file, line, function, message);
 
         if (!fmtMessage.empty())
         {
-            msg.append(Acore::StringFormatFmt("# Message: {}\n", fmtMessage));
+            msg.append(Acore::StringFormat("# Message: {}\n", fmtMessage));
         }
 
         if (!debugInfo.empty())
         {
-            msg.append(Acore::StringFormatFmt("\n# Debug info: {}\n", debugInfo));
+            msg.append(Acore::StringFormat("\n# Debug info: {}\n", debugInfo));
         }
 
-        return Acore::StringFormatFmt(
+        return Acore::StringFormat(
             "#{0:-^{2}}#\n"
             " {1: ^{2}} \n"
             "#{0:-^{2}}#\n", "", msg, 70);
@@ -90,14 +90,14 @@ namespace
     */
     inline std::string MakeAbortMessage(std::string_view file, uint32 line, std::string_view function, std::string_view fmtMessage = {})
     {
-        std::string msg = Acore::StringFormatFmt("\n>> ABORTED\n\n# Location '{}:{}'\n# Function '{}'\n", file, line, function);
+        std::string msg = Acore::StringFormat("\n>> ABORTED\n\n# Location '{}:{}'\n# Function '{}'\n", file, line, function);
 
         if (!fmtMessage.empty())
         {
-            msg.append(Acore::StringFormatFmt("# Message '{}'\n", fmtMessage));
+            msg.append(Acore::StringFormat("# Message '{}'\n", fmtMessage));
         }
 
-        return Acore::StringFormatFmt(
+        return Acore::StringFormat(
             "\n#{0:-^{2}}#\n"
             " {1: ^{2}} \n"
             "#{0:-^{2}}#\n", "", msg, 70);
@@ -148,7 +148,7 @@ void Acore::Abort(std::string_view file, uint32 line, std::string_view function,
 void Acore::AbortHandler(int sigval)
 {
     // nothing useful to log here, no way to pass args
-    std::string formattedMessage = StringFormatFmt("Caught signal {}\n", sigval);
+    std::string formattedMessage = StringFormat("Caught signal {}\n", sigval);
     fmt::print(stderr, "{}", formattedMessage);
     fflush(stderr);
     Crash(formattedMessage.c_str());

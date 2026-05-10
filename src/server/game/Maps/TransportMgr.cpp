@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,13 +19,14 @@
 #include "InstanceScript.h"
 #include "MapMgr.h"
 #include "MoveSpline.h"
+#include "QueryResult.h"
 #include "Transport.h"
 
 TransportTemplate::~TransportTemplate()
 {
     // Collect shared pointers into a set to avoid deleting the same memory more than once
     std::set<TransportSpline*> splines;
-    for (size_t i = 0; i < keyFrames.size(); ++i)
+    for (std::size_t i = 0; i < keyFrames.size(); ++i)
         splines.insert(keyFrames[i].Spline);
 
     for (std::set<TransportSpline*>::iterator itr = splines.begin(); itr != splines.end(); ++itr)
@@ -118,7 +119,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
     std::vector<KeyFrame>& keyFrames = transport->keyFrames;
     Movement::PointsArray splinePath, allPoints;
     bool mapChange = false;
-    for (size_t i = 0; i < path.size(); ++i)
+    for (std::size_t i = 0; i < path.size(); ++i)
         allPoints.push_back(G3D::Vector3(path[i]->x, path[i]->y, path[i]->z));
 
     // Add extra points to allow derivative calculations for all path nodes
@@ -131,7 +132,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
     orientationSpline.init_spline_custom(initer);
     orientationSpline.initLengths();
 
-    for (size_t i = 0; i < path.size(); ++i)
+    for (std::size_t i = 0; i < path.size(); ++i)
     {
         if (!mapChange)
         {
@@ -208,16 +209,16 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
 
     // find the rest of the distances between key points
     // Every path segment has its own spline
-    size_t start = 0;
-    for (size_t i = 1; i < keyFrames.size(); ++i)
+    std::size_t start = 0;
+    for (std::size_t i = 1; i < keyFrames.size(); ++i)
     {
         if (keyFrames[i - 1].Teleport || i + 1 == keyFrames.size())
         {
-            size_t extra = !keyFrames[i - 1].Teleport ? 1 : 0;
+            std::size_t extra = !keyFrames[i - 1].Teleport ? 1 : 0;
             TransportSpline* spline = new TransportSpline();
             spline->init_spline(&splinePath[start], i - start + extra, Movement::SplineBase::ModeCatmullrom);
             spline->initLengths();
-            for (size_t j = start; j < i + extra; ++j)
+            for (std::size_t j = start; j < i + extra; ++j)
             {
                 keyFrames[j].Index = j - start + 1;
                 keyFrames[j].DistFromPrev = spline->length(j - start, j + 1 - start);
@@ -255,7 +256,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
     // and distUntilStop is to the next stopping keyframe.
     // this is required to properly handle cases of two stopping frames in a row (yes they do exist)
     float tmpDist = 0.0f;
-    for (size_t i = 0; i < keyFrames.size(); ++i)
+    for (std::size_t i = 0; i < keyFrames.size(); ++i)
     {
         int32 j = (i + lastStop) % keyFrames.size();
         if (keyFrames[j].IsStopFrame() || j == lastStop)
@@ -275,7 +276,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
             tmpDist = 0.0f;
     }
 
-    for (size_t i = 0; i < keyFrames.size(); ++i)
+    for (std::size_t i = 0; i < keyFrames.size(); ++i)
     {
         float total_dist = keyFrames[i].DistSinceStop + keyFrames[i].DistUntilStop;
         if (total_dist < 2 * accel_dist) // won't reach full speed
@@ -305,7 +306,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
 
     // calculate tFrom times from tTo times
     float segmentTime = 0.0f;
-    for (size_t i = 0; i < keyFrames.size(); ++i)
+    for (std::size_t i = 0; i < keyFrames.size(); ++i)
     {
         int32 j = (i + lastStop) % keyFrames.size();
         if (keyFrames[j].IsStopFrame() || j == lastStop)
@@ -322,7 +323,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
         keyFrames[0].DepartureTime = uint32(curPathTime * IN_MILLISECONDS);
     }
 
-    for (size_t i = 1; i < keyFrames.size(); ++i)
+    for (std::size_t i = 1; i < keyFrames.size(); ++i)
     {
         curPathTime += keyFrames[i - 1].TimeTo;
         if (keyFrames[i].IsStopFrame())
@@ -411,10 +412,8 @@ MotionTransport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType
     if (map && map->IsDungeon())
         trans->m_zoneScript = map->ToInstanceMap()->GetInstanceScript();
 
-    // xinef: transports are active so passengers can be relocated (grids must be loaded)
-    trans->setActive(true);
     HashMapHolder<MotionTransport>::Insert(trans);
-    trans->GetMap()->AddToMap<MotionTransport>(trans);
+    trans->GetMap()->AddToMap<Transport>(trans);
     return trans;
 }
 
@@ -449,31 +448,45 @@ void TransportMgr::SpawnContinentTransports()
         LOG_INFO("server.loading", ">> Spawned {} continent motion transports in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     }
 
+    // Preloads Deeprun Tram to fix issues with Subway carts syncronization
+    /// @todo: This is a temporary workaround. Consider removing TransportMgr::PreloadGridsFromQuery() as part of fix.
+    /**
+     Takenbacon: "In the long run the most likely ideal fix would be to always spawn all transport types (and thus loading their grid) on map creation"
+     See https://github.com/azerothcore/azerothcore-wotlk/pull/23009 for more details.
+    */
+    PreloadGridsFromQuery("SELECT map, position_x, position_y FROM gameobject g JOIN gameobject_template t ON g.id = t.entry WHERE t.type = 11 AND g.map = 369", count);
+
     if (sWorld->getBoolConfig(CONFIG_ENABLE_CONTINENT_TRANSPORT_PRELOADING))
     {
         // pussywizard: preload grids for continent static transports
-        QueryResult result2 = WorldDatabase.Query("SELECT map, position_x, position_y FROM gameobject g JOIN gameobject_template t ON g.id = t.entry WHERE t.type = 11");
+        PreloadGridsFromQuery("SELECT map, position_x, position_y FROM gameobject g JOIN gameobject_template t ON g.id = t.entry WHERE t.type = 11 AND g.map != 369", count);
+        LOG_INFO("server.loading", ">> Preloaded grids for {} continent static transports in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    }
+}
 
-        if (result2)
+void TransportMgr::PreloadGridsFromQuery(std::string const& query, uint32& count)
+{
+    if (QueryResult result = WorldDatabase.Query(query))
+    {
+        do
         {
-            do
-            {
-                Field* fields = result2->Fetch();
-                uint16 mapId = fields[0].Get<uint16>();
-                float x = fields[1].Get<float>();
-                float y = fields[2].Get<float>();
+            Field* fields = result->Fetch();
+            uint16 mapId = fields[0].Get<uint16>();
+            float x = fields[1].Get<float>();
+            float y = fields[2].Get<float>();
 
-                MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
-                if (mapEntry && !mapEntry->Instanceable())
+            if (MapEntry const* mapEntry = sMapStore.LookupEntry(mapId))
+            {
+                if (!mapEntry->Instanceable())
+                {
                     if (Map* map = sMapMgr->CreateBaseMap(mapId))
                     {
                         map->LoadGrid(x, y);
                         ++count;
                     }
-            } while (result2->NextRow());
-        }
-
-        LOG_INFO("server.loading", ">> Preloaded grids for {} continent static transports in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+                }
+            }
+        } while (result->NextRow());
     }
 }
 

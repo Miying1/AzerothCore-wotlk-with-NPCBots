@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -26,6 +26,7 @@
 #include "SpellScriptLoader.h"
 #include "TaskScheduler.h"
 #include "karazhan.h"
+#include "SpellMgr.h"
 
 enum Texts
 {
@@ -73,7 +74,11 @@ enum Spells
 
     SPELL_SHADOW_PYRO            = 29978,
 
-    SPELL_ATIESH_VISUAL          = 31796
+    SPELL_ATIESH_VISUAL          = 31796,
+
+    SPELL_CURSE_OF_TONGUE_RANK1  = 1714,
+    SPELL_CURSE_OF_TONGUE_RANK2  = 11719,
+    SPELL_MIND_NUMBING_POISON    = 5760
 };
 
 enum Creatures
@@ -100,6 +105,8 @@ enum Misc
 
 Position const roomCenter = {-11158.f, -1920.f};
 
+std::vector<uint32> immuneSpells = { SPELL_CURSE_OF_TONGUE_RANK1, SPELL_CURSE_OF_TONGUE_RANK2, SPELL_MIND_NUMBING_POISON };
+
 struct boss_shade_of_aran : public BossAI
 {
     boss_shade_of_aran(Creature* creature) : BossAI(creature, DATA_ARAN), _atieshReaction(false) { }
@@ -117,6 +124,9 @@ struct boss_shade_of_aran : public BossAI
 
         _drinking = false;
         _hasDrunk = false;
+
+        for (auto spell : immuneSpells)
+            me->ApplySpellImmune(0, IMMUNITY_ID, spell, true);
 
         if (GameObject* libraryDoor = instance->instance->GetGameObject(instance->GetGuidData(DATA_GO_LIBRARY_DOOR)))
         {
@@ -141,7 +151,7 @@ struct boss_shade_of_aran : public BossAI
         return me->GetDistance2d(roomCenter.GetPositionX(), roomCenter.GetPositionY()) < 45.0f;
     }
 
-    void SetGUID(ObjectGuid guid, int32 id) override
+    void SetGUID(ObjectGuid const& guid, int32 id) override
     {
         if (id == ACTION_ATIESH_REACT && !_atieshReaction)
         {
@@ -493,4 +503,3 @@ void AddSC_boss_shade_of_aran()
     RegisterSpellScript(spell_flamewreath_aura);
     new at_karazhan_atiesh_aran();
 }
-

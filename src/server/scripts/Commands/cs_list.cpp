@@ -1,39 +1,32 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-Name: list_commandscript
-%Complete: 100
-Comment: All list related commands
-Category: commandscripts
-EndScriptData */
-
 #include "Chat.h"
 #include "CommandScript.h"
 #include "Creature.h"
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "GameObject.h"
 #include "Language.h"
 #include "MapMgr.h"
-#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
-#include "Random.h"
+#include "RBAC.h"
 #include "SpellAuraEffects.h"
 
 using namespace Acore::ChatCommands;
@@ -47,17 +40,18 @@ public:
     {
         static ChatCommandTable listAurasCommandTable =
         {
-            { "",         HandleListAllAurasCommand,    SEC_MODERATOR, Console::No  },
-            { "id",       HandleListAurasByIdCommand,   SEC_MODERATOR, Console::No  },
-            { "name",     HandleListAurasByNameCommand, SEC_MODERATOR, Console::No  },
+            { "",         HandleListAllAurasCommand,    rbac::RBAC_PERM_COMMAND_LIST_AURAS, Console::No  },
+            { "id",       HandleListAurasByIdCommand,   rbac::RBAC_PERM_COMMAND_LIST_AURAS, Console::No  },
+            { "name",     HandleListAurasByNameCommand, rbac::RBAC_PERM_COMMAND_LIST_AURAS, Console::No  },
         };
 
         static ChatCommandTable listCommandTable =
         {
-            { "creature", HandleListCreatureCommand,    SEC_MODERATOR, Console::Yes },
-            { "item",     HandleListItemCommand,        SEC_MODERATOR, Console::Yes },
-            { "object",   HandleListObjectCommand,      SEC_MODERATOR, Console::Yes },
+            { "creature", HandleListCreatureCommand,    rbac::RBAC_PERM_COMMAND_LIST_CREATURE, Console::Yes },
+            { "item",     HandleListItemCommand,        rbac::RBAC_PERM_COMMAND_LIST_ITEM,     Console::Yes },
+            { "object",   HandleListObjectCommand,      rbac::RBAC_PERM_COMMAND_LIST_OBJECT,   Console::Yes },
             { "auras",    listAurasCommandTable },
+            { "respawns", HandleListRespawnsCommand,    rbac::RBAC_PERM_COMMAND_LIST_CREATURE, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -125,9 +119,9 @@ public:
                         for (std::unordered_multimap<uint32, Creature*>::const_iterator itr = creBounds.first; itr != creBounds.second;)
                         {
                             if (handler->GetSession())
-                                handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, guid, cInfo->Entry, guid, cInfo->Name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->IsAlive() ? "*" : " ");
+                                handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, guid, cInfo->Entry, guid, cInfo->Name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->IsAlive() ? "*" : " ");
                             else
-                                handler->PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, guid, cInfo->Name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->IsAlive() ? "*" : " ");
+                                handler->PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, guid, cInfo->Name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->IsAlive() ? "*" : " ");
                             ++itr;
                         }
                         liveFound = true;
@@ -137,9 +131,9 @@ public:
                 if (!liveFound)
                 {
                     if (handler->GetSession())
-                        handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, guid, cInfo->Entry, guid, cInfo->Name.c_str(), x, y, z, mapId, "", "");
+                        handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, guid, cInfo->Entry, guid, cInfo->Name, x, y, z, mapId, "", "");
                     else
-                        handler->PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, guid, cInfo->Name.c_str(), x, y, z, mapId, "", "");
+                        handler->PSendSysMessage(LANG_CREATURE_LIST_CONSOLE, guid, cInfo->Name, x, y, z, mapId, "", "");
                 }
             }
             while (result->NextRow());
@@ -206,7 +200,7 @@ public:
                 else
                     itemPos = "";
 
-                handler->PSendSysMessage(LANG_ITEMLIST_SLOT, itemGuid, ownerName.c_str(), ownerGuid, ownerAccountId, itemPos);
+                handler->PSendSysMessage(LANG_ITEMLIST_SLOT, itemGuid, ownerName, ownerGuid, ownerAccountId, itemPos);
             }
             while (result->NextRow());
 
@@ -253,7 +247,7 @@ public:
 
                 char const* itemPos = "[in mail]";
 
-                handler->PSendSysMessage(LANG_ITEMLIST_MAIL, itemGuid, itemSenderName.c_str(), itemSender, itemSenderAccountId, itemReceiverName.c_str(), itemReceiver, itemReceiverAccount, itemPos);
+                handler->PSendSysMessage(LANG_ITEMLIST_MAIL, itemGuid, itemSenderName, itemSender, itemSenderAccountId, itemReceiverName, itemReceiver, itemReceiverAccount, itemPos);
             }
             while (result->NextRow());
 
@@ -297,7 +291,7 @@ public:
 
                 char const* itemPos = "[in auction]";
 
-                handler->PSendSysMessage(LANG_ITEMLIST_AUCTION, itemGuid, ownerName.c_str(), owner, ownerAccountId, itemPos);
+                handler->PSendSysMessage(LANG_ITEMLIST_AUCTION, itemGuid, ownerName, owner, ownerAccountId, itemPos);
             }
             while (result->NextRow());
         }
@@ -328,7 +322,7 @@ public:
 
                 char const* itemPos = "[in guild bank]";
 
-                handler->PSendSysMessage(LANG_ITEMLIST_GUILD, itemGuid, guildName.c_str(), guildGuid, itemPos);
+                handler->PSendSysMessage(LANG_ITEMLIST_GUILD, itemGuid, guildName, guildGuid, itemPos);
             }
             while (result->NextRow());
 
@@ -411,9 +405,9 @@ public:
                         for (std::unordered_multimap<uint32, GameObject*>::const_iterator itr = goBounds.first; itr != goBounds.second;)
                         {
                             if (handler->GetSession())
-                                handler->PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->isSpawned() ? "*" : " ");
+                                handler->PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->isSpawned() ? "*" : " ");
                             else
-                                handler->PSendSysMessage(LANG_GO_LIST_CONSOLE, guid, gInfo->name.c_str(), x, y, z, mapId, itr->second->GetGUID().ToString().c_str(), itr->second->isSpawned() ? "*" : " ");
+                                handler->PSendSysMessage(LANG_GO_LIST_CONSOLE, guid, gInfo->name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->isSpawned() ? "*" : " ");
                             ++itr;
                         }
                         liveFound = true;
@@ -423,9 +417,9 @@ public:
                 if (!liveFound)
                 {
                     if (handler->GetSession())
-                        handler->PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name.c_str(), x, y, z, mapId, "", "");
+                        handler->PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name, x, y, z, mapId, "", "");
                     else
-                        handler->PSendSysMessage(LANG_GO_LIST_CONSOLE, guid, gInfo->name.c_str(), x, y, z, mapId, "", "");
+                        handler->PSendSysMessage(LANG_GO_LIST_CONSOLE, guid, gInfo->name, x, y, z, mapId, "", "");
                 }
             }
             while (result->NextRow());
@@ -462,8 +456,8 @@ public:
 
         wstrToLower(namePart);
 
-        char const* talentStr = handler->GetAcoreString(LANG_TALENT);
-        char const* passiveStr = handler->GetAcoreString(LANG_PASSIVE);
+        std::string talentStr = handler->GetAcoreString(LANG_TALENT);
+        std::string passiveStr = handler->GetAcoreString(LANG_PASSIVE);
 
         Unit::AuraApplicationMap const& auras = unit->GetAppliedAuras();
         handler->PSendSysMessage(LANG_COMMAND_TARGET_LISTAURAS, auras.size());
@@ -480,11 +474,11 @@ public:
             std::ostringstream ss_name;
             ss_name << "|cffffffff|Hspell:" << aura->GetId() << "|h[" << name << "]|h|r";
 
-            handler->PSendSysMessage(LANG_COMMAND_TARGET_AURADETAIL, aura->GetId(), (handler->GetSession() ? ss_name.str().c_str() : name),
+            handler->PSendSysMessage(LANG_COMMAND_TARGET_AURADETAIL, aura->GetId(), (handler->GetSession() ? ss_name.str() : name),
                                      aurApp->GetEffectMask(), aura->GetCharges(), aura->GetStackAmount(), aurApp->GetSlot(),
                                      aura->GetDuration(), aura->GetMaxDuration(), (aura->IsPassive() ? passiveStr : ""),
                                      (talent ? talentStr : ""), aura->GetCasterGUID().IsPlayer() ? "player" : "creature",
-                                     aura->GetCasterGUID().GetCounter());
+                                     aura->GetCasterGUID().ToString());
         }
 
         for (uint16 i = 0; i < TOTAL_AURAS; ++i)
@@ -522,6 +516,58 @@ public:
         {
             std::string name = spellInfo->SpellName[locale];
             return Utf8FitTo(name, namePart);
+        }
+
+        return true;
+    }
+
+    static bool HandleListRespawnsCommand(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!player)
+            return false;
+
+        Map* map = player->GetMap();
+        uint32 count = 0;
+        time_t now = GameTime::GetGameTime().count();
+
+        handler->PSendSysMessage(LANG_LIST_RESPAWNS_CREATURE_HEADER, map->GetId(), map->GetInstanceId());
+        for (auto const& pair : map->GetCreatureRespawnTimes())
+        {
+            CreatureData const* data = sObjectMgr->GetCreatureData(pair.first);
+            if (!data)
+                continue;
+
+            CreatureTemplate const* cTemplate = sObjectMgr->GetCreatureTemplate(data->id1);
+            std::string name = cTemplate ? cTemplate->Name : "Unknown";
+            time_t remaining = pair.second > now ? pair.second - now : 0;
+            handler->PSendSysMessage(LANG_LIST_RESPAWNS_CREATURE_ENTRY, pair.first, name, data->id1, remaining);
+            ++count;
+            if (count >= 50)
+            {
+                handler->SendSysMessage(LANG_LIST_RESPAWNS_LIMIT);
+                break;
+            }
+        }
+
+        count = 0;
+        handler->SendSysMessage(LANG_LIST_RESPAWNS_GO_HEADER);
+        for (auto const& pair : map->GetGORespawnTimes())
+        {
+            GameObjectData const* data = sObjectMgr->GetGameObjectData(pair.first);
+            if (!data)
+                continue;
+
+            GameObjectTemplate const* goTemplate = sObjectMgr->GetGameObjectTemplate(data->id);
+            std::string name = goTemplate ? goTemplate->name : "Unknown";
+            time_t remaining = pair.second > now ? pair.second - now : 0;
+            handler->PSendSysMessage(LANG_LIST_RESPAWNS_GO_ENTRY, pair.first, name, data->id, remaining);
+            ++count;
+            if (count >= 50)
+            {
+                handler->SendSysMessage(LANG_LIST_RESPAWNS_LIMIT);
+                break;
+            }
         }
 
         return true;

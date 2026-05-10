@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -34,7 +34,7 @@ ChatCommandResult Acore::ChatCommands::QuotedString::TryConsume(ChatHandler cons
         return ArgInfo<std::string>::TryConsume(*this, handler, args);
 
     char const QUOTE = args[0];
-    for (size_t i = 1; i < args.length(); ++i)
+    for (std::size_t i = 1; i < args.length(); ++i)
     {
         if (args[i] == QUOTE)
         {
@@ -77,7 +77,7 @@ ChatCommandResult Acore::ChatCommands::AccountIdentifier::TryConsume(ChatHandler
     // try parsing as account id instead
     Optional<uint32> id = Acore::StringTo<uint32>(text, 10);
     if (!id)
-        return FormatAcoreString(handler, LANG_CMDPARSER_ACCOUNT_NAME_NO_EXIST, STRING_VIEW_FMT_ARG(_name));
+        return FormatAcoreString(handler, LANG_CMDPARSER_ACCOUNT_NAME_NO_EXIST, _name);
 
     _id = *id;
 
@@ -104,7 +104,7 @@ ChatCommandResult Acore::ChatCommands::PlayerIdentifier::TryConsume(ChatHandler 
         }
         else if (!sCharacterCache->GetCharacterNameByGuid(_guid, _name))
         {
-            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_GUID_NO_EXIST, _guid.ToString().c_str());
+            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_GUID_NO_EXIST, _guid.ToString());
         }
 
         return next;
@@ -117,7 +117,7 @@ ChatCommandResult Acore::ChatCommands::PlayerIdentifier::TryConsume(ChatHandler 
             _name.assign(val.get<std::string_view>());
 
         if (!normalizePlayerName(_name))
-            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_NAME_INVALID, STRING_VIEW_FMT_ARG(_name));
+            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_NAME_INVALID, _name);
 
         if ((_player = ObjectAccessor::FindPlayerByName(_name)))
         {
@@ -125,7 +125,7 @@ ChatCommandResult Acore::ChatCommands::PlayerIdentifier::TryConsume(ChatHandler 
         }
         else if (!(_guid = sCharacterCache->GetCharacterGuidByName(_name)))
         {
-            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_NAME_NO_EXIST, STRING_VIEW_FMT_ARG(_name));
+            return FormatAcoreString(handler, LANG_CMDPARSER_CHAR_NAME_NO_EXIST, _name);
         }
 
         return next;

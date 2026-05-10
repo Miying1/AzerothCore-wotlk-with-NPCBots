@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -82,11 +82,6 @@ struct boss_attumen : public BossAI
         Initialize();
     }
 
-    bool CanMeleeHit()
-    {
-        return me->GetVictim() && (me->GetVictim()->GetPositionZ() < 53.0f || me->GetVictim()->GetDistance(me->GetHomePosition()) < 50.0f);
-    }
-
     void EnterEvadeMode(EvadeReason why) override
     {
         if (Creature* midnight = instance->GetCreature(DATA_MIDNIGHT))
@@ -139,7 +134,7 @@ struct boss_attumen : public BossAI
 
     void KilledUnit(Unit* victim) override
     {
-        if (victim->GetTypeId() == TYPEID_PLAYER)
+        if (victim->IsPlayer())
         {
             Talk(SAY_KILL);
         }
@@ -215,18 +210,10 @@ struct boss_attumen : public BossAI
 
     void UpdateAI(uint32 diff) override
     {
-        if (_phase != PHASE_NONE)
-        {
-            if (!UpdateVictim())
-            {
-                return;
-            }
-        }
-        if (!CanMeleeHit())
-        {
-            BossAI::EnterEvadeMode(EvadeReason::EVADE_REASON_BOUNDARY);
-        }
-        scheduler.Update(diff, std::bind(&BossAI::DoMeleeAttackIfReady, this));
+        if (_phase != PHASE_NONE && !UpdateVictim())
+            return;
+
+        scheduler.Update(diff, [this] { DoMeleeAttackIfReady(); });
     }
 
     void SpellHit(Unit* /*caster*/, SpellInfo const* spellInfo) override
@@ -389,18 +376,13 @@ class spell_midnight_fixate : public AuraScript
     {
         Unit* target = GetTarget();
         if (Unit* caster = GetCaster())
-        {
-            caster->TauntApply(target);
-        }
+            caster->GetThreatMgr().FixateTarget(target);
     }
 
     void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        Unit* target = GetTarget();
         if (Unit* caster = GetCaster())
-        {
-            caster->TauntFadeOut(target);
-        }
+            caster->GetThreatMgr().ClearFixate();
     }
 
     void Register() override
@@ -416,4 +398,3 @@ void AddSC_boss_attumen()
     RegisterKarazhanCreatureAI(boss_attumen);
     RegisterSpellScript(spell_midnight_fixate);
 }
-

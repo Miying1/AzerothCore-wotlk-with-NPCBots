@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -86,27 +86,27 @@ AC_COMMON_API std::string Acore::Time::ToTimeString<Microseconds>(uint64 duratio
     {
         if (days)
         {
-            return Acore::StringFormatFmt("{}:{:02}:{:02}:{:02}:{:02}:{:02}", days, hours, minutes, secs, millisecs);
+            return Acore::StringFormat("{}:{:02}:{:02}:{:02}:{:02}:{:02}", days, hours, minutes, secs, millisecs);
         }
         else if (hours)
         {
-            return Acore::StringFormatFmt("{}:{:02}:{:02}:{:02}:{:02}", hours, minutes, secs, millisecs);
+            return Acore::StringFormat("{}:{:02}:{:02}:{:02}:{:02}", hours, minutes, secs, millisecs);
         }
         else if (minutes)
         {
-            return Acore::StringFormatFmt("{}:{:02}:{:02}:{:02}", minutes, secs, millisecs);
+            return Acore::StringFormat("{}:{:02}:{:02}:{:02}", minutes, secs, millisecs);
         }
         else if (secs)
         {
-            return Acore::StringFormatFmt("{}:{:02}:{:02}", secs, millisecs);
+            return Acore::StringFormat("{}:{:02}:{:02}", secs, millisecs);
         }
         else if (millisecs)
         {
-            return Acore::StringFormatFmt("{}:{:02}", millisecs);
+            return Acore::StringFormat("{}:{:02}", millisecs);
         }
         else // microsecs
         {
-            return Acore::StringFormatFmt("{}", microsecs);
+            return Acore::StringFormat("{}", microsecs);
         }
     }
 

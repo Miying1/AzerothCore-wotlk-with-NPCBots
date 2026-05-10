@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -16,6 +16,7 @@
  */
 
 #include "ArenaTeamMgr.h"
+#include "Chat.h"
 #include "DatabaseEnv.h"
 #include "Define.h"
 #include "Language.h"
@@ -124,6 +125,27 @@ void ArenaTeamMgr::RemoveArenaTeam(uint32 arenaTeamId)
     ArenaTeamStore.erase(arenaTeamId);
 }
 
+void ArenaTeamMgr::DeleteAllArenaTeams()
+{
+    for (auto const& [id, team] : ArenaTeamStore)
+    {
+        while (team->GetMembersSize() > 0)
+            team->DelMember(team->GetMembers().front().Guid, false);
+
+        delete team;
+    }
+
+    ArenaTeamStore.clear();
+
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    trans->Append("DELETE FROM arena_team_member");
+    trans->Append("DELETE FROM arena_team");
+    trans->Append("DELETE FROM character_arena_stats");
+    CharacterDatabase.CommitTransaction(trans);
+
+    NextArenaTeamId = 1;
+}
+
 uint32 ArenaTeamMgr::GenerateArenaTeamId()
 {
     if (NextArenaTeamId >= MAX_ARENA_TEAM_ID)
@@ -194,9 +216,9 @@ void ArenaTeamMgr::LoadArenaTeams()
 void ArenaTeamMgr::DistributeArenaPoints()
 {
     // Used to distribute arena points based on last week's stats
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_START);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_START);
 
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_START);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_START);
 
     // Temporary structure for storing maximum points to add values for all players
     std::map<ObjectGuid, uint32> PlayerPoints;
@@ -232,9 +254,9 @@ void ArenaTeamMgr::DistributeArenaPoints()
 
     PlayerPoints.clear();
 
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_END);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_ONLINE_END);
 
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_START);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_START);
     for (ArenaTeamContainer::iterator titr = GetArenaTeamMapBegin(); titr != GetArenaTeamMapEnd(); ++titr)
     {
         if (ArenaTeam* at = titr->second)
@@ -246,7 +268,7 @@ void ArenaTeamMgr::DistributeArenaPoints()
         }
     }
 
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_END);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_TEAM_END);
 
-    sWorld->SendWorldText(LANG_DIST_ARENA_POINTS_END);
+    ChatHandler(nullptr).SendWorldText(LANG_DIST_ARENA_POINTS_END);
 }

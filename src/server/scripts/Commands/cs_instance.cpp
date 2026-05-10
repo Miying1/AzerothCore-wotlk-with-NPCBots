@@ -1,37 +1,31 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
- /* ScriptData
- Name: instance_commandscript
- %Complete: 100
- Comment: All instance related commands
- Category: commandscripts
- EndScriptData */
-
 #include "Chat.h"
 #include "CommandScript.h"
+#include "DBCStores.h"
 #include "GameTime.h"
-#include "Group.h"
 #include "InstanceSaveMgr.h"
 #include "InstanceScript.h"
 #include "Language.h"
 #include "MapMgr.h"
-#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
+#include "RBAC.h"
 
 using namespace Acore::ChatCommands;
 
@@ -44,12 +38,12 @@ public:
     {
         static ChatCommandTable instanceCommandTable =
         {
-            { "listbinds",    HandleInstanceListBindsCommand,    SEC_MODERATOR,     Console::No },
-            { "unbind",       HandleInstanceUnbindCommand,       SEC_GAMEMASTER,    Console::No },
-            { "stats",        HandleInstanceStatsCommand,        SEC_MODERATOR,     Console::Yes },
-            { "savedata",     HandleInstanceSaveDataCommand,     SEC_ADMINISTRATOR, Console::No },
-            { "setbossstate", HandleInstanceSetBossStateCommand, SEC_GAMEMASTER,    Console::Yes },
-            { "getbossstate", HandleInstanceGetBossStateCommand, SEC_MODERATOR,     Console::Yes },
+            { "listbinds",    HandleInstanceListBindsCommand,    rbac::RBAC_PERM_COMMAND_INSTANCE_LISTBINDS,     Console::No },
+            { "unbind",       HandleInstanceUnbindCommand,       rbac::RBAC_PERM_COMMAND_INSTANCE_UNBIND,        Console::No },
+            { "stats",        HandleInstanceStatsCommand,        rbac::RBAC_PERM_COMMAND_INSTANCE_STATS,         Console::Yes },
+            { "savedata",     HandleInstanceSaveDataCommand,     rbac::RBAC_PERM_COMMAND_INSTANCE_SAVEDATA,      Console::No },
+            { "setbossstate", HandleInstanceSetBossStateCommand, rbac::RBAC_PERM_COMMAND_INSTANCE_SET_BOSS_STATE, Console::Yes },
+            { "getbossstate", HandleInstanceGetBossStateCommand, rbac::RBAC_PERM_COMMAND_INSTANCE_GET_BOSS_STATE, Console::Yes },
         };
 
         static ChatCommandTable commandTable =
@@ -76,13 +70,13 @@ public:
                 uint32 resetTime = bind.extended ? save->GetExtendedResetTime() : save->GetResetTime();
                 uint32 ttr = (resetTime >= GameTime::GetGameTime().count() ? resetTime - GameTime::GetGameTime().count() : 0);
                 std::string timeleft = secsToTimeString(ttr);
-                handler->PSendSysMessage("map: %d, inst: %d, perm: %s, diff: %d, canReset: %s, TTR: %s%s",
-                    mapId, save->GetInstanceId(), bind.perm ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft.c_str(), (bind.extended ? " (extended)" : ""));
+                handler->PSendSysMessage("map: {}, inst: {}, perm: {}, diff: {}, canReset: {}, TTR: {}{}",
+                    mapId, save->GetInstanceId(), bind.perm ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft, (bind.extended ? " (extended)" : ""));
                 counter++;
             }
         }
 
-        handler->PSendSysMessage("player binds: %d", counter);
+        handler->PSendSysMessage("player binds: {}", counter);
 
         return true;
     }
@@ -114,7 +108,7 @@ public:
                     uint32 resetTime = itr->second.extended ? save->GetExtendedResetTime() : save->GetResetTime();
                     uint32 ttr = (resetTime >= GameTime::GetGameTime().count() ? resetTime - GameTime::GetGameTime().count() : 0);
                     std::string timeleft = secsToTimeString(ttr);
-                    handler->PSendSysMessage("unbinding map: %d, inst: %d, perm: %s, diff: %d, canReset: %s, TTR: %s%s", itr->first, save->GetInstanceId(), itr->second.perm ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft.c_str(), (itr->second.extended ? " (extended)" : ""));
+                    handler->PSendSysMessage("unbinding map: {}, inst: {}, perm: {}, diff: {}, canReset: {}, TTR: {}{}", itr->first, save->GetInstanceId(), itr->second.perm ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft, (itr->second.extended ? " (extended)" : ""));
                     sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), itr->first, Difficulty(i), true, player);
                     itr = m_boundInstances.begin();
                     counter++;
@@ -124,7 +118,7 @@ public:
             }
         }
 
-        handler->PSendSysMessage("instances unbound: %d", counter);
+        handler->PSendSysMessage("instances unbound: {}", counter);
 
         return true;
     }
@@ -133,13 +127,13 @@ public:
     {
         uint32 dungeon = 0, battleground = 0, arena = 0, spectators = 0;
         sMapMgr->GetNumInstances(dungeon, battleground, arena);
-        handler->PSendSysMessage("instances loaded: dungeons (%d), battlegrounds (%d), arenas (%d)", dungeon, battleground, arena);
+        handler->PSendSysMessage("instances loaded: dungeons ({}), battlegrounds ({}), arenas ({})", dungeon, battleground, arena);
         dungeon = 0;
         battleground = 0;
         arena = 0;
         spectators = 0;
         sMapMgr->GetNumPlayersInInstances(dungeon, battleground, arena, spectators);
-        handler->SendErrorMessage("players in instances: dungeons (%d), battlegrounds (%d), arenas (%d + %d spect)", dungeon, battleground, arena, spectators);
+        handler->SendErrorMessage("players in instances: dungeons ({}), battlegrounds ({}), arenas ({} + {} spect)", dungeon, battleground, arena, spectators);
         return false;
     }
 
@@ -204,11 +198,11 @@ public:
 
         map->GetInstanceScript()->SetBossState(encounterId, EncounterState(state));
         std::string stateName = InstanceScript::GetBossStateName(state);
-        handler->PSendSysMessage(LANG_COMMAND_INST_SET_BOSS_STATE, encounterId, state, stateName.c_str());
+        handler->PSendSysMessage(LANG_COMMAND_INST_SET_BOSS_STATE, encounterId, state, stateName);
         return true;
     }
 
-    static bool HandleInstanceGetBossStateCommand(ChatHandler* handler, uint32 encounterId, Optional<PlayerIdentifier> player)
+    static bool HandleInstanceGetBossStateCommand(ChatHandler* handler, Optional<PlayerIdentifier> player)
     {
         // Character name must be provided when using this from console.
         if (!player && !handler->GetSession())
@@ -239,15 +233,53 @@ public:
             return false;
         }
 
-        if (encounterId > map->GetInstanceScript()->GetEncounterCount())
+        // Build a map of encounterIndex -> encounterName from DBC data
+        std::unordered_map<uint32, char const*> encounterNames;
+        Difficulty difficulty = map->GetDifficulty();
+
+        // For heroic ICC/Ruby Sanctum, encounters are only defined
+        // for normal difficulty in the DBC, use the same fallback
+        // pattern as Map::UpdateEncounterState
+        DungeonEncounterList const* encounters = nullptr;
+        if ((map->GetId() == 631 || map->GetId() == 724)
+            && map->IsHeroic())
         {
-            handler->SendErrorMessage(LANG_BAD_VALUE);
-            return false;
+            encounters = sObjectMgr->GetDungeonEncounterList(
+                map->GetId(),
+                !map->Is25ManRaid()
+                    ? RAID_DIFFICULTY_10MAN_NORMAL
+                    : RAID_DIFFICULTY_25MAN_NORMAL);
+        }
+        else
+        {
+            Difficulty diffFixed = IsSharedDifficultyMap(map->GetId())
+                ? Difficulty(difficulty % 2)
+                : difficulty;
+            encounters = sObjectMgr->GetDungeonEncounterList(
+                map->GetId(), diffFixed);
         }
 
-        uint32 state = map->GetInstanceScript()->GetBossState(encounterId);
-        std::string stateName = InstanceScript::GetBossStateName(state);
-        handler->PSendSysMessage(LANG_COMMAND_INST_GET_BOSS_STATE, encounterId, state, stateName.c_str());
+        if (encounters)
+        {
+            for (auto const* encounter : *encounters)
+                encounterNames[encounter->dbcEntry->encounterIndex]
+                    = encounter->dbcEntry->encounterName[0];
+        }
+
+        for (uint8 i = 0; i < map->GetInstanceScript()->GetEncounterCount(); ++i)
+        {
+            uint32 state = map->GetInstanceScript()->GetBossState(i);
+            std::string stateName = InstanceScript::GetBossStateName(state);
+
+            auto it = encounterNames.find(i);
+            std::string bossName = (it != encounterNames.end()
+                && it->second) ? it->second : "Unknown";
+
+            handler->PSendSysMessage(
+                LANG_COMMAND_INST_GET_BOSS_STATE,
+                i, bossName, state, stateName);
+        }
+
         return true;
     }
 };

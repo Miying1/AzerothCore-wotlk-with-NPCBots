@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,14 +19,12 @@
 #define _TASK_SCHEDULER_H_
 
 #include "Util.h"
-#include <algorithm>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <queue>
 #include <set>
-#include <utility>
 #include <vector>
 
 class TaskContext;
@@ -151,6 +149,9 @@ class TaskScheduler
         /// Check if the group exists and is currently scheduled.
         bool IsGroupQueued(group_t const group);
 
+        // Returns the next group occurrence.
+        TaskScheduler::timepoint_t GetNextGroupOccurrence(group_t const group) const;
+
         bool IsEmpty() const;
     };
 
@@ -209,7 +210,7 @@ public:
 
     /// Update the scheduler with a difftime in ms.
     /// Calls the optional callback on successfully finish.
-    TaskScheduler& Update(size_t const milliseconds, success_t const& callback = EmptyCallback);
+    TaskScheduler& Update(std::size_t const milliseconds, success_t const& callback = EmptyCallback);
 
     /// Update the scheduler with a difftime.
     /// Calls the optional callback on successfully finish.
@@ -376,6 +377,9 @@ public:
         return RescheduleGroup(group, RandomDurationBetween(min, max));
     }
 
+    // Returns the next group occurrence.
+    Milliseconds GetNextGroupOccurrence(group_t const group) const;
+
 private:
     /// Insert a new task to the enqueued tasks.
     TaskScheduler& InsertTask(TaskContainer task);
@@ -479,6 +483,8 @@ public:
 
     /// Returns the repeat counter which increases every time the task is repeated.
     TaskScheduler::repeated_t GetRepeatCounter() const;
+
+    TaskScheduler::timepoint_t GetNextOccurrence() const;
 
     /// Repeats the event and sets a new duration.
     /// std::chrono::seconds(5) for example.

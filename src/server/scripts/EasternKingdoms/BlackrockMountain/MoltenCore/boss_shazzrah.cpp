@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -41,161 +41,128 @@ enum Events
     EVENT_SHAZZRAH_GATE,
 };
 
-class boss_shazzrah : public CreatureScript
+struct boss_shazzrah : public BossAI
 {
-public:
-    boss_shazzrah() : CreatureScript("boss_shazzrah") { }
+    boss_shazzrah(Creature* creature) : BossAI(creature, DATA_SHAZZRAH) {}
 
-    struct boss_shazzrahAI : public BossAI
+    void JustEngagedWith(Unit* /*target*/) override
     {
-        boss_shazzrahAI(Creature* creature) : BossAI(creature, DATA_SHAZZRAH) {}
+        _JustEngagedWith();
+        events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 2s, 4s);
+        events.ScheduleEvent(EVENT_SHAZZRAH_CURSE, 7s,11s);
+        events.ScheduleEvent(EVENT_MAGIC_GROUNDING, 14s, 19s);
+        events.ScheduleEvent(EVENT_COUNTERSPELL, 9s, 10s);
+        events.ScheduleEvent(EVENT_SHAZZRAH_GATE, 30s);
+    }
 
-        void JustEngagedWith(Unit* /*target*/) override
+    void ExecuteEvent(uint32 eventId) override
+    {
+        switch (eventId)
         {
-            _JustEngagedWith();
-            events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 2s, 4s);
-            events.ScheduleEvent(EVENT_SHAZZRAH_CURSE, 7s,11s);
-            events.ScheduleEvent(EVENT_MAGIC_GROUNDING, 14s, 19s);
-            events.ScheduleEvent(EVENT_COUNTERSPELL, 9s, 10s);
-            events.ScheduleEvent(EVENT_SHAZZRAH_GATE, 30s);
-        }
-
-        void ExecuteEvent(uint32 eventId) override
-        {
-            switch (eventId)
+            case EVENT_ARCANE_EXPLOSION:
             {
-                case EVENT_ARCANE_EXPLOSION:
-                {
-                    DoCastVictim(SPELL_ARCANE_EXPLOSION);
-                    events.RepeatEvent(urand(4000, 5000));
-                    break;
-                }
-                case EVENT_SHAZZRAH_CURSE:
-                {
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, true, -SPELL_SHAZZRAH_CURSE))
-                    {
-                        DoCast(target, SPELL_SHAZZRAH_CURSE);
-                    }
-                    events.RepeatEvent(urand(23000, 26000));
-                    break;
-                }
-                case EVENT_MAGIC_GROUNDING:
-                {
-                    DoCastSelf(SPELL_MAGIC_GROUNDING);
-                    events.RepeatEvent(urand(7000, 9000));
-                    break;
-                }
-                case EVENT_COUNTERSPELL:
-                {
-                    DoCastAOE(SPELL_COUNTERSPELL);
-                    events.RepeatEvent(urand(15000, 18000));
-                    break;
-                }
-                case EVENT_SHAZZRAH_GATE:
-                {
-                    DoCastAOE(SPELL_SHAZZRAH_GATE_DUMMY);
-                    events.RescheduleEvent(EVENT_ARCANE_EXPLOSION, 3s, 6s);
-                    events.RepeatEvent(45000);
-                    break;
-                }
+                DoCastVictim(SPELL_ARCANE_EXPLOSION);
+                events.Repeat(4s, 5s);
+                break;
+            }
+            case EVENT_SHAZZRAH_CURSE:
+            {
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, true, -SPELL_SHAZZRAH_CURSE))
+                    DoCast(target, SPELL_SHAZZRAH_CURSE);
+                events.Repeat(23s, 26s);
+                break;
+            }
+            case EVENT_MAGIC_GROUNDING:
+            {
+                DoCastSelf(SPELL_MAGIC_GROUNDING);
+                events.Repeat(7s, 9s);
+                break;
+            }
+            case EVENT_COUNTERSPELL:
+            {
+                DoCastAOE(SPELL_COUNTERSPELL);
+                events.Repeat(15s, 18s);
+                break;
+            }
+            case EVENT_SHAZZRAH_GATE:
+            {
+                DoCastAOE(SPELL_SHAZZRAH_GATE_DUMMY);
+                events.RescheduleEvent(EVENT_ARCANE_EXPLOSION, 3s, 6s);
+                events.Repeat(45s);
+                break;
             }
         }
-    };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetMoltenCoreAI<boss_shazzrahAI>(creature);
     }
 };
 
 // 23138 - Gate of Shazzrah
-class spell_shazzrah_gate_dummy : public SpellScriptLoader
+class spell_shazzrah_gate_dummy : public SpellScript
 {
-public:
-    spell_shazzrah_gate_dummy() : SpellScriptLoader("spell_shazzrah_gate_dummy") {}
+    PrepareSpellScript(spell_shazzrah_gate_dummy);
 
-    class spell_shazzrah_gate_dummy_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_shazzrah_gate_dummy_SpellScript);
+        return ValidateSpellInfo({ SPELL_SHAZZRAH_GATE });
+    }
 
-        bool Validate(SpellInfo const* /*spellInfo*/) override
-        {
-            return ValidateSpellInfo({ SPELL_SHAZZRAH_GATE });
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            Unit* caster = GetCaster();
-            if (!targets.empty())
-            {
-                targets.remove_if([caster](WorldObject const* target) -> bool
-                {
-                    Player const* plrTarget = target->ToPlayer();
-                    // Should not target non player targets
-                    if (!plrTarget)
-                    {
-                        return true;
-                    }
-
-                    // Should skip current victim
-                    if (caster->GetVictim() == plrTarget)
-                    {
-                        return true;
-                    }
-
-                    // Should not target enemies within melee range
-                    if (plrTarget->IsWithinMeleeRange(caster))
-                    {
-                        return true;
-                    }
-
-                    return false;
-                });
-            }
-
-            if (!targets.empty())
-            {
-                Acore::Containers::RandomResize(targets, 1);
-            }
-        }
-
-        void HandleScript(SpellEffIndex /*effIndex*/)
-        {
-            Unit* caster = GetCaster();
-            Unit* target = GetHitUnit();
-
-            if (caster && target)
-            {
-                target->CastSpell(caster, SPELL_SHAZZRAH_GATE, true);
-                caster->CastSpell(nullptr, SPELL_ARCANE_EXPLOSION);
-
-                if (Creature* creatureCaster = caster->ToCreature())
-                {
-                    creatureCaster->GetThreatMgr().ResetAllThreat();
-                    creatureCaster->GetThreatMgr().AddThreat(target, 1);
-                    creatureCaster->AI()->AttackStart(target); // Attack the target which caster will teleport to.
-                }
-            }
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_shazzrah_gate_dummy_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-            OnEffectHitTarget += SpellEffectFn(spell_shazzrah_gate_dummy_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void FilterTargets(std::list<WorldObject*>& targets)
     {
-        return new spell_shazzrah_gate_dummy_SpellScript();
+        Unit* caster = GetCaster();
+        if (!targets.empty())
+        {
+            targets.remove_if([caster](WorldObject const* target) -> bool
+            {
+                Player const* plrTarget = target->ToPlayer();
+                // Should not target non player targets
+                if (!plrTarget)
+                    return true;
+
+                // Should skip current victim
+                if (caster->GetVictim() == plrTarget)
+                    return true;
+
+                // Should not target enemies within melee range
+                if (plrTarget->IsWithinMeleeRange(caster))
+                    return true;
+
+                return false;
+            });
+        }
+
+        if (!targets.empty())
+            Acore::Containers::RandomResize(targets, 1);
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+
+        if (caster && target)
+        {
+            target->CastSpell(caster, SPELL_SHAZZRAH_GATE, true);
+            caster->CastSpell(nullptr, SPELL_ARCANE_EXPLOSION);
+
+            if (Creature* creatureCaster = caster->ToCreature())
+            {
+                creatureCaster->GetThreatMgr().ResetAllThreat();
+                creatureCaster->GetThreatMgr().AddThreat(target, 1);
+                creatureCaster->AI()->AttackStart(target); // Attack the target which caster will teleport to.
+            }
+        }
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_shazzrah_gate_dummy::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_shazzrah_gate_dummy::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
 void AddSC_boss_shazzrah()
 {
-    new boss_shazzrah();
+    RegisterMoltenCoreCreatureAI(boss_shazzrah);
 
     // Spells
-    new spell_shazzrah_gate_dummy();
+    RegisterSpellScript(spell_shazzrah_gate_dummy);
 }
-

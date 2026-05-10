@@ -1,35 +1,29 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-Name: reset_commandscript
-%Complete: 100
-Comment: All reset related commands
-Category: commandscripts
-EndScriptData */
-
 #include "AchievementMgr.h"
 #include "Chat.h"
 #include "CommandScript.h"
 #include "Language.h"
-#include "ObjectAccessor.h"
 #include "Pet.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "ScriptMgr.h"
+#include "WorldSessionMgr.h"
 
 using namespace Acore::ChatCommands;
 
@@ -43,25 +37,25 @@ public:
     {
         static ChatCommandTable resetItemsCommandTable =
         {
-            { "equipped",       HandleResetItemsEquippedCommand,             SEC_ADMINISTRATOR, Console::Yes },
-            { "bags",           HandleResetItemsInBagsCommand,              SEC_ADMINISTRATOR, Console::Yes },
-            { "bank",           HandleResetItemsInBankCommand,              SEC_ADMINISTRATOR, Console::Yes },
-            { "keyring",        HandleResetItemsKeyringCommand,             SEC_ADMINISTRATOR, Console::Yes },
-            { "currency",       HandleResetItemsInCurrenciesListCommand,    SEC_ADMINISTRATOR, Console::Yes },
-            { "vendor_buyback", HandleResetItemsInVendorBuyBackTabCommand,  SEC_ADMINISTRATOR, Console::Yes },
-            { "all",            HandleResetItemsAllCommand,                 SEC_ADMINISTRATOR, Console::Yes },
-            { "allbags",        HandleResetItemsAllAndDeleteBagsCommand,    SEC_ADMINISTRATOR, Console::Yes },
+            { "equipped",       HandleResetItemsEquippedCommand,             rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "bags",           HandleResetItemsInBagsCommand,              rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "bank",           HandleResetItemsInBankCommand,              rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "keyring",        HandleResetItemsKeyringCommand,             rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "currency",       HandleResetItemsInCurrenciesListCommand,    rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "vendor_buyback", HandleResetItemsInVendorBuyBackTabCommand,  rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "all",            HandleResetItemsAllCommand,                 rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
+            { "allbags",        HandleResetItemsAllAndDeleteBagsCommand,    rbac::RBAC_PERM_COMMAND_RESET, Console::Yes },
         };
         static ChatCommandTable resetCommandTable =
         {
-            { "achievements",   HandleResetAchievementsCommand, SEC_CONSOLE,       Console::Yes },
-            { "honor",          HandleResetHonorCommand,        SEC_ADMINISTRATOR, Console::Yes },
-            { "level",          HandleResetLevelCommand,        SEC_ADMINISTRATOR, Console::Yes },
-            { "spells",         HandleResetSpellsCommand,       SEC_ADMINISTRATOR, Console::Yes },
-            { "stats",          HandleResetStatsCommand,        SEC_ADMINISTRATOR, Console::Yes },
-            { "talents",        HandleResetTalentsCommand,      SEC_ADMINISTRATOR, Console::Yes },
-            { "items",          resetItemsCommandTable                                          },
-            { "all",            HandleResetAllCommand,          SEC_CONSOLE,       Console::Yes }
+            { "achievements",   HandleResetAchievementsCommand, rbac::RBAC_PERM_COMMAND_RESET_ACHIEVEMENTS, Console::Yes },
+            { "honor",          HandleResetHonorCommand,        rbac::RBAC_PERM_COMMAND_RESET_HONOR,        Console::Yes },
+            { "level",          HandleResetLevelCommand,        rbac::RBAC_PERM_COMMAND_RESET_LEVEL,        Console::Yes },
+            { "spells",         HandleResetSpellsCommand,       rbac::RBAC_PERM_COMMAND_RESET_SPELLS,       Console::Yes },
+            { "stats",          HandleResetStatsCommand,        rbac::RBAC_PERM_COMMAND_RESET_STATS,        Console::Yes },
+            { "talents",        HandleResetTalentsCommand,      rbac::RBAC_PERM_COMMAND_RESET_TALENTS,      Console::Yes },
+            { "items",          resetItemsCommandTable                                                                    },
+            { "all",            HandleResetAllCommand,          rbac::RBAC_PERM_COMMAND_RESET_ALL,          Console::Yes }
         };
         static ChatCommandTable commandTable =
         {
@@ -118,7 +112,7 @@ public:
         uint8 powerType = classEntry->powerType;
 
         // reset m_form if no aura
-        if (!player->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
+        if (!player->HasShapeshiftAura())
             player->SetShapeshiftForm(FORM_NONE);
 
         player->SetFactionForRace(player->getRace());
@@ -197,7 +191,7 @@ public:
 
             ChatHandler(playerTarget->GetSession()).SendSysMessage(LANG_RESET_SPELLS);
             if (!handler->GetSession() || handler->GetSession()->GetPlayer() != playerTarget)
-                handler->PSendSysMessage(LANG_RESET_SPELLS_ONLINE, handler->GetNameLink(playerTarget).c_str());
+                handler->PSendSysMessage(LANG_RESET_SPELLS_ONLINE, handler->GetNameLink(playerTarget));
         }
         else
         {
@@ -253,7 +247,7 @@ public:
             targetPlayer->SendTalentsInfoData(false);
             ChatHandler(targetPlayer->GetSession()).SendSysMessage(LANG_RESET_TALENTS);
             if (!handler->GetSession() || handler->GetSession()->GetPlayer() != targetPlayer)
-                handler->PSendSysMessage(LANG_RESET_TALENTS_ONLINE, handler->GetNameLink(targetPlayer).c_str());
+                handler->PSendSysMessage(LANG_RESET_TALENTS_ONLINE, handler->GetNameLink(targetPlayer));
 
             Pet* pet = targetPlayer->GetPet();
             Pet::resetTalentsForAllPetsOf(targetPlayer, pet);
@@ -269,7 +263,7 @@ public:
             CharacterDatabase.Execute(stmt);
 
             std::string nameLink = handler->playerLink(target->GetName());
-            handler->PSendSysMessage(LANG_RESET_TALENTS_OFFLINE, nameLink.c_str());
+            handler->PSendSysMessage(LANG_RESET_TALENTS_OFFLINE, nameLink);
             return true;
         }
     }
@@ -282,16 +276,44 @@ public:
         if (caseName == "spells")
         {
             atLogin = AT_LOGIN_RESET_SPELLS;
-            sWorld->SendWorldText(LANG_RESETALL_SPELLS);
+            handler->SendWorldText(LANG_RESETALL_SPELLS);
             if (!handler->GetSession())
                 handler->SendSysMessage(LANG_RESETALL_SPELLS);
         }
         else if (caseName == "talents")
         {
             atLogin = AtLoginFlags(AT_LOGIN_RESET_TALENTS | AT_LOGIN_RESET_PET_TALENTS);
-            sWorld->SendWorldText(LANG_RESETALL_TALENTS);
+            handler->SendWorldText(LANG_RESETALL_TALENTS);
             if (!handler->GetSession())
                 handler->SendSysMessage(LANG_RESETALL_TALENTS);
+        }
+        else if (caseName == "honor")
+        {
+            CharacterDatabase.Execute(CharacterDatabase.GetPreparedStatement(CHAR_UPD_ALL_HONOR_POINTS));
+
+            sWorldSessionMgr->DoForAllOnlinePlayers([](Player* player)
+            {
+                player->SetHonorPoints(0);
+            });
+
+            handler->SendWorldText(LANG_RESETALL_HONOR);
+            if (!handler->GetSession())
+                handler->SendSysMessage(LANG_RESETALL_HONOR);
+            return true;
+        }
+        else if (caseName == "arena")
+        {
+            CharacterDatabase.Execute(CharacterDatabase.GetPreparedStatement(CHAR_UPD_ALL_ARENA_POINTS));
+
+            sWorldSessionMgr->DoForAllOnlinePlayers([](Player* player)
+            {
+                player->SetArenaPoints(0);
+            });
+
+            handler->SendWorldText(LANG_RESETALL_ARENA);
+            if (!handler->GetSession())
+                handler->SendSysMessage(LANG_RESETALL_ARENA);
+            return true;
         }
         else
         {
@@ -303,7 +325,7 @@ public:
         stmt->SetData(0, uint16(atLogin));
         CharacterDatabase.Execute(stmt);
 
-        sWorld->DoForAllOnlinePlayers([&] (Player* player){
+        sWorldSessionMgr->DoForAllOnlinePlayers([&] (Player* player){
             player->SetAtLoginFlag(atLogin);
         });
 
@@ -321,7 +343,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsEquipped(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_EQUIPPED, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_EQUIPPED, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -338,7 +360,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsInBags(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BAGS, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BAGS, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -355,7 +377,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsInKeyring(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_KEYRING, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_KEYRING, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -372,7 +394,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsInCurrenciesList(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_CURRENCY, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_CURRENCY, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -389,7 +411,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsInBank(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BANK, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BANK, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -406,7 +428,7 @@ public:
         else
         {
             int16 deletedItemsCount = ResetItemsInVendorBuyBackTab(targetPlayer);
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BUYBACK, deletedItemsCount, handler->GetNameLink(targetPlayer).c_str());
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_BUYBACK, deletedItemsCount, handler->GetNameLink(targetPlayer));
         }
 
         return true;
@@ -431,7 +453,7 @@ public:
             int16 deletedItemsInCurrenciesListCount   = ResetItemsInCurrenciesList(targetPlayer);
             int16 deletedItemsInVendorBuyBackTabCount = ResetItemsInVendorBuyBackTab(targetPlayer);
 
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_ALL, handler->GetNameLink(targetPlayer).c_str(),
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_ALL, handler->GetNameLink(targetPlayer),
                 deletedItemsEquippedCount,
                 deletedItemsInBagsCount,
                 deletedItemsInBankCount,
@@ -464,7 +486,7 @@ public:
             int16 deletedItemsStandardBagsCount = ResetItemsDeleteStandardBags(targetPlayer);
             int16 deletedItemsBankBagsCount = ResetItemsDeleteBankBags(targetPlayer);
 
-            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_ALL_BAGS, handler->GetNameLink(targetPlayer).c_str(),
+            handler->PSendSysMessage(LANG_COMMAND_RESET_ITEMS_ALL_BAGS, handler->GetNameLink(targetPlayer),
                 deletedItemsEquippedCount,
                 deletedItemsInBagsCount,
                 deletedItemsInBankCount,

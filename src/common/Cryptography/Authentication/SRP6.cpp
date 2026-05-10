@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -51,14 +51,14 @@ using SRP6 = Acore::Crypto::SRP6;
 {
     // split S into two buffers
     std::array<uint8, EPHEMERAL_KEY_LENGTH / 2> buf0{}, buf1{};
-    for (size_t i = 0; i < EPHEMERAL_KEY_LENGTH / 2; ++i)
+    for (std::size_t i = 0; i < EPHEMERAL_KEY_LENGTH / 2; ++i)
     {
         buf0[i] = S[2 * i + 0];
         buf1[i] = S[2 * i + 1];
     }
 
     // find position of first nonzero byte
-    size_t p = 0;
+    std::size_t p = 0;
     while (p < EPHEMERAL_KEY_LENGTH && !S[p])
         ++p;
 
@@ -73,7 +73,7 @@ using SRP6 = Acore::Crypto::SRP6;
 
     // stick the two hashes back together
     SessionKey K;
-    for (size_t i = 0; i < SHA1::DIGEST_LENGTH; ++i)
+    for (std::size_t i = 0; i < SHA1::DIGEST_LENGTH; ++i)
     {
         K[2 * i + 0] = hash0[i];
         K[2 * i + 1] = hash1[i];

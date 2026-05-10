@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -21,7 +21,6 @@
 #include "ARC4.h"
 #include "AuthDefines.h"
 #include "ByteBuffer.h"
-#include "WardenCheckMgr.h"
 #include "WardenPayloadMgr.h"
 #include <array>
 
@@ -127,8 +126,8 @@ public:
     void DecryptData(uint8* buffer, uint32 length);
     void EncryptData(uint8* buffer, uint32 length);
 
-    static bool IsValidCheckSum(uint32 checksum, const uint8 *data, const uint16 length);
-    static uint32 BuildChecksum(const uint8 *data, uint32 length);
+    static bool IsValidCheckSum(uint32 checksum, uint8 const* data, const uint16 length);
+    static uint32 BuildChecksum(uint8 const* data, uint32 length);
 
     // If no check is passed, the default action from config is executed
     void ApplyPenalty(uint16 checkId, std::string const& reason);

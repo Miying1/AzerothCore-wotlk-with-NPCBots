@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -23,6 +23,7 @@
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "Tokenize.h"
 
 using namespace Acore::ChatCommands;
@@ -36,10 +37,10 @@ public:
     {
         static ChatCommandTable sendCommandTable =
         {
-            { "items",   HandleSendItemsCommand,   SEC_GAMEMASTER,    Console::Yes },
-            { "mail",    HandleSendMailCommand,    SEC_GAMEMASTER,    Console::Yes },
-            { "message", HandleSendMessageCommand, SEC_ADMINISTRATOR, Console::Yes },
-            { "money",   HandleSendMoneyCommand,   SEC_GAMEMASTER,    Console::Yes }
+            { "items",   HandleSendItemsCommand,   rbac::RBAC_PERM_COMMAND_SEND_ITEMS,   Console::Yes },
+            { "mail",    HandleSendMailCommand,    rbac::RBAC_PERM_COMMAND_SEND_MAIL,    Console::Yes },
+            { "message", HandleSendMessageCommand, rbac::RBAC_PERM_COMMAND_SEND_MESSAGE, Console::Yes },
+            { "money",   HandleSendMoneyCommand,   rbac::RBAC_PERM_COMMAND_SEND_MONEY,   Console::Yes }
         };
 
         static ChatCommandTable commandTable =
@@ -79,7 +80,7 @@ public:
                     itemCount = *Acore::StringTo<uint32>(itemTokens.at(1));
                     break;
                 default:
-                    handler->SendSysMessage(Acore::StringFormatFmt("> Incorrect item list format for '{}'", itemString));
+                    handler->SendSysMessage(Acore::StringFormat("> Incorrect item list format for '{}'", itemString));
                     continue;
             }
 
@@ -133,7 +134,7 @@ public:
         draft.SendMailTo(trans, MailReceiver(target->GetConnectedPlayer(), target->GetGUID().GetCounter()), sender);
         CharacterDatabase.CommitTransaction(trans);
 
-        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()).c_str());
+        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()));
         return true;
     }
 
@@ -158,7 +159,7 @@ public:
         draft.SendMailTo(trans, MailReceiver(target->GetConnectedPlayer(), target->GetGUID().GetCounter()), sender);
         CharacterDatabase.CommitTransaction(trans);
 
-        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()).c_str());
+        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()));
         return true;
     }
 
@@ -179,26 +180,40 @@ public:
 
         /// - Send the message
         // Use SendAreaTriggerMessage for fastest delivery.
-        player->GetSession()->SendAreaTriggerMessage("%s", msg.c_str());
+        player->GetSession()->SendAreaTriggerMessage("{}", msg);
         player->GetSession()->SendAreaTriggerMessage("|cffff0000[Message from administrator]:|r");
 
         // Confirmation message
-        handler->PSendSysMessage(LANG_SENDMESSAGE, handler->playerLink(target->GetName()).c_str(), msg.c_str());
+        handler->PSendSysMessage(LANG_SENDMESSAGE, handler->playerLink(target->GetName()), msg);
 
         return true;
     }
 
-    static bool HandleSendMoneyCommand(ChatHandler* handler, Optional<PlayerIdentifier> target, QuotedString subject, QuotedString text, uint32 money)
+    static bool HandleSendMoneyCommand(ChatHandler* handler, Optional<PlayerIdentifier> target, QuotedString subject, QuotedString text, Tail money)
     {
         if (!target)
-        {
             target = PlayerIdentifier::FromTargetOrSelf(handler);
-        }
 
         if (!target)
-        {
             return false;
-        }
+
+        auto IsExistWord = [](std::string_view line, std::initializer_list<std::string_view> words)
+        {
+            for (auto const& word : words)
+            {
+                if (line.find(word) != std::string_view::npos)
+                    return true;
+            }
+
+            return false;
+        };
+
+        Optional<int32> moneyToAddO = IsExistWord(money, { "g", "s", "c" }) ? MoneyStringToMoney(money) : Acore::StringTo<int32>(money);
+
+        if (!moneyToAddO)
+            return false;
+
+        int32 moneyToAdd = *moneyToAddO;
 
         // from console show not existed sender
         MailSender sender(MAIL_NORMAL, handler->GetSession() ? handler->GetSession()->GetPlayer()->GetGUID().GetCounter() : 0, MAIL_STATIONERY_GM);
@@ -206,12 +221,12 @@ public:
         CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
         MailDraft(subject, text)
-        .AddMoney(money)
+        .AddMoney(moneyToAdd)
         .SendMailTo(trans, MailReceiver(target->GetConnectedPlayer(), target->GetGUID().GetCounter()), sender);
 
         CharacterDatabase.CommitTransaction(trans);
 
-        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()).c_str());
+        handler->PSendSysMessage(LANG_MAIL_SENT, handler->playerLink(target->GetName()));
         return true;
     }
 };

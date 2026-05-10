@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -20,6 +20,7 @@
 #include "Log.h"
 #include "MapMgr.h"
 #include "ObjectMgr.h"
+#include "QueryResult.h"
 #include "Transport.h"
 
 ////////////////////////////////////////////////////////////
@@ -158,7 +159,7 @@ bool PoolGroup<T>::CheckPool() const
 template<class T>
 void PoolGroup<T>::DespawnObject(ActivePoolData& spawns, ObjectGuid::LowType guid)
 {
-    for (size_t i = 0; i < EqualChanced.size(); ++i)
+    for (std::size_t i = 0; i < EqualChanced.size(); ++i)
     {
         // if spawned
         if (spawns.IsActiveObject<T>(EqualChanced[i].guid))
@@ -171,7 +172,7 @@ void PoolGroup<T>::DespawnObject(ActivePoolData& spawns, ObjectGuid::LowType gui
         }
     }
 
-    for (size_t i = 0; i < ExplicitlyChanced.size(); ++i)
+    for (std::size_t i = 0; i < ExplicitlyChanced.size(); ++i)
     {
         // spawned
         if (spawns.IsActiveObject<T>(ExplicitlyChanced[i].guid))
@@ -330,7 +331,7 @@ void PoolGroup<T>::SpawnObject(ActivePoolData& spawns, uint32 limit, uint32 trig
 
                 // Triggering object is marked as spawned at this time and can be also rolled (respawn case)
                 // so this need explicit check for this case
-                if (roll < 0 && (/*obj.guid == triggerFrom ||*/ !spawns.IsActiveObject<T>(obj.guid)))
+                if (roll < 0 && (obj.guid == triggerFrom || !spawns.IsActiveObject<T>(obj.guid)))
                 {
                     rolledObjects.push_back(obj);
                     break;
@@ -340,9 +341,9 @@ void PoolGroup<T>::SpawnObject(ActivePoolData& spawns, uint32 limit, uint32 trig
 
         if (!EqualChanced.empty() && rolledObjects.empty())
         {
-            std::copy_if(EqualChanced.begin(), EqualChanced.end(), std::back_inserter(rolledObjects), [/*triggerFrom, */&spawns](PoolObject const& object)
+            std::copy_if(EqualChanced.begin(), EqualChanced.end(), std::back_inserter(rolledObjects), [triggerFrom, &spawns](PoolObject const& object)
             {
-                 return /*object.guid == triggerFrom ||*/ !spawns.IsActiveObject<T>(object.guid);
+                 return object.guid == triggerFrom || !spawns.IsActiveObject<T>(object.guid);
             });
 
             Acore::Containers::RandomResize(rolledObjects, count);
@@ -527,16 +528,18 @@ void PoolGroup<Quest>::SpawnObject(ActivePoolData& spawns, uint32 limit, uint32 
 
 // Method that does the respawn job on the specified creature
 template <>
-void PoolGroup<Creature>::ReSpawn1Object(PoolObject* /*obj*/)
+void PoolGroup<Creature>::ReSpawn1Object(PoolObject* obj)
 {
-    // Creature is still on map, nothing to do
+    Despawn1Object(obj->guid);
+    Spawn1Object(obj);
 }
 
 // Method that does the respawn job on the specified gameobject
 template <>
-void PoolGroup<GameObject>::ReSpawn1Object(PoolObject* /*obj*/)
+void PoolGroup<GameObject>::ReSpawn1Object(PoolObject* obj)
 {
-    // Gameobject is still on map, nothing to do
+    Despawn1Object(obj->guid);
+    Spawn1Object(obj);
 }
 
 // Nothing to do for a child Pool
@@ -577,7 +580,7 @@ void PoolMgr::LoadFromDB()
     {
         uint32 oldMSTime = getMSTime();
 
-        QueryResult result = WorldDatabase.Query("SELECT entry, max_limit FROM pool_template");
+        QueryResult result = WorldDatabase.Query("SELECT entry, max_limit, description FROM pool_template");
         if (!result)
         {
             mPoolTemplate.clear();
@@ -594,7 +597,8 @@ void PoolMgr::LoadFromDB()
             uint32 pool_id = fields[0].Get<uint32>();
 
             PoolTemplateData& pPoolTemplate = mPoolTemplate[pool_id];
-            pPoolTemplate.MaxLimit  = fields[1].Get<uint32>();
+            pPoolTemplate.MaxLimit    = fields[1].Get<uint32>();
+            pPoolTemplate.Description = fields[2].Get<std::string>();
 
             ++count;
         } while (result->NextRow());
@@ -1035,6 +1039,20 @@ void PoolMgr::ChangeWeeklyQuests()
     SaveQuestsToDB(false, true, false);
 }
 
+void PoolMgr::ReSpawnPoolQuests()
+{
+    for (auto& [questId, poolId] : mQuestSearchMap)
+    {
+        if (IsSpawnedObject<Quest>(questId))
+        {
+            PoolObject tempObj(questId, 0.0f);
+            auto it = mPoolQuestGroups.find(poolId);
+            if (it != mPoolQuestGroups.end())
+                it->second.Spawn1Object(&tempObj);
+        }
+    }
+}
+
 // Call to spawn a pool, if cache if true the method will spawn only if cached entry is different
 // If it's same, the creature is respawned only (added back to map)
 template<>
@@ -1149,3 +1167,39 @@ template void PoolMgr::UpdatePool<Pool>(uint32 pool_id, uint32 db_guid_or_pool_i
 template void PoolMgr::UpdatePool<GameObject>(uint32 pool_id, uint32 db_guid_or_pool_id);
 template void PoolMgr::UpdatePool<Creature>(uint32 pool_id, uint32 db_guid_or_pool_id);
 template void PoolMgr::UpdatePool<Quest>(uint32 pool_id, uint32 db_guid_or_pool_id);
+
+PoolTemplateData const* PoolMgr::GetPoolTemplate(uint32 poolId) const
+{
+    auto itr = mPoolTemplate.find(poolId);
+    return itr != mPoolTemplate.end() ? &itr->second : nullptr;
+}
+
+PoolGroup<Creature> const* PoolMgr::GetPoolCreatureGroup(uint32 poolId) const
+{
+    auto itr = mPoolCreatureGroups.find(poolId);
+    return itr != mPoolCreatureGroups.end() ? &itr->second : nullptr;
+}
+
+PoolGroup<GameObject> const* PoolMgr::GetPoolGameObjectGroup(uint32 poolId) const
+{
+    auto itr = mPoolGameobjectGroups.find(poolId);
+    return itr != mPoolGameobjectGroups.end() ? &itr->second : nullptr;
+}
+
+PoolGroup<Pool> const* PoolMgr::GetPoolPoolGroup(uint32 poolId) const
+{
+    auto itr = mPoolPoolGroups.find(poolId);
+    return itr != mPoolPoolGroups.end() ? &itr->second : nullptr;
+}
+
+uint32 PoolMgr::GetCreaturePoolId(uint32 guid) const
+{
+    SearchMap::const_iterator itr = mCreatureSearchMap.find(guid);
+    return itr != mCreatureSearchMap.end() ? itr->second : 0;
+}
+
+uint32 PoolMgr::GetGameObjectPoolId(uint32 guid) const
+{
+    SearchMap::const_iterator itr = mGameobjectSearchMap.find(guid);
+    return itr != mGameobjectSearchMap.end() ? itr->second : 0;
+}

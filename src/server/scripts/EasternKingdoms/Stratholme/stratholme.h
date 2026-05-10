@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -17,8 +17,6 @@
 
 #ifndef DEF_STRATHOLME_H
 #define DEF_STRATHOLME_H
-
-#include "SpellAuras.h"
 
 #define DataHeader "STR"
 #define StratholmeScriptName "instance_stratholme"
@@ -31,6 +29,7 @@ enum DataTypes
     TYPE_ZIGGURAT3                      = 3,
     TYPE_BARON_FIGHT                    = 4,
     TYPE_MALLOW                         = 5,
+    TYPE_BARTHILAS_RUN                  = 6,
 
     DATA_BARON_RUN_NONE                 = 0,
     DATA_BARON_RUN_GATE                 = 1,
@@ -40,6 +39,7 @@ enum DataTypes
 
 enum CreatureIds
 {
+    NPC_BARTHILAS                       = 10435,
     NPC_BARON_RIVENDARE                 = 10440,
     NPC_BILE_SPEWER                     = 10416,
     NPC_VENOM_BELCHER                   = 10417,

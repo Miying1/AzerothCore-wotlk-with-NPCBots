@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -17,8 +17,8 @@
 
 #include "SFMTRand.h"
 #include "Timer.h"
+#include <algorithm>
 #include <array>
-#include <functional>
 #include <random>
 
 #if defined(__aarch64__)
@@ -26,7 +26,7 @@
     #include <mm_malloc.h>
 #elif defined(__GNUC__)
     static __inline__ void *__attribute__((__always_inline__, __nodebug__, __malloc__))
-    _mm_malloc(size_t __size, size_t __align)
+    _mm_malloc(std::size_t __size, std::size_t __align)
     {
         if (__align == 1)
         {
@@ -78,7 +78,7 @@ uint32 SFMTRand::RandomUInt32()                            // Output random bits
     return sfmt_genrand_uint32(&_state);
 }
 
-void* SFMTRand::operator new(size_t size, std::nothrow_t const&)
+void* SFMTRand::operator new(std::size_t size, std::nothrow_t const&)
 {
     return _mm_malloc(size, 16);
 }
@@ -88,7 +88,7 @@ void SFMTRand::operator delete(void* ptr, std::nothrow_t const&)
     _mm_free(ptr);
 }
 
-void* SFMTRand::operator new(size_t size)
+void* SFMTRand::operator new(std::size_t size)
 {
     return _mm_malloc(size, 16);
 }
@@ -98,7 +98,7 @@ void SFMTRand::operator delete(void* ptr)
     _mm_free(ptr);
 }
 
-void* SFMTRand::operator new[](size_t size, std::nothrow_t const&)
+void* SFMTRand::operator new[](std::size_t size, std::nothrow_t const&)
 {
     return _mm_malloc(size, 16);
 }
@@ -108,7 +108,7 @@ void SFMTRand::operator delete[](void* ptr, std::nothrow_t const&)
     _mm_free(ptr);
 }
 
-void* SFMTRand::operator new[](size_t size)
+void* SFMTRand::operator new[](std::size_t size)
 {
     return _mm_malloc(size, 16);
 }

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -18,10 +18,12 @@
 #include "AreaTriggerScript.h"
 #include "CreatureScript.h"
 #include "ObjectMgr.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
 #include "SpellScriptLoader.h"
 #include "ruby_sanctum.h"
+#include "SpellScript.h"
 
 enum Texts
 {
@@ -150,7 +152,7 @@ public:
             if (action == ACTION_INTRO_BALTHARUS && !_introDone)
             {
                 _introDone = true;
-                me->m_Events.AddEvent(new DelayedTalk(me, SAY_BALTHARUS_INTRO), me->m_Events.CalculateTime(6000));
+                me->m_Events.AddEventAtOffset(new DelayedTalk(me, SAY_BALTHARUS_INTRO), 6s);
             }
             else if (action == ACTION_CLONE)
             {
@@ -189,7 +191,7 @@ public:
 
         void KilledUnit(Unit*  /*victim*/) override
         {
-            if (events.GetNextEventTime(EVENT_KILL_TALK) == 0)
+            if (!events.HasTimeUntilEvent(EVENT_KILL_TALK))
             {
                 Talk(SAY_KILL);
                 events.ScheduleEvent(EVENT_KILL_TALK, 6s);
@@ -202,7 +204,7 @@ public:
             summon->SetHealth(me->GetHealth());
             summon->CastSpell(summon, SPELL_SPAWN_EFFECT, true);
             summon->SetReactState(REACT_PASSIVE);
-            summon->m_Events.AddEvent(new RestoreFight(summon), summon->m_Events.CalculateTime(2000));
+            summon->m_Events.AddEventAtOffset(new RestoreFight(summon), 2s);
         }
 
         void UpdateAI(uint32 diff) override
@@ -332,34 +334,28 @@ public:
     }
 };
 
-class spell_baltharus_enervating_brand_trigger : public SpellScriptLoader
+class spell_baltharus_enervating_brand_trigger : public SpellScript
 {
-public:
-    spell_baltharus_enervating_brand_trigger() : SpellScriptLoader("spell_baltharus_enervating_brand_trigger") { }
+    PrepareSpellScript(spell_baltharus_enervating_brand_trigger);
 
-    class spell_baltharus_enervating_brand_trigger_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_baltharus_enervating_brand_trigger_SpellScript);
+        return ValidateSpellInfo({ SPELL_SIPHONED_MIGHT });
+    }
 
-        void CheckDistance()
-        {
-            if (Unit* caster = GetOriginalCaster())
-                if (Unit* target = GetHitUnit())
-                    if (target == GetCaster()
-                            // the spell has an unlimited range, so we need this check
-                            && target->GetDistance2d(caster) <= 12.0f)
-                        target->CastSpell(caster, SPELL_SIPHONED_MIGHT, true);
-        }
-
-        void Register() override
-        {
-            OnHit += SpellHitFn(spell_baltharus_enervating_brand_trigger_SpellScript::CheckDistance);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void CheckDistance()
     {
-        return new spell_baltharus_enervating_brand_trigger_SpellScript();
+        if (Unit* caster = GetOriginalCaster())
+            if (Unit* target = GetHitUnit())
+                if (target == GetCaster()
+                        // the spell has an unlimited range, so we need this check
+                        && target->GetDistance2d(caster) <= 12.0f)
+                    target->CastSpell(caster, SPELL_SIPHONED_MIGHT, true);
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_baltharus_enervating_brand_trigger::CheckDistance);
     }
 };
 
@@ -383,7 +379,7 @@ public:
 
             // Xinef: after soft reset npc is no longer present
             if (me->GetInstanceScript()->GetBossState(DATA_BALTHARUS_THE_WARBORN) == DONE)
-                me->DespawnOrUnsummon(1);
+                me->DespawnOrUnsummon(1ms);
         }
 
         void DoAction(int32 action) override
@@ -484,7 +480,7 @@ void AddSC_boss_baltharus_the_warborn()
 {
     new boss_baltharus_the_warborn();
     new npc_baltharus_the_warborn_clone();
-    new spell_baltharus_enervating_brand_trigger();
+    RegisterSpellScript(spell_baltharus_enervating_brand_trigger);
     new npc_xerestrasza();
     new at_baltharus_plateau();
 }

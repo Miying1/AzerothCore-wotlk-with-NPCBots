@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -28,12 +28,12 @@ friend class SQLQueryHolderTask;
 public:
     SQLQueryHolderBase() = default;
     virtual ~SQLQueryHolderBase();
-    void SetSize(size_t size);
-    PreparedQueryResult GetPreparedResult(size_t index) const;
-    void SetPreparedResult(size_t index, PreparedResultSet* result);
+    void SetSize(std::size_t size);
+    PreparedQueryResult GetPreparedResult(std::size_t index) const;
+    void SetPreparedResult(std::size_t index, PreparedResultSet* result);
 
 protected:
-    bool SetPreparedQueryImpl(size_t index, PreparedStatementBase* stmt);
+    bool SetPreparedQueryImpl(std::size_t index, PreparedStatementBase* stmt);
 
 private:
     std::vector<std::pair<PreparedStatementBase*, PreparedQueryResult>> m_queries;
@@ -43,7 +43,7 @@ template<typename T>
 class SQLQueryHolder : public SQLQueryHolderBase
 {
 public:
-    bool SetPreparedQuery(size_t index, PreparedStatement<T>* stmt)
+    bool SetPreparedQuery(std::size_t index, PreparedStatement<T>* stmt)
     {
         return SetPreparedQueryImpl(index, stmt);
     }

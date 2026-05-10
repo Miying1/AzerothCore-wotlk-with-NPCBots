@@ -1,22 +1,22 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Define.h"
 #include "Item.h"
+#include "Define.h"
 #include "SmartEnum.h"
 #include <stdexcept>
 
@@ -124,10 +124,10 @@ AC_API_EXPORT EnumText EnumUtils<InventoryResult>::ToString(InventoryResult valu
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<InventoryResult>::Count() { return 88; }
+AC_API_EXPORT std::size_t EnumUtils<InventoryResult>::Count() { return 88; }
 
 template <>
-AC_API_EXPORT InventoryResult EnumUtils<InventoryResult>::FromIndex(size_t index)
+AC_API_EXPORT InventoryResult EnumUtils<InventoryResult>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -224,7 +224,7 @@ AC_API_EXPORT InventoryResult EnumUtils<InventoryResult>::FromIndex(size_t index
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<InventoryResult>::ToIndex(InventoryResult value)
+AC_API_EXPORT std::size_t EnumUtils<InventoryResult>::ToIndex(InventoryResult value)
 {
     switch (value)
     {
@@ -342,10 +342,10 @@ AC_API_EXPORT EnumText EnumUtils<BuyResult>::ToString(BuyResult value)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<BuyResult>::Count() { return 9; }
+AC_API_EXPORT std::size_t EnumUtils<BuyResult>::Count() { return 9; }
 
 template <>
-AC_API_EXPORT BuyResult EnumUtils<BuyResult>::FromIndex(size_t index)
+AC_API_EXPORT BuyResult EnumUtils<BuyResult>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -363,7 +363,7 @@ AC_API_EXPORT BuyResult EnumUtils<BuyResult>::FromIndex(size_t index)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<BuyResult>::ToIndex(BuyResult value)
+AC_API_EXPORT std::size_t EnumUtils<BuyResult>::ToIndex(BuyResult value)
 {
     switch (value)
     {
@@ -402,10 +402,10 @@ AC_API_EXPORT EnumText EnumUtils<SellResult>::ToString(SellResult value)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<SellResult>::Count() { return 9; }
+AC_API_EXPORT std::size_t EnumUtils<SellResult>::Count() { return 9; }
 
 template <>
-AC_API_EXPORT SellResult EnumUtils<SellResult>::FromIndex(size_t index)
+AC_API_EXPORT SellResult EnumUtils<SellResult>::FromIndex(std::size_t index)
 {
     switch (index)
     {
@@ -423,7 +423,7 @@ AC_API_EXPORT SellResult EnumUtils<SellResult>::FromIndex(size_t index)
 }
 
 template <>
-AC_API_EXPORT size_t EnumUtils<SellResult>::ToIndex(SellResult value)
+AC_API_EXPORT std::size_t EnumUtils<SellResult>::ToIndex(SellResult value)
 {
     switch (value)
     {

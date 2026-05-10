@@ -1,28 +1,20 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* ScriptData
-Name: lookup_commandscript
-%Complete: 100
-Comment: All lookup related commands
-Category: commandscripts
-EndScriptData */
-
-#include "AccountMgr.h"
 #include "CharacterCache.h"
 #include "Chat.h"
 #include "CommandScript.h"
@@ -30,7 +22,9 @@ EndScriptData */
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "ReputationMgr.h"
+#include "SharedDefines.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 
@@ -45,29 +39,29 @@ public:
     {
         static ChatCommandTable lookupPlayerCommandTable =
         {
-            { "ip",      HandleLookupPlayerIpCommand,      SEC_GAMEMASTER, Console::Yes  },
-            { "account", HandleLookupPlayerAccountCommand, SEC_GAMEMASTER, Console::Yes  },
-            { "email",   HandleLookupPlayerEmailCommand,   SEC_GAMEMASTER, Console::Yes  }
+            { "ip",      HandleLookupPlayerIpCommand,      rbac::RBAC_PERM_COMMAND_LOOKUP_PLAYER_IP,      Console::Yes  },
+            { "account", HandleLookupPlayerAccountCommand, rbac::RBAC_PERM_COMMAND_LOOKUP_PLAYER_ACCOUNT, Console::Yes  },
+            { "email",   HandleLookupPlayerEmailCommand,   rbac::RBAC_PERM_COMMAND_LOOKUP_PLAYER_EMAIL,   Console::Yes  }
         };
 
         static ChatCommandTable lookupCommandTable =
         {
-            { "area",     HandleLookupAreaCommand,         SEC_MODERATOR, Console::Yes  },
-            { "creature", HandleLookupCreatureCommand,     SEC_MODERATOR, Console::Yes  },
-            { "event",    HandleLookupEventCommand,        SEC_MODERATOR, Console::Yes  },
-            { "faction",  HandleLookupFactionCommand,      SEC_MODERATOR, Console::Yes  },
-            { "item",     HandleLookupItemCommand,         SEC_MODERATOR, Console::Yes  },
-            { "item set", HandleLookupItemSetCommand,      SEC_MODERATOR, Console::Yes  },
-            { "map",      HandleLookupMapCommand,          SEC_MODERATOR, Console::Yes  },
-            { "object",   HandleLookupObjectCommand,       SEC_MODERATOR, Console::Yes  },
-            { "gobject",  HandleLookupObjectCommand,       SEC_MODERATOR, Console::Yes  },
-            { "quest",    HandleLookupQuestCommand,        SEC_MODERATOR, Console::Yes  },
-            { "skill",    HandleLookupSkillCommand,        SEC_MODERATOR, Console::Yes  },
-            { "taxinode", HandleLookupTaxiNodeCommand,     SEC_MODERATOR, Console::Yes  },
-            { "teleport", HandleLookupTeleCommand,         SEC_MODERATOR, Console::Yes  },
-            { "title",    HandleLookupTitleCommand,        SEC_MODERATOR, Console::Yes  },
-            { "spell",    HandleLookupSpellCommand,        SEC_MODERATOR, Console::Yes  },
-            { "spell id", HandleLookupSpellIdCommand,      SEC_MODERATOR, Console::Yes  },
+            { "area",     HandleLookupAreaCommand,         rbac::RBAC_PERM_COMMAND_LOOKUP_AREA,     Console::Yes  },
+            { "creature", HandleLookupCreatureCommand,     rbac::RBAC_PERM_COMMAND_LOOKUP_CREATURE, Console::Yes  },
+            { "event",    HandleLookupEventCommand,        rbac::RBAC_PERM_COMMAND_LOOKUP_EVENT,    Console::Yes  },
+            { "faction",  HandleLookupFactionCommand,      rbac::RBAC_PERM_COMMAND_LOOKUP_FACTION,  Console::Yes  },
+            { "item",     HandleLookupItemCommand,         rbac::RBAC_PERM_COMMAND_LOOKUP_ITEM,     Console::Yes  },
+            { "item set", HandleLookupItemSetCommand,      rbac::RBAC_PERM_COMMAND_LOOKUP_ITEMSET,  Console::Yes  },
+            { "map",      HandleLookupMapCommand,          rbac::RBAC_PERM_COMMAND_LOOKUP_MAP,      Console::Yes  },
+            { "object",   HandleLookupObjectCommand,       rbac::RBAC_PERM_COMMAND_LOOKUP_OBJECT,   Console::Yes  },
+            { "gobject",  HandleLookupObjectCommand,       rbac::RBAC_PERM_COMMAND_LOOKUP_OBJECT,   Console::Yes  },
+            { "quest",    HandleLookupQuestCommand,        rbac::RBAC_PERM_COMMAND_LOOKUP_QUEST,    Console::Yes  },
+            { "skill",    HandleLookupSkillCommand,        rbac::RBAC_PERM_COMMAND_LOOKUP_SKILL,    Console::Yes  },
+            { "taxinode", HandleLookupTaxiNodeCommand,     rbac::RBAC_PERM_COMMAND_LOOKUP_TAXINODE, Console::Yes  },
+            { "teleport", HandleLookupTeleCommand,         rbac::RBAC_PERM_COMMAND_LOOKUP_TELE,     Console::Yes  },
+            { "title",    HandleLookupTitleCommand,        rbac::RBAC_PERM_COMMAND_LOOKUP_TITLE,    Console::Yes  },
+            { "spell",    HandleLookupSpellCommand,        rbac::RBAC_PERM_COMMAND_LOOKUP_SPELL,    Console::Yes  },
+            { "spell id", HandleLookupSpellIdCommand,      rbac::RBAC_PERM_COMMAND_LOOKUP_SPELL_ID, Console::Yes  },
             { "player",   lookupPlayerCommandTable },
         };
 
@@ -211,11 +205,11 @@ public:
 
                         if (handler->GetSession())
                         {
-                            handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CHAT, id, id, name.c_str());
+                            handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CHAT, id, id, name);
                         }
                         else
                         {
-                            handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CONSOLE, id, name.c_str());
+                            handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CONSOLE, id, name);
                         }
 
                         if (!found)
@@ -244,11 +238,11 @@ public:
 
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CHAT, id, id, name.c_str());
+                    handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CHAT, id, id, name);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CONSOLE, id, name.c_str());
+                    handler->PSendSysMessage(LANG_CREATURE_ENTRY_LIST_CONSOLE, id, name);
                 }
 
                 if (!found)
@@ -269,17 +263,13 @@ public:
     static bool HandleLookupEventCommand(ChatHandler* handler, Tail namePart)
     {
         if (namePart.empty())
-        {
             return false;
-        }
 
         std::wstring wNamePart;
 
         // converting string that we try to find to lower case
         if (!Utf8toWStr(namePart, wNamePart))
-        {
             return false;
-        }
 
         wstrToLower(wNamePart);
 
@@ -294,11 +284,9 @@ public:
         {
             GameEventData const& eventData = events[id];
 
-            std::string descr = eventData.description;
+            std::string descr = eventData.Description;
             if (descr.empty())
-            {
                 continue;
-            }
 
             if (Utf8FitTo(descr, wNamePart))
             {
@@ -308,28 +296,20 @@ public:
                     return true;
                 }
 
-                char const* active = activeEvents.find(id) != activeEvents.end() ? handler->GetAcoreString(LANG_ACTIVE) : "";
+                std::string active = activeEvents.find(id) != activeEvents.end() ? handler->GetAcoreString(LANG_ACTIVE) : "";
 
                 if (handler->GetSession())
-                {
-                    handler->PSendSysMessage(LANG_EVENT_ENTRY_LIST_CHAT, id, id, eventData.description.c_str(), active);
-                }
+                    handler->PSendSysMessage(LANG_EVENT_ENTRY_LIST_CHAT, id, id, eventData.Description, active);
                 else
-                {
-                    handler->PSendSysMessage(LANG_EVENT_ENTRY_LIST_CONSOLE, id, eventData.description.c_str(), active);
-                }
+                    handler->PSendSysMessage(LANG_EVENT_ENTRY_LIST_CONSOLE, id, eventData.Description, active);
 
                 if (!found)
-                {
                     found = true;
-                }
             }
         }
 
         if (!found)
-        {
             handler->SendSysMessage(LANG_NOEVENTFOUND);
-        }
 
         return true;
     }
@@ -516,11 +496,13 @@ public:
 
                             if (handler->GetSession())
                             {
-                                handler->PSendSysMessage(LANG_ITEM_LIST_CHAT, itemTemplate.ItemId, itemTemplate.ItemId, name.c_str());
+                                std::ostringstream color;
+                                color << std::hex << ItemQualityColors[itemTemplate.Quality];
+                                handler->PSendSysMessage(LANG_ITEM_LIST_CHAT, itemTemplate.ItemId, color.str(), itemTemplate.ItemId, name);
                             }
                             else
                             {
-                                handler->PSendSysMessage(LANG_ITEM_LIST_CONSOLE, itemTemplate.ItemId, name.c_str());
+                                handler->PSendSysMessage(LANG_ITEM_LIST_CONSOLE, itemTemplate.ItemId, name);
                             }
 
                             if (!found)
@@ -550,11 +532,13 @@ public:
 
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_ITEM_LIST_CHAT, itemTemplate.ItemId, itemTemplate.ItemId, name.c_str());
+                    std::ostringstream color;
+                    color << std::hex << ItemQualityColors[itemTemplate.Quality];
+                    handler->PSendSysMessage(LANG_ITEM_LIST_CHAT, itemTemplate.ItemId, color.str(), itemTemplate.ItemId, name);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_ITEM_LIST_CONSOLE, itemTemplate.ItemId, name.c_str());
+                    handler->PSendSysMessage(LANG_ITEM_LIST_CONSOLE, itemTemplate.ItemId, name);
                 }
 
                 if (!found)
@@ -640,11 +624,11 @@ public:
                     // send item set in "id - [namedlink locale]" format
                     if (handler->GetSession())
                     {
-                        handler->PSendSysMessage(LANG_ITEMSET_LIST_CHAT, id, id, name.c_str(), localeNames[locale]);
+                        handler->PSendSysMessage(LANG_ITEMSET_LIST_CHAT, id, id, name, localeNames[locale]);
                     }
                     else
                     {
-                        handler->PSendSysMessage(LANG_ITEMSET_LIST_CONSOLE, id, name.c_str(), localeNames[locale]);
+                        handler->PSendSysMessage(LANG_ITEMSET_LIST_CONSOLE, id, name, localeNames[locale]);
                     }
 
                     if (!found)
@@ -703,11 +687,11 @@ public:
 
                         if (handler->GetSession())
                         {
-                            handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CHAT, gameObjectTemplate.entry, gameObjectTemplate.entry, name.c_str());
+                            handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CHAT, gameObjectTemplate.entry, gameObjectTemplate.entry, name);
                         }
                         else
                         {
-                            handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CONSOLE, gameObjectTemplate.entry, name.c_str());
+                            handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CONSOLE, gameObjectTemplate.entry, name);
                         }
 
                         if (!found)
@@ -736,11 +720,11 @@ public:
 
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CHAT, gameObjectTemplate.entry, gameObjectTemplate.entry, name.c_str());
+                    handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CHAT, gameObjectTemplate.entry, gameObjectTemplate.entry, name);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CONSOLE, gameObjectTemplate.entry, name.c_str());
+                    handler->PSendSysMessage(LANG_GO_ENTRY_LIST_CONSOLE, gameObjectTemplate.entry, name);
                 }
 
                 if (!found)
@@ -802,7 +786,7 @@ public:
                                 return true;
                             }
 
-                            char const* statusStr = "";
+                            std::string statusStr = "";
 
                             if (target)
                             {
@@ -811,13 +795,13 @@ public:
                                 switch (status)
                                 {
                                     case QUEST_STATUS_COMPLETE:
-                                        statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_COMPLETE);
+                                        statusStr = handler->GetAcoreString(LANG_COMPLETE);
                                         break;
                                     case QUEST_STATUS_INCOMPLETE:
-                                        statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_ACTIVE);
+                                        statusStr = handler->GetAcoreString(LANG_ACTIVE);
                                         break;
                                     case QUEST_STATUS_REWARDED:
-                                        statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_REWARDED);
+                                        statusStr = handler->GetAcoreString(LANG_REWARDED);
                                         break;
                                     default:
                                         break;
@@ -826,11 +810,11 @@ public:
 
                             if (handler->GetSession())
                             {
-                                handler->PSendSysMessage(LANG_QUEST_LIST_CHAT, qInfo->GetQuestId(), qInfo->GetQuestId(), qInfo->GetQuestLevel(), title.c_str(), statusStr);
+                                handler->PSendSysMessage(LANG_QUEST_LIST_CHAT, qInfo->GetQuestId(), qInfo->GetQuestId(), qInfo->GetQuestLevel(), title, statusStr);
                             }
                             else
                             {
-                                handler->PSendSysMessage(LANG_QUEST_LIST_CONSOLE, qInfo->GetQuestId(), title.c_str(), statusStr);
+                                handler->PSendSysMessage(LANG_QUEST_LIST_CONSOLE, qInfo->GetQuestId(), title, statusStr);
                             }
 
                             if (!found)
@@ -858,7 +842,7 @@ public:
                     return true;
                 }
 
-                char const* statusStr = "";
+                std::string statusStr = "";
 
                 if (target)
                 {
@@ -867,13 +851,13 @@ public:
                     switch (status)
                     {
                         case QUEST_STATUS_COMPLETE:
-                            statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_COMPLETE);
+                            statusStr = handler->GetAcoreString(LANG_COMPLETE);
                             break;
                         case QUEST_STATUS_INCOMPLETE:
-                            statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_ACTIVE);
+                            statusStr = handler->GetAcoreString(LANG_ACTIVE);
                             break;
                         case QUEST_STATUS_REWARDED:
-                            statusStr = handler->GetAcoreString(LANG_COMMAND_QUEST_REWARDED);
+                            statusStr = handler->GetAcoreString(LANG_REWARDED);
                             break;
                         default:
                             break;
@@ -882,11 +866,11 @@ public:
 
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_QUEST_LIST_CHAT, qInfo->GetQuestId(), qInfo->GetQuestId(), qInfo->GetQuestLevel(), title.c_str(), statusStr);
+                    handler->PSendSysMessage(LANG_QUEST_LIST_CHAT, qInfo->GetQuestId(), qInfo->GetQuestId(), qInfo->GetQuestLevel(), title, statusStr);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_QUEST_LIST_CONSOLE, qInfo->GetQuestId(), title.c_str(), statusStr);
+                    handler->PSendSysMessage(LANG_QUEST_LIST_CONSOLE, qInfo->GetQuestId(), title, statusStr);
                 }
 
                 if (!found)
@@ -987,11 +971,11 @@ public:
                 // send skill in "id - [namedlink locale]" format
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_SKILL_LIST_CHAT, skillInfo->id, skillInfo->id, name.c_str(), localeNames[locale], knownStr.c_str(), valStr.c_str());
+                    handler->PSendSysMessage(LANG_SKILL_LIST_CHAT, skillInfo->id, skillInfo->id, name, localeNames[locale], knownStr, valStr);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_SKILL_LIST_CONSOLE, skillInfo->id, name.c_str(), localeNames[locale], knownStr.c_str(), valStr.c_str());
+                    handler->PSendSysMessage(LANG_SKILL_LIST_CONSOLE, skillInfo->id, name, localeNames[locale], knownStr, valStr);
                 }
 
                 if (!found)
@@ -1341,12 +1325,12 @@ public:
                 // send taxinode in "id - [name] (Map:m X:x Y:y Z:z)" format
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CHAT, nodeEntry->ID, nodeEntry->ID, name.c_str(), localeNames[locale],
+                    handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CHAT, nodeEntry->ID, nodeEntry->ID, name, localeNames[locale],
                                              nodeEntry->map_id, nodeEntry->x, nodeEntry->y, nodeEntry->z);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CONSOLE, nodeEntry->ID, name.c_str(), localeNames[locale],
+                    handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CONSOLE, nodeEntry->ID, name, localeNames[locale],
                                              nodeEntry->map_id, nodeEntry->x, nodeEntry->y, nodeEntry->z);
                 }
 
@@ -1416,7 +1400,7 @@ public:
         }
         else
         {
-            handler->PSendSysMessage(LANG_COMMAND_TELE_LOCATION, reply.str().c_str());
+            handler->PSendSysMessage(LANG_COMMAND_TELE_LOCATION, reply.str());
         }
 
         if (limitReached)
@@ -1494,20 +1478,16 @@ public:
                     return true;
                 }
 
-                char const* knownStr = target && target->HasTitle(titleInfo) ? handler->GetAcoreString(LANG_KNOWN) : "";
-                char const* activeStr = target && target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->bit_index ? handler->GetAcoreString(LANG_ACTIVE) : "";
+                std::string knownStr = target && target->HasTitle(titleInfo) ? handler->GetAcoreString(LANG_KNOWN) : "";
+                std::string activeStr = target && target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->bit_index ? handler->GetAcoreString(LANG_ACTIVE) : "";
 
                 std::string titleNameStr = Acore::StringFormat(name, targetName);
 
                 // send title in "id (idx:idx) - [namedlink locale]" format
                 if (handler->GetSession())
-                {
                     handler->PSendSysMessage(LANG_TITLE_LIST_CHAT, titleInfo->ID, titleInfo->bit_index, titleInfo->ID, titleNameStr, localeNames[locale], knownStr, activeStr);
-                }
                 else
-                {
                     handler->PSendSysMessage(LANG_TITLE_LIST_CONSOLE, titleInfo->ID, titleInfo->bit_index, titleNameStr, localeNames[locale], knownStr, activeStr);
-                }
 
                 ++counter;
             }
@@ -1675,7 +1655,7 @@ public:
 
             if (result2)
             {
-                handler->PSendSysMessage(LANG_LOOKUP_PLAYER_ACCOUNT, accountName.c_str(), accountId);
+                handler->PSendSysMessage(LANG_LOOKUP_PLAYER_ACCOUNT, accountName, accountId);
 
                 do
                 {
@@ -1694,11 +1674,11 @@ public:
 
                     if (plevel > 0 && prace > 0 && prace <= RACE_DRAENEI && pclass > 0 && pclass <= CLASS_DRUID)
                     {
-                        handler->PSendSysMessage("  %s (GUID %u) - %s - %s - %u%s", name.c_str(), guid, EnumUtils::ToTitle(Races(prace)), EnumUtils::ToTitle(Classes(pclass)), plevel, (online ? " - [ONLINE]" : ""));
+                        handler->PSendSysMessage("  {} (GUID {}) - {} - {} - {}{}", name, guid, EnumUtils::ToTitle(Races(prace)), EnumUtils::ToTitle(Classes(pclass)), plevel, (online ? " - [ONLINE]" : ""));
                     }
                     else
                     {
-                        handler->PSendSysMessage(LANG_LOOKUP_PLAYER_CHARACTER, name.c_str(), guid);
+                        handler->PSendSysMessage(LANG_LOOKUP_PLAYER_CHARACTER, name, guid);
                     }
 
                     ++counter;

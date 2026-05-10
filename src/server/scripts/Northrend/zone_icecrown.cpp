@@ -1,20 +1,21 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AreaDefines.h"
 #include "CombatAI.h"
 #include "CreatureScript.h"
 #include "MoveSplineInit.h"
@@ -29,7 +30,6 @@
 #include "SpellScriptLoader.h"
 #include "Vehicle.h"
 
-// Ours
 enum eBKG
 {
     QUEST_BLACK_KNIGHT_CURSE            = 14016,
@@ -51,7 +51,7 @@ public:
 
         void MoveInLineOfSight(Unit* who) override
         {
-            if (who->GetTypeId() != TYPEID_PLAYER || me->GetDistance(who) > 8.0f || who->ToPlayer()->GetQuestStatus(QUEST_BLACK_KNIGHT_CURSE) != QUEST_STATUS_INCOMPLETE)
+            if (!who->IsPlayer() || me->GetDistance(who) > 8.0f || who->ToPlayer()->GetQuestStatus(QUEST_BLACK_KNIGHT_CURSE) != QUEST_STATUS_INCOMPLETE)
                 return;
 
             if (me->FindNearestCreature(NPC_CULT_ASSASSIN, 30.0f))
@@ -81,6 +81,7 @@ enum valhalas
     EVENT_VALHALAS_SECOND                       = 2,
     EVENT_VALHALAS_THIRD                        = 3,
     EVENT_VALHALAS_CHECK_PLAYER                 = 4,
+    EVENT_VALHALAS_THIRD_2                      = 5,
 
     // Fallen Heroes
     NPC_ELDRETH                                 = 31195,
@@ -111,12 +112,16 @@ public:
         EventMap events;
         SummonList summons;
         ObjectGuid playerGUID;
-        ObjectGuid playerGUID2;
         uint32 currentQuest;
 
         void Reset() override
         {
             ResetData();
+        }
+
+        void JustReachedHome() override
+        {
+            me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
         }
 
         void ResetData()
@@ -125,7 +130,7 @@ public:
             summons.DespawnAll();
             playerGUID.Clear();
             currentQuest = 0;
-            me->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+            me->SetNpcFlag(UNIT_NPC_FLAG_QUESTGIVER | UNIT_NPC_FLAG_GOSSIP);
         }
 
         void JustSummoned(Creature* creature) override
@@ -138,7 +143,7 @@ public:
 
         void PrepareSummons()
         {
-            switch(currentQuest)
+            switch (currentQuest)
             {
                 case QUEST_BFV_FALLEN_HEROES:
                     me->SummonCreature(NPC_ELDRETH, 8245.5f, 3522.7f, 627.67f, 3.11f, TEMPSUMMON_MANUAL_DESPAWN, 30000);
@@ -170,63 +175,16 @@ public:
         {
             events.ScheduleEvent(EVENT_VALHALAS_FIRST, 6s);
             events.ScheduleEvent(EVENT_VALHALAS_CHECK_PLAYER, 30s);
+            me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
             currentQuest = questId;
             playerGUID = guid;
         }
 
-        void CheckSummons()
+        void EndBattle()
         {
-            bool allow = true;
-            for (ObjectGuid const& guid : summons)
-                if (Creature* cr = ObjectAccessor::GetCreature(*me, guid))
-                    if (cr->IsAlive())
-                        allow = false;
-
-            if (allow)
-            {
-                uint32 quest = currentQuest;
-                if (Player* player = ObjectAccessor::GetPlayer(*me, playerGUID))
-                {
-                    switch (quest)
-                    {
-                        case QUEST_BFV_FALLEN_HEROES:
-                            me->Yell("$N has defeated the fallen heroes of Valhalas battles past. This is only a beginning, but it will suffice.", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                        case QUEST_BFV_DARK_MASTER:
-                            me->Yell("Khit'rix the Dark Master has been defeated by $N and his band of companions. Let the next challenge be issued!", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                        case QUEST_BFV_SIGRID:
-                            me->Yell("$N has defeated Sigrid Iceborn for a second time. Well, this time he did it with the help of his friends, but a win is a win!", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                        case QUEST_BFV_CARNAGE:
-                            me->Yell("The horror known as Carnage is no more. Could it be that $N is truly worthy of battle in Valhalas? We shall see.", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                        case QUEST_BFV_THANE:
-                            me->Yell("Thane Banahogg the Deathblow has fallen to $N and his fighting companions. He has but one challenge ahead of him. Who will it be?", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                        case QUEST_BFV_FINAL:
-                            me->Yell("The unthinkable has happened... $N has slain Prince Sandoval!", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                            break;
-                    }
-                    player->GroupEventHappens(quest, player);
-                }
-                playerGUID2 = playerGUID;
-                EnterEvadeMode();
-                if (quest == QUEST_BFV_FINAL)
-                    events.ScheduleEvent(EVENT_VALHALAS_THIRD, 7s);
-            }
-            else
-            {
-                uint32 quest = currentQuest;
-                if (Player* player = ObjectAccessor::GetPlayer(*me, playerGUID))
-                {
-                    if (!player->HasQuest(quest))
-                    {
-                        ResetData();
-                        return;
-                    }
-                }
-            }
+            ResetData();
+            me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
+            me->GetMotionMaster()->MoveTargetedHome();
         }
 
         void UpdateAI(uint32 diff) override
@@ -296,29 +254,65 @@ public:
                     }
                 case EVENT_VALHALAS_THIRD:
                     {
-                        me->Yell("In defeating him, he and his fighting companions have proven themselves worthy of battle in this most sacred place of vrykul honor.", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID));
-                        events.ScheduleEvent(EVENT_VALHALAS_THIRD + 2, 7s);
+                        if (Player* player = ObjectAccessor::GetPlayer(*me, playerGUID))
+                            me->Yell("In defeating him, he and his fighting companions have proven themselves worthy of battle in this most sacred place of vrykul honor.", LANG_UNIVERSAL, player);
+                        events.ScheduleEvent(EVENT_VALHALAS_THIRD_2, 7s);
                         break;
                     }
-                case EVENT_VALHALAS_THIRD+2:
+                case EVENT_VALHALAS_THIRD_2:
                     {
-                        me->Yell("ALL HAIL $N, CHAMPION OF VALHALAS! ", LANG_UNIVERSAL, ObjectAccessor::GetPlayer(*me, playerGUID2));
+                        if (Player* player = ObjectAccessor::GetPlayer(*me, playerGUID))
+                            me->Yell("ALL HAIL $N, CHAMPION OF VALHALAS! ", LANG_UNIVERSAL, player);
+                        EndBattle();
                         break;
                     }
                 case EVENT_VALHALAS_CHECK_PLAYER:
                     {
-                        bool fail = true;
-                        if (Player* player = ObjectAccessor::GetPlayer(*me, playerGUID))
-                            if (me->GetDistance(player) < 100.0f)
+                        Player* player = ObjectAccessor::GetPlayer(*me, playerGUID);
+                        if (!player || me->GetDistance(player) >= 100.0f)
+                        {
+                            EndBattle();
+                            break;
+                        }
+
+                        if (summons.IsAnyCreatureAlive())
+                        {
+                            if (!player->HasQuest(currentQuest))
+                                EndBattle();
+                            else
+                                events.Repeat(5s);
+                        }
+                        else
+                        {
+                            switch (currentQuest)
                             {
-                                fail = false;
-                                CheckSummons();
+                                case QUEST_BFV_FALLEN_HEROES:
+                                    me->Yell("$N has defeated the fallen heroes of Valhalas battles past. This is only a beginning, but it will suffice.", LANG_UNIVERSAL, player);
+                                    break;
+                                case QUEST_BFV_DARK_MASTER:
+                                    me->Yell("Khit'rix the Dark Master has been defeated by $N and his band of companions. Let the next challenge be issued!", LANG_UNIVERSAL, player);
+                                    break;
+                                case QUEST_BFV_SIGRID:
+                                    me->Yell("$N has defeated Sigrid Iceborn for a second time. Well, this time he did it with the help of his friends, but a win is a win!", LANG_UNIVERSAL, player);
+                                    break;
+                                case QUEST_BFV_CARNAGE:
+                                    me->Yell("The horror known as Carnage is no more. Could it be that $N is truly worthy of battle in Valhalas? We shall see.", LANG_UNIVERSAL, player);
+                                    break;
+                                case QUEST_BFV_THANE:
+                                    me->Yell("Thane Banahogg the Deathblow has fallen to $N and his fighting companions. He has but one challenge ahead of him. Who will it be?", LANG_UNIVERSAL, player);
+                                    break;
+                                case QUEST_BFV_FINAL:
+                                    me->Yell("The unthinkable has happened... $N has slain Prince Sandoval!", LANG_UNIVERSAL, player);
+                                    break;
                             }
 
-                        if (fail)
-                            EnterEvadeMode();
+                            player->GroupEventHappens(currentQuest, player);
 
-                        events.Repeat(5s);
+                            if (currentQuest == QUEST_BFV_FINAL)
+                                events.ScheduleEvent(EVENT_VALHALAS_THIRD, 7s);
+                            else
+                                EndBattle();
+                        }
                         break;
                     }
             }
@@ -501,7 +495,7 @@ public:
                         events.RescheduleEvent(EVENT_SOUL_COAX, 5s);
                     }
                     else
-                        me->DespawnOrUnsummon(1);
+                        me->DespawnOrUnsummon(1ms);
                     break;
                 case EVENT_SOUL_COAX:
                     Talk(SAY_ARETE_1);
@@ -523,11 +517,8 @@ public:
                     {
                         soul->SetCanFly(true);
                         soul->SetVisible(true);
-                        Movement::MoveSplineInit init(soul);
-                        init.MoveTo(soul->GetPositionX(), soul->GetPositionY(), soul->GetPositionZ() + 5.0f);
-                        init.SetVelocity(1.0f);
-                        init.Launch();
                         soul->CastSpell(soul, 64462, true); // Drown
+                        soul->GetMotionMaster()->MovePoint(0, soul->GetPositionX(), soul->GetPositionY(), soul->GetPositionZ() + 5.0f, FORCED_MOVEMENT_NONE, 1.f);
                     }
                     events.ScheduleEvent(EVENT_SCENE_1, 6s);
                     break;
@@ -580,14 +571,14 @@ public:
                     if (Creature* soul = ObjectAccessor::GetCreature(*me, _landgrenSoulGUID))
                     {
                         soul->AI()->Talk(SAY_SOUL_4);
-                        soul->DespawnOrUnsummon(2000);
+                        soul->DespawnOrUnsummon(2s);
                     }
                     events.ScheduleEvent(EVENT_SCENE_10, 3s);
                     break;
                 case EVENT_SCENE_10:
                     me->ReplaceAllNpcFlags(UNIT_NPC_FLAG_QUESTGIVER);
                     Talk(SAY_ARETE_6);
-                    me->DespawnOrUnsummon(60000);
+                    me->DespawnOrUnsummon(60s);
                     break;
             }
         }
@@ -690,23 +681,28 @@ public:
 
     struct npc_tirions_gambit_tirionAI : npc_escortAI
     {
-        npc_tirions_gambit_tirionAI(Creature* creature) : npc_escortAI(creature), summons(me)
+        npc_tirions_gambit_tirionAI(Creature* creature) : npc_escortAI(creature), summons(me), _eventOver(false)
         {
         }
 
         EventMap events;
         SummonList summons;
+        bool _eventOver;
 
         void Reset() override
         {
             me->setActive(false);
             me->SetStandState(UNIT_STAND_STATE_STAND);
+            _eventOver = false;
         }
 
         void SetData(uint32 type, uint32 data) override
         {
-            if (type == 1 && data == 1)
+            if (type == 1 && data == 1 && !_eventOver)
+            {
                 events.ScheduleEvent(EVENT_SCENE_0 + 30, 10s);
+                _eventOver = true;
+            }
         }
 
         void DoAction(int32 param) override
@@ -718,7 +714,8 @@ public:
                 Talk(0);
                 events.Reset();
                 summons.DespawnAll();
-                Start(false, false);
+                me->SetWalk(true);
+                Start(false);
 
                 int8 i = -1;
                 std::list<Creature*> cList;
@@ -750,12 +747,13 @@ public:
             summons.Despawn(summon);
         }
 
+        using CreatureAI::WaypointReached;
         void WaypointReached(uint32 pointId) override
         {
             switch (pointId)
             {
                 case 6:
-                    me->SummonCreature(NPC_INVOKER_BASALEPH, 6130.26f, 2764.83f, 573.92f, 5.19f, TEMPSUMMON_TIMED_DESPAWN, 10 * MINUTE * IN_MILLISECONDS);
+                    me->SummonCreature(NPC_INVOKER_BASALEPH, 6130.26f, 2764.83f, 573.92f, 5.19f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 60000);
                     Talk(1);
                     break;
                 case 15:
@@ -796,7 +794,7 @@ public:
                                 summon->SetUInt32Value(UNIT_NPC_EMOTESTATE, param);
                                 break;
                             case ACTION_SUMMON_DESPAWN:
-                                summon->DespawnOrUnsummon(param);
+                                summon->DespawnOrUnsummon(Milliseconds(param));
                                 break;
                             case ACTION_SUMMON_ORIENTATION:
                                 summon->SetFacingTo(param / 100.0f);
@@ -820,9 +818,9 @@ public:
                     Talk(2);
                     DoSummonAction(NPC_DISGUISED_CRUSADER, ACTION_SUMMON_ORIENTATION, 200);
 
-                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6160.74f, 2695.90f, 573.92f, 2.04f, TEMPSUMMON_TIMED_DESPAWN, 5 * MINUTE * IN_MILLISECONDS);
-                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6164.98f, 2697.90f, 573.92f, 2.04f, TEMPSUMMON_TIMED_DESPAWN, 5 * MINUTE * IN_MILLISECONDS);
-                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6161.26f, 2700.05f, 573.92f, 2.04f, TEMPSUMMON_TIMED_DESPAWN, 5 * MINUTE * IN_MILLISECONDS);
+                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6160.74f, 2695.90f, 573.92f, 2.04f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 60000);
+                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6164.98f, 2697.90f, 573.92f, 2.04f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 60000);
+                    me->SummonCreature(NPC_CHOSEN_ZEALOT, 6161.26f, 2700.05f, 573.92f, 2.04f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 60000);
 
                     DoSummonAction(NPC_CHOSEN_ZEALOT, ACTION_SUMMON_MOVE_STRAIGHT, 27);
                     events.ScheduleEvent(EVENT_SCENE_0, 30s);
@@ -843,7 +841,7 @@ public:
                     break;
                 case EVENT_SCENE_0+3:
                     Talk(3);
-                    if (Creature* cr = me->SummonCreature(NPC_TIRION_LICH_KING, 6161.26f, 2700.05f, 573.92f, 2.04f, TEMPSUMMON_TIMED_DESPAWN, 5 * MINUTE * IN_MILLISECONDS))
+                    if (Creature* cr = me->SummonCreature(NPC_TIRION_LICH_KING, 6161.26f, 2700.05f, 573.92f, 2.04f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 60000))
                         cr->GetMotionMaster()->MovePoint(2, 6131.93f, 2756.84f, 573.92f);
                     events.ScheduleEvent(EVENT_SCENE_0 + 4, 4s);
                     break;
@@ -984,7 +982,6 @@ public:
                             if (target)
                                 (*itr)->AI()->AttackStart(target);
                         }
-
                         break;
                     }
                 case EVENT_SCENE_0+30:
@@ -1022,9 +1019,9 @@ public:
                         {
                             if (summon->GetEntry() == NPC_TIRION_LICH_KING)
                                 summon->CastSpell(summon, SPELL_LICH_KINGS_FURY, false);
-                            summon->DespawnOrUnsummon(summon->GetEntry() == NPC_TIRION_LICH_KING ? 10000 : 4000);
+                            summon->DespawnOrUnsummon(summon->GetEntry() == NPC_TIRION_LICH_KING ? 10s : 4s);
                         }
-                    me->DespawnOrUnsummon(10000);
+                    me->DespawnOrUnsummon(10s);
                     break;
             }
         }
@@ -1063,203 +1060,164 @@ enum infraGreenBomberQuests
     SEAT_ENGINEERING            = 2
 };
 
-class spell_switch_infragreen_bomber_station : public SpellScriptLoader
+class spell_switch_infragreen_bomber_station : public SpellScript
 {
-public:
-    spell_switch_infragreen_bomber_station() : SpellScriptLoader("spell_switch_infragreen_bomber_station") { }
+    PrepareSpellScript(spell_switch_infragreen_bomber_station);
 
-    class spell_switch_infragreen_bomber_station_SpellScript : public SpellScript
+    uint8 GetSeatNumber(uint32 spellId)
     {
-        PrepareSpellScript(spell_switch_infragreen_bomber_station_SpellScript)
+        if (spellId == SPELL_ENGINEERING)
+            return 2;
+        else if (spellId == SPELL_ANTI_AIR_TURRET)
+            return 1;
+        else
+            return 0;
+    }
 
-        uint8 GetSeatNumber(uint32 spellId)
-        {
-            if (spellId == SPELL_ENGINEERING)
-                return 2;
-            else if (spellId == SPELL_ANTI_AIR_TURRET)
-                return 1;
-            else
-                return 0;
-        }
-
-        void HandleDummy(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            Vehicle* kit = GetCaster()->GetVehicle();
-            Unit* charmer = GetCaster()->GetCharmer(); // Player controlling station
-            if (!kit || !charmer)
-                return;
-
-            uint8 seatNumber = GetSeatNumber(GetSpellInfo()->Id);
-            SeatMap::iterator itr = kit->GetSeatIteratorForPassenger(GetCaster());
-            if (itr == kit->Seats.end())
-                return;
-
-            // Xinef: Same seat, no change required
-            if (seatNumber == itr->first)
-                return;
-
-            if (Unit* station = kit->GetPassenger(seatNumber))
-                station->HandleSpellClick(charmer, 0);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_switch_infragreen_bomber_station_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void HandleDummy(SpellEffIndex effIndex)
     {
-        return new spell_switch_infragreen_bomber_station_SpellScript();
+        PreventHitDefaultEffect(effIndex);
+        Vehicle* kit = GetCaster()->GetVehicle();
+        Unit* charmer = GetCaster()->GetCharmer(); // Player controlling station
+        if (!kit || !charmer)
+            return;
+
+        uint8 seatNumber = GetSeatNumber(GetSpellInfo()->Id);
+        SeatMap::iterator itr = kit->GetSeatIteratorForPassenger(GetCaster());
+        if (itr == kit->Seats.end())
+            return;
+
+        // Xinef: Same seat, no change required
+        if (seatNumber == itr->first)
+            return;
+
+        if (Unit* station = kit->GetPassenger(seatNumber))
+            station->HandleSpellClick(charmer, 0);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_switch_infragreen_bomber_station::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_charge_shield_bomber : public SpellScriptLoader
+class spell_charge_shield_bomber : public SpellScript
 {
-public:
-    spell_charge_shield_bomber() : SpellScriptLoader("spell_charge_shield_bomber") { }
+    PrepareSpellScript(spell_charge_shield_bomber);
 
-    class spell_charge_shield_bomber_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_charge_shield_bomber_SpellScript)
-
-        void HandleDummy(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            Unit* ship = GetCaster()->GetVehicleBase();
-            if (!ship)
-                return;
-
-            ship->CastSpell(ship, SPELL_INFRA_GREEN_SHIELD, true);
-            Aura* aura = ship->GetAura(SPELL_INFRA_GREEN_SHIELD);
-            if (!aura)
-                return;
-
-            aura->ModStackAmount(GetEffectValue() - 1);
-        }
-
-        void Register() override
-        {
-            if (m_scriptSpellId == SPELL_CHARGE_SHIELD)
-                OnEffectHitTarget += SpellEffectFn(spell_charge_shield_bomber_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_charge_shield_bomber_SpellScript();
+        return ValidateSpellInfo({ SPELL_INFRA_GREEN_SHIELD });
     }
 
-    class spell_charge_shield_bomber_AuraScript : public AuraScript
+    void HandleDummy(SpellEffIndex effIndex)
     {
-        PrepareAuraScript(spell_charge_shield_bomber_AuraScript);
+        PreventHitDefaultEffect(effIndex);
+        Unit* ship = GetCaster()->GetVehicleBase();
+        if (!ship)
+            return;
 
-        void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
-        {
-            // Set absorbtion amount to unlimited
-            amount = -1;
-        }
+        ship->CastSpell(ship, SPELL_INFRA_GREEN_SHIELD, true);
+        Aura* aura = ship->GetAura(SPELL_INFRA_GREEN_SHIELD);
+        if (!aura)
+            return;
 
-        void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
-        {
-            uint32 absorbPct = GetStackAmount() / 2;
-            absorbAmount = CalculatePct(dmgInfo.GetDamage(), absorbPct);
-            ModStackAmount(-1);
-        }
+        aura->ModStackAmount(GetEffectValue() - 1);
+    }
 
-        void Register() override
-        {
-            if (m_scriptSpellId == SPELL_INFRA_GREEN_SHIELD)
-            {
-                DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_charge_shield_bomber_AuraScript::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
-                OnEffectAbsorb += AuraEffectAbsorbFn(spell_charge_shield_bomber_AuraScript::Absorb, EFFECT_0);
-            }
-        }
-    };
-
-    AuraScript* GetAuraScript() const override
+    void Register() override
     {
-        return new spell_charge_shield_bomber_AuraScript();
+        if (m_scriptSpellId == SPELL_CHARGE_SHIELD)
+        OnEffectHitTarget += SpellEffectFn(spell_charge_shield_bomber::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_fight_fire_bomber : public SpellScriptLoader
+class spell_charge_shield_bomber_aura : public AuraScript
 {
-public:
-    spell_fight_fire_bomber() : SpellScriptLoader("spell_fight_fire_bomber") { }
+    PrepareAuraScript(spell_charge_shield_bomber_aura);
 
-    class spell_fight_fire_bomber_SpellScript : public SpellScript
+    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
     {
-        PrepareSpellScript(spell_fight_fire_bomber_SpellScript)
+        // Set absorbtion amount to unlimited
+        amount = -1;
+    }
 
-        void HandleDummy(SpellEffIndex effIndex)
+    void Absorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
+    {
+        uint32 absorbPct = GetStackAmount() / 2;
+        absorbAmount = CalculatePct(dmgInfo.GetDamage(), absorbPct);
+        ModStackAmount(-1);
+    }
+
+    void Register() override
+    {
+        if (m_scriptSpellId == SPELL_INFRA_GREEN_SHIELD)
         {
-            PreventHitDefaultEffect(effIndex);
-            Vehicle* kit = GetCaster()->GetVehicle();
-            if (!kit)
-                return;
+            DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_charge_shield_bomber_aura::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
+            OnEffectAbsorb += AuraEffectAbsorbFn(spell_charge_shield_bomber_aura::Absorb, EFFECT_0);
+        }
+    }
+};
 
-            bool extinguished = false;
-            uint8 fireCount = 0;
-            for (uint8 seat = 3; seat <= 5; ++seat)
-                if (Unit* banner = kit->GetPassenger(seat))
-                    if (banner->HasAura(SPELL_COSMETIC_FIRE))
+class spell_fight_fire_bomber : public SpellScript
+{
+    PrepareSpellScript(spell_fight_fire_bomber);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_COSMETIC_FIRE, SPELL_EXTINGUISH_FIRE, SPELL_BURNING });
+    }
+
+    void HandleDummy(SpellEffIndex effIndex)
+    {
+        PreventHitDefaultEffect(effIndex);
+        Vehicle* kit = GetCaster()->GetVehicle();
+        if (!kit)
+            return;
+
+        bool extinguished = false;
+        uint8 fireCount = 0;
+        for (uint8 seat = 3; seat <= 5; ++seat)
+            if (Unit* banner = kit->GetPassenger(seat))
+                if (banner->HasAura(SPELL_COSMETIC_FIRE))
+                {
+                    if (!extinguished)
                     {
-                        if (!extinguished)
+                        GetCaster()->CastSpell(banner, SPELL_EXTINGUISH_FIRE, true);
+                        extinguished = true;
+                        if (urand(0, 2))
                         {
-                            GetCaster()->CastSpell(banner, SPELL_EXTINGUISH_FIRE, true);
-                            extinguished = true;
-                            if (urand(0, 2))
-                            {
-                                banner->RemoveAurasDueToSpell(SPELL_COSMETIC_FIRE);
-                                continue;
-                            }
+                            banner->RemoveAurasDueToSpell(SPELL_COSMETIC_FIRE);
+                            continue;
                         }
-                        fireCount++;
                     }
+                    fireCount++;
+                }
 
-            if (fireCount == 0)
-                GetCaster()->RemoveAurasDueToSpell(SPELL_BURNING);
-        }
+        if (fireCount == 0)
+            GetCaster()->RemoveAurasDueToSpell(SPELL_BURNING);
+    }
 
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_fight_fire_bomber_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_fight_fire_bomber_SpellScript();
+        OnEffectHitTarget += SpellEffectFn(spell_fight_fire_bomber::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_anti_air_rocket_bomber : public SpellScriptLoader
+class spell_anti_air_rocket_bomber : public SpellScript
 {
-public:
-    spell_anti_air_rocket_bomber() : SpellScriptLoader("spell_anti_air_rocket_bomber") { }
+    PrepareSpellScript(spell_anti_air_rocket_bomber);
 
-    class spell_anti_air_rocket_bomber_SpellScript : public SpellScript
+    void HandleDummy(SpellEffIndex effIndex)
     {
-        PrepareSpellScript(spell_anti_air_rocket_bomber_SpellScript)
+        PreventHitDefaultEffect(effIndex);
+        const WorldLocation* loc = GetExplTargetDest();
+        GetCaster()->CastSpell(loc->GetPositionX(), loc->GetPositionY(), loc->GetPositionZ(), GetSpellInfo()->Effects[effIndex].CalcValue(), true);
+    }
 
-        void HandleDummy(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            const WorldLocation* loc = GetExplTargetDest();
-            GetCaster()->CastSpell(loc->GetPositionX(), loc->GetPositionY(), loc->GetPositionZ(), GetSpellInfo()->Effects[effIndex].CalcValue(), true);
-        }
-
-        void Register() override
-        {
-            OnEffectLaunch += SpellEffectFn(spell_anti_air_rocket_bomber_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_anti_air_rocket_bomber_SpellScript();
+        OnEffectLaunch += SpellEffectFn(spell_anti_air_rocket_bomber::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
@@ -1287,7 +1245,7 @@ public:
             if (!summoner)
                 return;
 
-            if (summoner->GetTypeId() != TYPEID_PLAYER)
+            if (!summoner->IsPlayer())
                 return;
 
             Player* player = summoner->ToPlayer();
@@ -1296,8 +1254,8 @@ public:
 
             player->CastSpell(player, SPELL_WAITING_FOR_A_BOMBER, true);
             player->CastSpell(player, SPELL_FLIGHT_ORDERS, true);
-            events.ScheduleEvent(EVENT_START_FLIGHT, 0);
-            events.ScheduleEvent(EVENT_TAKE_PASSENGER, 3000);
+            events.ScheduleEvent(EVENT_START_FLIGHT, 0ms);
+            events.ScheduleEvent(EVENT_TAKE_PASSENGER, 3s);
             me->SetCanFly(true);
             me->AddUnitMovementFlag(MOVEMENTFLAG_FLYING);
             me->SetSpeed(MOVE_FLIGHT, 0.1f);
@@ -1349,29 +1307,11 @@ public:
                                 turret->HandleSpellClick(owner, 0);
                                 return;
                             }
-                    me->DespawnOrUnsummon(1);
+                    me->DespawnOrUnsummon(1ms);
                     break;
                 case EVENT_START_FLIGHT:
                     {
-                        WPPath* path = sSmartWaypointMgr->GetPath(me->GetEntry());
-                        if (!path || path->empty())
-                        {
-                            me->DespawnOrUnsummon(1);
-                            return;
-                        }
-
-                        Movement::PointsArray pathPoints;
-                        pathPoints.push_back(G3D::Vector3(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ()));
-
-                        uint32 wpCounter = 1;
-                        WPPath::const_iterator itr;
-                        while ((itr = path->find(wpCounter++)) != path->end())
-                        {
-                            WayPoint* wp = itr->second;
-                            pathPoints.push_back(G3D::Vector3(wp->x, wp->y, wp->z));
-                        }
-
-                        me->GetMotionMaster()->MoveSplinePath(&pathPoints);
+                        me->GetMotionMaster()->MovePath(me->GetEntry(), FORCED_MOVEMENT_NONE, PathSource::SMART_WAYPOINT_MGR);
                         events.ScheduleEvent(EVENT_CHECK_PATH_REGEN_HEALTH_BURN_DAMAGE, 1min);
                         events.ScheduleEvent(EVENT_SYNCHRONIZE_SHIELDS, 5s);
                         break;
@@ -1381,7 +1321,7 @@ public:
                         // Check if path is finished
                         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != ESCORT_MOTION_TYPE)
                         {
-                            me->DespawnOrUnsummon(1);
+                            me->DespawnOrUnsummon(1ms);
                             return;
                         }
 
@@ -1420,7 +1360,7 @@ public:
                                     station->RemoveAurasDueToSpell(SPELL_INFRA_GREEN_SHIELD);
                             }
                         if (!playerPresent)
-                            me->DespawnOrUnsummon(1);
+                            me->DespawnOrUnsummon(1ms);
                     }
                     events.ScheduleEvent(EVENT_SYNCHRONIZE_SHIELDS, 1s);
                     break;
@@ -1439,33 +1379,22 @@ public:
     }
 };
 
-class spell_onslaught_or_call_bone_gryphon : public SpellScriptLoader
+class spell_onslaught_or_call_bone_gryphon : public SpellScript
 {
-public:
-    spell_onslaught_or_call_bone_gryphon() : SpellScriptLoader("spell_onslaught_or_call_bone_gryphon") { }
+    PrepareSpellScript(spell_onslaught_or_call_bone_gryphon);
 
-    class spell_onslaught_or_call_bone_gryphon_SpellScript : public SpellScript
+    void ChangeSummonPos(SpellEffIndex /*effIndex*/)
     {
-        PrepareSpellScript(spell_onslaught_or_call_bone_gryphon_SpellScript);
+        WorldLocation summonPos = *GetExplTargetDest();
+        Position offset = { 0.0f, 0.0f, 3.0f, 0.0f };
+        summonPos.RelocateOffset(offset);
+        SetExplTargetDest(summonPos);
+        GetHitDest()->RelocateOffset(offset);
+    }
 
-        void ChangeSummonPos(SpellEffIndex /*effIndex*/)
-        {
-            WorldLocation summonPos = *GetExplTargetDest();
-            Position offset = { 0.0f, 0.0f, 3.0f, 0.0f };
-            summonPos.RelocateOffset(offset);
-            SetExplTargetDest(summonPos);
-            GetHitDest()->RelocateOffset(offset);
-        }
-
-        void Register() override
-        {
-            OnEffectHit += SpellEffectFn(spell_onslaught_or_call_bone_gryphon_SpellScript::ChangeSummonPos, EFFECT_0, SPELL_EFFECT_SUMMON);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_onslaught_or_call_bone_gryphon_SpellScript();
+        OnEffectHit += SpellEffectFn(spell_onslaught_or_call_bone_gryphon::ChangeSummonPos, EFFECT_0, SPELL_EFFECT_SUMMON);
     }
 };
 
@@ -1511,7 +1440,6 @@ class spell_deliver_gryphon : public SpellScript
     }
 };
 
-// Theirs
 /*######
 ## npc_guardian_pavilion
 ######*/
@@ -1519,9 +1447,6 @@ class spell_deliver_gryphon : public SpellScript
 enum GuardianPavilion
 {
     SPELL_TRESPASSER_H                            = 63987,
-    AREA_SUNREAVER_PAVILION                       = 4676,
-
-    AREA_SILVER_COVENANT_PAVILION                 = 4677,
     SPELL_TRESPASSER_A                            = 63986,
 };
 
@@ -1543,10 +1468,10 @@ public:
             if (me->GetAreaId() != AREA_SUNREAVER_PAVILION && me->GetAreaId() != AREA_SILVER_COVENANT_PAVILION)
                 return;
 
-            if (!who || who->GetTypeId() != TYPEID_PLAYER || !me->IsHostileTo(who) || !me->isInBackInMap(who, 5.0f))
+            if (!who || !who->IsPlayer() || !me->IsHostileTo(who) || !me->isInBackInMap(who, 5.0f))
                 return;
 
-            if (who->HasAura(SPELL_TRESPASSER_H) || who->HasAura(SPELL_TRESPASSER_A))
+            if (who->HasAnyAuras(SPELL_TRESPASSER_H, SPELL_TRESPASSER_A))
                 return;
 
             if (who->ToPlayer()->GetTeamId() == TEAM_ALLIANCE)
@@ -1734,7 +1659,7 @@ enum BlessedBanner
     NPC_ARGENT_MASON                    = 30900,
     NPC_REANIMATED_CAPTAIN              = 30986,
     NPC_SCOURGE_DRUDGE                  = 30984,
-    NPC_HIDEOUS_PLAGEBRINGER            = 30987,
+    NPC_HIDEOUS_PLAGUEBRINGER           = 30987,
     NPC_HALOF_THE_DEATHBRINGER          = 30989,
     NPC_LK                              = 31013,
 
@@ -1846,9 +1771,20 @@ public:
 
         void MoveInLineOfSight(Unit* /*who*/) override { }
 
-        void JustSummoned(Creature* Summoned) override
+        void JustSummoned(Creature* summon) override
         {
-            Summons.Summon(Summoned);
+            Summons.Summon(summon);
+            if (summon->GetEntry() == NPC_SCOURGE_DRUDGE || summon->GetEntry() == NPC_REANIMATED_CAPTAIN ||
+                summon->GetEntry() == NPC_HIDEOUS_PLAGUEBRINGER || summon->GetEntry() == NPC_HALOF_THE_DEATHBRINGER)
+            {
+                summon->SetHomePosition(DalforsPos[2]);
+                summon->SetReactState(REACT_PASSIVE);
+                summon->EngageWithTarget(me);
+                summon->m_Events.AddEventAtOffset([summon]()
+                {
+                    summon->SetReactState(REACT_AGGRESSIVE);
+                }, 2s);
+            }
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -2001,36 +1937,16 @@ public:
                             if (Creature* LK = GetClosestCreatureWithEntry(me, NPC_LK, 100))
                                 LK->AI()->Talk(LK_TALK_3);
                         }
-                        if (Creature* tempsum = DoSummon(NPC_SCOURGE_DRUDGE, Mason3Pos[0]))
-                        {
-                            tempsum->SetHomePosition(DalforsPos[2]);
-                            tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                        }
+                        DoSummon(NPC_SCOURGE_DRUDGE, Mason3Pos[0]);
                         if (urand(0, 1) == 0)
                         {
-                            if (Creature* tempsum = DoSummon(NPC_HIDEOUS_PLAGEBRINGER, Mason1Pos[0]))
-                            {
-                                tempsum->SetHomePosition(DalforsPos[2]);
-                                tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                            }
-                            if (Creature* tempsum = DoSummon(NPC_HIDEOUS_PLAGEBRINGER, Mason2Pos[0]))
-                            {
-                                tempsum->SetHomePosition(DalforsPos[2]);
-                                tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                            }
+                            DoSummon(NPC_HIDEOUS_PLAGUEBRINGER, Mason1Pos[0]);
+                            DoSummon(NPC_HIDEOUS_PLAGUEBRINGER, Mason2Pos[0]);
                         }
                         else
                         {
-                            if (Creature* tempsum = DoSummon(NPC_REANIMATED_CAPTAIN, Mason1Pos[0]))
-                            {
-                                tempsum->SetHomePosition(DalforsPos[2]);
-                                tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                            }
-                            if (Creature* tempsum = DoSummon(NPC_REANIMATED_CAPTAIN, Mason2Pos[0]))
-                            {
-                                tempsum->SetHomePosition(DalforsPos[2]);
-                                tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                            }
+                            DoSummon(NPC_REANIMATED_CAPTAIN, Mason1Pos[0]);
+                            DoSummon(NPC_REANIMATED_CAPTAIN, Mason2Pos[0]);
                         }
 
                         PhaseCount++;
@@ -2045,22 +1961,12 @@ public:
                     {
                         if (Creature* LK = GetClosestCreatureWithEntry(me, NPC_LK, 100))
                             LK->AI()->Talk(LK_TALK_4);
-                        if (Creature* tempsum = DoSummon(NPC_SCOURGE_DRUDGE, Mason1Pos[0]))
-                        {
-                            tempsum->SetHomePosition(DalforsPos[2]);
-                            tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                        }
-                        if (Creature* tempsum = DoSummon(NPC_SCOURGE_DRUDGE, Mason2Pos[0]))
-                        {
-                            tempsum->SetHomePosition(DalforsPos[2]);
-                            tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
-                        }
+                        DoSummon(NPC_SCOURGE_DRUDGE, Mason1Pos[0]);
+                        DoSummon(NPC_SCOURGE_DRUDGE, Mason2Pos[0]);
                         if (Creature* tempsum = DoSummon(NPC_HALOF_THE_DEATHBRINGER, DalforsPos[0]))
                         {
                             HalofSpawned = true;
                             guidHalof = tempsum->GetGUID();
-                            tempsum->SetHomePosition(DalforsPos[2]);
-                            tempsum->AI()->AttackStart(GetClosestCreatureWithEntry(me, NPC_BLESSED_BANNER, 100));
                         }
                     }
                     break;
@@ -2077,7 +1983,7 @@ public:
                     if (Halof->isDead())
                     {
                         DoCast(me, SPELL_CRUSADERS_SPIRE_VICTORY, true);
-                        Summons.DespawnEntry(NPC_HIDEOUS_PLAGEBRINGER);
+                        Summons.DespawnEntry(NPC_HIDEOUS_PLAGUEBRINGER);
                         Summons.DespawnEntry(NPC_REANIMATED_CAPTAIN);
                         Summons.DespawnEntry(NPC_SCOURGE_DRUDGE);
                         Summons.DespawnEntry(NPC_HALOF_THE_DEATHBRINGER);
@@ -2183,27 +2089,47 @@ public:
     }
 };
 
+enum WaterTerror
+{
+    SPELL_WATER_TERROR_FROST_NOVA = 57668
+};
+
+// 57652 - Crashing Wave
+class spell_crashing_wave : public SpellScript
+{
+    PrepareSpellScript(spell_crashing_wave);
+
+    void RecalculateDamage()
+    {
+        if (Unit* target = GetHitUnit())
+            if (target->HasAura(SPELL_WATER_TERROR_FROST_NOVA))
+                SetHitDamage(GetHitDamage() * 2);
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_crashing_wave::RecalculateDamage);
+    }
+};
+
 void AddSC_icecrown()
 {
-    // Ours
     new npc_black_knight_graveyard();
     new npc_battle_at_valhalas();
     new npc_llod_generic();
     new npc_lord_arete();
     new npc_boneguard_footman();
     new npc_tirions_gambit_tirion();
-    new spell_switch_infragreen_bomber_station();
-    new spell_charge_shield_bomber();
-    new spell_fight_fire_bomber();
-    new spell_anti_air_rocket_bomber();
+    RegisterSpellScript(spell_switch_infragreen_bomber_station);
+    RegisterSpellAndAuraScriptPair(spell_charge_shield_bomber, spell_charge_shield_bomber_aura);
+    RegisterSpellScript(spell_fight_fire_bomber);
+    RegisterSpellScript(spell_anti_air_rocket_bomber);
     new npc_infra_green_bomber_generic();
-    new spell_onslaught_or_call_bone_gryphon();
+    RegisterSpellScript(spell_onslaught_or_call_bone_gryphon);
     RegisterSpellScript(spell_deliver_gryphon);
-
-    // Theirs
     new npc_guardian_pavilion();
     new npc_tournament_training_dummy();
     new npc_blessed_banner();
     new npc_frostbrood_skytalon();
+    RegisterSpellScript(spell_crashing_wave);
 }
-

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -25,14 +25,10 @@
 #include "Util.h"
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/repetition/repeat.hpp>
-#include <cmath>
-#include <cstring>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <type_traits>
-#include <utility>
 #include <variant>
 
 class ChatHandler;
@@ -51,8 +47,8 @@ namespace Acore::Impl::ChatCommands
         using type = typename T::value_type;
     };
 
-    template <size_t N>
-    inline constexpr char GetChar(char const (&s)[N], size_t i)
+    template <std::size_t N>
+    inline constexpr char GetChar(char const (&s)[N], std::size_t i)
     {
         static_assert(N <= 25, "The EXACT_SEQUENCE macro can only be used with up to 25 character long literals. Specify them char-by-char (null terminated) as parameters to ExactSequence<> instead.");
         return i >= N ? '\0' : s[i];
@@ -101,7 +97,7 @@ namespace Acore::ChatCommands
                     return tail;
                 start = args.substr(0, _string.length() + remainingToken.length());
             }
-            return Acore::Impl::ChatCommands::FormatAcoreString(handler, LANG_CMDPARSER_EXACT_SEQ_MISMATCH, STRING_VIEW_FMT_ARG(_string), STRING_VIEW_FMT_ARG(start));
+            return Acore::Impl::ChatCommands::FormatAcoreString(handler, LANG_CMDPARSER_EXACT_SEQ_MISMATCH, _string, start);
         }
 
         private:
@@ -146,6 +142,11 @@ namespace Acore::ChatCommands
 
         AC_GAME_API ChatCommandResult TryConsume(ChatHandler const* handler, std::string_view args);
     };
+
+    inline std::string_view format_as(QuotedString const& qs)
+    {
+        return std::string_view(qs);
+    }
 
     struct AC_GAME_API AccountIdentifier : Acore::Impl::ChatCommands::ContainerTag
     {
@@ -273,7 +274,7 @@ namespace Acore::ChatCommands
         }
 
         template<bool C = have_operators>
-        operator std::enable_if_t<C && !std::is_same_v<first_type, size_t> && std::is_convertible_v<first_type, size_t>, size_t>() const
+        operator std::enable_if_t<C && !std::is_same_v<first_type, std::size_t> && std::is_convertible_v<first_type, std::size_t>, std::size_t>() const
         {
             return operator*();
         }
@@ -284,9 +285,9 @@ namespace Acore::ChatCommands
         template <typename T>
         Variant& operator=(T&& arg) { base::operator=(std::forward<T>(arg)); return *this; }
 
-        template <size_t index>
+        template <std::size_t index>
         constexpr decltype(auto) get() { return std::get<index>(static_cast<base&>(*this)); }
-        template <size_t index>
+        template <std::size_t index>
         constexpr decltype(auto) get() const { return std::get<index>(static_cast<base const&>(*this)); }
         template <typename type>
         constexpr decltype(auto) get() { return std::get<type>(static_cast<base&>(*this)); }

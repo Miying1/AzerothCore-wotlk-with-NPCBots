@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -72,7 +72,7 @@ bool RotateMovementGenerator::Update(Unit* owner, uint32 diff)
 void RotateMovementGenerator::Finalize(Unit* unit)
 {
     unit->ClearUnitState(UNIT_STATE_ROTATING);
-    if (unit->GetTypeId() == TYPEID_UNIT)
+    if (unit->IsCreature())
         unit->ToCreature()->AI()->MovementInform(ROTATE_MOTION_TYPE, 0);
 }
 
@@ -90,7 +90,7 @@ void DistractMovementGenerator::Finalize(Unit* owner)
     owner->ClearUnitState(UNIT_STATE_DISTRACTED);
 
     // If this is a creature, then return orientation to original position (for idle movement creatures)
-    if (owner->GetTypeId() == TYPEID_UNIT && owner->ToCreature())
+    if (owner->IsCreature() && owner->ToCreature())
     {
         float angle = owner->ToCreature()->GetHomePosition().GetOrientation();
         owner->SetFacingTo(angle);

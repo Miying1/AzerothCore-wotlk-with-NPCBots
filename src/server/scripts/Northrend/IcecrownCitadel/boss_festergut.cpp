@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,9 +19,14 @@
 #include "CreatureScript.h"
 #include "ObjectMgr.h"
 #include "ScriptedCreature.h"
+#include "SharedDefines.h"
 #include "SpellAuras.h"
+#include "SpellInfo.h"
+#include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "icecrown_citadel.h"
+#include "SpellAuraEffects.h"
+#include "SpellMgr.h"
 
 enum ScriptTexts
 {
@@ -54,10 +59,6 @@ enum Spells
     SPELL_DECIMATE              = 71123,
     SPELL_PLAGUE_STENCH         = 71805,
 };
-
-// Used for HasAura checks
-#define PUNGENT_BLIGHT_HELPER RAID_MODE<uint32>(69195, 71219, 73031, 73032)
-#define INOCULATED_HELPER     RAID_MODE<uint32>(69291, 72101, 72102, 72103)
 
 uint32 const gaseousBlight[3]        = {69157, 69162, 69164};
 uint32 const gaseousBlightVisual[3]  = {69126, 69152, 69154};
@@ -162,21 +163,8 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (victim->IsPlayer())
                 Talk(SAY_KILL);
-        }
-
-        void SpellHitTarget(Unit* target, SpellInfo const* spell) override
-        {
-            if (spell->Id == PUNGENT_BLIGHT_HELPER)
-                target->RemoveAurasDueToSpell(INOCULATED_HELPER);
-            else if (Player* p = target->ToPlayer())
-            {
-                // Gaseous Blight damage
-                if (((spell->Id == 69159 || spell->Id == 70136 || spell->Id == 69161 || spell->Id == 70139 || spell->Id == 69163 || spell->Id == 70469) && p->GetQuestStatus(QUEST_RESIDUE_RENDEZVOUS_10) == QUEST_STATUS_INCOMPLETE) ||
-                        ((spell->Id == 70135 || spell->Id == 70138 || spell->Id == 70468 || spell->Id == 70137 || spell->Id == 70140 || spell->Id == 70470) && p->GetQuestStatus(QUEST_RESIDUE_RENDEZVOUS_25) == QUEST_STATUS_INCOMPLETE))
-                    p->CastSpell(p, SPELL_ORANGE_BLIGHT_RESIDUE, true);
-            }
         }
 
         void RemoveBlight()
@@ -231,7 +219,7 @@ public:
                     Talk(EMOTE_GAS_SPORE);
                     me->CastCustomSpell(SPELL_GAS_SPORE, SPELLVALUE_MAX_TARGETS, RAID_MODE<int32>(2, 3, 2, 3), me);
                     events.ScheduleEvent(EVENT_GAS_SPORE, 40s, 45s);
-                    events.DelayEventsToMax(20000, 1); // delay EVENT_VILE_GAS
+                    events.DelayEventsToMax(20s, 1); // delay EVENT_VILE_GAS
                     break;
                 case EVENT_VILE_GAS:
                     {
@@ -284,128 +272,130 @@ public:
     }
 };
 
-class spell_festergut_pungent_blight : public SpellScriptLoader
+class spell_festergut_pungent_blight : public SpellScript
 {
-public:
-    spell_festergut_pungent_blight() : SpellScriptLoader("spell_festergut_pungent_blight") { }
+    PrepareSpellScript(spell_festergut_pungent_blight);
 
-    class spell_festergut_pungent_blight_SpellScript : public SpellScript
+    bool Load() override
     {
-        PrepareSpellScript(spell_festergut_pungent_blight_SpellScript);
+        return GetCaster()->IsCreature();
+    }
 
-        bool Load() override
-        {
-            return GetCaster()->GetTypeId() == TYPEID_UNIT;
-        }
-
-        void HandleScript(SpellEffIndex /*effIndex*/)
-        {
-            Unit* caster = GetCaster();
-            if (caster->GetTypeId() != TYPEID_UNIT)
-                return;
-
-            // Get Inhaled Blight id for our difficulty
-            uint32 blightId = sSpellMgr->GetSpellIdForDifficulty(uint32(GetEffectValue()), caster);
-
-            // ...and remove it
-            caster->RemoveAurasDueToSpell(blightId);
-            caster->ToCreature()->AI()->Talk(EMOTE_PUNGENT_BLIGHT);
-
-            if (InstanceScript* inst = caster->GetInstanceScript())
-                if (Creature* professor = ObjectAccessor::GetCreature(*caster, inst->GetGuidData(DATA_PROFESSOR_PUTRICIDE)))
-                    professor->AI()->DoAction(ACTION_FESTERGUT_GAS);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_festergut_pungent_blight_SpellScript::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void HandleScript(SpellEffIndex /*effIndex*/)
     {
-        return new spell_festergut_pungent_blight_SpellScript();
+        Unit* caster = GetCaster();
+        if (!caster->IsCreature())
+            return;
+
+        // Get Inhaled Blight id for our difficulty
+        uint32 blightId = sSpellMgr->GetSpellIdForDifficulty(uint32(GetEffectValue()), caster);
+
+        // ...and remove it
+        caster->RemoveAurasDueToSpell(blightId);
+        caster->ToCreature()->AI()->Talk(EMOTE_PUNGENT_BLIGHT);
+
+        if (InstanceScript* inst = caster->GetInstanceScript())
+            if (Creature* professor = ObjectAccessor::GetCreature(*caster, inst->GetGuidData(DATA_PROFESSOR_PUTRICIDE)))
+                professor->AI()->DoAction(ACTION_FESTERGUT_GAS);
+    }
+
+    void HandleHit(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* target = GetHitUnit())
+            target->RemoveAurasDueToSpell(sSpellMgr->GetSpellIdForDifficulty(SPELL_INOCULATED, GetCaster()));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_festergut_pungent_blight::HandleHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHitTarget += SpellEffectFn(spell_festergut_pungent_blight::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
-class spell_festergut_blighted_spores : public SpellScriptLoader
+class spell_festergut_blighted_spores_aura : public AuraScript
 {
-public:
-    spell_festergut_blighted_spores() : SpellScriptLoader("spell_festergut_blighted_spores") { }
+    PrepareAuraScript(spell_festergut_blighted_spores_aura);
 
-    class spell_festergut_blighted_spores_AuraScript : public AuraScript
+    bool Validate(SpellInfo const* /*spell*/) override
     {
-        PrepareAuraScript(spell_festergut_blighted_spores_AuraScript);
+        return ValidateSpellInfo({ SPELL_INOCULATED });
+    }
 
-        bool Validate(SpellInfo const* /*spell*/) override
+    void ExtraEffect(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        if (Aura* a = aurEff->GetBase())
+            if (a->GetDuration() > a->GetMaxDuration() - 1000) // this does not stack for different casters and previous is removed by new DoT, prevent it from giving inoculation in such case
+                return;
+        uint32 inoculatedId = sSpellMgr->GetSpellIdForDifficulty(SPELL_INOCULATED, GetTarget());
+        uint8 inoculatedStack = 1;
+        if (Aura* a = GetTarget()->GetAura(inoculatedId))
         {
-            return ValidateSpellInfo({ SPELL_INOCULATED });
+            inoculatedStack += a->GetStackAmount();
+            if (a->GetDuration() > a->GetMaxDuration() - 10000) // player may gain only one stack at a time, no matter how many spores explode near him
+                return;
         }
+        GetTarget()->CastSpell(GetTarget(), SPELL_INOCULATED, true);
+        if (InstanceScript* instance = GetTarget()->GetInstanceScript())
+            if (Creature* festergut = ObjectAccessor::GetCreature(*GetTarget(), instance->GetGuidData(DATA_FESTERGUT)))
+                festergut->AI()->SetData(DATA_INOCULATED_STACK, inoculatedStack);
+    }
 
-        void ExtraEffect(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(spell_festergut_blighted_spores_aura::ExtraEffect, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class spell_festergut_gastric_bloat : public SpellScript
+{
+    PrepareSpellScript(spell_festergut_gastric_bloat);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_GASTRIC_EXPLOSION });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        Aura const* aura = GetHitUnit()->GetAura(GetSpellInfo()->Id);
+        if (!(aura && aura->GetStackAmount() == 10))
+            return;
+
+        GetHitUnit()->RemoveAurasDueToSpell(GetSpellInfo()->Id);
+        GetHitUnit()->CastSpell(GetHitUnit(), SPELL_GASTRIC_EXPLOSION, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_festergut_gastric_bloat::HandleScript, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+class spell_festergut_gaseous_blight : public SpellScript
+{
+    PrepareSpellScript(spell_festergut_gaseous_blight);
+
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo({ SPELL_ORANGE_BLIGHT_RESIDUE });
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (Player* p = GetHitUnit()->ToPlayer())
         {
-            if (Aura* a = aurEff->GetBase())
-                if (a->GetDuration() > a->GetMaxDuration() - 1000) // this does not stack for different casters and previous is removed by new DoT, prevent it from giving inoculation in such case
-                    return;
-            uint32 inoculatedId = sSpellMgr->GetSpellIdForDifficulty(SPELL_INOCULATED, GetTarget());
-            uint8 inoculatedStack = 1;
-            if (Aura* a = GetTarget()->GetAura(inoculatedId))
+            if (Map* map = GetCaster()->GetMap())
             {
-                inoculatedStack += a->GetStackAmount();
-                if (a->GetDuration() > a->GetMaxDuration() - 10000) // player may gain only one stack at a time, no matter how many spores explode near him
-                    return;
+                uint32 questId = map->Is25ManRaid() ? QUEST_RESIDUE_RENDEZVOUS_25 : QUEST_RESIDUE_RENDEZVOUS_10;
+                if (p->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
+                    p->CastSpell(p, SPELL_ORANGE_BLIGHT_RESIDUE, true);
             }
-            GetTarget()->CastSpell(GetTarget(), SPELL_INOCULATED, true);
-            if (InstanceScript* instance = GetTarget()->GetInstanceScript())
-                if (Creature* festergut = ObjectAccessor::GetCreature(*GetTarget(), instance->GetGuidData(DATA_FESTERGUT)))
-                    festergut->AI()->SetData(DATA_INOCULATED_STACK, inoculatedStack);
         }
-
-        void Register() override
-        {
-            AfterEffectRemove += AuraEffectRemoveFn(spell_festergut_blighted_spores_AuraScript::ExtraEffect, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
-        }
-    };
-
-    AuraScript* GetAuraScript() const override
-    {
-        return new spell_festergut_blighted_spores_AuraScript();
     }
-};
 
-class spell_festergut_gastric_bloat : public SpellScriptLoader
-{
-public:
-    spell_festergut_gastric_bloat() : SpellScriptLoader("spell_festergut_gastric_bloat") { }
-
-    class spell_festergut_gastric_bloat_SpellScript : public SpellScript
+    void Register() override
     {
-        PrepareSpellScript(spell_festergut_gastric_bloat_SpellScript);
-
-        bool Validate(SpellInfo const* /*spell*/) override
-        {
-            return ValidateSpellInfo({ SPELL_GASTRIC_EXPLOSION });
-        }
-
-        void HandleScript(SpellEffIndex /*effIndex*/)
-        {
-            Aura const* aura = GetHitUnit()->GetAura(GetSpellInfo()->Id);
-            if (!(aura && aura->GetStackAmount() == 10))
-                return;
-
-            GetHitUnit()->RemoveAurasDueToSpell(GetSpellInfo()->Id);
-            GetHitUnit()->CastSpell(GetHitUnit(), SPELL_GASTRIC_EXPLOSION, true);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_festergut_gastric_bloat_SpellScript::HandleScript, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_festergut_gastric_bloat_SpellScript();
+        OnEffectHitTarget += SpellEffectFn(spell_festergut_gaseous_blight::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
@@ -416,7 +406,7 @@ public:
 
     bool OnCheck(Player* /*source*/, Unit* target, uint32 /*criteria_id*/) override
     {
-        if (target && target->GetTypeId() == TYPEID_UNIT)
+        if (target && target->IsCreature())
             return target->ToCreature()->AI()->GetData(DATA_INOCULATED_STACK) < 3;
 
         return false;
@@ -496,9 +486,10 @@ public:
 void AddSC_boss_festergut()
 {
     new boss_festergut();
-    new spell_festergut_pungent_blight();
-    new spell_festergut_blighted_spores();
-    new spell_festergut_gastric_bloat();
+    RegisterSpellScript(spell_festergut_pungent_blight);
+    RegisterSpellScript(spell_festergut_blighted_spores_aura);
+    RegisterSpellScript(spell_festergut_gastric_bloat);
+    RegisterSpellScript(spell_festergut_gaseous_blight);
     new achievement_flu_shot_shortage();
 
     new npc_stinky_icc();

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -20,9 +20,15 @@
 #include "CellImpl.h"
 #include "CreatureScript.h"
 #include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
+#include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
+
+/// @todo: this import is not necessary for compilation and marked as unused by the IDE
+//  however, for some reasons removing it would cause a damn linking issue
+//  there is probably some underlying problem with imports which should properly addressed
+//  see: https://github.com/azerothcore/azerothcore-wotlk/issues/9766
+#include "GridNotifiersImpl.h"
 
 /*######
 ## npc_belnistrasz for Quest 3525 "Extinguishing the Idol"
@@ -45,7 +51,7 @@ enum Belnistrasz
     EVENT_FROST_NOVA             = 6,
 
     PATH_ESCORT                  = 871710,
-    POINT_REACH_IDOL             = 17,
+    POINT_REACH_IDOL             = 18,
 
     QUEST_EXTINGUISHING_THE_IDOL = 3525,
 
@@ -94,6 +100,16 @@ public:
             }
         }
 
+        void JustExitedCombat() override
+        {
+            if (channeling)
+            {
+                EngagementOver();
+                return;
+            }
+            CreatureAI::JustExitedCombat();
+        }
+
         void JustEngagedWith(Unit* who) override
         {
             if (channeling)
@@ -109,7 +125,7 @@ public:
 
         void JustDied(Unit* /*killer*/) override
         {
-            me->DespawnOrUnsummon(5000);
+            me->DespawnOrUnsummon(5s);
         }
 
         void sQuestAccept(Player* /*player*/, Quest const* quest) override
@@ -120,7 +136,7 @@ public:
                 Talk(SAY_QUEST_ACCEPTED);
                 me->RemoveNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
                 me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_ACTIVE);
-                me->GetMotionMaster()->MovePath(PATH_ESCORT, false);
+                me->GetMotionMaster()->MoveWaypoint(PATH_ESCORT, false);
             }
         }
 
@@ -192,7 +208,7 @@ public:
                             std::list<WorldObject*> ClusterList;
                             Acore::AllWorldObjectsInRange objects(me, 50.0f);
                             Acore::WorldObjectListSearcher<Acore::AllWorldObjectsInRange> searcher(me, ClusterList, objects);
-                            Cell::VisitAllObjects(me, searcher, 50.0f);
+                            Cell::VisitObjects(me, searcher, 50.0f);
                             for (std::list<WorldObject*>::const_iterator itr = ClusterList.begin(); itr != ClusterList.end(); ++itr)
                             {
                                 if (Player* player = (*itr)->ToPlayer())

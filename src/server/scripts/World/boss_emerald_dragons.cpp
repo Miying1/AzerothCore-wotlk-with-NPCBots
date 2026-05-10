@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -105,16 +105,16 @@ struct emerald_dragonAI : public WorldBossAI
         me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
         me->SetReactState(REACT_AGGRESSIVE);
         DoCast(me, SPELL_MARK_OF_NATURE_AURA, true);
-        events.ScheduleEvent(EVENT_TAIL_SWEEP, 4000);
-        events.ScheduleEvent(EVENT_NOXIOUS_BREATH, urand(7500, 15000));
-        events.ScheduleEvent(EVENT_SEEPING_FOG, urand(12500, 20000));
+        events.ScheduleEvent(EVENT_TAIL_SWEEP, 4s);
+        events.ScheduleEvent(EVENT_NOXIOUS_BREATH, 7500ms, 15s);
+        events.ScheduleEvent(EVENT_SEEPING_FOG, 12500ms, 20s);
         events.ScheduleEvent(EVENT_SUMMON_PLAYER, 1s);
     }
 
     // Target killed during encounter, mark them as suspectible for Aura Of Nature
     void KilledUnit(Unit* who) override
     {
-        if (who->GetTypeId() == TYPEID_PLAYER)
+        if (who->IsPlayer())
             who->CastSpell(who, SPELL_MARK_OF_NATURE, true);
     }
 
@@ -128,17 +128,17 @@ struct emerald_dragonAI : public WorldBossAI
                 // Despawntime is 2 minutes, so reschedule it for new cast after 2 minutes + a minor "random time" (30 seconds at max)
                 DoCast(me, SPELL_SEEPING_FOG_LEFT, true);
                 DoCast(me, SPELL_SEEPING_FOG_RIGHT, true);
-                events.ScheduleEvent(EVENT_SEEPING_FOG, urand(120000, 150000));
+                events.ScheduleEvent(EVENT_SEEPING_FOG, 120s, 150s);
                 break;
             case EVENT_NOXIOUS_BREATH:
                 // Noxious Breath is cast on random intervals, no less than 7.5 seconds between
                 DoCast(me, SPELL_NOXIOUS_BREATH);
-                events.ScheduleEvent(EVENT_NOXIOUS_BREATH, urand(7500, 15000));
+                events.ScheduleEvent(EVENT_NOXIOUS_BREATH, 7500ms, 15s);
                 break;
             case EVENT_TAIL_SWEEP:
                 // Tail Sweep is cast every two seconds, no matter what goes on in front of the dragon
                 DoCast(me, SPELL_TAIL_SWEEP);
-                events.ScheduleEvent(EVENT_TAIL_SWEEP, 2000);
+                events.ScheduleEvent(EVENT_TAIL_SWEEP, 2s);
                 break;
             case EVENT_SUMMON_PLAYER:
                 if (Unit* target = me->GetVictim())
@@ -219,7 +219,7 @@ public:
             });
         }
 
-        void SetGUID(ObjectGuid guid, int32 type) override
+        void SetGUID(ObjectGuid const& guid, int32 type) override
         {
             if (type == GUID_DRAGON)
             {
@@ -304,7 +304,7 @@ public:
         {
             _stage = 1;
             emerald_dragonAI::Reset();
-            events.ScheduleEvent(EVENT_LIGHTNING_WAVE, 12000);
+            events.ScheduleEvent(EVENT_LIGHTNING_WAVE, 12s);
         }
 
         void JustEngagedWith(Unit* who) override
@@ -316,17 +316,17 @@ public:
         // Summon druid spirits on 75%, 50% and 25% health
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            if (me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
+            if (_stage <= 3 && me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
             {
                 Talk(SAY_YSONDRE_SUMMON_DRUIDS);
 
-                auto const& attackers = me->GetThreatMgr().GetThreatList();
                 uint8 attackersCount = 0;
 
-                for (const auto attacker : attackers)
+                for (ThreatReference const* ref : me->GetThreatMgr().GetUnsortedThreatList())
                 {
-                    if ((*attacker)->ToPlayer() && (*attacker)->IsAlive())
-                        ++attackersCount;
+                    if (Unit* victim = ref->GetVictim())
+                        if (victim->ToPlayer() && victim->IsAlive())
+                            ++attackersCount;
                 }
 
                 uint8 amount = attackersCount < 30 ? attackersCount * 0.5f : 15;
@@ -344,7 +344,7 @@ public:
             {
                 case EVENT_LIGHTNING_WAVE:
                     DoCastVictim(SPELL_LIGHTNING_WAVE);
-                    events.ScheduleEvent(EVENT_LIGHTNING_WAVE, urand(10000, 20000));
+                    events.ScheduleEvent(EVENT_LIGHTNING_WAVE, 10s, 20s);
                     break;
                 default:
                     emerald_dragonAI::ExecuteEvent(eventId);
@@ -421,7 +421,7 @@ public:
 
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            if (me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
+            if (_stage <= 3 && me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
             {
                 Talk(SAY_LETHON_DRAW_SPIRIT);
                 DoCast(me, SPELL_DRAW_SPIRIT);
@@ -431,7 +431,7 @@ public:
 
         void SpellHitTarget(Unit* target, SpellInfo const* spell) override
         {
-            if (spell->Id == SPELL_DRAW_SPIRIT && target->GetTypeId() == TYPEID_PLAYER)
+            if (spell->Id == SPELL_DRAW_SPIRIT && target->IsPlayer())
             {
                 Position targetPos = target->GetPosition();
                 me->SummonCreature(NPC_SPIRIT_SHADE, targetPos, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 50000);
@@ -464,10 +464,8 @@ public:
             if (!summoner)
                 return;
 
-            if (summoner->GetTypeId() != TYPEID_UNIT)
-            {
+            if (!summoner->IsCreature())
                 return;
-            }
 
             _summonerGuid = summoner->GetGUID();
             me->GetMotionMaster()->MoveFollow(summoner->ToUnit(), 0.0f, 0.0f);
@@ -478,7 +476,7 @@ public:
             if (moveType == FOLLOW_MOTION_TYPE && data == _summonerGuid.GetCounter())
             {
                 me->CastSpell((Unit*)nullptr, SPELL_DARK_OFFERING, false);
-                me->DespawnOrUnsummon(1000);
+                me->DespawnOrUnsummon(1s);
             }
         }
 
@@ -526,12 +524,12 @@ public:
         {
             _stage = 1;
             emerald_dragonAI::Reset();
-            events.ScheduleEvent(EVENT_VOLATILE_INFECTION, 12000);
+            events.ScheduleEvent(EVENT_VOLATILE_INFECTION, 12s);
         }
 
         void KilledUnit(Unit* who) override
         {
-            if (who->GetTypeId() == TYPEID_PLAYER)
+            if (who->IsPlayer())
             {
                 who->CastSpell(who, SPELL_PUTRID_MUSHROOM, true);
             }
@@ -547,7 +545,7 @@ public:
 
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            if (me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
+            if (_stage <= 3 && me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
             {
                 Talk(SAY_EMERISS_CAST_CORRUPTION);
                 DoCast(me, SPELL_CORRUPTION_OF_EARTH, true);
@@ -561,7 +559,7 @@ public:
             {
                 case EVENT_VOLATILE_INFECTION:
                     DoCastVictim(SPELL_VOLATILE_INFECTION);
-                    events.ScheduleEvent(EVENT_VOLATILE_INFECTION, 120000);
+                    events.ScheduleEvent(EVENT_VOLATILE_INFECTION, 120s);
                     break;
                 default:
                     emerald_dragonAI::ExecuteEvent(eventId);
@@ -626,8 +624,8 @@ public:
             _banishedTimer = 0;
 
             emerald_dragonAI::Reset();
-            events.ScheduleEvent(EVENT_ARCANE_BLAST, 12000);
-            events.ScheduleEvent(EVENT_BELLOWING_ROAR, 30000);
+            events.ScheduleEvent(EVENT_ARCANE_BLAST, 12s);
+            events.ScheduleEvent(EVENT_BELLOWING_ROAR, 30s);
         }
 
         void JustEngagedWith(Unit* who) override
@@ -645,7 +643,7 @@ public:
         {
             // At 75, 50 or 25 percent health, we need to activate the shades and go "banished"
             // Note: _stage holds the amount of times they have been summoned
-            if (!_banished && me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
+            if (_stage <= 3 && !_banished && me->HealthBelowPctDamaged(100 - (25 * _stage), damage))
             {
                 _banished = true;
                 _banishedTimer = 60000;
@@ -673,11 +671,11 @@ public:
             {
                 case EVENT_ARCANE_BLAST:
                     DoCast(SPELL_ARCANE_BLAST);
-                    events.ScheduleEvent(EVENT_ARCANE_BLAST, urand(7000, 12000));
+                    events.ScheduleEvent(EVENT_ARCANE_BLAST, 7s, 12s);
                     break;
                 case EVENT_BELLOWING_ROAR:
                     DoCast(SPELL_BELLOWING_ROAR);
-                    events.ScheduleEvent(EVENT_BELLOWING_ROAR, urand(20000, 30000));
+                    events.ScheduleEvent(EVENT_BELLOWING_ROAR, 20s, 30s);
                     break;
                 default:
                     emerald_dragonAI::ExecuteEvent(eventId);
@@ -736,41 +734,30 @@ public:
  * --- Spell: Dream Fog
  */
 
-class spell_dream_fog_sleep : public SpellScriptLoader
+class spell_dream_fog_sleep : public SpellScript
 {
-public:
-    spell_dream_fog_sleep() : SpellScriptLoader("spell_dream_fog_sleep") { }
+    PrepareSpellScript(spell_dream_fog_sleep);
 
-    class spell_dream_fog_sleep_SpellScript : public SpellScript
+    void HandleEffect(SpellEffIndex /*effIndex*/)
     {
-        PrepareSpellScript(spell_dream_fog_sleep_SpellScript);
-
-        void HandleEffect(SpellEffIndex /*effIndex*/)
+        if (Unit* caster = GetCaster())
         {
-            if (Unit* caster = GetCaster())
+            if (Unit* target = GetHitUnit())
             {
-                if (Unit* target = GetHitUnit())
-                {
-                    caster->GetAI()->SetGUID(target->GetGUID(), GUID_FOG_TARGET);
-                }
+                caster->GetAI()->SetGUID(target->GetGUID(), GUID_FOG_TARGET);
             }
         }
+    }
 
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            targets.remove_if(Acore::UnitAuraCheck(true, SPELL_SLEEP));
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_dream_fog_sleep_SpellScript::HandleEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_dream_fog_sleep_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void FilterTargets(std::list<WorldObject*>& targets)
     {
-        return new spell_dream_fog_sleep_SpellScript();
+        targets.remove_if(Acore::UnitAuraCheck(true, SPELL_SLEEP));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dream_fog_sleep::HandleEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_dream_fog_sleep::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
     }
 };
 
@@ -787,7 +774,7 @@ public:
     {
         // return those not tagged or already under the influence of Aura of Nature
         if (Unit* unit = object->ToUnit())
-            return !(unit->HasAura(SPELL_MARK_OF_NATURE) && !unit->HasAura(SPELL_AURA_OF_NATURE));
+            return !unit->HasAllAuras(SPELL_MARK_OF_NATURE, SPELL_AURA_OF_NATURE);
         return true;
     }
 };
@@ -827,41 +814,30 @@ class spell_shadow_bolt_whirl : public AuraScript
         OnEffectPeriodic += AuraEffectPeriodicFn(spell_shadow_bolt_whirl::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
-class spell_mark_of_nature : public SpellScriptLoader
+class spell_mark_of_nature : public SpellScript
 {
-public:
-    spell_mark_of_nature() : SpellScriptLoader("spell_mark_of_nature") { }
+    PrepareSpellScript(spell_mark_of_nature);
 
-    class spell_mark_of_nature_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_mark_of_nature_SpellScript);
+        return ValidateSpellInfo({ SPELL_MARK_OF_NATURE, SPELL_AURA_OF_NATURE });
+    }
 
-        bool Validate(SpellInfo const* /*spellInfo*/) override
-        {
-            return ValidateSpellInfo({ SPELL_MARK_OF_NATURE, SPELL_AURA_OF_NATURE });
-        }
-
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            targets.remove_if(MarkOfNatureTargetSelector());
-        }
-
-        void HandleEffect(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            GetHitUnit()->CastSpell(GetHitUnit(), SPELL_AURA_OF_NATURE, true);
-        }
-
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_mark_of_nature_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
-            OnEffectHitTarget += SpellEffectFn(spell_mark_of_nature_SpellScript::HandleEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void FilterTargets(std::list<WorldObject*>& targets)
     {
-        return new spell_mark_of_nature_SpellScript();
+        targets.remove_if(MarkOfNatureTargetSelector());
+    }
+
+    void HandleEffect(SpellEffIndex effIndex)
+    {
+        PreventHitDefaultEffect(effIndex);
+        GetHitUnit()->CastSpell(GetHitUnit(), SPELL_AURA_OF_NATURE, true);
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_mark_of_nature::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENEMY);
+        OnEffectHitTarget += SpellEffectFn(spell_mark_of_nature::HandleEffect, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
     }
 };
 
@@ -878,8 +854,7 @@ void AddSC_emerald_dragons()
     new boss_lethon();
 
     // dragon spellscripts
-    new spell_dream_fog_sleep();
-    new spell_mark_of_nature();
+    RegisterSpellScript(spell_dream_fog_sleep);
+    RegisterSpellScript(spell_mark_of_nature);
     RegisterSpellScript(spell_shadow_bolt_whirl);
 };
-

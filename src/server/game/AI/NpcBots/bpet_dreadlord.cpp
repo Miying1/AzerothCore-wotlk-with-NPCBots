@@ -22,7 +22,7 @@ enum DreadlordPetSpecial
 {
     IMMOLATION_DAMAGE       = 35959,
 
-    INFERNAL_DURATION       = 180000 - 2000 //3 min
+    INFERNAL_DURATION       = 180000 //3 min
 };
 
 class dreadlord_pet_bot : public CreatureScript
@@ -59,7 +59,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if ((liveTimer += diff) >= INFERNAL_DURATION)
+            if ((liveTimer += diff) >= INFERNAL_DURATION * (IAmFree() ? 20u : 1u) - 2000u)
             {
                 canUpdate = false;
                 me->setDeathState(DeathState::JustDied);
@@ -119,9 +119,9 @@ public:
         {
         }
 
-        void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType) override
+        void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
         {
-            bot_pet_ai::DamageDealt(victim, damage, damageType);
+            bot_pet_ai::DamageDealt(victim, damage, damageType, damageSchoolMask);
         }
 
         void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellSchoolMask /*schoolMask*/) override

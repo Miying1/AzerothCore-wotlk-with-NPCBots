@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -23,6 +23,7 @@
 #include "SharedDefines.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "World.h"
 
 using namespace Acore::Hyperlinks;
 
@@ -61,7 +62,7 @@ HyperlinkInfo Acore::Hyperlinks::ParseSingleHyperlink(std::string_view str)
     str.remove_prefix(2);
 
     // tag+data part follows
-    if (size_t delimPos = str.find('|'); delimPos != std::string_view::npos)
+    if (std::size_t delimPos = str.find('|'); delimPos != std::string_view::npos)
     {
         tag = str.substr(0, delimPos);
         str.remove_prefix(delimPos+1);
@@ -70,7 +71,7 @@ HyperlinkInfo Acore::Hyperlinks::ParseSingleHyperlink(std::string_view str)
         return {};
 
     // split tag if : is present (data separator)
-    if (size_t dataStart = tag.find(':'); dataStart != std::string_view::npos)
+    if (std::size_t dataStart = tag.find(':'); dataStart != std::string_view::npos)
     {
         data = tag.substr(dataStart+1);
         tag = tag.substr(0, dataStart);
@@ -81,7 +82,7 @@ HyperlinkInfo Acore::Hyperlinks::ParseSingleHyperlink(std::string_view str)
         return {};
     str.remove_prefix(1);
     // skip to final |
-    if (size_t end = str.find('|'); end != std::string_view::npos)
+    if (std::size_t end = str.find('|'); end != std::string_view::npos)
     {
         // check end tag
         if (str.substr(end, 4) != "|h|r")

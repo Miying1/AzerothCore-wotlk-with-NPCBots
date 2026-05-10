@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -17,7 +17,8 @@
 
 #ifndef Random_h__
 #define Random_h__
-
+#undef max
+#undef min
 #include "Define.h"
 #include "Duration.h"
 #include <limits>
@@ -37,6 +38,9 @@ AC_COMMON_API uint32 rand32();
 /* Return a random time in the range min..max (up to millisecond precision). Only works for values where millisecond difference is a valid uint32. */
 AC_COMMON_API Milliseconds randtime(Milliseconds min, Milliseconds max);
 
+/* Return a random time in the range min..max (up to second precision). */
+AC_COMMON_API Seconds randtime(Seconds min, Seconds max);
+
 /* Return a random number in the range min..max */
 AC_COMMON_API float frand(float min, float max);
 
@@ -47,7 +51,7 @@ AC_COMMON_API double rand_norm();
 AC_COMMON_API double rand_chance();
 
 /* Return a random number in the range 0..count (exclusive) with each value having a different chance of happening */
-AC_COMMON_API uint32 urandweighted(size_t count, double const* chances);
+AC_COMMON_API uint32 urandweighted(std::size_t count, double const* chances);
 
 /* Return true if a random roll fits in the specified chance (range 0-100). */
 inline bool roll_chance_f(float chance)

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -26,10 +26,11 @@
 
 //npcbot
 #include "botmgr.h"
+#include "bpet_ai.h"
 //end npcbot
 
-TempSummon::TempSummon(SummonPropertiesEntry const* properties, ObjectGuid owner, bool isWorldObject) :
-    Creature(isWorldObject), m_Properties(properties), m_type(TEMPSUMMON_MANUAL_DESPAWN),
+TempSummon::TempSummon(SummonPropertiesEntry const* properties, ObjectGuid owner) :
+    Creature(), m_Properties(properties), m_type(TEMPSUMMON_MANUAL_DESPAWN),
     m_timer(0), m_lifetime(0), _visibleBySummonerOnly(false)
 {
     if (owner)
@@ -208,7 +209,7 @@ void TempSummon::InitStats(uint32 duration)
     Unit* owner = GetSummonerUnit();
     if (owner)
         if (Player* player = owner->ToPlayer())
-            sScriptMgr->OnBeforeTempSummonInitStats(player, this, duration);
+            sScriptMgr->OnPlayerBeforeTempSummonInitStats(player, this, duration);
 
     m_timer = duration;
     m_lifetime = duration;
@@ -222,11 +223,11 @@ void TempSummon::InitStats(uint32 duration)
         {
             SetFaction(owner->GetFaction());
             SetLevel(owner->GetLevel());
-            if (owner->GetTypeId() == TYPEID_PLAYER)
+            if (owner->IsPlayer())
                 m_ControlledByPlayer = true;
         }
 
-        if (owner->GetTypeId() == TYPEID_PLAYER)
+        if (owner->IsPlayer())
             m_CreatedByPlayer = true;
     }
 
@@ -255,6 +256,11 @@ void TempSummon::InitStats(uint32 duration)
 
     if (m_Properties->Faction)
         SetFaction(m_Properties->Faction);
+    else if (m_Properties->Flags & SUMMON_PROP_FLAG_USE_SUMMONER_FACTION)
+    {
+        if (owner)
+            SetFaction(owner->GetFaction());
+    }
     else if (IsVehicle() && owner) // properties should be vehicle
         SetFaction(owner->GetFaction());
 }
@@ -264,14 +270,14 @@ void TempSummon::InitSummon()
     WorldObject* owner = GetSummoner();
     if (owner)
     {
-        if (owner->GetTypeId() == TYPEID_UNIT)
+        if (owner->IsCreature())
         {
             if (owner->ToCreature()->IsAIEnabled)
             {
                 owner->ToCreature()->AI()->JustSummoned(this);
             }
         }
-        else if (owner->GetTypeId() == TYPEID_GAMEOBJECT)
+        else if (owner->IsGameObject())
         {
             if (owner->ToGameObject()->AI())
             {
@@ -281,7 +287,20 @@ void TempSummon::InitSummon()
 
         if (IsAIEnabled)
             AI()->IsSummonedBy(owner);
+
+        //npcbot
+        if (IsTempBot())
+        {
+            m_summonerGUID = ObjectGuid::Empty;
+            SetCreatorGUID(m_summonerGUID);
+        }
+        //end npcbot
     }
+}
+
+void TempSummon::UpdateObjectVisibilityOnCreate()
+{
+    WorldObject::UpdateObjectVisibility(true);
 }
 
 void TempSummon::SetTempSummonType(TempSummonType type)
@@ -289,13 +308,12 @@ void TempSummon::SetTempSummonType(TempSummonType type)
     m_type = type;
 }
 
-void TempSummon::UnSummon(uint32 msTime)
+void TempSummon::UnSummon(Milliseconds msTime)
 {
-    if (msTime)
+    if (msTime > 0ms)
     {
         ForcedUnsummonDelayEvent* pEvent = new ForcedUnsummonDelayEvent(*this);
-
-        m_Events.AddEvent(pEvent, m_Events.CalculateTime(msTime));
+        m_Events.AddEventAtOffset(pEvent, msTime);
         return;
     }
 
@@ -312,16 +330,20 @@ void TempSummon::UnSummon(uint32 msTime)
         return;
     }
 
+    //npcbot
+    if (IsNPCBotPet())
+    {
+        if (Creature* petowner = GetBotPetAI()->GetPetsOwner())
+            petowner->AI()->SummonedCreatureDespawn(this);
+    }
+    else
+    //end npcbot
     if (WorldObject* owner = GetSummoner())
     {
-        if (owner->GetTypeId() == TYPEID_UNIT && owner->ToCreature()->IsAIEnabled)
-        {
+        if (owner->IsCreature() && owner->ToCreature()->IsAIEnabled)
             owner->ToCreature()->AI()->SummonedCreatureDespawn(this);
-        }
-        else if (owner->GetTypeId() == TYPEID_GAMEOBJECT && owner->ToGameObject()->AI())
-        {
+        else if (owner->IsGameObject() && owner->ToGameObject()->AI())
             owner->ToGameObject()->AI()->SummonedCreatureDespawn(this);
-        }
     }
 
     AddObjectToRemoveList();
@@ -359,7 +381,7 @@ std::string TempSummon::GetDebugInfo() const
     return sstr.str();
 }
 
-Minion::Minion(SummonPropertiesEntry const* properties, ObjectGuid owner, bool isWorldObject) : TempSummon(properties, owner, isWorldObject)
+Minion::Minion(SummonPropertiesEntry const* properties, ObjectGuid owner) : TempSummon(properties, owner)
     , m_owner(owner)
 {
     ASSERT(m_owner);
@@ -416,7 +438,7 @@ void Minion::setDeathState(DeathState s, bool despawn)
     Creature::setDeathState(s, despawn);
     if (s == DeathState::JustDied && IsGuardianPet())
         if (Unit* owner = GetOwner())
-            if (owner->GetTypeId() == TYPEID_PLAYER && owner->GetMinionGUID() == GetGUID())
+            if (owner->IsPlayer() && owner->GetMinionGUID() == GetGUID())
                 for (Unit::ControlSet::const_iterator itr = owner->m_Controlled.begin(); itr != owner->m_Controlled.end(); ++itr)
                     if ((*itr)->IsAlive() && (*itr)->GetEntry() == GetEntry())
                     {
@@ -435,12 +457,12 @@ std::string Minion::GetDebugInfo() const
     return sstr.str();
 }
 
-Guardian::Guardian(SummonPropertiesEntry const* properties, ObjectGuid owner, bool isWorldObject) : Minion(properties, owner, isWorldObject)
+Guardian::Guardian(SummonPropertiesEntry const* properties, ObjectGuid owner) : Minion(properties, owner)
 {
     m_unitTypeMask |= UNIT_MASK_GUARDIAN;
-    if (properties && properties->Type == SUMMON_TYPE_PET)
+    if (properties && (properties->Type == SUMMON_TYPE_PET || properties->Category == SUMMON_CATEGORY_PET))
     {
-        m_unitTypeMask |= UNIT_MASK_CONTROLABLE_GUARDIAN;
+        m_unitTypeMask |= UNIT_MASK_CONTROLLABLE_GUARDIAN;
         InitCharmInfo();
     }
 }
@@ -453,7 +475,7 @@ void Guardian::InitStats(uint32 duration)
     {
         InitStatsForLevel(m_owner->GetLevel());
 
-        if (m_owner->GetTypeId() == TYPEID_PLAYER && HasUnitTypeMask(UNIT_MASK_CONTROLABLE_GUARDIAN))
+        if (m_owner->IsPlayer() && HasUnitTypeMask(UNIT_MASK_CONTROLLABLE_GUARDIAN))
             m_charmInfo->InitCharmCreateSpells();
     }
 
@@ -466,7 +488,7 @@ void Guardian::InitSummon()
 
     if (Unit* m_owner = GetOwner())
     {
-        if (m_owner->GetTypeId() == TYPEID_PLAYER && m_owner->GetMinionGUID() == GetGUID() && !m_owner->GetCharmGUID())
+        if (m_owner->IsPlayer() && m_owner->GetMinionGUID() == GetGUID() && !m_owner->GetCharmGUID())
         {
             m_owner->ToPlayer()->CharmSpellInitialize();
         }
@@ -480,7 +502,7 @@ std::string Guardian::GetDebugInfo() const
     return sstr.str();
 }
 
-Puppet::Puppet(SummonPropertiesEntry const* properties, ObjectGuid owner) : Minion(properties, owner, false), m_owner(owner) //maybe true?
+Puppet::Puppet(SummonPropertiesEntry const* properties, ObjectGuid owner) : Minion(properties, owner), m_owner(owner)
 {
     ASSERT(owner.IsPlayer());
     m_unitTypeMask |= UNIT_MASK_PUPPET;

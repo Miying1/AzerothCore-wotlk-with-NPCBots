@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -20,7 +20,6 @@
 
 #include <cassert>
 #include <string>
-#include <utility>
 
 class DBCFile
 {
@@ -64,30 +63,30 @@ public:
             offset = r.offset;
             return *this;
         }
-        [[nodiscard]] float getFloat(size_t field) const
+        [[nodiscard]] float getFloat(std::size_t field) const
         {
             assert(field < file.fieldCount);
             return *reinterpret_cast<float*>(offset + field * 4);
         }
-        [[nodiscard]] unsigned int getUInt(size_t field) const
+        [[nodiscard]] unsigned int getUInt(std::size_t field) const
         {
             assert(field < file.fieldCount);
             return *reinterpret_cast<unsigned int*>(offset + (field * 4));
         }
-        [[nodiscard]] int getInt(size_t field) const
+        [[nodiscard]] int getInt(std::size_t field) const
         {
             assert(field < file.fieldCount);
             return *reinterpret_cast<int*>(offset + field * 4);
         }
-        [[nodiscard]] unsigned char getByte(size_t ofs) const
+        [[nodiscard]] unsigned char getByte(std::size_t ofs) const
         {
             assert(ofs < file.recordSize);
             return *reinterpret_cast<unsigned char*>(offset + ofs);
         }
-        [[nodiscard]] const char* getString(size_t field) const
+        [[nodiscard]] const char* getString(std::size_t field) const
         {
             assert(field < file.fieldCount);
-            size_t stringOffset = getUInt(field);
+            std::size_t stringOffset = getUInt(field);
             assert(stringOffset < file.stringSize);
             //char * tmp = (char*)file.stringTable + stringOffset;
             //unsigned char * tmp2 = file.stringTable + stringOffset;
@@ -134,21 +133,21 @@ public:
     };
 
     // Get record by id
-    Record getRecord(size_t id);
+    Record getRecord(std::size_t id);
     /// Get begin iterator over records
     Iterator begin();
     /// Get begin iterator over records
     Iterator end();
     /// Trivial
-    [[nodiscard]] size_t getRecordCount() const { return recordCount;}
-    [[nodiscard]] size_t getFieldCount() const { return fieldCount; }
+    [[nodiscard]] std::size_t getRecordCount() const { return recordCount;}
+    [[nodiscard]] std::size_t getFieldCount() const { return fieldCount; }
 
 private:
     std::string filename;
-    size_t recordSize;
-    size_t recordCount;
-    size_t fieldCount;
-    size_t stringSize;
+    std::size_t recordSize;
+    std::size_t recordCount;
+    std::size_t fieldCount;
+    std::size_t stringSize;
     unsigned char* data;
     unsigned char* stringTable;
 };

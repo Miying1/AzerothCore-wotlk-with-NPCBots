@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,6 +19,7 @@
 #include "ScriptedCreature.h"
 #include "SpellScriptLoader.h"
 #include "ruby_sanctum.h"
+#include "SpellScript.h"
 
 enum Texts
 {
@@ -120,7 +121,7 @@ public:
 
         void KilledUnit(Unit*  /*victim*/) override
         {
-            if (events.GetNextEventTime(EVENT_KILL_TALK) == 0)
+            if (!events.HasTimeUntilEvent(EVENT_KILL_TALK))
             {
                 Talk(SAY_KILL);
                 events.ScheduleEvent(EVENT_KILL_TALK, 6s);
@@ -143,7 +144,7 @@ public:
                         me->SetReactState(REACT_PASSIVE);
                         me->AttackStop();
                         me->SetDisableGravity(true);
-                        me->GetMotionMaster()->MovePoint(POINT_TAKEOFF, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 6.0f, false);
+                        me->GetMotionMaster()->MovePoint(POINT_TAKEOFF, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 6.0f, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
                         events.ScheduleEvent(EVENT_FLIGHT, 50s);
                         events.DelayEvents(15s);
                         events.ScheduleEvent(EVENT_AIR_MOVEMENT, 2s);
@@ -162,10 +163,10 @@ public:
                     events.ScheduleEvent(EVENT_FLAME_BREATH, 20s, 30s);
                     break;
                 case EVENT_AIR_MOVEMENT:
-                    me->GetMotionMaster()->MovePoint(POINT_FLIGHT, 3155.51f, 683.844f, 95.0f, false);
+                    me->GetMotionMaster()->MovePoint(POINT_FLIGHT, 3155.51f, 683.844f, 95.0f, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
                     break;
                 case EVENT_LAND_BACK:
-                    me->GetMotionMaster()->MovePoint(POINT_LAND, 3151.07f, 636.443f, 80.0f, false);
+                    me->GetMotionMaster()->MovePoint(POINT_LAND, 3151.07f, 636.443f, 80.0f, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
                     break;
                 case EVENT_LAND_GROUND:
                     me->SetReactState(REACT_AGGRESSIVE);
@@ -184,65 +185,47 @@ public:
     }
 };
 
-class spell_saviana_conflagration_init : public SpellScriptLoader
+class spell_saviana_conflagration_init : public SpellScript
 {
-public:
-    spell_saviana_conflagration_init() : SpellScriptLoader("spell_saviana_conflagration_init") { }
+    PrepareSpellScript(spell_saviana_conflagration_init);
 
-    class spell_saviana_conflagration_init_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_saviana_conflagration_init_SpellScript);
+        return ValidateSpellInfo({ SPELL_FLAME_BEACON, SPELL_CONFLAGRATION_MISSLE });
+    }
 
-        void HandleDummy(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            GetCaster()->CastSpell(GetHitUnit(), SPELL_FLAME_BEACON, true);
-            GetCaster()->CastSpell(GetHitUnit(), SPELL_CONFLAGRATION_MISSLE, true);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_saviana_conflagration_init_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void HandleDummy(SpellEffIndex effIndex)
     {
-        return new spell_saviana_conflagration_init_SpellScript();
+        PreventHitDefaultEffect(effIndex);
+        GetCaster()->CastSpell(GetHitUnit(), SPELL_FLAME_BEACON, true);
+        GetCaster()->CastSpell(GetHitUnit(), SPELL_CONFLAGRATION_MISSLE, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_saviana_conflagration_init::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
-class spell_saviana_conflagration_throwback : public SpellScriptLoader
+class spell_saviana_conflagration_throwback : public SpellScript
 {
-public:
-    spell_saviana_conflagration_throwback() : SpellScriptLoader("spell_saviana_conflagration_throwback") { }
+    PrepareSpellScript(spell_saviana_conflagration_throwback);
 
-    class spell_saviana_conflagration_throwback_SpellScript : public SpellScript
+    void HandleScript(SpellEffIndex effIndex)
     {
-        PrepareSpellScript(spell_saviana_conflagration_throwback_SpellScript);
+        PreventHitDefaultEffect(effIndex);
+        GetHitUnit()->CastSpell(GetCaster(), uint32(GetEffectValue()), true);
+    }
 
-        void HandleScript(SpellEffIndex effIndex)
-        {
-            PreventHitDefaultEffect(effIndex);
-            GetHitUnit()->CastSpell(GetCaster(), uint32(GetEffectValue()), true);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_saviana_conflagration_throwback_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_saviana_conflagration_throwback_SpellScript();
+        OnEffectHitTarget += SpellEffectFn(spell_saviana_conflagration_throwback::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
 void AddSC_boss_saviana_ragefire()
 {
     new boss_saviana_ragefire();
-    new spell_saviana_conflagration_init();
-    new spell_saviana_conflagration_throwback();
+    RegisterSpellScript(spell_saviana_conflagration_init);
+    RegisterSpellScript(spell_saviana_conflagration_throwback);
 }
-

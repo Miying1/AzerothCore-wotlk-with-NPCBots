@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -26,7 +26,6 @@
 #include "SpellInfo.h"
 #include "SpellScript.h"
 
-// Ours
 enum saeed
 {
     NPC_PROTECTORATE_AVENGER        = 21805,
@@ -100,11 +99,11 @@ public:
             npc_escortAI::MoveInLineOfSight(who);
         }
 
-        void SetGUID(ObjectGuid playerGUID, int32 type) override
+        void SetGUID(ObjectGuid const& playerGUID, int32 type) override
         {
             if (type == DATA_START_ENCOUNTER)
             {
-                Start(true, true, playerGUID);
+                Start(true, playerGUID);
                 SetEscortPaused(true);
                 started = true;
 
@@ -127,7 +126,7 @@ public:
 
                 me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_ACTIVE);
                 Talk(SAY_SAEED_0);
-                events.ScheduleEvent(EVENT_START_WALK, 3000);
+                events.ScheduleEvent(EVENT_START_WALK, 3s);
             }
             else if (type == DATA_START_FIGHT)
             {
@@ -165,6 +164,7 @@ public:
                 }
         }
 
+        using CreatureAI::WaypointReached;
         void WaypointReached(uint32 i) override
         {
             Player* player = GetPlayerForEscort();
@@ -179,7 +179,7 @@ public:
                     SetEscortPaused(true);
                     break;
                 case 18:
-                    events.ScheduleEvent(EVENT_START_FIGHT1, 0);
+                    events.ScheduleEvent(EVENT_START_FIGHT1, 0ms);
                     SetEscortPaused(true);
                     break;
                 case 19:
@@ -228,7 +228,7 @@ public:
                     break;
                 case EVENT_START_FIGHT1:
                     Talk(SAY_SAEED_3);
-                    events.ScheduleEvent(EVENT_START_FIGHT2, 3000);
+                    events.ScheduleEvent(EVENT_START_FIGHT2, 3s);
                     break;
                 case EVENT_START_FIGHT2:
                     if (Creature* dimensius = me->FindNearestCreature(NPC_DIMENSIUS, 50.0f))
@@ -289,7 +289,6 @@ public:
     }
 };
 
-// Theirs
 /*######
 ## npc_commander_dawnforge
 ######*/
@@ -581,137 +580,6 @@ public:
 };
 
 /*######
-## npc_phase_hunter
-######*/
-
-enum PhaseHunterData
-{
-    QUEST_RECHARGING_THE_BATTERIES  = 10190,
-
-    NPC_PHASE_HUNTER_ENTRY          = 18879,
-    NPC_DRAINED_PHASE_HUNTER_ENTRY  = 19595,
-
-    EMOTE_WEAK                      = 0,
-
-    // Spells
-    SPELL_RECHARGING_BATTERY        = 34219,
-    SPELL_PHASE_SLIP                = 36574,
-    SPELL_MANA_BURN                 = 13321,
-    SPELL_MATERIALIZE               = 34804,
-    SPELL_DE_MATERIALIZE            = 34814,
-};
-
-class npc_phase_hunter : public CreatureScript
-{
-public:
-    npc_phase_hunter() : CreatureScript("npc_phase_hunter") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_phase_hunterAI(creature);
-    }
-
-    struct npc_phase_hunterAI : public ScriptedAI
-    {
-        npc_phase_hunterAI(Creature* creature) : ScriptedAI(creature) { }
-
-        bool Weak;
-        bool Materialize;
-        bool Drained;
-        uint8 WeakPercent;
-
-        ObjectGuid PlayerGUID;
-
-        uint32 ManaBurnTimer;
-
-        void Reset() override
-        {
-            Weak = false;
-            Materialize = false;
-            Drained = false;
-            WeakPercent = 25 + (rand() % 16); // 25-40
-
-            PlayerGUID.Clear();
-
-            ManaBurnTimer = 5000 + (rand() % 3 * 1000); // 5-8 sec cd
-
-            if (me->GetEntry() == NPC_DRAINED_PHASE_HUNTER_ENTRY)
-                me->UpdateEntry(NPC_PHASE_HUNTER_ENTRY);
-        }
-
-        void JustEngagedWith(Unit* who) override
-        {
-            if (who->GetTypeId() == TYPEID_PLAYER)
-                PlayerGUID = who->GetGUID();
-        }
-
-        //void SpellHit(Unit* /*caster*/, SpellInfo const* /*spell*/)
-        //{
-        //    DoCast(me, SPELL_DE_MATERIALIZE);
-        //}
-
-        void UpdateAI(uint32 diff) override
-        {
-            if (!Materialize)
-            {
-                DoCast(me, SPELL_MATERIALIZE);
-                Materialize = true;
-            }
-
-            if (me->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) || me->HasUnitState(UNIT_STATE_ROOT)) // if the mob is rooted/slowed by spells eg.: Entangling Roots, Frost Nova, Hamstring, Crippling Poison, etc. => remove it
-                DoCast(me, SPELL_PHASE_SLIP);
-
-            if (!UpdateVictim())
-                return;
-
-            // some code to cast spell Mana Burn on random target which has mana
-            if (ManaBurnTimer <= diff)
-            {
-                std::list<HostileReference*> AggroList = me->GetThreatMgr().GetThreatList();
-                std::list<Unit*> UnitsWithMana;
-
-                for (std::list<HostileReference*>::const_iterator itr = AggroList.begin(); itr != AggroList.end(); ++itr)
-                {
-                    if (Unit* unit = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid()))
-                    {
-                        if (unit->GetCreateMana() > 0)
-                            UnitsWithMana.push_back(unit);
-                    }
-                }
-                if (!UnitsWithMana.empty())
-                {
-                    DoCast(Acore::Containers::SelectRandomContainerElement(UnitsWithMana), SPELL_MANA_BURN);
-                    ManaBurnTimer = 8000 + (rand() % 10 * 1000); // 8-18 sec cd
-                }
-                else
-                    ManaBurnTimer = 3500;
-            }
-            else ManaBurnTimer -= diff;
-
-            if (Player* player = ObjectAccessor::GetPlayer(*me, PlayerGUID)) // start: support for quest 10190
-            {
-                if (!Weak && HealthBelowPct(WeakPercent)
-                        && player->GetQuestStatus(QUEST_RECHARGING_THE_BATTERIES) == QUEST_STATUS_INCOMPLETE)
-                {
-                    Talk(EMOTE_WEAK);
-                    Weak = true;
-                }
-                if (Weak && !Drained && me->HasAura(SPELL_RECHARGING_BATTERY))
-                {
-                    Drained = true;
-                    int32 uHpPct = int32(me->GetHealthPct());
-                    me->SetHealth(me->CountPctFromMaxHealth(uHpPct));
-                    me->LowerPlayerDamageReq(me->GetMaxHealth() - me->GetHealth());
-                    me->SetInCombatWith(player);
-                }
-            } // end: support for quest 10190
-
-            DoMeleeAttackIfReady();
-        }
-    };
-};
-
-/*######
 ## npc_bessy
 ######*/
 enum BessyData
@@ -738,7 +606,8 @@ public:
             creature->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
             creature->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             creature->AI()->Talk(SAY_BESSY_0);
-            CAST_AI(npc_escortAI, (creature->AI()))->Start(true, false, player->GetGUID());
+            creature->SetWalk(true);
+            CAST_AI(npc_escortAI, (creature->AI()))->Start(true, player->GetGUID());
         }
         return true;
     }
@@ -758,6 +627,7 @@ public:
                 player->FailQuest(Q_ALMABTRIEB);
         }
 
+        using CreatureAI::WaypointReached;
         void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
@@ -841,6 +711,7 @@ public:
             uiTakeTimer = 3000;
         }
 
+        using CreatureAI::WaypointReached;
         void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
@@ -862,7 +733,7 @@ public:
                     }
                     break;
                 case 36: //return and quest_complete
-                    player->CompleteQuest(QUEST_MARK_V_IS_ALIVE);
+                    player->GroupEventHappens(QUEST_MARK_V_IS_ALIVE, me);
                     break;
             }
         }
@@ -904,11 +775,18 @@ public:
             if (npc_maxx_a_million_escortAI* pEscortAI = CAST_AI(npc_maxx_a_million_escort::npc_maxx_a_million_escortAI, creature->AI()))
             {
                 creature->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
-                pEscortAI->Start(false, false, player->GetGUID());
+                creature->SetWalk(true);
+                pEscortAI->Start(false, player->GetGUID());
             }
         }
         return true;
     }
+};
+
+enum PhaseHunterData
+{
+    NPC_PHASE_HUNTER_ENTRY         = 18879,
+    NPC_DRAINED_PHASE_HUNTER_ENTRY = 19595
 };
 
 class spell_q10190_battery_recharging_blaster : public SpellScript
@@ -918,7 +796,7 @@ class spell_q10190_battery_recharging_blaster : public SpellScript
     SpellCastResult CheckCast()
     {
         if (Unit* target = GetExplTargetUnit())
-            if (target->GetHealthPct() <= 25.0f)
+            if (target->GetHealthPct() <= 35.0f)
                 return SPELL_CAST_OK;
 
         return SPELL_FAILED_BAD_TARGETS;
@@ -941,7 +819,7 @@ class spell_q10190_battery_recharging_blaster_aura : public AuraScript
 
         if (Creature* phasehunter = GetTarget()->ToCreature())
             if (phasehunter->GetEntry() == NPC_PHASE_HUNTER_ENTRY)
-                phasehunter->UpdateEntry(NPC_DRAINED_PHASE_HUNTER_ENTRY);
+                phasehunter->UpdateEntry(NPC_DRAINED_PHASE_HUNTER_ENTRY, nullptr, false);
     }
 
     void Register() override
@@ -983,16 +861,11 @@ public:
 
 void AddSC_netherstorm()
 {
-    // Ours
     new npc_captain_saeed();
-
-    // Theirs
     new npc_commander_dawnforge();
     new at_commander_dawnforge();
-    new npc_phase_hunter();
     new npc_bessy();
     new npc_maxx_a_million_escort();
     RegisterSpellAndAuraScriptPair(spell_q10190_battery_recharging_blaster, spell_q10190_battery_recharging_blaster_aura);
     RegisterSpellScript(spell_challenge_veraku);
 }
-

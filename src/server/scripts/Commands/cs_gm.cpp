@@ -1,26 +1,19 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-/* ScriptData
-Name: gm_commandscript
-%Complete: 100
-Comment: All gm related commands
-Category: commandscripts
-EndScriptData */
 
 #include "AccountMgr.h"
 #include "Chat.h"
@@ -30,6 +23,7 @@ EndScriptData */
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "Realm.h"
 #include "World.h"
 #include "WorldSession.h"
@@ -45,13 +39,14 @@ public:
     {
         static ChatCommandTable gmCommandTable =
         {
-            { "chat",    HandleGMChatCommand,       SEC_GAMEMASTER,     Console::No  },
-            { "fly",     HandleGMFlyCommand,        SEC_GAMEMASTER,     Console::No  },
-            { "ingame",  HandleGMListIngameCommand, SEC_PLAYER,         Console::Yes },
-            { "list",    HandleGMListFullCommand,   SEC_ADMINISTRATOR,  Console::Yes },
-            { "visible", HandleGMVisibleCommand,    SEC_GAMEMASTER,     Console::No  },
-            { "on",      HandleGMOnCommand,         SEC_MODERATOR,      Console::No  },
-            { "off",     HandleGMOffCommand,        SEC_MODERATOR,      Console::No  }
+            { "chat",      HandleGMChatCommand,       rbac::RBAC_PERM_COMMAND_GM_CHAT,    Console::No  },
+            { "fly",       HandleGMFlyCommand,        rbac::RBAC_PERM_COMMAND_GM_FLY,     Console::No  },
+            { "ingame",    HandleGMListIngameCommand, rbac::RBAC_PERM_COMMAND_GM_INGAME,  Console::Yes },
+            { "list",      HandleGMListFullCommand,   rbac::RBAC_PERM_COMMAND_GM_LIST,    Console::Yes },
+            { "visible",   HandleGMVisibleCommand,    rbac::RBAC_PERM_COMMAND_GM_VISIBLE, Console::No  },
+            { "on",        HandleGMOnCommand,         rbac::RBAC_PERM_COMMAND_GM,         Console::No  },
+            { "off",       HandleGMOffCommand,        rbac::RBAC_PERM_COMMAND_GM,         Console::No  },
+            { "spectator", HandleGMSpectatorCommand,  rbac::RBAC_PERM_COMMAND_GM,         Console::No  },
         };
         static ChatCommandTable commandTable =
         {
@@ -68,22 +63,22 @@ public:
             if (!enableArg)
             {
                 if (!AccountMgr::IsPlayerAccount(session->GetSecurity()) && session->GetPlayer()->isGMChat())
-                    session->SendNotification(LANG_GM_CHAT_ON);
+                    handler->SendNotification(LANG_GM_CHAT_ON);
                 else
-                    session->SendNotification(LANG_GM_CHAT_OFF);
+                    handler->SendNotification(LANG_GM_CHAT_OFF);
                 return true;
             }
 
             if (*enableArg)
             {
                 session->GetPlayer()->SetGMChat(true);
-                session->SendNotification(LANG_GM_CHAT_ON);
+                handler->SendNotification(LANG_GM_CHAT_ON);
                 return true;
             }
             else
             {
                 session->GetPlayer()->SetGMChat(false);
-                session->SendNotification(LANG_GM_CHAT_OFF);
+                handler->SendNotification(LANG_GM_CHAT_OFF);
                 return true;
             }
         }
@@ -92,22 +87,25 @@ public:
         return false;
     }
 
-    static bool HandleGMFlyCommand(ChatHandler* handler, bool enable)
+    static bool HandleGMFlyCommand(ChatHandler* handler, Optional<bool> enable)
     {
         Player* target = handler->getSelectedPlayer();
         if (!target)
             target = handler->GetSession()->GetPlayer();
 
-        WorldPacket data(12);
-        if (enable)
-            data.SetOpcode(SMSG_MOVE_SET_CAN_FLY);
+        bool canFly = false;
+        if (enable.has_value())
+        {
+            canFly = *enable;
+            target->SetCanFly(canFly);
+        }
         else
-            data.SetOpcode(SMSG_MOVE_UNSET_CAN_FLY);
+        {
+            canFly = !handler->GetSession()->GetPlayer()->CanFly();
+            target->SetCanFly(canFly);
+        }
 
-        data << target->GetPackGUID();
-        data << uint32(0);                                      // unknown
-        target->SendMessageToSet(&data, true);
-        handler->PSendSysMessage(LANG_COMMAND_FLYMODE_STATUS, handler->GetNameLink(target).c_str(), enable ? "on" : "off");
+        handler->PSendSysMessage(LANG_COMMAND_FLYMODE_STATUS, handler->GetNameLink(target), canFly ? "on" : "off");
         return true;
     }
 
@@ -139,9 +137,9 @@ public:
                 if ((max + max2 + size) == 16)
                     max2 = max - 1;
                 if (handler->GetSession())
-                    handler->PSendSysMessage("|    %s GMLevel %u", name.c_str(), security);
+                    handler->PSendSysMessage("|    {} GMLevel {}", name, security);
                 else
-                    handler->PSendSysMessage("|%*s%s%*s|   %u  |", max, " ", name.c_str(), max2, " ", security);
+                    handler->PSendSysMessage("|{}{}{}|   {}  |", max, " ", name, max2, " ", security);
             }
         }
         if (footer)
@@ -175,9 +173,9 @@ public:
                 if ((max + max2 + name.length()) == 16)
                     max2 = max - 1;
                 if (handler->GetSession())
-                    handler->PSendSysMessage("|    %s GMLevel %u", name.c_str(), security);
+                    handler->PSendSysMessage("|    {} GMLevel {}", name, security);
                 else
-                    handler->PSendSysMessage("|%*s%s%*s|   %u  |", max, " ", name.c_str(), max2, " ", security);
+                    handler->PSendSysMessage("|{}{}{}|   {}  |", max, " ", name, max2, " ", security);
             } while (result->NextRow());
             handler->SendSysMessage("========================");
         }
@@ -206,14 +204,14 @@ public:
 
             _player->SetGMVisible(true);
             _player->UpdateObjectVisibility();
-            handler->GetSession()->SendNotification(LANG_INVISIBLE_VISIBLE);
+            handler->SendNotification(LANG_INVISIBLE_VISIBLE);
         }
         else
         {
             _player->AddAura(VISUAL_AURA, _player);
             _player->SetGMVisible(false);
             _player->UpdateObjectVisibility();
-            handler->GetSession()->SendNotification(LANG_INVISIBLE_INVISIBLE);
+            handler->SendNotification(LANG_INVISIBLE_INVISIBLE);
         }
 
         return true;
@@ -223,7 +221,7 @@ public:
     {
         handler->GetPlayer()->SetGameMaster(true);
         handler->GetPlayer()->UpdateTriggerVisibility();
-        handler->GetSession()->SendNotification(LANG_GM_ON);
+        handler->SendNotification(LANG_GM_ON);
         return true;
     }
 
@@ -231,7 +229,20 @@ public:
     {
         handler->GetPlayer()->SetGameMaster(false);
         handler->GetPlayer()->UpdateTriggerVisibility();
-        handler->GetSession()->SendNotification(LANG_GM_OFF);
+        handler->SendNotification(LANG_GM_OFF);
+        return true;
+    }
+
+    static bool HandleGMSpectatorCommand(ChatHandler* handler, Optional<bool> enable)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+
+        if (enable.has_value())
+            player->SetGMSpectator(*enable);
+        else
+            player->SetGMSpectator(!player->IsGMSpectator());
+        handler->SendNotification(player->IsGMSpectator() ? LANG_GM_SPECTATOR_ON : LANG_GM_SPECTATOR_OFF);
+
         return true;
     }
 };

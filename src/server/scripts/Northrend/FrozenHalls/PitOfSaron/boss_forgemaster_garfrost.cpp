@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -17,10 +17,11 @@
 
 #include "CreatureGroups.h"
 #include "CreatureScript.h"
-#include "Opcodes.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
+#include "SharedDefines.h"
 #include "SpellAuras.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "pit_of_saron.h"
@@ -55,11 +56,11 @@ enum Spells
 
     SPELL_CHILLING_WAVE             = 68778,
     SPELL_DEEP_FREEZE               = 70381,
-};
 
-#define SPELL_FORGE_BLADE           RAID_MODE(68774, 70334)
-#define SPELL_FORGE_MACE            RAID_MODE(68785, 70335)
-#define SPELL_SARONITE_TRIGGERED    RAID_MODE(68789, 70851)
+    SPELL_FORGE_BLADE               = 68774,
+    SPELL_FORGE_MACE                = 68785,
+    SPELL_SARONITE_TRIGGERED        = 68789,
+};
 
 enum Events
 {
@@ -113,7 +114,7 @@ public:
 
             Talk(SAY_AGGRO);
             DoZoneInCombat();
-            events.RescheduleEvent(EVENT_SPELL_THROW_SARONITE, 5000ms, 7500ms);
+            events.RescheduleEvent(EVENT_SPELL_THROW_SARONITE, 5s, 7500ms);
 
             if (pInstance)
                 pInstance->SetData(DATA_GARFROST, IN_PROGRESS);
@@ -155,52 +156,50 @@ public:
             if (phase == 1)
             {
                 me->SetControlled(true, UNIT_STATE_ROOT);
-                me->CastSpell(me, SPELL_FORGE_BLADE, false);
+                if (me->CastSpell(me, SPELL_FORGE_BLADE, false) == SPELL_CAST_OK)
+                {
+                    events.RescheduleEvent(EVENT_SPELL_CHILLING_WAVE, 10s);
+                    SetEquipmentSlots(false, EQUIP_ID_SWORD);
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    me->SetControlled(false, UNIT_STATE_ROOT);
+                    me->DisableRotate(false);
+                    if (me->GetVictim())
+                    {
+                        AttackStart(me->GetVictim());
+                        me->SetTarget(me->GetVictim()->GetGUID());
+                    }
+                }
                 Talk(SAY_HP_66);
             }
             else if (phase == 2)
             {
                 me->SetControlled(true, UNIT_STATE_ROOT);
-                me->RemoveAurasDueToSpell(SPELL_FORGE_BLADE);
-                me->CastSpell(me, SPELL_FORGE_MACE, false);
+                me->RemoveAurasDueToSpell(sSpellMgr->GetSpellIdForDifficulty(SPELL_FORGE_BLADE, me));
+                if (me->CastSpell(me, SPELL_FORGE_MACE, false) == SPELL_CAST_OK)
+                {
+                    events.RescheduleEvent(EVENT_SPELL_DEEP_FREEZE, 10s);
+                    SetEquipmentSlots(false, EQUIP_ID_MACE);
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    me->SetControlled(false, UNIT_STATE_ROOT);
+                    me->DisableRotate(false);
+                    if (me->GetVictim())
+                    {
+                        AttackStart(me->GetVictim());
+                        me->SetTarget(me->GetVictim()->GetGUID());
+                    }
+                }
                 Talk(SAY_HP_33);
             }
         }
 
         void SpellHitTarget(Unit*  /*target*/, SpellInfo const* spell) override
         {
-            if (spell->Id == uint32(SPELL_SARONITE_TRIGGERED))
+            if (spell->Id == sSpellMgr->GetSpellIdForDifficulty(SPELL_SARONITE_TRIGGERED, me))
             {
                 if (bCanSayBoulderHit)
                 {
                     bCanSayBoulderHit = false;
                     Talk(SAY_BOULDER_HIT);
-                }
-            }
-            if (spell->Id == uint32(SPELL_FORGE_BLADE))
-            {
-                events.RescheduleEvent(EVENT_SPELL_CHILLING_WAVE, 10000);
-                SetEquipmentSlots(false, EQUIP_ID_SWORD);
-                me->SetReactState(REACT_AGGRESSIVE);
-                me->SetControlled(false, UNIT_STATE_ROOT);
-                me->DisableRotate(false);
-                if (me->GetVictim())
-                {
-                    AttackStart(me->GetVictim());
-                    me->SetTarget(me->GetVictim()->GetGUID());
-                }
-            }
-            else if (spell->Id == uint32(SPELL_FORGE_MACE))
-            {
-                events.RescheduleEvent(EVENT_SPELL_DEEP_FREEZE, 10s);
-                SetEquipmentSlots(false, EQUIP_ID_MACE);
-                me->SetReactState(REACT_AGGRESSIVE);
-                me->SetControlled(false, UNIT_STATE_ROOT);
-                me->DisableRotate(false);
-                if (me->GetVictim())
-                {
-                    AttackStart(me->GetVictim());
-                    me->SetTarget(me->GetVictim()->GetGUID());
                 }
             }
         }
@@ -234,7 +233,7 @@ public:
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
 
-            switch(events.ExecuteEvent())
+            switch (events.ExecuteEvent())
             {
                 case 0:
                     break;
@@ -281,7 +280,7 @@ public:
 
         void KilledUnit(Unit* who) override
         {
-            if (who->GetTypeId() == TYPEID_PLAYER)
+            if (who->IsPlayer())
                 Talk(SAY_SLAY);
         }
 
@@ -299,78 +298,67 @@ public:
     }
 };
 
-class spell_garfrost_permafrost : public SpellScriptLoader
+class spell_garfrost_permafrost : public SpellScript
 {
-public:
-    spell_garfrost_permafrost() : SpellScriptLoader("spell_garfrost_permafrost") { }
+    PrepareSpellScript(spell_garfrost_permafrost);
 
-    class spell_garfrost_permafrost_SpellScript : public SpellScript
+    std::list<WorldObject*> targetList;
+
+    void Unload() override
     {
-        PrepareSpellScript(spell_garfrost_permafrost_SpellScript);
+        targetList.clear();
+    }
 
-        std::list<WorldObject*> targetList;
-
-        void Unload() override
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        if (Unit* caster = GetCaster())
         {
-            targetList.clear();
-        }
+            std::list<GameObject*> blockList;
+            caster->GetGameObjectListWithEntryInGrid(blockList, GO_SARONITE_ROCK, 100.0f);
 
-        void FilterTargets(std::list<WorldObject*>& targets)
-        {
-            if (Unit* caster = GetCaster())
+            if (!blockList.empty())
             {
-                std::list<GameObject*> blockList;
-                caster->GetGameObjectListWithEntryInGrid(blockList, GO_SARONITE_ROCK, 100.0f);
-
-                if (!blockList.empty())
-                {
-                    for (std::list<WorldObject*>::iterator itrU = targets.begin(); itrU != targets.end(); ++itrU)
-                        if (WorldObject* target = (*itrU))
+                for (std::list<WorldObject*>::iterator itrU = targets.begin(); itrU != targets.end(); ++itrU)
+                    if (WorldObject* target = (*itrU))
+                    {
+                        bool valid = true;
+                        if (!caster->IsWithinMeleeRange(target->ToUnit()))
+                            for (std::list<GameObject*>::const_iterator itr = blockList.begin(); itr != blockList.end(); ++itr)
+                                if (!(*itr)->IsInvisibleDueToDespawn())
+                                    if ((*itr)->IsInBetween(caster, target, 4.0f))
+                                    {
+                                        valid = false;
+                                        break;
+                                    }
+                        if (valid)
                         {
-                            bool valid = true;
-                            if (!caster->IsWithinMeleeRange(target->ToUnit()))
-                                for (std::list<GameObject*>::const_iterator itr = blockList.begin(); itr != blockList.end(); ++itr)
-                                    if (!(*itr)->IsInvisibleDueToDespawn())
-                                        if ((*itr)->IsInBetween(caster, target, 4.0f))
-                                        {
-                                            valid = false;
-                                            break;
-                                        }
-                            if (valid)
-                            {
-                                if (Aura* aur = target->ToUnit()->GetAura(70336))
-                                    if (aur->GetStackAmount() >= 10 && caster->GetTypeId() == TYPEID_UNIT)
-                                        caster->ToCreature()->AI()->SetData(1, aur->GetStackAmount());
-                                targetList.push_back(*itrU);
-                            }
+                            if (Aura* aur = target->ToUnit()->GetAura(70336))
+                                if (aur->GetStackAmount() >= 10 && caster->IsCreature())
+                                    caster->ToCreature()->AI()->SetData(1, aur->GetStackAmount());
+                            targetList.push_back(*itrU);
                         }
-                }
-                else
-                {
-                    targetList = targets;
-                    return;
-                }
+                    }
             }
-
-            targets = targetList;
+            else
+            {
+                targetList = targets;
+                return;
+            }
         }
 
-        void FilterTargetsNext(std::list<WorldObject*>& targets)
-        {
-            targets = targetList;
-        }
+        targets = targetList;
+    }
 
-        void Register() override
-        {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost_SpellScript::FilterTargetsNext, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost_SpellScript::FilterTargetsNext, EFFECT_2, TARGET_UNIT_DEST_AREA_ENEMY);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void FilterTargetsNext(std::list<WorldObject*>& targets)
     {
-        return new spell_garfrost_permafrost_SpellScript();
+        targets = targetList;
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost::FilterTargetsNext, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_garfrost_permafrost::FilterTargetsNext, EFFECT_2, TARGET_UNIT_DEST_AREA_ENEMY);
     }
 };
 
@@ -378,6 +366,5 @@ void AddSC_boss_garfrost()
 {
     new boss_garfrost();
 
-    new spell_garfrost_permafrost();
+    RegisterSpellScript(spell_garfrost_permafrost);
 }
-

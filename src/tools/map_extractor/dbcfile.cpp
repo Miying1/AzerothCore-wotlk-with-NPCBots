@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -20,7 +20,6 @@
 #include "dbcfile.h"
 
 #include "mpq_libmpq04.h"
-#include <utility>
 
 DBCFile::DBCFile(std::string  filename):
     filename(std::move(filename)), recordSize(0), recordCount(0), fieldCount(0), stringSize(0), data(nullptr), stringTable(nullptr)
@@ -58,7 +57,7 @@ bool DBCFile::open()
     data = new unsigned char[recordSize * recordCount + stringSize];
     stringTable = data + recordSize * recordCount;
 
-    size_t data_size = recordSize * recordCount + stringSize;
+    std::size_t data_size = recordSize * recordCount + stringSize;
     if (f.read(data, data_size) != data_size)
         return false;
     f.close();
@@ -69,18 +68,18 @@ DBCFile::~DBCFile()
     delete [] data;
 }
 
-DBCFile::Record DBCFile::getRecord(size_t id)
+DBCFile::Record DBCFile::getRecord(std::size_t id)
 {
     assert(data);
     return Record(*this, data + id * recordSize);
 }
 
-size_t DBCFile::getMaxId()
+std::size_t DBCFile::getMaxId()
 {
     assert(data);
 
-    size_t maxId = 0;
-    for (size_t i = 0; i < getRecordCount(); ++i)
+    std::size_t maxId = 0;
+    for (std::size_t i = 0; i < getRecordCount(); ++i)
     {
         if (maxId < getRecord(i).getUInt(0))
             maxId = getRecord(i).getUInt(0);

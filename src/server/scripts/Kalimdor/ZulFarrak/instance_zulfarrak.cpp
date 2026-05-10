@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -16,13 +16,15 @@
  */
 
 #include "CreatureScript.h"
+#include "CellImpl.h"
 #include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
+#include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "TemporarySummon.h"
 #include "zulfarrak.h"
-#include "GridNotifiersImpl.h"
 
 enum Misc
 {
@@ -104,7 +106,7 @@ static PyramidEventData pyramidSpawns[pyramidSpawnTotal] =
 class instance_zulfarrak : public InstanceMapScript
 {
 public:
-    instance_zulfarrak() : InstanceMapScript(ZFScriptName, 209) {}
+    instance_zulfarrak() : InstanceMapScript(ZFScriptName, MAP_ZUL_FARRAK) {}
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override
     {
@@ -435,7 +437,7 @@ public:
             {
                 if (Creature* add = instance->GetCreature(*addsAtBase.begin()))
                 {
-                    add->GetMotionMaster()->MovePath(PATH_ADDS, false);
+                    add->GetMotionMaster()->MoveWaypoint(PATH_ADDS, false);
                     movedadds.push_back(add->GetGUID());
                 }
 
@@ -457,86 +459,63 @@ public:
 };
 
 // 10247 - Summon Zul'Farrak Zombies
-class spell_zulfarrak_summon_zulfarrak_zombies : public SpellScriptLoader
+class spell_zulfarrak_summon_zulfarrak_zombies : public SpellScript
 {
-public:
-    spell_zulfarrak_summon_zulfarrak_zombies() : SpellScriptLoader("spell_zulfarrak_summon_zulfarrak_zombies") { }
+    PrepareSpellScript(spell_zulfarrak_summon_zulfarrak_zombies);
 
-    class spell_zulfarrak_summon_zulfarrak_zombies_SpellScript : public SpellScript
+    void HandleSummon(SpellEffIndex effIndex)
     {
-        PrepareSpellScript(spell_zulfarrak_summon_zulfarrak_zombies_SpellScript);
-
-        void HandleSummon(SpellEffIndex effIndex)
+        if (effIndex == EFFECT_0)
         {
-            if (effIndex == EFFECT_0)
-            {
-                if (roll_chance_i(30))
-                {
-                    PreventHitDefaultEffect(effIndex);
-                    return;
-                }
-            }
-            else if (roll_chance_i(40))
+            if (roll_chance_i(30))
             {
                 PreventHitDefaultEffect(effIndex);
                 return;
             }
         }
-
-        void Register() override
+        else if (roll_chance_i(40))
         {
-            OnEffectHit += SpellEffectFn(spell_zulfarrak_summon_zulfarrak_zombies_SpellScript::HandleSummon, EFFECT_0, SPELL_EFFECT_SUMMON);
-            OnEffectHit += SpellEffectFn(spell_zulfarrak_summon_zulfarrak_zombies_SpellScript::HandleSummon, EFFECT_1, SPELL_EFFECT_SUMMON);
+            PreventHitDefaultEffect(effIndex);
+            return;
         }
-    };
+    }
 
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_zulfarrak_summon_zulfarrak_zombies_SpellScript;
+        OnEffectHit += SpellEffectFn(spell_zulfarrak_summon_zulfarrak_zombies::HandleSummon, EFFECT_0, SPELL_EFFECT_SUMMON);
+        OnEffectHit += SpellEffectFn(spell_zulfarrak_summon_zulfarrak_zombies::HandleSummon, EFFECT_1, SPELL_EFFECT_SUMMON);
     }
 };
 
 // 10738 - Unlocking
-class spell_zulfarrak_unlocking : public SpellScriptLoader
+class spell_zulfarrak_unlocking : public SpellScript
 {
-public:
-    spell_zulfarrak_unlocking() : SpellScriptLoader("spell_zulfarrak_unlocking") { }
+    PrepareSpellScript(spell_zulfarrak_unlocking);
 
-    class spell_zulfarrak_unlocking_SpellScript : public SpellScript
+    void HandleOpenLock(SpellEffIndex  /*effIndex*/)
     {
-        PrepareSpellScript(spell_zulfarrak_unlocking_SpellScript);
-
-        void HandleOpenLock(SpellEffIndex  /*effIndex*/)
+        GameObject* cage = GetHitGObj();
+        std::list<WorldObject*> cagesList;
+        Acore::AllWorldObjectsInRange objects(GetCaster(), 15.0f);
+        Acore::WorldObjectListSearcher<Acore::AllWorldObjectsInRange> searcher(GetCaster(), cagesList, objects);
+        Cell::VisitObjects(GetCaster(), searcher, 15.0f);
+        for (std::list<WorldObject*>::const_iterator itr = cagesList.begin(); itr != cagesList.end(); ++itr)
         {
-            GameObject* cage = GetHitGObj();
-            std::list<WorldObject*> cagesList;
-            Acore::AllWorldObjectsInRange objects(GetCaster(), 15.0f);
-            Acore::WorldObjectListSearcher<Acore::AllWorldObjectsInRange> searcher(GetCaster(), cagesList, objects);
-            Cell::VisitAllObjects(GetCaster(), searcher, 15.0f);
-            for (std::list<WorldObject*>::const_iterator itr = cagesList.begin(); itr != cagesList.end(); ++itr)
-            {
-                if (GameObject* go = (*itr)->ToGameObject())
-                    if (go->GetDisplayId() == cage->GetDisplayId())
-                        go->UseDoorOrButton(0, false, GetCaster());
-            }
+            if (GameObject* go = (*itr)->ToGameObject())
+                if (go->GetDisplayId() == cage->GetDisplayId())
+                    go->UseDoorOrButton(0, false, GetCaster());
         }
+    }
 
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_zulfarrak_unlocking_SpellScript::HandleOpenLock, EFFECT_0, SPELL_EFFECT_OPEN_LOCK);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_zulfarrak_unlocking_SpellScript();
+        OnEffectHitTarget += SpellEffectFn(spell_zulfarrak_unlocking::HandleOpenLock, EFFECT_0, SPELL_EFFECT_OPEN_LOCK);
     }
 };
 
 void AddSC_instance_zulfarrak()
 {
     new instance_zulfarrak();
-    new spell_zulfarrak_summon_zulfarrak_zombies();
-    new spell_zulfarrak_unlocking();
+    RegisterSpellScript(spell_zulfarrak_summon_zulfarrak_zombies);
+    RegisterSpellScript(spell_zulfarrak_unlocking);
 }
-

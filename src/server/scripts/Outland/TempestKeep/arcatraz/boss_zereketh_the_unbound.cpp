@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -79,37 +79,7 @@ struct boss_zereketh_the_unbound : public BossAI
     }
 };
 
-// 36123, 39367 -- Seed of Corruption
-class spell_zereketh_seed_of_corruption: public AuraScript
-{
-    PrepareAuraScript(spell_zereketh_seed_of_corruption);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_CORRUPTION_PROC });
-    }
-
-    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
-    {
-        PreventDefaultAction();
-        uint32 val = GetSpellInfo()->GetEffect(EFFECT_1).BasePoints;
-        GetTarget()->RemoveAurasDueToSpell(GetSpellInfo()->Id);
-
-        if (GetCaster())
-        {
-            GetCaster()->CastCustomSpell(SPELL_CORRUPTION_PROC, SPELLVALUE_BASE_POINT0, val, GetTarget(), true);
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectProc += AuraEffectProcFn(spell_zereketh_seed_of_corruption::HandleProc, EFFECT_1, SPELL_AURA_DUMMY);
-    }
-};
-
 void AddSC_boss_zereketh_the_unbound()
 {
     RegisterArcatrazCreatureAI(boss_zereketh_the_unbound);
-    RegisterSpellScript(spell_zereketh_seed_of_corruption);
 }
-

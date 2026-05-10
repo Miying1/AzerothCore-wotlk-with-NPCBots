@@ -39,14 +39,8 @@ enum ArchmageSpecial
     ARCHMAGE_MOUNTID        = 2402
 };
 
-static const uint32 Archmage_spells_damage_arr[] =
-{ MAIN_ATTACK_1, BLIZZARD_1 };
-
-static const uint32 Archmage_spells_support_arr[] =
-{ SUMMON_WATER_ELEMENTAL_1 };
-
-static const std::vector<uint32> Archmage_spells_damage(FROM_ARRAY(Archmage_spells_damage_arr));
-static const std::vector<uint32> Archmage_spells_support(FROM_ARRAY(Archmage_spells_support_arr));
+static const std::vector<uint32> Archmage_spells_damage{ MAIN_ATTACK_1, BLIZZARD_1 };
+static const std::vector<uint32> Archmage_spells_support{ SUMMON_WATER_ELEMENTAL_1 };
 
 class archmage_bot : public CreatureScript
 {
@@ -116,7 +110,7 @@ public:
         void KilledUnit(Unit* u) override { bot_ai::KilledUnit(u); }
         void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override { bot_ai::EnterEvadeMode(why); }
         void MoveInLineOfSight(Unit* u) override { bot_ai::MoveInLineOfSight(u); }
-        void JustDied(Unit* u) override { UnsummonAll(); bot_ai::JustDied(u); }
+        void JustDied(Unit* u) override { UnsummonAll(false); bot_ai::JustDied(u); }
         void DoNonCombatActions(uint32 /*diff*/) { }
 
         void CheckAura(uint32 diff)
@@ -263,9 +257,9 @@ public:
             OnSpellHit(caster, spell);
         }
 
-        void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType) override
+        void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
         {
-            bot_ai::DamageDealt(victim, damage, damageType);
+            bot_ai::DamageDealt(victim, damage, damageType, damageSchoolMask);
         }
 
         void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellSchoolMask /*schoolMask*/) override
@@ -287,7 +281,7 @@ public:
         void SummonBotPet()
         {
             if (botPet)
-                UnsummonAll();
+                UnsummonAll(false);
 
             uint32 entry = BOT_PET_AWATER_ELEMENTAL;
 
@@ -308,10 +302,9 @@ public:
             botPet = myPet;
         }
 
-        void UnsummonAll() override
+        void UnsummonAll(bool savePets = true) override
         {
-            if (botPet)
-                botPet->ToTempSummon()->UnSummon();
+            UnsummonPet(savePets);
         }
 
         void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
@@ -320,7 +313,7 @@ public:
 
         void SummonedCreatureDespawn(Creature* summon) override
         {
-            //TC_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
+            //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
             if (summon == botPet)
                 botPet = nullptr;
         }
@@ -348,7 +341,7 @@ public:
 
         void Reset() override
         {
-            UnsummonAll();
+            UnsummonAll(false);
 
             checkAuraTimer = 0;
 

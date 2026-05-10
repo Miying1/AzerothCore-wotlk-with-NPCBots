@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -23,9 +23,7 @@
 #include <deque>
 #include <functional>
 #include <list>
-#include <memory>
 #include <set>
-#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -183,20 +181,20 @@ class ObjectGuid
         {
             switch (high)
             {
-                case HighGuid::Item:         return TYPEID_ITEM;
-                //case HighGuid::Container:    return TYPEID_CONTAINER; HighGuid::Container == HighGuid::Item currently
-                case HighGuid::Unit:         return TYPEID_UNIT;
-                case HighGuid::Pet:          return TYPEID_UNIT;
-                case HighGuid::Player:       return TYPEID_PLAYER;
-                case HighGuid::GameObject:   return TYPEID_GAMEOBJECT;
+                case HighGuid::Item:          return TYPEID_ITEM;
+                //case HighGuid::Container:   return TYPEID_CONTAINER; HighGuid::Container == HighGuid::Item currently
+                case HighGuid::Unit:          return TYPEID_UNIT;
+                case HighGuid::Pet:           return TYPEID_UNIT;
+                case HighGuid::Player:        return TYPEID_PLAYER;
+                case HighGuid::GameObject:    return TYPEID_GAMEOBJECT;
                 case HighGuid::DynamicObject: return TYPEID_DYNAMICOBJECT;
-                case HighGuid::Corpse:       return TYPEID_CORPSE;
-                case HighGuid::Mo_Transport: return TYPEID_GAMEOBJECT;
-                case HighGuid::Vehicle:      return TYPEID_UNIT;
+                case HighGuid::Corpse:        return TYPEID_CORPSE;
+                case HighGuid::Mo_Transport:  return TYPEID_GAMEOBJECT;
+                case HighGuid::Vehicle:       return TYPEID_UNIT;
                 // unknown
                 case HighGuid::Instance:
                 case HighGuid::Group:
-                default:                    return TYPEID_OBJECT;
+                default:                      return TYPEID_OBJECT;
             }
         }
 
@@ -271,7 +269,7 @@ class PackedGuid
         explicit PackedGuid(ObjectGuid guid) : _packedGuid(PACKED_GUID_MIN_BUFFER_SIZE) { _packedGuid.appendPackGUID(guid.GetRawValue()); }
 
         void Set(uint64 guid) { _packedGuid.wpos(0); _packedGuid.appendPackGUID(guid); }
-        void Set(ObjectGuid guid) { _packedGuid.wpos(0); _packedGuid.appendPackGUID(guid.GetRawValue()); }
+        void Set(ObjectGuid const& guid) { _packedGuid.wpos(0); _packedGuid.appendPackGUID(guid.GetRawValue()); }
 
         [[nodiscard]] std::size_t size() const { return _packedGuid.size(); }
 
@@ -323,7 +321,7 @@ namespace std
     struct hash<ObjectGuid>
     {
         public:
-            size_t operator()(ObjectGuid const& key) const
+            std::size_t operator()(ObjectGuid const& key) const
             {
                 return std::hash<uint64>()(key.GetRawValue());
             }

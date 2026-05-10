@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -31,10 +31,18 @@ ObjectData const gameObjectData[] =
     { 0,                         0                         }
 };
 
+ObjectData const creatureData[] =
+{
+    { NPC_VOICE_OF_THE_RAVEN_GOD, DATA_VOICE_OF_THE_RAVEN_GOD },
+    { 0,                          0                           }
+};
+
+const uint32 anzuSummonEventId = 14797;
+
 class instance_sethekk_halls : public InstanceMapScript
 {
 public:
-    instance_sethekk_halls() : InstanceMapScript("instance_sethekk_halls", 556) { }
+    instance_sethekk_halls() : InstanceMapScript("instance_sethekk_halls", MAP_AUCHINDOUN_SETHEKK_HALLS) { }
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override
     {
@@ -48,14 +56,14 @@ public:
             SetHeaders(DataHeaders);
             SetBossNumber(EncounterCount);
             LoadDoorData(doorData);
-            LoadObjectData(nullptr, gameObjectData);
+            LoadObjectData(creatureData, gameObjectData);
         }
 
-        void OnCreatureCreate(Creature* creature) override
+        void ProcessEvent(WorldObject* /*obj*/, uint32 eventId) override
         {
-            if (creature->GetEntry() == NPC_ANZU || creature->GetEntry() == NPC_VOICE_OF_THE_RAVEN_GOD)
-                if (GetBossState(DATA_ANZU) == DONE)
-                    creature->DespawnOrUnsummon(1);
+            if (eventId == anzuSummonEventId)
+                if (!GetCreature(DATA_VOICE_OF_THE_RAVEN_GOD) && GetBossState(DATA_ANZU) != DONE)
+                    instance->SummonCreature(NPC_VOICE_OF_THE_RAVEN_GOD, Position(-88.02f, 288.18f, 75.2f, 6.0f));
         }
     };
 };

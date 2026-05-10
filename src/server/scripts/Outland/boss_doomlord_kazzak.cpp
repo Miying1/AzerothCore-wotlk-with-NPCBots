@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -41,9 +41,10 @@ enum Spells
     SPELL_MARK_OF_KAZZAK        = 32960,
     SPELL_MARK_OF_KAZZAK_DAMAGE = 32961,
     SPELL_ENRAGE                = 32964,
-    SPELL_CAPTURE_SOUL          = 32966,
-    SPELL_TWISTED_REFLECTION    = 21063,
-    SPELL_BERSERK               = 32965
+    SPELL_CAPTURE_SOUL              = 32966,
+    SPELL_TWISTED_REFLECTION        = 21063,
+    SPELL_TWISTED_REFLECTION_HEAL   = 21064,
+    SPELL_BERSERK                   = 32965
 };
 
 class boss_doomlord_kazzak : public CreatureScript
@@ -116,7 +117,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
+            if (victim->IsPlayer())
             {
                 Talk(SAY_KILL);
                 DoCastSelf(SPELL_CAPTURE_SOUL);
@@ -150,54 +151,69 @@ public:
     }
 };
 
-class spell_mark_of_kazzak : public SpellScriptLoader
+class spell_mark_of_kazzak_aura : public AuraScript
 {
-public:
-    spell_mark_of_kazzak() : SpellScriptLoader("spell_mark_of_kazzak") { }
+    PrepareAuraScript(spell_mark_of_kazzak_aura);
 
-    class spell_mark_of_kazzak_AuraScript : public AuraScript
+    bool Validate(SpellInfo const* /*spell*/) override
     {
-        PrepareAuraScript(spell_mark_of_kazzak_AuraScript);
+        return ValidateSpellInfo({ SPELL_MARK_OF_KAZZAK_DAMAGE });
+    }
 
-        bool Validate(SpellInfo const* /*spell*/) override
-        {
-            return ValidateSpellInfo({ SPELL_MARK_OF_KAZZAK_DAMAGE });
-        }
-
-        void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
-        {
-            if (Unit* owner = GetUnitOwner())
-            {
-                amount = CalculatePct(owner->GetPower(POWER_MANA), 5);
-            }
-        }
-
-        void OnPeriodic(AuraEffect const* aurEff)
-        {
-            Unit* target = GetTarget();
-            if (target->GetPower(POWER_MANA) == 0)
-            {
-                target->CastSpell(target, SPELL_MARK_OF_KAZZAK_DAMAGE, true, nullptr, aurEff);
-                SetDuration(0); // Remove aura
-            }
-        }
-
-        void Register() override
-        {
-            DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_mark_of_kazzak_AuraScript::CalculateAmount, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
-            OnEffectPeriodic += AuraEffectPeriodicFn(spell_mark_of_kazzak_AuraScript::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
-        }
-    };
-
-    AuraScript* GetAuraScript() const override
+    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
     {
-        return new spell_mark_of_kazzak_AuraScript();
+        if (Unit* owner = GetUnitOwner())
+        {
+            amount = CalculatePct(owner->GetPower(POWER_MANA), 5);
+        }
+    }
+
+    void OnPeriodic(AuraEffect const* aurEff)
+    {
+        Unit* target = GetTarget();
+        if (target->GetPower(POWER_MANA) == 0)
+        {
+            target->CastSpell(target, SPELL_MARK_OF_KAZZAK_DAMAGE, true, nullptr, aurEff);
+            SetDuration(0); // Remove aura
+        }
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_mark_of_kazzak_aura::CalculateAmount, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_mark_of_kazzak_aura::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
+    }
+};
+
+// 21063 - Twisted Reflection
+class spell_twisted_reflection : public AuraScript
+{
+    PrepareAuraScript(spell_twisted_reflection);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_TWISTED_REFLECTION_HEAL });
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+        if (!damageInfo || !damageInfo->GetDamage())
+            return;
+
+        eventInfo.GetActionTarget()->CastSpell(eventInfo.GetActor(), SPELL_TWISTED_REFLECTION_HEAL, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_twisted_reflection::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
     }
 };
 
 void AddSC_boss_doomlordkazzak()
 {
     new boss_doomlord_kazzak();
-    new spell_mark_of_kazzak();
+    RegisterSpellScript(spell_mark_of_kazzak_aura);
+    RegisterSpellScript(spell_twisted_reflection);
 }
-

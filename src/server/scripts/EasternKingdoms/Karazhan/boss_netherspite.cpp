@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -144,14 +144,12 @@ struct boss_netherspite : public BossAI
                         if (p && p->IsAlive() // alive
                             && (!target || target->GetDistance2d(portal) > p->GetDistance2d(portal)) // closer than current best
                             && !p->HasAura(PlayerDebuff[j]) // not exhausted
-                            && !p->HasAura(PlayerBuff[(j + 1) % 3]) // not on another beam
-                            && !p->HasAura(PlayerBuff[(j + 2) % 3])
                             && IsBetween(me, p, portal)) // on the beam
                             target = p;
                     }
                 }
                 // buff the target
-                if (target->GetTypeId() == TYPEID_PLAYER)
+                if (target->IsPlayer())
                 {
                     target->AddAura(PlayerBuff[j], target);
                 }
@@ -179,7 +177,7 @@ struct boss_netherspite : public BossAI
                     }
                 }
                 // aggro target if Red Beam
-                if (j == RED_PORTAL && me->GetVictim() != target && target->GetTypeId() == TYPEID_PLAYER)
+                if (j == RED_PORTAL && me->GetVictim() != target && target->IsPlayer())
                 {
                     me->GetThreatMgr().AddThreat(target, 100000.0f + DoGetThreat(me->GetVictim()));
                 }
@@ -216,7 +214,7 @@ struct boss_netherspite : public BossAI
             context.Repeat(90s);
         }).Schedule(15s, PORTAL_PHASE, [this](TaskContext context)
         {
-            DoCastRandomTarget(SPELL_VOIDZONE, 1, 45.0f, true, true);
+            DoCastRandomTarget(SPELL_VOIDZONE, 0, 45.0f, true, true, false);
             context.Repeat(15s);
         });
     }
@@ -296,6 +294,7 @@ struct boss_netherspite : public BossAI
     {
         BossAI::JustDied(killer);
         HandleDoors(true);
+        DestroyPortals();
     }
 
     void UpdateAI(uint32 diff) override
@@ -337,4 +336,3 @@ void AddSC_boss_netherspite()
     RegisterKarazhanCreatureAI(boss_netherspite);
     RegisterSpellScript(spell_nether_portal_perseverence);
 }
-

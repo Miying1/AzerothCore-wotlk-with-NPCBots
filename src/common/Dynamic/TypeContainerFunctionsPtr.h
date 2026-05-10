@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -32,27 +32,27 @@ namespace Acore
 {
     /* ContainerMapList Helpers */
     // count functions
-    //    template<class SPECIFIC_TYPE> size_t Count(const ContainerMapList<SPECIFIC_TYPE> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
+    //    template<class SPECIFIC_TYPE> std::size_t Count(const ContainerMapList<SPECIFIC_TYPE> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
     //    {
     //        return elements._element.size();
     //    };
     //
-    //    template<class SPECIFIC_TYPE> size_t Count(const ContainerMapList<TypeNull> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
+    //    template<class SPECIFIC_TYPE> std::size_t Count(const ContainerMapList<TypeNull> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
     //    {
     //        return 0;
     //    }
     //
-    //    template<class SPECIFIC_TYPE, class T> size_t Count(const ContainerMapList<T> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
+    //    template<class SPECIFIC_TYPE, class T> std::size_t Count(const ContainerMapList<T> &elements, CountedPtr<SPECIFIC_TYPE>* /*fake*/)
     //    {
     //        return 0;
     //    }
     //
-    //    template<class SPECIFIC_TYPE, class T> size_t Count(const ContainerMapList<TypeList<SPECIFIC_TYPE, T> >&elements, SPECIFIC_TYPE* fake)
+    //    template<class SPECIFIC_TYPE, class T> std::size_t Count(const ContainerMapList<TypeList<SPECIFIC_TYPE, T> >&elements, SPECIFIC_TYPE* fake)
     //    {
     //        return Count(elements._elements, fake);
     //    }
     //
-    //    template<class SPECIFIC_TYPE, class H, class T> size_t Count(const ContainerMapList<TypeList<H, T> >&elements, SPECIFIC_TYPE* fake)
+    //    template<class SPECIFIC_TYPE, class H, class T> std::size_t Count(const ContainerMapList<TypeList<H, T> >&elements, SPECIFIC_TYPE* fake)
     //    {
     //        return Count(elements._TailElements, fake);
     //    }
@@ -137,7 +137,7 @@ namespace Acore
     template<class SPECIFIC_TYPE> bool Remove(ContainerMapList<SPECIFIC_TYPE>& elements, CountedPtr<SPECIFIC_TYPE>& obj, OBJECT_HANDLE hdl)
     {
         typename std::map<OBJECT_HANDLE, CountedPtr<SPECIFIC_TYPE>>::iterator iter = elements._element.find(hdl);
-        if ( iter != elements._element.end() )
+        if (iter != elements._element.end())
         {
             elements._element.erase(iter);
             return true;
@@ -163,6 +163,5 @@ namespace Acore
         bool t = Remove(elements._elements, obj, hdl);
         return ( !t ? Remove(elements._TailElements, obj, hdl) : t );
     }
-
 }
 #endif
