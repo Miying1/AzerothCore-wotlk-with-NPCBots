@@ -22570,33 +22570,21 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
         {
             updateMask.SetBit(index);
 
-            if (index == UNIT_NPC_FLAGS)
+           if (index == UNIT_NPC_FLAGS)
             {
                 cacheValue.posPointers.UnitNPCFlagsPos = int32(fieldBuffer.wpos());
                 fieldBuffer << m_uint32Values[UNIT_NPC_FLAGS];
             }
-            else if (index == UNIT_DYNAMIC_FLAGS)
+            else if (index == UNIT_FIELD_AURASTATE)
             {
                 cacheValue.posPointers.UnitFieldAuraStatePos = int32(fieldBuffer.wpos());
                 fieldBuffer << uint32(0); // Fill in later.
             }
-            else if (index == UNIT_FIELD_BYTES_2)
+            // FIXME: Some values at server stored in float format but must be sent to client in uint32 format
+            else if (index >= UNIT_FIELD_BASEATTACKTIME && index <= UNIT_FIELD_RANGEDATTACKTIME)
             {
-                cacheValue.posPointers.UnitFieldBytes2Pos = int32(fieldBuffer.wpos());
-                fieldBuffer << m_uint32Values[index];
-            }
-            else if (index == UNIT_FIELD_FACTIONTEMPLATE)
-            {
-                cacheValue.posPointers.UnitFieldFactionTemplatePos = int32(fieldBuffer.wpos());
-                fieldBuffer << m_uint32Values[index];
-            }
-            else
-            {
-                if (sScriptMgr->ShouldTrackValuesUpdatePosByIndex(this, updateType, index))
-                    cacheValue.posPointers.other[index] = static_cast<uint32>(fieldBuffer.wpos());
-
-                // send in current format (float as float, uint32 as uint32)
-                fieldBuffer << m_uint32Values[index];
+                // convert from float to uint32 and send
+                fieldBuffer << uint32(m_floatValues[index] < 0 ? 0 : m_floatValues[index]);
             }
             // there are some float values which may be negative or can't get negative due to other checks
             else if ((index >= UNIT_FIELD_NEGSTAT0   && index <= UNIT_FIELD_NEGSTAT4) ||
