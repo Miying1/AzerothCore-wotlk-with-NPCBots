@@ -1801,6 +1801,15 @@ bool BotMgr::RemoveBotFromGroup(Creature* bot)
         bot->GetBotAI()->UnsummonAll();
         bot->CombatStop();
 
+        if (bot->GetVehicle())
+            bot->ExitVehicle();
+
+        if (bot->GetTransport())
+        {
+            bot->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
+            bot->GetTransport()->RemovePassenger(bot, true);
+        }
+
         if (Battleground* bg = bot->GetBotBG())
             bg->EventBotDroppedFlag(bot);
 
