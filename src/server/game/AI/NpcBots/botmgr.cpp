@@ -1791,6 +1791,29 @@ bool BotMgr::RemoveBotFromGroup(Creature* bot)
 
     gr->RemoveMember(bot->GetGUID());
 
+    //if removed from group while in instance / bg then remove from world immediately.
+    //Cannot use TeleportBot here because FinishTeleport() always targets master's map
+    //and RestrictBots(me, true) checks group membership, causing an infinite retry loop.
+    //Instead directly remove bot from restricted map. It will reappear when master
+    //leaves the instance/bg via OnTeleportFar() -> FinishTeleport().
+    if (bot->IsInWorld() && RestrictBots(bot, true))
+    {
+        bot->GetBotAI()->UnsummonAll();
+        bot->CombatStop();
+
+        if (Battleground* bg = bot->GetBotBG())
+            bg->EventBotDroppedFlag(bot);
+
+        if (InstanceScript* iscr = _owner->GetInstanceScript())
+            iscr->OnNPCBotLeave(bot);
+
+        if (Map* map = bot->FindMap())
+        {
+            bot->RemoveFromWorld();
+            map->RemoveFromMap(bot, false);
+        }
+    }
+
     return true;
 }
 
