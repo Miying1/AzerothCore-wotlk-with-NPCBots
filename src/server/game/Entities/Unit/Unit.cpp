@@ -1268,6 +1268,11 @@ SpellCastResult Unit::CastSpell(SpellCastTargets const& targets, SpellInfo const
 
     //npcbot: try override
     spellInfo = spellInfo->TryGetSpellInfoOverride(this);
+    if (!spellInfo)
+    {
+        LOG_ERROR("entities.unit", "CastSpell: TryGetSpellInfoOverride returned null for caster {}", GetGUID().ToString());
+        return SPELL_FAILED_SPELL_UNAVAILABLE;
+    }
     //end npcbot
 
     /// @todo: this is a workaround - not needed anymore, but required for some scripts :(
