@@ -49,8 +49,7 @@ TODO: Move creature hooks here
 static std::list<BotMgr::delayed_teleport_callback_type> delayed_bot_teleports;
 
 //config
-uint8 _basefollowdist;
-uint8 _maxNpcBots;
+uint8 _basefollowdist; 
 uint8 _IpMaxBots;
 uint8 _maxClassNpcBots;
 uint8 _xpReductionAmount;
@@ -286,8 +285,7 @@ void BotMgr::LoadConfig(bool reload)
     else if (!reload)
         return;
 
-    _enableNpcBots                  = sConfigMgr->GetBoolDefault("NpcBot.Enable", true);
-    _maxNpcBots                     = sConfigMgr->GetIntDefault("NpcBot.MaxBots", 1);
+    _enableNpcBots                  = sConfigMgr->GetBoolDefault("NpcBot.Enable", true); 
     _IpMaxBots = sConfigMgr->GetIntDefault("NpcBot.IpMaxBots", 8);
     _maxClassNpcBots                = sConfigMgr->GetIntDefault("NpcBot.MaxBotsPerClass", 1);
     _filterRaces                    = sConfigMgr->GetBoolDefault("NpcBot.Botgiver.FilterRaces", false);
@@ -901,9 +899,9 @@ uint8 BotMgr::GetNpcBotMountLevel100()
     return _mountLevel100;
 }
 
-uint8 BotMgr::GetMaxNpcBots()
-{
-    return _maxNpcBots <= MAXRAIDSIZE - 1 ? _maxNpcBots : MAXRAIDSIZE - 1;
+uint8 BotMgr::GetMaxNpcBots(uint8 level)
+{ 
+    return _max_npcbots[std::min<size_t>(BracketsCount - 1, level / 10)];
 }
 
 uint8 BotMgr::GetIPMaxBots() {
@@ -1645,10 +1643,10 @@ BotAddResult BotMgr::AddBot(Creature* bot)
         ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_BOTADDFAIL_TELEPORTED).c_str(), bot->GetName().c_str());
         return BOT_ADD_BUSY;
     }
-    if ((!owned && owned_count >= GetMaxNpcBots()))
+    if ((!owned && owned_count >= GetMaxNpcBots(owned->GetLevel())))
     {
         ChatHandler ch(_owner->GetSession());
-        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), GetMaxNpcBots());
+        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), GetMaxNpcBots(owned->GetLevel()));
         return BOT_ADD_MAX_EXCEED;
     }
     if (!owned && _maxClassNpcBots && class_count >= _maxClassNpcBots)
