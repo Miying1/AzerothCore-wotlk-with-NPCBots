@@ -12530,11 +12530,11 @@ bool bot_ai::_canEquip(ItemTemplate const* newProto, uint8 slot, bool ignoreItem
 
 void bot_ai::_removeEquipment(uint8 slot)
 {
+    _usableItemSlotsMask &= ~(1ul << slot);
+
     Item* item = _equips[slot];
     if (!item)
         return; //already unequipped
-
-    _usableItemSlotsMask &= ~(1ul << slot);
 
     RemoveItemBonuses(slot);
     ApplyItemSetBonuses(item, false);
@@ -12557,7 +12557,10 @@ bool bot_ai::_unequip(uint8 slot, ObjectGuid receiver)
 
     Item* item = _equips[slot];
     if (!item)
+    {
+        _usableItemSlotsMask &= ~(1ul << slot);
         return true; //already unequipped
+    }
 
     uint32 itemId = item->GetEntry();
 
