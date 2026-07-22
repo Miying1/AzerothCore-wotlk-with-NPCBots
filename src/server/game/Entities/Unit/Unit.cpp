@@ -11061,7 +11061,8 @@ void Unit::CombatStopWithPets(bool includingCast)
     CombatStop(includingCast);
 
     for (ControlSet::const_iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
-        (*itr)->CombatStop(includingCast);
+        if ((*itr)->IsInWorld())
+            (*itr)->CombatStop(includingCast);
 
     //npcbot: combatstop for bots
     if (GetTypeId() == TYPEID_PLAYER && ToPlayer()->HaveBot())
@@ -11069,9 +11070,12 @@ void Unit::CombatStopWithPets(bool includingCast)
         BotMap const* map = ToPlayer()->GetBotMgr()->GetBotMap();
         for (BotMap::const_iterator itr = map->begin(); itr != map->end(); ++itr)
         {
+            if (!itr->second->IsInWorld())
+                continue;
             itr->second->CombatStop(includingCast);
             if (Unit* botPet = itr->second->GetBotsPet())
-                botPet->CombatStop(includingCast);
+                if (botPet->IsInWorld())
+                    botPet->CombatStop(includingCast);
         }
     }
     //end npcbot
@@ -11084,7 +11088,7 @@ bool Unit::isAttackingPlayer() const
 
     if (!m_Controlled.empty())
         for (ControlSet::const_iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
-            if ((*itr)->isAttackingPlayer())
+            if ((*itr)->IsInWorld() && (*itr)->isAttackingPlayer())
                 return true;
 
     for (uint8 i = 0; i < MAX_SUMMON_SLOT; ++i)
