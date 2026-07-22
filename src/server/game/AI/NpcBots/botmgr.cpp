@@ -1791,15 +1791,6 @@ bool BotMgr::RemoveBotFromGroup(Creature* bot)
 
     gr->RemoveMember(bot->GetGUID());
 
-    //if removed from group while in instance / bg then remove from world immediately
-    if (bot->IsInWorld() && RestrictBots(bot, true))
-    {
-        uint16 homeMapId;
-        Position homePos;
-        bot->GetBotAI()->GetHomePosition(homeMapId, &homePos);
-        TeleportBot(bot, sMapMgr->CreateBaseMap(homeMapId), &homePos, false, true);
-    }
-
     return true;
 }
 
