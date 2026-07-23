@@ -909,8 +909,12 @@ void InstanceScript::SetChallengeMode(Unit* creature) {
 void InstanceScript::SetTimeLimitMinute(uint32 timelimit) {
     timeLimitMinute = timelimit;
     if (timelimit == 0) {
-
-        DoUpdateWorldState(6000+instance->GetId(), 0);
+        DoUpdateWorldState(6000 + instance->GetId(), 0);
+    }
+    else {
+        limitTimer = 60000;                                 // Fix: prevent immediate first-minute decrement
+        DoUpdateWorldState(6000 + instance->GetId(), 1);    // Fix: show timer immediately
+        DoUpdateWorldState(6001, timeLimitMinute);          // Fix: display initial remaining minutes
     }
 }
 
