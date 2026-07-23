@@ -15222,7 +15222,7 @@ void bot_ai::FindMaster()
     //totally free
     if (!_ownerGuid)
         return;
-    if (!_atHome || _evadeMode)
+    if (_evadeMode)
         return;
     if (!BotMgr::IsClassEnabled(_botclass))
         return;
@@ -15245,6 +15245,10 @@ void bot_ai::FindMaster()
     {
         //prevent bot being screwed up because of wrong flags
         if (player->IsGameMaster() || player->GetSession()->isLogingOut() || player->GetSession()->PlayerLogout())
+            return;
+
+        // Don't reconnect if bots are not allowed in player's current map
+        if (player->GetBotMgr() && !player->GetBotMgr()->IsMapAllowedForBots(player->GetMap()))
             return;
 
         if (!SetBotOwner(player))
