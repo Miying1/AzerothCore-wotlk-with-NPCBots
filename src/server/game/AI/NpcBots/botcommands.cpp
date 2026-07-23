@@ -1852,21 +1852,21 @@ public:
             target_guid = bot->GetTarget();
         else if (target_token == "mytarget")
             target_guid = owner->GetTarget();
-        else if (target_token == "star")
+        else if (target_token == "star" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[0];
-        else if (target_token == "circle")
+        else if (target_token == "circle" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[1];
-        else if (target_token == "diamond")
+        else if (target_token == "diamond" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[2];
-        else if (target_token == "triangle")
+        else if (target_token == "triangle" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[3];
-        else if (target_token == "moon")
+        else if (target_token == "moon" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[4];
-        else if (target_token == "square")
+        else if (target_token == "square" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[5];
-        else if (target_token == "cross")
+        else if (target_token == "cross" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[6];
-        else if (target_token == "skull")
+        else if (target_token == "skull" && owner->GetGroup())
             target_guid = owner->GetGroup()->GetTargetIcons()[7];
         else if (target_token->size() == 1u && owner->GetGroup() && std::isdigit(target_token->front()))
         {
