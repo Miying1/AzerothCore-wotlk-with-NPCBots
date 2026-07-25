@@ -1,0 +1,149 @@
+#ifndef DEF_CAD_H
+#define DEF_CAD_H
+
+#include "Player.h"
+#include "Config.h"
+#include "InstanceScript.h"
+#include "ScriptMgr.h"
+#include "ScriptedGossip.h"
+
+
+enum MyEnum
+{
+    SCORE_CURRENCY  = 62000,
+    SPELL_ENHANCE_CREATURE  =100006,//怪物增强
+    SPELL_DEFF_PLAYER = 100012,//玩家压制
+};
+
+//挑战等级
+struct ZoneDifficultyLevel
+{
+    uint32 difflevel;
+    uint32 enhance=0;
+    uint32 diff_player = 0;
+    uint32 global_spell_num;
+    uint32 boss_score;
+    uint32 award1;
+    uint32 award2;
+    uint32 award3;
+
+};
+//实例开启的挑战信息
+struct ZoneChallengeData
+{
+    uint32 level=0;
+    uint32 enhance_damage;
+    uint32 enhance_hp;
+    uint32 kill_boss;
+    bool last_boss_killed = false;
+    uint32 residue_time;
+    std::array<uint32,3> apply_spell;
+    bool is_complete=false;
+};
+//全局法术信息
+struct ZoneChallengeSpell
+{
+    uint32 spell_id;
+    uint8 chance; 
+    Milliseconds delay;
+    Milliseconds cooldown;
+    bool triggered_cast; 
+};
+//实例基础提升值
+struct ZoneChallengeBaseEnhance
+{
+    int base_hp_pct=0;
+    int base_damage_pct=0;
+    uint32 time_limit=0;
+    uint32 boss_count=0;
+    uint32 lastboss=0;
+    std::string descp;
+};
+struct ZoneChallengeSpellGroup
+{
+    std::array<uint32, 3> spellIds;
+};
+//每日更新计算器
+struct DayActiveMapData {
+    uint32 mdayticker;
+    std::array<uint32, 4> active_mapid; 
+};
+
+struct ZoneDifficultyHAI
+{
+    uint8 Chance;
+    uint32 Spell;
+    int32 Spellbp0;
+    int32 Spellbp1;
+    int32 Spellbp2;
+    uint8 Target;
+    int8 TargetArg;
+    uint8 TargetArg2;
+    Milliseconds Delay;
+    Milliseconds Cooldown;
+    uint8 Repetitions;
+    bool TriggeredCast;
+};
+
+
+class ChallengeDifficulty
+{
+public:
+    static ChallengeDifficulty* instance();
+     
+    void LoadIntiData();
+
+    void SendWhisperToRaid(std::string message, Creature* creature, Player* player);
+    //是否已开启挑战模式
+    bool HasChallengMode(uint32 inst_id);
+    //开启挑战
+    bool OpenChallenge(uint32 inst_id, uint32 level, Player* player);
+    bool CloseChallenge(Map* instance);
+    //随机获取一个全局法术
+    void GetRandomGlobalSpell(uint8 count, std::array<uint32, 3>* apply_spell);
+    void SetPlayerChallengeLevel(Map* map); 
+    void AddBossScore(Map* map);
+    void SendChallengLoot(Map* map);
+
+    void RemoveChallengeAure(Unit* creature);
+
+    void RemoveChallengeAureBuff(Unit* unit);
+
+    void ApplyChallengeAure(Unit* creature, uint32 instanceId);
+    //检查激活地图的更新-每日7点
+    void CheckUpdateActiveMap();
+
+    bool MapIsActive(uint32 mapId);
+
+    bool IsEnabled{ false };
+    bool IsSendLoot{ true };
+    DayActiveMapData DayActiveMaps;
+    std::map<uint32, uint32> EncountersInProgress;
+ 
+    typedef std::map<uint32, ZoneChallengeBaseEnhance > ZoneChallengeBaseEnhanceMap;
+    //地图的基础增强
+    ZoneChallengeBaseEnhanceMap  BaseEnhanceMapData;
+    typedef std::map<uint32, ZoneDifficultyLevel > ZoneDifficultyLevelData;
+    //挑战等级集
+    ZoneDifficultyLevelData DiffLevelData; 
+    typedef std::map<uint32, ZoneChallengeData> ZoneChallengeDataInstMap;
+    //已开启的挑战副本
+    ZoneChallengeDataInstMap ChallengeInstanceData;
+    typedef std::map<uint32, ZoneChallengeSpell> ZoneChallengeSpellMap;
+    //全局法术集
+    ZoneChallengeSpellMap ZoneChallengeSpellData;
+    //法术组合
+    std::map<uint32, ZoneChallengeSpellGroup> ZoneChallengeSpellGroupData;
+     
+    typedef std::map<uint32, std::vector<ZoneDifficultyHAI> > ZoneDifficultyHAIMap;
+    ZoneDifficultyHAIMap MythicmodeAI;
+    typedef std::map<uint32, std::map<uint32, std::map<uint32, bool> > > ZoneDifficultyEncounterLogMap;
+    ZoneDifficultyEncounterLogMap Logs;
+    typedef std::map<uint32, uint32 > ZoneDifficultyPlayerLevelMap;
+    //玩家挑战等级
+    ZoneDifficultyPlayerLevelMap PlayerLevelData;
+};
+
+#define sChallengeDiff ChallengeDifficulty::instance()
+
+#endif

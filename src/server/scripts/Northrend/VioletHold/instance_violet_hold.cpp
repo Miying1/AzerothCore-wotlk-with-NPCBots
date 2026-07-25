@@ -96,7 +96,7 @@ public:
         {
             return _encounterStatus == IN_PROGRESS;
         }
-
+         
         void OnCreatureCreate(Creature* creature) override
         {
             InstanceScript::OnCreatureCreate(creature);

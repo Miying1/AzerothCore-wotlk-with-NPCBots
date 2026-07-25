@@ -205,7 +205,7 @@ public:
             if (!me->isActiveObject())
                 return;
 
-            if (!SelectTarget(SelectTargetMethod.Random, 100,0))
+            if (!SelectTarget(SelectTargetMethod::Random, 0, 100.0f))
             {
                 EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
                 return;

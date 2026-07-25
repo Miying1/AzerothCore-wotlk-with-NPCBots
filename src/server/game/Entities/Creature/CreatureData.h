@@ -252,7 +252,6 @@ struct CreatureTemplate
     CreatureModel const* GetModelWithDisplayId(uint32 displayId) const;
     CreatureModel const* GetFirstInvisibleModel() const;
     CreatureModel const* GetFirstVisibleModel() const;
-
     // helpers
     //npcbot
     bool IsNPCBot() const

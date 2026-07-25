@@ -300,7 +300,13 @@ public:
             EnterEvadeMode();
             return false;
         }
-
+        Unit* v = SelectTarget(SelectTargetMethod::Random, 0, 200.0f, true);
+        if (!v)
+        {
+            Talk(SAY_EVADE);
+            EnterEvadeMode();
+            return false;
+        }
         return true;
     }
 

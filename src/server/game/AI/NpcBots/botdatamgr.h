@@ -11,6 +11,7 @@
 #include <ranges>
 #include <set>
 #include <shared_mutex>
+#include <vector>
 
 class BattlegroundQueue;
 class Creature;

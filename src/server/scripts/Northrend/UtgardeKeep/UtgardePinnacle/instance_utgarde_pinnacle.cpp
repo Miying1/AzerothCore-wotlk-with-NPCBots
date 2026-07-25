@@ -94,6 +94,10 @@ public:
 
             return false;
         }
+        void OnPlayerEnter(Player* plr) override
+        { 
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* pCreature) override
         {
             switch (pCreature->GetEntry())

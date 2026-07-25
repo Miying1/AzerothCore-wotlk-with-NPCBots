@@ -1,0 +1,48 @@
+[worldserver]
+#
+###################################################################################################
+
+###################################################################################################
+#
+# RANDOM ENCHANTS OPTIONS
+#
+#     RandomEnchants.Enable
+#        Enable or disable the module
+#        Default:     1 (enabled)
+
+RandomEnchants.Enable = 1
+
+#
+#     RandomEnchants.OnLoot
+#        Chance at random enchant on looting an item
+#        Default:     1
+
+RandomEnchants.OnLoot=1
+
+#
+#     RandomEnchants.OnCreate
+#        Chance at random enchant on creating an item via profession
+#        Default:     1
+
+RandomEnchants.OnCreate=1
+ 
+
+#
+#     RandomEnchants.OnGroupRoll 
+#        Chance at random enchant on obtaining item from group rolls
+#        Default:     1
+
+RandomEnchants.OnGroupRoll = 1
+
+#     RandomEnchants.LootEnchantChance1
+#        Probability (in percentage) for the first enchant to be applied.
+#        Default:     70.0
+
+RandomEnchants.LootEnchantChance1=45.0
+#重新FM成功率
+RandomEnchants.ReRandChance=85.0
+#随机FM值的范围%
+RandomEnchants.RandRangeattrMaxPct=0.50
+ 
+#最高等级属性洗练成功率
+RandomEnchants.MaxAttrChance=20.0

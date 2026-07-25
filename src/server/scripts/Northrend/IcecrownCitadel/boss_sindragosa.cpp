@@ -779,7 +779,7 @@ public:
                 if (_asphyxiationTimer <= diff)
                 {
                     _asphyxiationTimer = 0;
-                    if (Player* player = ObjectAccessor::GetPlayer(*me, _trappedPlayerGUID))
+                    if (Unit* player = ObjectAccessor::GetUnit(*me, _trappedPlayerGUID))
                     {
                         player->RemoveAurasDueToSpell(SPELL_ICE_TOMB_UNTARGETABLE);
                         player->CastSpell(player, SPELL_ASPHYXIATION, true);
@@ -1572,11 +1572,20 @@ public:
             if (!instance->GetData(DATA_RIMEFANG))
                 if (Creature* rimefang = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_RIMEFANG)))
                     rimefang->AI()->DoAction(ACTION_START_FROSTWYRM);
-
-            if (!instance->GetData(DATA_SINDRAGOSA_FROSTWYRMS) && instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
+            bool IsAlive = false;
+            if (Creature* spinestalker = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SPINESTALKER)))
+                IsAlive = IsAlive ||  spinestalker->IsAlive();
+            if (Creature* rimefang = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_RIMEFANG)))
+                IsAlive = IsAlive || rimefang->IsAlive();
+            if (!IsAlive && instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
             {
                 if (Creature* sindragosa = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SINDRAGOSA)))
                     sindragosa->AI()->DoAction(ACTION_START_FROSTWYRM);
+                else
+                {
+                    if (instance->GetBossState(DATA_SINDRAGOSA) == NOT_STARTED || instance->GetBossState(DATA_SINDRAGOSA) == TO_BE_DECIDED)
+                        instance->SetData(DATA_SUMMON_SINDRAGOSA,0);
+                }
             }
         }
 
