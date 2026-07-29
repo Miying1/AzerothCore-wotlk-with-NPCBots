@@ -675,6 +675,11 @@ void bot_ai::ResetBotAI(uint8 resetType)
     if (resetType == BOTAI_RESET_INIT || resetType == BOTAI_RESET_LOGOUT)
     {
         NpcBotData const* npcBotData = BotDataMgr::SelectNpcBotData(me->GetEntry());
+        if (!npcBotData)
+        {
+            LOG_ERROR("npcbots", "ResetBotAI: No bot data found for creature entry {}!", me->GetEntry());
+            return;
+        }
         _checkOwershipTimer = (BotMgr::GetOwnershipExpireTime() && npcBotData->owner) ?
             ((resetType == BOTAI_RESET_INIT || BotMgr::GetOwnershipExpireMode() == BOT_OWNERSHIP_EXPIRE_HIRE) ? 1000 : CalculateOwnershipCheckTime()) : 0;
         if (resetType == BOTAI_RESET_INIT)
