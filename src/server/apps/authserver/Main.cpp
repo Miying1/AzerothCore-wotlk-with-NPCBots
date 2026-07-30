@@ -23,6 +23,7 @@
 * authentication server
 */
 
+#include "ActivationChecker.h"
 #include "AppenderDB.h"
 #include "AuthSocketMgr.h"
 #include "Banner.h"
@@ -104,6 +105,9 @@ int main(int argc, char** argv)
     OpenSSLCrypto::threadsSetup();
 
     std::shared_ptr<void> opensslHandle(nullptr, [](void*) { OpenSSLCrypto::threadsCleanup(); });
+
+    // Check activation status
+    sActivationChecker->Initialize();
 
     // authserver PID file creation
     std::string pidFile = sConfigMgr->GetOption<std::string>("PidFile", "");

@@ -17,6 +17,7 @@
 
 #include "AuthSession.h"
 #include "AES.h"
+#include "ActivationChecker.h"
 #include "AuthCodes.h"
 #include "Config.h"
 #include "CryptoGenerics.h"
@@ -170,6 +171,16 @@ void AuthSession::Start()
 {
     std::string ip_address = GetRemoteIpAddress().to_string();
     LOG_TRACE("session", "Accepted connection from {}", ip_address);
+
+    // If server is not activated, only allow local connections
+    if (!sActivationChecker->IsActivated())
+    {
+        if (!sActivationChecker->IsLocalIP(ip_address))
+        {
+            CloseSocket();
+            return;
+        }
+    }
 
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_IP_INFO);
     stmt->SetData(0, ip_address);
