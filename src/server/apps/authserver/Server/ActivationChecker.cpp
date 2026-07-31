@@ -87,7 +87,7 @@ void ActivationChecker::Initialize()
     Optional<std::vector<uint8>> decodedData = Acore::Encoding::Base64::Decode(keyFileContent);
     if (!decodedData || decodedData->empty())
     {
-        LOG_WARN("server.authserver", "[Activation] Failed to Base64 decode activate.key");
+        // LOG_WARN("server.authserver", "[Activation] Failed to Base64 decode activate.key");
         return;
     }
 
@@ -96,7 +96,7 @@ void ActivationChecker::Initialize()
     size_t newlinePos = combined.find('\n');
     if (newlinePos == std::string::npos)
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (missing newline separator)");
+        // LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (missing newline separator)");
         return;
     }
 
@@ -105,7 +105,7 @@ void ActivationChecker::Initialize()
 
     if (payload.empty() || rawSignature.empty())
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (empty payload or signature)");
+        // LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (empty payload or signature)");
         return;
     }
 
@@ -114,13 +114,13 @@ void ActivationChecker::Initialize()
     {
         if (!RSAVerifySignature(keyPath.string(), payload, rawSignature))
         {
-            LOG_WARN("server.authserver", "[Activation] Signature verification failed - activation key is invalid");
+            // LOG_WARN("server.authserver", "[Activation] Signature verification failed - activation key is invalid");
             return;
         }
     }
     catch (std::exception const& e)
     {
-        LOG_WARN("server.authserver", "[Activation] Signature verification error: {}", e.what());
+        // LOG_WARN("server.authserver", "[Activation] Signature verification error: {}", e.what());
         return;
     }
 
@@ -128,7 +128,7 @@ void ActivationChecker::Initialize()
     size_t colonPos = payload.find(':');
     if (colonPos == std::string::npos)
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing colon separator)");
+        // LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing colon separator)");
         return;
     }
 
@@ -138,7 +138,7 @@ void ActivationChecker::Initialize()
     size_t pipePos = idsPart.find('|');
     if (pipePos == std::string::npos)
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing pipe separator)");
+        // LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing pipe separator)");
         return;
     }
 
@@ -158,12 +158,11 @@ void ActivationChecker::Initialize()
     if (guidMatch || uuidMatch)
     {
         _isActivated = true;
-        LOG_INFO("server.authserver", "[Activation] Server activated successfully (code: {}, MachineGuid match: {}, UUID match: {})", code, guidMatch, uuidMatch);
+        // LOG_INFO("server.authserver", "[Activation] Server activated successfully (code: {}, MachineGuid match: {}, UUID match: {})", code, guidMatch, uuidMatch);
     }
     else
     {
-        LOG_WARN("server.authserver", "[Activation] Machine identifiers do not match (key Guid: {}, local Guid: {}, key UUID: {}, local UUID: {})",
-            keyMachineGuid, localMachineGuid, keyMBUUID, localMBUUID);
+        LOG_WARN("server.authserver", "[Activation] activated verify failed");
     }
 }
 
