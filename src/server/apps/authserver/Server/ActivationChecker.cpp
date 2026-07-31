@@ -23,6 +23,7 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
+#include <openssl/sha.h>
 #include <sstream>
 
 #ifdef _WIN32
@@ -63,54 +64,81 @@ void ActivationChecker::Initialize()
     if (!fs::exists(activePath) || !fs::exists(keyPath))
         return;
 
-    // Read the encrypted activation key
-    std::string encryptedData;
+    // Read the activation key file
+    std::string keyFileContent;
     try
     {
-        encryptedData = LoadFile(activePath.string());
+        keyFileContent = LoadFile(activePath.string());
     }
     catch (std::exception const&)
     {
         return;
     }
 
-    if (encryptedData.empty())
+    if (keyFileContent.empty())
         return;
 
-    // Trim whitespace/newlines from the file content
-    while (!encryptedData.empty() && (encryptedData.back() == '\n' || encryptedData.back() == '\r' || encryptedData.back() == ' '))
-        encryptedData.pop_back();
+    // Trim whitespace/newlines (activate.key is a single-line Base64 string)
+    while (!keyFileContent.empty() && (keyFileContent.back() == '\n' || keyFileContent.back() == '\r' || keyFileContent.back() == ' '))
+        keyFileContent.pop_back();
 
-    // Decrypt
-    std::string decrypted;
+    // Base64 decode the entire activate.key file
+    // Server (Go) Sign: base64(payload + "\n" + rawSignature)
+    Optional<std::vector<uint8>> decodedData = Acore::Encoding::Base64::Decode(keyFileContent);
+    if (!decodedData || decodedData->empty())
+    {
+        LOG_WARN("server.authserver", "[Activation] Failed to Base64 decode activate.key");
+        return;
+    }
+
+    // Find the newline separator between payload and raw signature
+    std::string combined(reinterpret_cast<char*>(decodedData->data()), decodedData->size());
+    size_t newlinePos = combined.find('\n');
+    if (newlinePos == std::string::npos)
+    {
+        LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (missing newline separator)");
+        return;
+    }
+
+    std::string payload = combined.substr(0, newlinePos);
+    std::vector<uint8> rawSignature(decodedData->begin() + static_cast<ptrdiff_t>(newlinePos) + 1, decodedData->end());
+
+    if (payload.empty() || rawSignature.empty())
+    {
+        LOG_WARN("server.authserver", "[Activation] Invalid activate.key format (empty payload or signature)");
+        return;
+    }
+
+    // Verify signature with public key
     try
     {
-        decrypted = RSADecrypt(keyPath.string(), encryptedData);
+        if (!RSAVerifySignature(keyPath.string(), payload, rawSignature))
+        {
+            LOG_WARN("server.authserver", "[Activation] Signature verification failed - activation key is invalid");
+            return;
+        }
     }
     catch (std::exception const& e)
     {
-        LOG_WARN("server.authserver", "[Activation] RSA decryption failed: {}", e.what());
+        LOG_WARN("server.authserver", "[Activation] Signature verification error: {}", e.what());
         return;
     }
 
-    if (decrypted.empty())
-        return;
-
-    // Parse format: code:MachineGuid|motherboard_uuid
-    // The code (before colon) is arbitrary; the part after colon is "MachineGuid|UUID"
-    size_t colonPos = decrypted.find(':');
+    // Signature verified; now parse payload: code:MachineGuid|motherboardUUID
+    size_t colonPos = payload.find(':');
     if (colonPos == std::string::npos)
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid activate key format (missing colon separator)");
+        LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing colon separator)");
         return;
     }
 
-    std::string idsPart = decrypted.substr(colonPos + 1);
+    std::string code = payload.substr(0, colonPos);
+    std::string idsPart = payload.substr(colonPos + 1);
 
     size_t pipePos = idsPart.find('|');
     if (pipePos == std::string::npos)
     {
-        LOG_WARN("server.authserver", "[Activation] Invalid activate key format (missing pipe separator)");
+        LOG_WARN("server.authserver", "[Activation] Invalid payload format (missing pipe separator)");
         return;
     }
 
@@ -130,7 +158,12 @@ void ActivationChecker::Initialize()
     if (guidMatch || uuidMatch)
     {
         _isActivated = true;
-        LOG_INFO("server.authserver", "[Activation] Server activated successfully (MachineGuid match: {}, UUID match: {})", guidMatch, uuidMatch);
+        LOG_INFO("server.authserver", "[Activation] Server activated successfully (code: {}, MachineGuid match: {}, UUID match: {})", code, guidMatch, uuidMatch);
+    }
+    else
+    {
+        LOG_WARN("server.authserver", "[Activation] Machine identifiers do not match (key Guid: {}, local Guid: {}, key UUID: {}, local UUID: {})",
+            keyMachineGuid, localMachineGuid, keyMBUUID, localMBUUID);
     }
 }
 
@@ -146,11 +179,11 @@ bool ActivationChecker::IsLocalIP(std::string const& ip) const
         return true;
 
     // Check against collected local IPv4 addresses
-    for (std::string const& localIP : _localIPs)
-    {
-        if (ip == localIP)
-            return true;
-    }
+    // for (std::string const& localIP : _localIPs)
+    // {
+    //     if (ip == localIP)
+    //         return true;
+    // }
 
     return false;
 }
@@ -166,9 +199,9 @@ std::string ActivationChecker::LoadFile(std::string const& path)
     return ss.str();
 }
 
-std::string ActivationChecker::RSADecrypt(std::string const& keyPath, std::string const& encryptedData)
+bool ActivationChecker::RSAVerifySignature(std::string const& keyPath, std::string const& payload, std::vector<uint8> const& signature)
 {
-    // Load the PEM key (private key for RSA decryption)
+    // Load the PEM public key
     std::string pemData;
     try
     {
@@ -183,63 +216,49 @@ std::string ActivationChecker::RSADecrypt(std::string const& keyPath, std::strin
     if (!bio)
         throw std::runtime_error("BIO_new_mem_buf failed");
 
-    RSA* rsa = PEM_read_bio_RSAPrivateKey(bio, nullptr, nullptr, nullptr);
+    // Load public key (match crypto.go: savePublicKey uses MarshalPKCS1PublicKey -> "RSA PUBLIC KEY")
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bio, nullptr, nullptr, nullptr);
     if (!rsa)
     {
-        // Try loading as public key
         BIO_reset(bio);
         rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
-        if (!rsa)
-        {
-            BIO_reset(bio);
-            rsa = PEM_read_bio_RSAPublicKey(bio, nullptr, nullptr, nullptr);
-        }
-        BIO_free(bio);
-        if (!rsa)
-            throw std::runtime_error("PEM_read_bio_RSAPrivateKey / PEM_read_bio_RSA_PUBKEY failed: key file is not a valid RSA key");
     }
-    else
-    {
-        BIO_free(bio);
-    }
+    BIO_free(bio);
 
-    // Determine key size
-    int keySize = RSA_size(rsa);
+    if (!rsa)
+        throw std::runtime_error("Failed to load RSA public key from PEM file");
 
-    // Base64 decode the encrypted data
-    Optional<std::vector<uint8>> decoded = Acore::Encoding::Base64::Decode(encryptedData);
-    if (!decoded)
+    if (signature.empty())
     {
         RSA_free(rsa);
-        throw std::runtime_error("Base64 decode of activate.key failed");
+        throw std::runtime_error("Signature is empty");
     }
 
-    if (decoded->empty())
-    {
-        RSA_free(rsa);
-        throw std::runtime_error("Decoded activate.key data is empty");
-    }
+    // SHA256 hash the payload (matches crypto.go: sha256.Sum256)
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(payload.data()), payload.size(), hash);
 
-    // Decrypt with RSA private key (PKCS1v15 padding - matches crypto.go Sign/encrypt approach)
-    std::vector<uint8> decrypted(keySize);
-    int decryptedLen = RSA_private_decrypt(
-        static_cast<int>(decoded->size()),
-        decoded->data(),
-        decrypted.data(),
-        rsa,
-        RSA_PKCS1_PADDING
+    // Verify signature with RSA public key (PKCS1v15, SHA256 - matches crypto.go: rsa.SignPKCS1v15 + crypto.SHA256)
+    int verifyResult = RSA_verify(
+        NID_sha256,
+        hash,
+        SHA256_DIGEST_LENGTH,
+        signature.data(),
+        static_cast<int>(signature.size()),
+        rsa
     );
 
     RSA_free(rsa);
 
-    if (decryptedLen == -1)
+    if (verifyResult != 1)
     {
         char errBuf[256];
         ERR_error_string_n(ERR_get_error(), errBuf, sizeof(errBuf));
-        throw std::runtime_error(std::string("RSA_private_decrypt failed: ") + errBuf);
+        LOG_DEBUG("server.authserver", "[Activation] RSA signature verification failed: {}", errBuf);
+        return false;
     }
 
-    return std::string(reinterpret_cast<char*>(decrypted.data()), static_cast<size_t>(decryptedLen));
+    return true;
 }
 
 std::string ActivationChecker::GetMachineGuid()

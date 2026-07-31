@@ -34,7 +34,7 @@ private:
     ActivationChecker() = default;
 
     std::string LoadFile(std::string const& path);
-    std::string RSADecrypt(std::string const& keyPath, std::string const& encryptedData);
+    bool RSAVerifySignature(std::string const& keyPath, std::string const& payload, std::vector<uint8> const& signature);
 
     std::string GetMachineGuid();
     std::string GetMotherboardUUID();
