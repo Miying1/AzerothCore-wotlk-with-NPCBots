@@ -65,7 +65,7 @@ void ChallengeDifficulty::LoadIntiData()
     }
     else
     {
-        LOG_ERROR("module", "zone_difficulty_instance_saves: Query error");
+        // LOG_ERROR("module", "zone_difficulty_instance_saves: Query error");
     }
     //每日激活地图
     if (QueryResult result = CharacterDatabase.Query("select mdayticker,active_mapid1,active_mapid2,active_mapid3,active_mapid4  from zone_diffculty_activemap"))
