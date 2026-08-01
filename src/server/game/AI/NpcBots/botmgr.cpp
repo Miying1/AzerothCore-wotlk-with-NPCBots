@@ -1415,9 +1415,21 @@ void BotMgr::_teleportBot(Creature* bot, Map* newMap, float x, float y, float z,
 
         if (bot->IsFreeBot())
         {
-            bot->Relocate(x, y, z, ori);
-            bot->SetMap(newMap);
-            newMap->AddToMap(bot);
+            if (mymap == newMap)
+            {
+                // Same-map: use NearTeleportTo to properly notify clients
+                bot->SetMap(newMap);
+                bot->Relocate(x, y, z, ori);
+                newMap->AddToMap(bot);
+                bot->NearTeleportTo(x, y, z, ori);
+            }
+            else
+            {
+                bot->Relocate(x, y, z, ori);
+                bot->SetMap(newMap);
+                newMap->AddToMap(bot);
+            }
+
             if (reset)
                 bot->GetBotAI()->Reset();
             bot->GetBotAI()->SetIsDuringTeleport(false);
