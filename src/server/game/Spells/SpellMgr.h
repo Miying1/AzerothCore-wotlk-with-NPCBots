@@ -393,6 +393,13 @@ struct SpellTargetPosition
 
 typedef std::map<std::pair<uint32 /*spell_id*/, SpellEffIndex /*effIndex*/>, SpellTargetPosition> SpellTargetPositionMap;
 
+struct SpellCone
+{
+    int16_t cone_degrees;
+};
+
+typedef std::map<uint32 /*spell_id*/, SpellCone> SpellConeMap;
+
 // Enum with EffectRadiusIndex and their actual radius
 enum EffectRadiusIndex
 {
@@ -682,9 +689,11 @@ public:
 
     // Spell learning
     [[nodiscard]] SpellLearnSkillNode const* GetSpellLearnSkill(uint32 spell_id) const;
+    [[nodiscard]] std::vector<uint32> GetSkillRankSpells(uint32 skillId) const;
 
     // Spell target coordinates
     [[nodiscard]] SpellTargetPosition const* GetSpellTargetPosition(uint32 spell_id, SpellEffIndex effIndex) const;
+    [[nodiscard]] SpellCone const* GetSpellCone(uint32 spell_id) const;
 
     // Spell Groups table
     SpellSpellGroupMapBounds GetSpellSpellGroupMapBounds(uint32 spell_id) const;
@@ -719,7 +728,7 @@ public:
     [[nodiscard]] SpellEnchantProcEntry const* GetSpellEnchantProcEvent(uint32 enchId) const;
     [[nodiscard]] bool IsArenaAllowedEnchancment(uint32 ench_id) const;
 
-    [[nodiscard]] const std::vector<int32>* GetSpellLinked(int32 spell_id) const;
+    [[nodiscard]] std::vector<int32> const* GetSpellLinked(int32 spell_id) const;
 
     [[nodiscard]] PetLevelupSpellSet const* GetPetLevelupSpellList(uint32 petFamily) const;
     [[nodiscard]] PetDefaultSpellsEntry const* GetPetDefaultSpellsEntry(int32 id) const;
@@ -777,6 +786,7 @@ public:
     void LoadSpellRequired();
     void LoadSpellLearnSkills();
     void LoadSpellTargetPositions();
+    void LoadSpellCones();
     void LoadSpellGroups();
     void LoadSpellGroupStackRules();
     void LoadSpellProcs();
@@ -809,6 +819,7 @@ private:
     SpellRequiredMap           mSpellReq;
     SpellLearnSkillMap         mSpellLearnSkills;
     SpellTargetPositionMap     mSpellTargetPositions;
+    SpellConeMap               mSpellCones;
     SpellSpellGroupMap         mSpellSpellGroup;
     SpellGroupSpellMap         mSpellGroupSpell;
     SpellGroupStackMap         mSpellGroupStack;

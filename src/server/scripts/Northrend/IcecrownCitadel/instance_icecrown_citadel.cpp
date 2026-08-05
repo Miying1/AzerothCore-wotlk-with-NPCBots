@@ -551,7 +551,7 @@ public:
 
         uint32 GetCreatureEntry(ObjectGuid::LowType /*guidLow*/, CreatureData const* data) override
         {
-            uint32 entry = data->id1;
+            uint32 entry = data->id;
             switch (entry)
             {
                 case NPC_HORDE_GUNSHIP_CANNON:

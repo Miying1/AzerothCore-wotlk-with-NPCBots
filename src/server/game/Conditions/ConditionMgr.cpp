@@ -259,7 +259,7 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo)
             if (Player* player = unit->GetCharmerOrOwnerPlayerOrPlayerItself())
             {
                 // Xinef: cannot be null, checked at loading
-                const Quest* quest = sObjectMgr->GetQuestTemplate(ConditionValue1);
+                Quest const* quest = sObjectMgr->GetQuestTemplate(ConditionValue1);
                 condMeets = !player->IsQuestRewarded(ConditionValue1) && player->SatisfyQuestExclusiveGroup(quest, false);
             }
         }
@@ -1130,7 +1130,7 @@ ConditionList ConditionMgr::GetConditionsForNpcVendorEvent(uint32 creatureId, ui
     return cond;
 }
 
-ConditionList ConditionMgr::GetConditionsForObjectVisibility(const WorldObject* object) const
+ConditionList ConditionMgr::GetConditionsForObjectVisibility(WorldObject const* object) const
 {
     ConditionList cond;
 
@@ -1246,7 +1246,7 @@ void ConditionMgr::LoadConditions(bool isReload)
             }
             cond->ReferenceId = uint32(std::abs(iConditionTypeOrReference));
 
-            const char* rowType = "reference template";
+            char const* rowType = "reference template";
             if (iSourceTypeOrReferenceId >= 0)
                 rowType = "reference";
             // check for useless data
@@ -2005,7 +2005,7 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond)
                     return false;
                 }
 
-                if (data->id1 != uint32(cond->SourceEntry))
+                if (data->id != uint32(cond->SourceEntry))
                 {
                     LOG_ERROR("sql.sql", "CONDITION_SOURCE_TYPE_OBJECT_VISIBILITY has creature guid {} that does not match SourceEntry {}, skipped.", cond->SourceId, cond->SourceEntry);
                     return false;
@@ -2369,7 +2369,7 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
             {
                 if (CreatureData const* creatureData = sObjectMgr->GetCreatureData(cond->ConditionValue3))
                 {
-                    if (cond->ConditionValue2 && creatureData->id1 != cond->ConditionValue2)
+                    if (cond->ConditionValue2 && creatureData->id != cond->ConditionValue2)
                     {
                         LOG_ERROR("sql.sql", "ObjectEntryGuid condition has guid {} set but does not match creature entry ({}), skipped", cond->ConditionValue3, cond->ConditionValue2);
                         return false;
@@ -2593,7 +2593,7 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
     }
     case CONDITION_QUEST_OBJECTIVE_PROGRESS:
     {
-        const Quest* quest = sObjectMgr->GetQuestTemplate(cond->ConditionValue1);
+        Quest const* quest = sObjectMgr->GetQuestTemplate(cond->ConditionValue1);
         if (!quest)
         {
             LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS points to non-existing quest ({}), skipped.", cond->ConditionValue1);

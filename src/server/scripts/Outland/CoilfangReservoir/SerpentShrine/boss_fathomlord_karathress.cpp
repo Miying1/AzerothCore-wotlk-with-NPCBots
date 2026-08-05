@@ -90,7 +90,6 @@ struct boss_fathomlord_karathress : public BossAI
     void Reset() override
     {
         BossAI::Reset();
-        _recentlySpoken = false;
 
         ScheduleHealthCheckEvent(75, [&]{
             instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard) {
@@ -115,15 +114,7 @@ struct boss_fathomlord_karathress : public BossAI
 
     void KilledUnit(Unit* /*victim*/) override
     {
-        if (!_recentlySpoken)
-        {
-            Talk(SAY_SLAY);
-            _recentlySpoken = true;
-        }
-        scheduler.Schedule(6s, [this](TaskContext)
-        {
-            _recentlySpoken = false;
-        });
+        Talk(SAY_SLAY);
     }
 
     void JustDied(Unit* killer) override
@@ -180,8 +171,6 @@ struct boss_fathomlord_karathress : public BossAI
             });
         }
     }
-private:
-    bool _recentlySpoken;
 };
 
 struct LeechingThrowSelector

@@ -94,7 +94,7 @@ bool BotBankItemCompare::operator()(Item const* item1, Item const* item2) const
                 if (proto1->Quality == proto2->Quality)
                 {
                     float gs1 = CalculateItemGearScoreRaw(proto1);
-                    float gs2 = CalculateItemGearScoreRaw(proto1);
+                    float gs2 = CalculateItemGearScoreRaw(proto2);
                     if (gs1 == gs2)
                     {
                         if (proto1->Name1 == proto2->Name1)
@@ -1113,7 +1113,7 @@ void BotDataMgr::LoadNpcBots(bool spawn)
             {
                 proto = sObjectMgr->GetCreatureTemplate(entry);
                 //                                     1     2    3           4           5           6
-                infores = WorldDatabase.Query("SELECT guid, map, position_x, position_y, position_z, orientation FROM creature WHERE id1 = {}", entry);
+                infores = WorldDatabase.Query("SELECT guid, map, position_x, position_y, position_z, orientation FROM creature WHERE id = {}", entry);
                 if (!infores)
                 {
                     BOT_LOG_ERROR("server.loading", "Cannot spawn npcbot {} (id: {}), not found in `creature` table!", proto->Name.c_str(), entry);
@@ -1178,8 +1178,8 @@ void BotDataMgr::LoadNpcBots(bool spawn)
     };
 
     for (auto const& [_, cdata] : sObjectMgr->GetAllCreatureData())
-        if (cdata.id1 >= BOT_ENTRY_BEGIN && sObjectMgr->GetCreatureTemplate(cdata.id1)->IsNPCBot() && std::ranges::find(entryList, cdata.id1) == entryList.cend())
-            invalid_ids.push_back(cdata.id1);
+        if (cdata.id >= BOT_ENTRY_BEGIN && sObjectMgr->GetCreatureTemplate(cdata.id)->IsNPCBot() && std::ranges::find(entryList, cdata.id) == entryList.cend())
+            invalid_ids.push_back(cdata.id);
 
     if (!invalid_ids.empty())
     {
