@@ -118,27 +118,34 @@ struct boss_ingvar_the_plunderer : public ScriptedAI
             pInstance->SetData(DATA_INGVAR, NOT_STARTED);
     }
 
-        void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        // Residual damage (e.g. DoT ticks) during the feign death would restart
+        // the death sequence, repeating the yell and delaying Annhylde
+        if (me->HasUnitFlag2(UNIT_FLAG2_FEIGN_DEATH))
         {
-            if (me->GetDisplayId() == DISPLAYID_DEFAULT && damage >= me->GetHealth())
-            {
-                damage = 0;
-                me->InterruptNonMeleeSpells(true);
-                me->RemoveAllAuras();
-                me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                me->SetControlled(false, UNIT_STATE_ROOT);
-                me->DisableRotate(false);
-                me->GetMotionMaster()->MovementExpired();
-                me->GetMotionMaster()->MoveIdle();
-                me->StopMoving();
-                FeignDeath(true);
-                events.Reset();
-                events.RescheduleEvent(EVENT_START_RESURRECTION, 1s);
-                events.RescheduleEvent(EVENT_YELL_DEAD_1, 0ms);
-            }
+            if (damage >= me->GetHealth())
+                damage = me->GetHealth() - 1;
+            return;
         }
 
-    void JustEngagedWith(Unit* /*who*/) override
+        if (me->GetDisplayId() == DISPLAYID_DEFAULT && damage >= me->GetHealth())
+        {
+            damage = me->GetHealth() - 1;
+            me->InterruptNonMeleeSpells(true);
+            me->RemoveAllAuras();
+            me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            me->SetControlled(false, UNIT_STATE_ROOT);
+            me->DisableRotate(false);
+            me->GetMotionMaster()->MovementExpired();
+            me->GetMotionMaster()->MoveIdle();
+            me->StopMoving();
+            FeignDeath(true);
+            events.Reset();
+            events.RescheduleEvent(EVENT_START_RESURRECTION, 1s);
+            events.RescheduleEvent(EVENT_YELL_DEAD_1, 0ms);
+        }
+    }
     {
         events.Reset();
         // schedule Phase 1 abilities
@@ -278,6 +285,7 @@ struct boss_ingvar_the_plunderer : public ScriptedAI
                     me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     AttackStart(me->GetVictim());
                     me->GetMotionMaster()->MoveChase(me->GetVictim());
+                    me->CastSpell((Unit*)nullptr, SPELL_DREADFUL_ROAR, false);
                     Talk(YELL_AGGRO_2);
 
             // schedule Phase 2 abilities
