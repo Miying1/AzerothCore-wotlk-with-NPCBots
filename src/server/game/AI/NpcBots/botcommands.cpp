@@ -954,6 +954,7 @@ public:
         return true;
     }
 
+    static bool HandleNpcBotWPSpawnAllCommand(ChatHandler* handler)
     {
         if (!isWPSpawnWarningGiven)
         {

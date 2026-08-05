@@ -127,6 +127,7 @@ public:
     Player* GetBotOwner() const { return master; }
     bool SetBotOwner(Player* newowner);
     void CheckOwnerExpiry();
+    void SendEquipsToOwner();
     uint8 GetBotClass() const { return _botclass; }
     uint32 GetLastDiff() const { return lastdiff; }
     virtual void UpdateDeadAI(uint32 diff);
@@ -207,6 +208,8 @@ public:
     void SetAuraUpdateMaskForRaid(uint8 slot) { _auraRaidUpdateMask |= (uint64(1) << slot); }
     void ResetAuraUpdateMaskForRaid() { _auraRaidUpdateMask = 0; }
     void SendUpdateToOutOfRangeBotGroupMembers();
+    void SendEquipList(Player* player);
+    std::string LoadEquipPartName(uint8 slot);
     void SetBattlegroundOrBattlefieldRaid(Group* group, int8 subgroup);
     void RemoveFromBattlegroundOrBattlefieldRaid();
     Group* GetOriginalGroup() const { return _originalGroup.getTarget(); }

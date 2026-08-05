@@ -424,6 +424,7 @@ bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
     else if (CreatureGroup* formation = me->GetFormation())
     {
         formation->MemberEvaded(me);
+    }
 
     if (TempSummon* summon = me->ToTempSummon())
     {

@@ -601,6 +601,7 @@ void MotionMaster::MoveTakeoff(uint32 id, Position const& pos, float speed /* = 
     if (speed > 0.01f)
     {
         init.SetVelocity(speed);
+    }
 
     if (!skipAnimation)
         init.SetAnimation(AnimTier::Hover);

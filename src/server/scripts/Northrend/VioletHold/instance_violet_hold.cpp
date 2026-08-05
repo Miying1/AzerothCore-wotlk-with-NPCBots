@@ -100,6 +100,7 @@ public:
         void OnCreatureCreate(Creature* creature) override
         {
             InstanceScript::OnCreatureCreate(creature);
+            AddChallengeCreature(creature);
 
             switch (creature->GetEntry())
             {
@@ -466,6 +467,8 @@ public:
             }
             else
                 plr->SendUpdateWorldState(WORLD_STATE_VIOLET_HOLD_SHOW, 0);
+
+            CheckChallengeMode();
         }
 
         bool DoNeedCleanup(bool enter)

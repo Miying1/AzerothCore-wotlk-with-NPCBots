@@ -380,7 +380,7 @@ public:
             return false;
         if (!target->IsAlive())
             return false;
-        if (_playerOnly && !target->IsPlayer())
+        if (_playerOnly && !target->IsNPlayer())
             return false;
         if (_maxDist && _source->GetExactDist(target) > _maxDist)
             return false;
@@ -406,7 +406,7 @@ public:
             return false;
         if (!target->IsAlive())
             return false;
-        if (_playerOnly && !target->IsPlayer())
+        if (_playerOnly && !target->IsNPlayer())
             return false;
         if (target == _source->GetVictim())
             return false;
@@ -2339,7 +2339,7 @@ class VehicleCheck
 public:
     bool operator()(WorldObject* unit)
     {
-        return (!unit->IsCreature() && !unit->IsPlayer()) || unit->ToUnit()->GetVehicle();
+        return (!unit->IsCreature() && !unit->IsNPlayer()) || unit->ToUnit()->GetVehicle();
     }
 };
 
@@ -3516,7 +3516,7 @@ public:
 
         bool CanAIAttack(Unit const* target) const override
         {
-            return me->GetReactState() == REACT_AGGRESSIVE && target->IsPlayer() && target->GetExactDistSq(495.708f, -2523.76f, 1049.95f) < 40.0f * 40.0f;
+            return me->GetReactState() == REACT_AGGRESSIVE && target->IsNPlayer() && target->GetExactDistSq(495.708f, -2523.76f, 1049.95f) < 40.0f * 40.0f;
         }
     };
 

@@ -1728,11 +1728,6 @@ public:
                 default:
                     break;
             }
-            if (botPet && botPet->IsAlive()) {
-                TempSummon* summ = botPet->ToTempSummon();
-                if(summ)
-                    summ->UnSummon();
-            }
         }
 
         void SummonedCreatureDies(Creature*  summon , Unit* /*killer*/) override

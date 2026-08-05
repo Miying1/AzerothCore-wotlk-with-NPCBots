@@ -1059,4 +1059,3 @@ void InstanceScript::RefreshChallengeBuff()
         }
     }
 }
-}

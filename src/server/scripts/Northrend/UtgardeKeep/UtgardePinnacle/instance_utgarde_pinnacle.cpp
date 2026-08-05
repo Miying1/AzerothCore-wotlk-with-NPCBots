@@ -100,6 +100,7 @@ public:
         }
         void OnCreatureCreate(Creature* pCreature) override
         {
+            AddChallengeCreature(pCreature);
             switch (pCreature->GetEntry())
             {
                 case NPC_SVALA_SORROWGRAVE:
