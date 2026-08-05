@@ -14302,7 +14302,16 @@ bool Unit::IsPolymorphed() const
 void Unit::RecalculateObjectScale()
 {
     int32 scaleAuras = GetTotalAuraModifier(SPELL_AURA_MOD_SCALE) + GetTotalAuraModifier(SPELL_AURA_MOD_SCALE_2);
-    float scale = GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras);
+    //float scale = GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras);
+    float scale = 1.0f;
+    if (GetAuraEffect(100004, 0)) {
+        scale = GetObjectScale();
+    }
+    else
+    {
+        scale = GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras);
+    }
+    //float scale = scale + CalculatePct(GetObjectScale(), scaleAuras);
     float scaleMin = IsPlayer() ? 0.1f : 0.01f;
     SetObjectScale(std::max(scale, scaleMin));
 }
