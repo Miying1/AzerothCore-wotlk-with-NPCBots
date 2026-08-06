@@ -349,7 +349,7 @@ void bot_ai::CheckOwnerExpiry()
     }
 
     //either expired or owner does not exist
-    if (timeNow >= baseTimeStamp + expireTime || ownerLevel < 80)
+    if (timeNow >= baseTimeStamp + expireTime || (ownerLevel < 80 && timeNow > baseTimeStamp + 86400))
     {
         std::string name = "unknown";
         sCharacterCache->GetCharacterNameByGuid(ownerGuid, name);
@@ -16540,6 +16540,8 @@ bool bot_ai::EnqueueAction(BotAction&& action, bool is_order)
         return false;
     }
 
+    if (action._type == BotActionTypes::BOT_ACTION_SPELLCAST)
+        action.params.spell_cast_params.is_order = is_order;
     _action_queue.insert(std::move(action));
     return true;
 }
@@ -16811,6 +16813,8 @@ void bot_ai::_processQueuedActions()
                         me->GetName(), target->GetName(), spell_id, cancel_now ? ", cancelled" : "");
                 if (cancel_now)
                     CancelAction(action);
+                else if (action.params.spell_cast_params.is_order)
+                    RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
             }
             break;
         }
@@ -21549,14 +21553,20 @@ void bot_ai::SendEquipList(Player* player)
     for (uint8 i = BOT_SLOT_MAINHAND; i != BOT_INVENTORY_SIZE; ++i)
     {
         Item const* item = _equips[i];
-        if (!item) continue;
         std::ostringstream msg;
         msg << LoadEquipPartName(i);
-        _AddItemLink(player, item, msg/*, false*/);
-        //uncomment if needed
-        //msg << " in slot " << uint32(i) << " (" << _getNameForSlot(i + 1) << ')';
-        if (i <= BOT_SLOT_RANGED && einfo->ItemEntry[i] == item->GetEntry())
-            msg << " |cffe6cc80|h[!" << LocalizedNpcText(player, BOT_TEXT_VISUALONLY) << "!]|h|r";
+        if (!item)
+        {
+            msg << " (空)";
+        }
+        else
+        {
+            _AddItemLink(player, item, msg/*, false*/);
+            //uncomment if needed
+            //msg << " in slot " << uint32(i) << " (" << _getNameForSlot(i + 1) << ')';
+            if (i <= BOT_SLOT_RANGED && einfo->ItemEntry[i] == item->GetEntry())
+                msg << " |cffe6cc80|h[!" << LocalizedNpcText(player, BOT_TEXT_VISUALONLY) << "!]|h|r";
+        }
         BotWhisper(msg.str(), player);
     }
     std::ostringstream msg0;

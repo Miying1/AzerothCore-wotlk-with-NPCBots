@@ -383,7 +383,7 @@ public:
             if (IsSpellReady(KILLING_SPREE_1, diff) && !stealthed && !shadowdance && HasRole(BOT_ROLE_DPS) &&
                 Rand() < (70 - energy) && dist < 10 && GetHealthPCT(me) > 25 && (!CCed(mytar) || dist > 5) &&
                 (mytar->getAttackers().size() < 4 || mytar->GetMaxHealth() > me->GetMaxHealth() * 2) &&
-                mytar->GetHealth() > me->GetMaxHealth() / 2 )
+                (mytar->IsControlledByPlayer() || mytar->GetHealth() > me->GetMaxHealth() / 2) )
             {
                 if (doCast(mytar, GetSpell(KILLING_SPREE_1)))
                     return;
@@ -682,8 +682,8 @@ public:
             std::list<Unit*> targets;
             GetNearbyTargetsList(targets, 7.f, 1); 
             //Fan of Knives
-            if (GetSpell(FAN_OF_KNIVES_1) &&
-                Rand() < 35+ 40*(me->GetAuraEffect(SPELL_AURA_MOD_POWER_REGEN_PERCENT, SPELLFAMILY_ROGUE, 0x0, 0x80, 0x0) != nullptr)
+            if (GetSpell(FAN_OF_KNIVES_1) && !mytar->IsControlledByPlayer() &&
+                Rand() < 35 + 40 * (me->GetAuraEffect(SPELL_AURA_MOD_POWER_REGEN_PERCENT, SPELLFAMILY_ROGUE, 0x0, 0x80, 0x0) != nullptr)
                 + 50*(me->GetAuraEffect(SPELL_AURA_MOD_MELEE_HASTE, SPELLFAMILY_ROGUE, 0x40000000, 0x0, 0x0) != nullptr)
                 /*Adrenaline Rush and Blade Flurry*/)
             {

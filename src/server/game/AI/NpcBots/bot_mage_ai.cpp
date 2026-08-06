@@ -490,6 +490,26 @@ public:
             //CONES
             if (/*fbCasted && */(IsSpellReady(CONE_OF_COLD_1, diff) || IsSpellReady(DRAGON_BREATH_1, diff)) && Rand() < 65)
             {
+                Unit* pvpMeleeTarget = nullptr;
+                if (IsSpellReady(CONE_OF_COLD_1, diff))
+                {
+                    for (Unit* attacker : b_attackers)
+                    {
+                        if (attacker->IsControlledByPlayer() && attacker->GetVictim() == me && me->IsWithinMeleeRange(attacker))
+                        {
+                            pvpMeleeTarget = attacker;
+                            break;
+                        }
+                    }
+                }
+
+                if (pvpMeleeTarget)
+                {
+                    me->SetInFront(pvpMeleeTarget);
+                    if (doCast(me, GetSpell(CONE_OF_COLD_1)))
+                        return;
+                }
+
                 std::list<Unit*> targets;
                 GetNearbyTargetsInConeList(targets, 8); //both are radius 10 yd
                 if (!targets.empty())
@@ -577,15 +597,17 @@ public:
                 SetSpellCooldown(BLIZZARD_1, 1500); //fail
             }
             //Ice Lance (no cd, only GCD)
-           /* if (fbCasted && (!me->GetMap()->IsDungeon() || mytar->IsControlledByPlayer()) &&
+            if (fbCasted && (!me->GetMap()->IsDungeon() || mytar->IsControlledByPlayer()) &&
                 IsSpellReady(ICE_LANCE_1, diff) && can_do_frost && dist < CalcSpellMaxRange(ICE_LANCE_1) &&
                 (mytar->isFrozen() || me->HasAuraType(SPELL_AURA_ABILITY_IGNORE_AURASTATE)))
             {
                 if (doCast(mytar, GetSpell(ICE_LANCE_1)))
                     return;
-            }*/
+            }
             //Fireball or Frostfire Bolt (instant cast or combustion use up)
-            if (me->HasAuraType(SPELL_AURA_ABILITY_IGNORE_AURASTATE) && IsSpellReady(FROSTFIREBOLT, diff) && (can_do_frost | can_do_fire) && dist < CalcSpellMaxRange(FROSTFIREBOLT) && Rand() < 150) //level 1-3
+            if (/*fbCasted && */IsSpellReady(FROSTFIREBOLT, diff) && can_do_frost_or_fire && dist < CalcSpellMaxRange(FROSTFIREBOLT) && Rand() < 150 &&
+                ((((CCed(mytar, true) || b_attackers.empty()) && me->HasAura(COMBUSTION_BUFF)) || me->HasAura(BRAIN_FREEZE_BUFF)) ||
+                !GetSpell(FROSTBOLT_1))) //level 1-3
             {
                 if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                     return;

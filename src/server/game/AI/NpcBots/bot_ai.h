@@ -839,6 +839,7 @@ public:
                 ObjectGuid target_guid;
                 uint32 base_spell;
                 bool interrupt_self;
+                bool is_order;
             } spell_cast_params;
 
             struct
