@@ -16,6 +16,7 @@
 NpcBot System by Trickerer (onlysuffering@gmail.com)
 */
 
+class BotPositionControl;
 class TeleportHomeEvent;
 class TeleportFinishEvent;
 class AwaitStateRemovalEvent;
@@ -186,6 +187,7 @@ public:
     void ToggleRole(uint32 role, bool force);
     bool IsTank(Unit const* unit = nullptr) const;
     bool IsOffTank(Unit const* unit = nullptr) const;
+    float GetMassAttackRange() const;
 
     uint32 GetLastZoneId() const { return _lastZoneId; }
     bool IsInHeroicOrRaid() const;
@@ -346,6 +348,7 @@ public:
     AoeSpotsVec const& GetAoeSpots() const;
     static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots);
     AoeSafeSpotsVec CalculateAoeSafeSpots(Unit* target, float maxdist) const;
+    bool IsBotPositionWithinAoE(Position const& pos) const { return IsWithinAoERadius(pos); }
 
     //Pet stuff
     static uint32 GetPetOriginalEntry(uint32 entry);

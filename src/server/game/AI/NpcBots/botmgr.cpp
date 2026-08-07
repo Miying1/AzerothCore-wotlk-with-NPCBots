@@ -7,6 +7,7 @@
 #include "botdpstracker.h"
 #include "botlog.h"
 #include "botmgr.h"
+#include "botpositioncontrol.h"
 #include "botspell.h"
 #include "bottext.h"
 #include "bpet_ai.h"
@@ -47,7 +48,7 @@ using namespace std::string_view_literals;
 static std::list<BotMgr::delayed_teleport_callback_type> delayed_bot_teleports;
 
 static uint8 _IpMaxBots = 8;
-BotMgr::BotMgr(Player* const master) : _owner(master), _dpstracker(new DPSTracker())
+BotMgr::BotMgr(Player* const master) : _owner(master), _positionControl(std::make_unique<BotPositionControl>(*this)), _dpstracker(new DPSTracker())
 {
     _quickrecall = false;
     _update_lock = false;
@@ -804,6 +805,7 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
             bpet->SetCreator(nullptr);
         bot->GetBotAI()->ResetBotAI(BOTAI_RESET_LOGOUT | BOTAI_RESET_DISMISS);
         BotDataMgr::DespawnDungeonBot(bot->GetEntry());
+        _positionControl->ForgetBot(guid);
         _bots.erase(itr);
         return;
     }
@@ -817,6 +819,7 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
     //if (GetNpcBotsCount() <= 1 && !_owner->GetPetGUID() && _owner->m_Controlled.empty())
     //    _owner->SendRemoveControlBar();
 
+    _positionControl->ForgetBot(guid);
     _bots.erase(itr);
 
     if (bot->GetBotAI()->IsTempBot())

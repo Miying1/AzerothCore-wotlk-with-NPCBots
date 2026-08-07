@@ -4,6 +4,7 @@
 #include "botgearscore.h"
 #include "botlog.h"
 #include "botmgr.h"
+#include "botpositioncontrol.h"
 #include "botwanderful.h"
 #include "bot_InstanceEvents.h"
 #include "Bag.h"
@@ -32,6 +33,7 @@
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "Spell.h"
+#include "StringConvert.h"
 #include "TemporarySummon.h"
 #include "Tokenize.h"
 #include "Vehicle.h"
@@ -39,6 +41,7 @@
 #include "WorldDatabase.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
+#include <cmath>
 #include <ranges>
 
 /*
@@ -642,6 +645,9 @@ public:
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
             { "follow",     npcbotCommandFollowCommandTable                                                                         },
+            { "mass",       HandleNpcBotCommandMassCommand,         rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "unmass",     HandleNpcBotCommandUnmassCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "spread",     HandleNpcBotCommandSpreadCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "walk",       HandleNpcBotCommandWalkCommand,         rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "nogossip",   HandleNpcBotCommandNoGossipCommand,     rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "unbind",     HandleNpcBotCommandUnBindCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
@@ -4668,6 +4674,123 @@ public:
             handler->PSendSysMessage("{} ({}): {} (alive: {})", base_name, guid.GetEntry(), nss.view(), bot ? uint32(bot->IsAlive()) : uint32(0));
         }
 
+        return true;
+    }
+
+    static bool HandleNpcBotCommandMassCommand(ChatHandler* handler, Optional<std::string_view> modeArg, Optional<std::string_view> radiusArg)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
+            handler->SendSysMessage("集合非坦克机器人到主人附近，ranged 模式仅包含远程和治疗职责");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        BotMassMode mode = BotMassMode::AllNonTank;
+        float radius = 4.0f;
+        if (modeArg)
+        {
+            if (*modeArg == "all")
+            {
+                mode = BotMassMode::AllNonTank;
+            }
+            else if (*modeArg == "ranged")
+            {
+                mode = BotMassMode::RangedAndHeal;
+            }
+            else if (Optional<float> parsedRadius = Acore::StringTo<float>(*modeArg))
+            {
+                if (radiusArg)
+                {
+                    handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+                radius = *parsedRadius;
+            }
+            else
+            {
+                handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+        }
+
+        if (radiusArg)
+        {
+            Optional<float> parsedRadius = Acore::StringTo<float>(*radiusArg);
+            if (!parsedRadius)
+            {
+                handler->SendSysMessage("集合半径必须是 1 到 4 之间的数字");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            radius = *parsedRadius;
+        }
+
+        if (!std::isfinite(radius) || radius < 1.0f || radius > 4.0f)
+        {
+            handler->SendSysMessage("集合半径必须是 1 到 4 之间的数字");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        BotPositionControl* control = owner->GetBotMgr()->GetBotPositionControl();
+        uint32 count = control->EnableMass(mode, radius);
+        handler->PSendSysMessage("集合模式已启用：{}，半径 {:.1f} 码，当前 {} 个机器人符合条件",
+            mode == BotMassMode::RangedAndHeal ? "远程/治疗" : "所有非坦克", radius, count);
+        return true;
+    }
+
+    static bool HandleNpcBotCommandUnmassCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        owner->GetBotMgr()->GetBotPositionControl()->DisableMass();
+        handler->SendSysMessage("集合模式已关闭，机器人恢复原有走位策略");
+        return true;
+    }
+
+    static bool HandleNpcBotCommandSpreadCommand(ChatHandler* handler, Optional<std::string_view> distanceArg)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        BotPositionControl* control = owner->GetBotMgr()->GetBotPositionControl();
+        if (distanceArg && *distanceArg == "off")
+        {
+            control->DisableSpread();
+            handler->SendSysMessage("战斗分散模式已关闭");
+            return true;
+        }
+
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage(".npcbot command spread [2-20|off]");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        float distance = 5.0f;
+        if (distanceArg)
+        {
+            Optional<float> parsedDistance = Acore::StringTo<float>(*distanceArg);
+            if (!parsedDistance)
+            {
+                handler->SendSysMessage("分散距离必须是 2 到 20 之间的数字，或使用 off");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            distance = *parsedDistance;
+        }
+
+        if (!control->EnableSpread(distance))
+        {
+            handler->SendSysMessage("分散距离必须是 2 到 20 之间的数字");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        handler->PSendSysMessage("战斗分散模式已启用，目标间距 {:.1f} 码", distance);
         return true;
     }
 
