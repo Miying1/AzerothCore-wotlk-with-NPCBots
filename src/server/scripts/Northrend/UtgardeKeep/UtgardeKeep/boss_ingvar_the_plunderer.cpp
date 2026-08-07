@@ -146,6 +146,7 @@ struct boss_ingvar_the_plunderer : public ScriptedAI
             events.RescheduleEvent(EVENT_YELL_DEAD_1, 0ms);
         }
     }
+    void JustEngagedWith(Unit* /*who*/) override
     {
         events.Reset();
         // schedule Phase 1 abilities
@@ -175,7 +176,7 @@ struct boss_ingvar_the_plunderer : public ScriptedAI
         else if (s->GetEntry() == NPC_THROW)
         {
             ThrowGUID = s->GetGUID();
-            if (Unit* t = SelectTarget(SelectTargetMethod::Random, 0, 70.0f, true))
+            if (Unit* t = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                 s->GetMotionMaster()->MovePoint(0, t->GetPositionX(), t->GetPositionY(), t->GetPositionZ());
         }
     }
@@ -183,9 +184,9 @@ struct boss_ingvar_the_plunderer : public ScriptedAI
     void KilledUnit(Unit* /*who*/) override
     {
         if (me->GetDisplayId() == DISPLAYID_DEFAULT)
-            Talk(YELL_KILL_2);
-        else
             Talk(YELL_KILL_1);
+        else
+            Talk(YELL_KILL_2);
     }
 
         void FeignDeath(bool apply)

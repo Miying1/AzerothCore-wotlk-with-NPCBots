@@ -1,5 +1,5 @@
-void AddIndividual_XPScripts();
+void AddIndividualXPScripts();
 
 void Addmod_individual_xpScripts() {
-    AddIndividual_XPScripts();
+    AddIndividualXPScripts();
 }

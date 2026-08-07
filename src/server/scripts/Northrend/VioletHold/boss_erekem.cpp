@@ -95,8 +95,8 @@ struct boss_erekem : public BossAI
                     if (Creature* target = instance->instance->GetCreature(targetGuid))
                         DoCast(target, SPELL_CHAIN_HEAL);
 
-                            Creature* pGuard1 = pInstance->instance->GetCreature(pInstance->GetGuidData(DATA_EREKEM_GUARD_1_GUID));
-                            Creature* pGuard2 = pInstance->instance->GetCreature(pInstance->GetGuidData(DATA_EREKEM_GUARD_2_GUID));
+                            Creature* pGuard1 = instance->instance->GetCreature(instance->GetGuidData(DATA_EREKEM_GUARD_1_GUID));
+                            Creature* pGuard2 = instance->instance->GetCreature(instance->GetGuidData(DATA_EREKEM_GUARD_2_GUID));
                             if ((pGuard1 && !pGuard1->IsAlive()) || (pGuard2 && !pGuard2->IsAlive()))
                             {
                                 events.Repeat(3s, 6s);
@@ -120,8 +120,8 @@ struct boss_erekem : public BossAI
                     break;
                 case EVENT_SPELL_STORMSTRIKE:
                     {
-                        Creature* pGuard1 = pInstance->instance->GetCreature(pInstance->GetGuidData(DATA_EREKEM_GUARD_1_GUID));
-                        Creature* pGuard2 = pInstance->instance->GetCreature(pInstance->GetGuidData(DATA_EREKEM_GUARD_2_GUID));
+                        Creature* pGuard1 = instance->instance->GetCreature(instance->GetGuidData(DATA_EREKEM_GUARD_1_GUID));
+                        Creature* pGuard2 = instance->instance->GetCreature(instance->GetGuidData(DATA_EREKEM_GUARD_2_GUID));
                         if (pGuard1 && !pGuard1->IsAlive() && pGuard2 && !pGuard2->IsAlive()) // both dead
                             me->CastSpell(me->GetVictim(), SPELL_STORMSTRIKE, false);
                         events.Repeat(3s);

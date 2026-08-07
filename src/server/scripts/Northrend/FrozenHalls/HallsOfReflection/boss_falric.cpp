@@ -102,7 +102,7 @@ struct boss_falric : public BossAI
                 break;
             case EVENT_IMPENDING_DESPAIR:
                 //if (Unit* target = SelectTargetFromPlayerList(45.0f, 0, true))
-                    if (Unit* target = SelectTarget(SelectTargetMethod.Random,50,0,false,false,0))
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, false, false, 0))
                 {
                     Talk(SAY_IMPENDING_DESPAIR);
                     DoCast(target, SPELL_IMPENDING_DESPAIR);

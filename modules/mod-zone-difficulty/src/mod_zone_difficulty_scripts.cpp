@@ -12,6 +12,7 @@
 #include "PoolMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptMgr.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 #include "SpellAuras.h"
 #include "SpellAuraEffects.h"
