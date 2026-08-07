@@ -194,8 +194,8 @@ public:
     virtual void OnPlayerInWaterStateUpdate(Player* /*player*/, bool /*inWater*/) {}
 
     //npcbot: map hooks
-    virtual void OnNPCBotEnter(Creature* /*bot*/) { }
-    virtual void OnNPCBotLeave(Creature* /*bot*/) { }
+    void OnNPCBotEnter(Creature* bot);
+    void OnNPCBotLeave(Creature* bot);
     void DoRemoveAurasDueToSpellOnNPCBot(Creature* bot, uint32 spell);
     void DoCastSpellOnNPCBot(Creature* bot, uint32 spell);
     //end npcbot
@@ -295,6 +295,18 @@ public:
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
 
+    // 地下城挑战模式 - 开始
+    std::vector<Creature*> AllChallengeCreature;
+    virtual void TimeLimitUpdate(uint32 diff);
+    void SetChallengeMode(Unit* creature);
+    void CheckChallengeMode();
+    void RefreshChallengeBuff();
+    void AddChallengeCreature(Creature* creature);
+    void SetCMode(bool isopen) { isOpenChallenge = isopen; }
+    void SetTimeLimitMinute(uint32 timelimit);
+    uint32 GetTimeLimitMinute() { return timeLimitMinute; }
+    // 地下城挑战模式 - 结束
+
     //
     void StoreGameObjectState(ObjectGuid::LowType spawnId, uint8 state) { _objectStateMap[spawnId] = state; };
     [[nodiscard]] uint8 GetStoredGameObjectState(ObjectGuid::LowType spawnId) const;
@@ -351,6 +363,12 @@ protected:
 
 private:
     static void LoadObjectData(ObjectData const* creatureData, ObjectInfoMap& objectInfo);
+
+    // 地下城挑战模式 - 开始
+    bool isOpenChallenge = false;
+    uint32 limitTimer = 0;
+    uint32 timeLimitMinute = 0;
+    // 地下城挑战模式 - 结束
 
     std::vector<char> headers;
     std::vector<BossInfo> bosses;

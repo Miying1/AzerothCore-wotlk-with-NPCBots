@@ -1,6 +1,7 @@
 #include "Transmogrification.h"
 #include "ItemTemplate.h"
 #include "DatabaseEnv.h"
+#include "WorldSessionMgr.h"
 
 Transmogrification* Transmogrification::instance()
 {
@@ -574,7 +575,7 @@ TransmogAcoreStrings Transmogrification::Transmogrify(Player* player, Item* item
         itemTransmogrified->SetNotRefundable(player);
         itemTransmogrified->ClearSoulboundTradeable(player);
 
-        if (itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_EQUIPED || itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_USE)
+        if (itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_EQUIPPED || itemTransmogrifier->GetTemplate()->Bonding == BIND_WHEN_USE)
             itemTransmogrifier->SetBinding(true);
 
         itemTransmogrifier->SetOwnerGUID(player->GetGUID());
@@ -738,10 +739,10 @@ bool Transmogrification::SuitableForTransmogrification(Player* player, ItemTempl
         }
     }
 
-    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_HORDE_ONLY) && player->GetTeamId() != TEAM_HORDE)
+    if ((proto->Flags2 & ITEM_FLAG2_FACTION_HORDE) && player->GetTeamId() != TEAM_HORDE)
         return false;
 
-    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_ALLIANCE_ONLY) && player->GetTeamId() != TEAM_ALLIANCE)
+    if ((proto->Flags2 & ITEM_FLAG2_FACTION_ALLIANCE) && player->GetTeamId() != TEAM_ALLIANCE)
         return false;
 
     if (!IgnoreReqClass && (proto->AllowableClass & player->getClassMask()) == 0)
@@ -759,7 +760,7 @@ bool Transmogrification::SuitableForTransmogrification(Player* player, ItemTempl
             return false;
     }
 
-    if (!IgnoreReqLevel && player->getLevel() < proto->RequiredLevel)
+    if (!IgnoreReqLevel && player->GetLevel() < proto->RequiredLevel)
         return false;
 
     if (!IgnoreReqSpell && proto->RequiredSpell != 0 && !player->HasSpell(proto->RequiredSpell))
@@ -824,10 +825,10 @@ bool Transmogrification::SuitableForTransmogrification(ObjectGuid guid, ItemTemp
         }
     }
 
-    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_HORDE_ONLY) && playerTeamId != TEAM_HORDE)
+    if ((proto->Flags2 & ITEM_FLAG2_FACTION_HORDE) && playerTeamId != TEAM_HORDE)
         return false;
 
-    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_ALLIANCE_ONLY) && playerTeamId != TEAM_ALLIANCE)
+    if ((proto->Flags2 & ITEM_FLAG2_FACTION_ALLIANCE) && playerTeamId != TEAM_ALLIANCE)
         return false;
 
     if (!IgnoreReqClass && (proto->AllowableClass & playerClassMask) == 0)
@@ -960,8 +961,8 @@ void Transmogrification::LoadConfig(bool reload)
 
     if (reload) // dont store presets for nothing
     {
-        SessionMap const& sessions = sWorld->GetAllSessions();
-        for (SessionMap::const_iterator it = sessions.begin(); it != sessions.end(); ++it)
+        WorldSessionMgr::SessionMap const& sessions = sWorldSessionMgr->GetAllSessions();
+        for (WorldSessionMgr::SessionMap::const_iterator it = sessions.begin(); it != sessions.end(); ++it)
         {
             if (Player* player = it->second->GetPlayer())
             {

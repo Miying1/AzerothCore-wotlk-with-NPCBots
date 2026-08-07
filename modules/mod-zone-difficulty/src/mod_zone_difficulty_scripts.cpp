@@ -378,11 +378,11 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!");
+            ch.SendNotification("我还没有目标!");
             return false;
         }
         if (target->GetTypeId() != TYPEID_PLAYER && !target->IsNPCBot()) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         uint32 instid = player->GetMap()->GetInstanceId();

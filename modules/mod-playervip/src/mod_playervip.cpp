@@ -6,26 +6,7 @@
 #include "Chat.h"
 
  
-class VipPlayer : public PlayerScript
-{
-
-public:
-
-    VipPlayer() : PlayerScript("VipPlayer") {}
-
-    void OnLogin(Player* player)
-    {
-        auto guid = player->GetGUID();
-        CharacterCacheEntry const* playerData = sCharacterCache->GetCharacterCacheByGuid(guid);
-        if (!playerData)
-            return ;  
-        QueryResult result = CharacterDatabase.Query("SELECT 1 FROM account_vip WHERE account_id = {}", playerData->AccountId);
-        if (result) {
-            player->SetVip(true);
-            ChatHandler(player->GetSession()).SendSysMessage("VIP登录");
-        }
-    }
-};
+ 
 class ReNameItem : public ItemScript
 {
 public:
@@ -76,7 +57,7 @@ public:
             return false;
         }
         uint16 max_level = 80;
-        uint16 cur_level = p->getLevel();
+        uint16 cur_level = p->GetLevel();
         if (cur_level >= max_level)
         {
             ChatHandler(p->GetSession()).PSendSysMessage("你已经满级,无法使用该物品!");
@@ -105,8 +86,7 @@ public:
  
  
 void AddPlayerVipScripts()
-{
-    new VipPlayer();
+{ 
     new ReNameItem();
     new ChangeFactionItem();
     new MaxLevelItem();

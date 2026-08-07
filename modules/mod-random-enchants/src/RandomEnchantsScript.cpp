@@ -13,19 +13,19 @@ class RandomEnchantsPlayer : public PlayerScript {
 public:
     RandomEnchantsPlayer() : PlayerScript("RandomEnchantsPlayer") { }
      
-    void OnLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override {
+    void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override {
         if (sConfigMgr->GetOption<bool>("RandomEnchants.OnLoot", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
             RollPossibleEnchant(player, item);
         player->SaveToDB(false, false);
     }
 
-    void OnCreateItem(Player* player, Item* item, uint32 /*count*/) override {
+    void OnPlayerCreateItem(Player* player, Item* item, uint32 /*count*/) override {
         if (sConfigMgr->GetOption<bool>("RandomEnchants.OnCreate", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
             RollPossibleEnchant(player, item);
     }
      
 
-    void OnGroupRollRewardItem(Player* player, Item* item, uint32 /*count*/, RollVote /*voteType*/, Roll* /*roll*/) override {
+    void OnPlayerGroupRollRewardItem(Player* player, Item* item, uint32 /*count*/, RollVote /*voteType*/, Roll* /*roll*/) override {
        
         if (sConfigMgr->GetOption<bool>("RandomEnchants.OnGroupRoll", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
             RollPossibleEnchant(player, item);

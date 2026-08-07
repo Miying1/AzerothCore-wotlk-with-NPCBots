@@ -122,10 +122,10 @@ public:
             break;
         case GOSSIP_SENDER_USE://变身
             CloseGossipMenuFor(player); 
-            if (player->IsVip() && target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
-                pTransmog->CastTransmogBot(target, action);
-                return;
-            } 
+            //if (target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
+            //    pTransmog->CastTransmogBot(target, action);
+            //    return;
+            //} 
             pTransmog->CastTransmog(player, action); 
             return;
         case GOSSIP_SENDER_USE + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_PT:
@@ -151,7 +151,7 @@ public:
             for (auto it = list->begin(); it != list->end(); ++it)
             {
                 if(count>=30){
-                   player->GetSession()->SendNotification("你的该类幻想已超出30个,需删除部分幻象,保持30个幻象内!"); 
+                   ChatHandler(player->GetSession()).SendNotification("你的该类幻想已超出30个,需删除部分幻象,保持30个幻象内!"); 
                   return true;
                 }
                 AddGossipItemFor(player, GOSSIP_ICON_INTERACT_2, pTransmog->GetModelNameText(&(*it)), GOSSIP_SENDER_MODEL_INFO + sender, (*it).modelid);
@@ -187,7 +187,7 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!"); 
+            ch.SendNotification("我还没有目标!"); 
             return false;
         }
         Creature* creature = target->ToCreature();
@@ -237,17 +237,17 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!");
+            ch.SendNotification("我还没有目标!"); 
             return false;
         }
         Creature* creature = target->ToCreature();
         if (!creature || creature->IsNPCBot()) { 
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
         if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || !(ctemp->rank == 3 || creature->isWorldBoss())) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         //ctemp->type_flags|
@@ -283,18 +283,18 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!");
+            ch.SendNotification("我还没有目标!");
             return false;
         }
         Creature* creature = target->ToCreature();
         if (!creature || creature->IsNPCBot()) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
 
         if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || !(ctemp->rank == 2 || ctemp->rank == 4)) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         } 
         uint16 account_id = player->GetSession()->GetAccountId();
@@ -325,18 +325,18 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!");
+            ch.SendNotification("我还没有目标!");
             return false;
         }
         Creature* creature = target->ToCreature();
         if (!creature || creature->IsNPCBot()) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
 
         if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || ctemp->rank != 1) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         uint16 account_id = player->GetSession()->GetAccountId();
@@ -367,18 +367,18 @@ public:
         ChatHandler ch(player->GetSession());
         Unit* target = player->GetSelectedUnit();
         if (!target) {
-            player->GetSession()->SendNotification("我还没有目标!");
+            ch.SendNotification("我还没有目标!");
             return false;
         }
         Creature* creature = target->ToCreature();
         if (!creature || creature->IsNPCBot()) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         auto ctemp = creature->GetCreatureTemplate();
 
         if (ctemp->type == 8 || ctemp->type == 10 || ctemp->type == 12 || ctemp->rank != 0) {
-            player->GetSession()->SendNotification("这是一个无效的目标!");
+            ch.SendNotification("这是一个无效的目标!");
             return false;
         }
         uint16 account_id = player->GetSession()->GetAccountId();

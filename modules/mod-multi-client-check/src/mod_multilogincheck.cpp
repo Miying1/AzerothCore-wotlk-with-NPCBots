@@ -15,11 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/***
- *  @project: Firestorm Freelance
- *  @author: Meltie2013 (github) aka Lilcrazy
- *  @copyright: 2017
- */
+ /***
+  *  @project: Firestorm Freelance
+  *  @author: Meltie2013 (github) aka Lilcrazy
+  *  @copyright: 2017
+  */
 
 #include "ScriptMgr.h"
 #include "Config.h"
@@ -28,14 +28,18 @@
 #include "Chat.h"
 #include "Player.h"
 #include "StringFormat.h"
+#include "WorldSessionMgr.h"
 
-// Check to see if the player is attempting to multi-box
+  // Check to see if the player is attempting to multi-box
 class multi_login_check : public PlayerScript
 {
 public:
-    multi_login_check() : PlayerScript("multi_login_check") { }
+    multi_login_check() : PlayerScript("multi_login_check", {
+        PLAYERHOOK_ON_LOGIN
+        }) {
+    }
 
-    void OnLogin(Player* player) override
+    void OnPlayerLogin(Player* player) override
     {
         if (player->GetSession()->IsGMAccount())
             return;
@@ -46,25 +50,20 @@ public:
         {
             // There is a Limit of Client
             if (sConfigMgr->GetOption<bool>("Disallow.Multiple.Client.Announce", true))
-            {
-                ChatHandler(player->GetSession()).SendSysMessage(Acore::StringFormatFmt("This Server Max Account of Same IP Is: {}", CountLimit));
-            }
+                ChatHandler(player->GetSession()).SendSysMessage(Acore::StringFormat("This Server Max Account of Same IP Is: {}", CountLimit));
 
             uint32 count = 1;
 
-            for (auto const& [accID, session] : sWorld->GetAllSessions())
+            auto const& sessions = sWorldSessionMgr->GetAllSessions();
+            for (auto const& [accID, session] : sessions)
             {
                 Player* _player = session->GetPlayer();
                 if (!_player || _player == player)
-                {
                     continue;
-                }
 
                 // If Remote Address matches, remove the player from the world
                 if (player->GetSession()->GetRemoteAddress() == _player->GetSession()->GetRemoteAddress() && ++count > CountLimit)
-                {
                     player->GetSession()->KickPlayer();
-                }
             }
         }
     }

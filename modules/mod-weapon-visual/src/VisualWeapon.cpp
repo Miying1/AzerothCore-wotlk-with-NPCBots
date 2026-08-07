@@ -242,12 +242,12 @@ public:
     }
 
     // if Player has item in bag and re-equip it lets check for enchant
-    void OnEquip(Player* player, Item* /*item*/, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
+    void OnPlayerEquip(Player* player, Item* /*item*/, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
     {
         GetVisual(player);
     }
 
-    void OnLogin(Player* player) override
+    void OnPlayerLogin(Player* player) override
     {
         GetVisual(player); 
     }

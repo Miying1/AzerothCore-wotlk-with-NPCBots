@@ -454,7 +454,7 @@ public:
                     CharacterDatabase.CommitTransaction(trans);
                 }
                 else
-                    session->SendNotification(LANG_ERR_UNTRANSMOG_NO_TRANSMOGS);
+                    ChatHandler(session).SendNotification(LANG_ERR_UNTRANSMOG_NO_TRANSMOGS);
                 OnGossipHello(player, creature);
             } break;
             case EQUIPMENT_SLOT_END + 3: // Remove Transmogrification from single item
@@ -467,7 +467,7 @@ public:
                         session->SendAreaTriggerMessage("%s", GTS(LANG_ERR_UNTRANSMOG_OK));
                     }
                     else
-                        session->SendNotification(LANG_ERR_UNTRANSMOG_NO_TRANSMOGS);
+                        ChatHandler(session).SendNotification(LANG_ERR_UNTRANSMOG_NO_TRANSMOGS);
                 }
                 OnGossipSelect(player, creature, EQUIPMENT_SLOT_END, action);
             } break;
@@ -594,7 +594,7 @@ public:
                     if (res == LANG_ERR_TRANSMOG_OK)
                         session->SendAreaTriggerMessage("%s",GTS(LANG_ERR_TRANSMOG_OK));
                     else
-                        session->SendNotification(res);
+                        ChatHandler(session).SendNotification(res);
                 }
                 else
                 {
@@ -602,7 +602,7 @@ public:
                     if (res == LANG_ERR_TRANSMOG_OK)
                         session->SendAreaTriggerMessage("%s",GTS(LANG_ERR_TRANSMOG_OK));
                     else
-                        session->SendNotification(res);
+                        ChatHandler(session).SendNotification(res);
                 }
                 // OnGossipSelect(player, creature, EQUIPMENT_SLOT_END, sender);
                 // ShowTransmogItems(player, creature, sender);
@@ -636,7 +636,7 @@ public:
         }
         std::string name(code);
         if (name.find('"') != std::string::npos || name.find('\\') != std::string::npos)
-            player->GetSession()->SendNotification(LANG_PRESET_ERR_INVALID_NAME);
+            ChatHandler(player->GetSession()).SendNotification(LANG_PRESET_ERR_INVALID_NAME);
         else
         {
             for (uint8 presetID = 0; presetID < sT->GetMaxSets(); ++presetID) // should never reach over max
@@ -673,7 +673,7 @@ public:
                 cost += sT->GetSetCopperCost();
                 if (!player->HasEnoughMoney(cost))
                 {
-                    player->GetSession()->SendNotification(LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY);
+                    ChatHandler(player->GetSession()).SendNotification(LANG_ERR_TRANSMOG_NOT_ENOUGH_MONEY);
                     break;
                 }
 
@@ -925,14 +925,14 @@ private:
 public:
     PS_Transmogrification() : PlayerScript("Player_Transmogrify") { }
 
-    void OnEquip(Player* player, Item* it, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
+    void OnPlayerEquip(Player* player, Item* it, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
     {
         if (!sT->GetUseCollectionSystem())
             return;
         AddToDatabase(player, it);
     }
 
-    void OnLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override
+    void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override
     {
         if (!sT->GetUseCollectionSystem() || !item || typeid(*item) != typeid(Item))
             return;
@@ -942,7 +942,7 @@ public:
         }
     }
 
-    void OnCreateItem(Player* player, Item* item, uint32 /*count*/) override
+    void OnPlayerCreateItem(Player* player, Item* item, uint32 /*count*/) override
     {
         if (!sT->GetUseCollectionSystem())
             return;
@@ -952,7 +952,7 @@ public:
         }
     }
 
-    void OnAfterStoreOrEquipNewItem(Player* player, uint32 /*vendorslot*/, Item* item, uint8 /*count*/, uint8 /*bag*/, uint8 /*slot*/, ItemTemplate const* /*pProto*/, Creature* /*pVendor*/, VendorItem const* /*crItem*/, bool /*bStore*/) override
+    void OnPlayerAfterStoreOrEquipNewItem(Player* player, uint32 /*vendorslot*/, Item* item, uint8 /*count*/, uint8 /*bag*/, uint8 /*slot*/, ItemTemplate const* /*pProto*/, Creature* /*pVendor*/, VendorItem const* /*crItem*/, bool /*bStore*/) override
     {
         if (!sT->GetUseCollectionSystem())
             return;
@@ -985,7 +985,7 @@ public:
         }
     }
 
-    void OnAfterSetVisibleItemSlot(Player* player, uint8 slot, Item *item) override
+    void OnPlayerAfterSetVisibleItemSlot(Player* player, uint8 slot, Item *item) override
     {
         if (!item)
             return;
@@ -996,12 +996,12 @@ public:
         }
     }
 
-    void OnAfterMoveItemFromInventory(Player* /*player*/, Item* it, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
+    void OnPlayerAfterMoveItemFromInventory(Player* /*player*/, Item* it, uint8 /*bag*/, uint8 /*slot*/, bool /*update*/) override
     {
         sT->DeleteFakeFromDB(it->GetGUID().GetCounter());
     }
 
-    void OnLogin(Player* player) override
+    void OnPlayerLogin(Player* player) override
     {
         if (sT->EnableResetRetroActiveAppearances())
         {
@@ -1045,7 +1045,7 @@ public:
 #endif
     }
 
-    void OnLogout(Player* player) override
+    void OnPlayerLogout(Player* player) override
     {
         ObjectGuid pGUID = player->GetGUID();
         for (Transmogrification::transmog2Data::const_iterator it = sT->entryMap[pGUID].begin(); it != sT->entryMap[pGUID].end(); ++it)
