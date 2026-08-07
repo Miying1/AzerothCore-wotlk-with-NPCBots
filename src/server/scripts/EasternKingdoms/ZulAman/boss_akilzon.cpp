@@ -29,7 +29,7 @@
 
 enum Spells
 {
-    SPELL_STATIC_DISRUPTION     = 43622,//对区域内的敌人造成0点自然伤害并使其受到的自然伤害提高0%，持续d。
+    SPELL_STATIC_DISRUPTION     = 43622,
     SPELL_STATIC_VISUAL         = 45265,
     SPELL_CALL_LIGHTNING        = 43661, // Missing timer
     SPELL_GUST_OF_WIND          = 43621,

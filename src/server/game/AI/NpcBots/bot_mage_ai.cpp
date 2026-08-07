@@ -24,117 +24,107 @@ TODO: slow (pvp), mana shield
 
 enum MageBaseSpells
 {
-    DAMPENMAGIC_1 = 604,
-    AMPLIFYMAGIC_1 = 1008,//manual use only
-    ARCANEINTELLECT_1 = 1459,
-    ARCANEMISSILES_1 = 5143,
-    ARCANE_BLAST_1 = 30451,
-    POLYMORPH_1 = 118,
-    COUNTERSPELL_1 = 2139,
-    SPELLSTEAL_1 = 30449,
-    EVOCATION_1 = 12051,
-    BLINK_1 = 1953,
-    REMOVE_CURSE_1 = 475,
-    INVISIBILITY_1 = 66,
-    SCORCH_1 = 2948,
-    BLAST_WAVE_1 = 11113,
-    DRAGON_BREATH_1 = 31661,
-    FIRE_BLAST_1 = 2136,
-    PYROBLAST_1 = 11366,
-    LIVING_BOMB_1 = 44457,
-    FLAMESTRIKE_1 = 2120,
-    COMBUSTION_1 = 11129,
-    FROSTFIRE_BOLT_1 = 44614,
-    FIREBALL_1 = 133,
-    FROSTBOLT_1 = 116,
-    FROST_NOVA_1 = 122,
-    CONE_OF_COLD_1 = 120,
-    BLIZZARD_1 = 10,
-    FROST_ARMOR_1 = 168,
-    ICE_ARMOR_1 = 7302,
-    MOLTEN_ARMOR_1 = 30482,
-    ICE_BARRIER_1 = 11426,
-    ICE_BLOCK_1 = 45438,
-    FOCUS_MAGIC_1 = 54646,
-    PRESENCE_OF_MIND_1 = 12043,
-    ARCANE_POWER_1 = 12042,
-    SLOW_FALL_1 = 130,
-    ICE_LANCE_1 = 30455,
-    ICY_VEINS_1 = 12472,
-    COLD_SNAP_1 = 11958,
-    DEEP_FREEZE_1 = 44572,
-    FROST_WARD_1 = 6143,
-    FIRE_WARD_1 = 543,
-    MIRROR_IMAGE_1 = 55342,
+    DAMPENMAGIC_1                       = 604,
+    AMPLIFYMAGIC_1                      = 1008,//manual use only
+    ARCANEINTELLECT_1                   = 1459,
+    ARCANEMISSILES_1                    = 5143,
+    ARCANE_BLAST_1                      = 30451,
+    POLYMORPH_1                         = 118,
+    COUNTERSPELL_1                      = 2139,
+    SPELLSTEAL_1                        = 30449,
+    EVOCATION_1                         = 12051,
+    BLINK_1                             = 1953,
+    REMOVE_CURSE_1                      = 475,
+    INVISIBILITY_1                      = 66,
+    SCORCH_1                            = 2948,
+    BLAST_WAVE_1                        = 11113,
+    DRAGON_BREATH_1                     = 31661,
+    FIRE_BLAST_1                        = 2136,
+    PYROBLAST_1                         = 11366,
+    LIVING_BOMB_1                       = 44457,
+    FLAMESTRIKE_1                       = 2120,
+    COMBUSTION_1                        = 11129,
+    FROSTFIRE_BOLT_1                    = 44614,
+    FIREBALL_1                          = 133,
+    FROSTBOLT_1                         = 116,
+    FROST_NOVA_1                        = 122,
+    CONE_OF_COLD_1                      = 120,
+    BLIZZARD_1                          = 10,
+    FROST_ARMOR_1                       = 168,
+    ICE_ARMOR_1                         = 7302,
+    MOLTEN_ARMOR_1                      = 30482,
+    ICE_BARRIER_1                       = 11426,
+    ICE_BLOCK_1                         = 45438,
+    FOCUS_MAGIC_1                       = 54646,
+    PRESENCE_OF_MIND_1                  = 12043,
+    ARCANE_POWER_1                      = 12042,
+    SLOW_FALL_1                         = 130,
+    ICE_LANCE_1                         = 30455,
+    ICY_VEINS_1                         = 12472,
+    COLD_SNAP_1                         = 11958,
+    DEEP_FREEZE_1                       = 44572,
+    FROST_WARD_1                        = 6143,
+    FIRE_WARD_1                         = 543,
+    MIRROR_IMAGE_1                      = 55342,
     //Special
     ARCANE_MISSILES_DAMAGE_1            = 7268,
     BLIZZARD_DAMAGE_1                   = 42208,
     LIVING_BOMB_DAMAGE_1                = 44461,
     CONJURE_MANA_GEM_1                  = 759,
-    MANA_GEM_1                          = 5405, 
+    MANA_GEM_1                          = 5405,
 
-    SUMMON_WATER_ELEMENTAL_1 = 31687
+    SUMMON_WATER_ELEMENTAL_1            = 31687
 };
 
 enum MagePassives
 {
-    //Talents
+//Talents
+    FROSTBITE1                          = 11071,
+    FROSTBITE2                          = 12496,
+    FROSTBITE3                          = 12497,
+    ARCANE_CONCENTRATION                = 12577,//rank 5, clearcast
+    IGNITE                              = 12848,//rank 5
+    BURNING_DETERMINATION               = 54749,//rank 2
+    FROST_WARDING                       = 28332,//rank 2
+    IMPROVED_COUNTERSPELL1              = 11255,
+    IMPROVED_COUNTERSPELL2              = 12598,
+    ARCANE_MEDITATION                   = 18464,//rank 3
+    TORMENT_THE_WEAK                    = 55340,//rank 3
+    IMPACT                              = 12358,//rank 3
+    IMPROVED_BLIZZARD                   = 12488,//rank 3
+    IMPROVED_SCORCH                     = 12873,//rank 3
+    MOLTEN_SHIELDS                      = 13043,//rank 2
+    MASTER_OF_ELEMENTS                  = 29076,//rank 3
+    SHATTER1                            = 11170,
+    SHATTER2                            = 12982,
+    SHATTER3                            = 12983,
+    ARCANE_POTENCY1                     = 31571,
+    ARCANE_POTENCY2                     = 31572,
+    BLAZING_SPEED                       = 31642,//rank 2
+    WINTERS_CHILL1                      = 11180,
+    WINTERS_CHILL2                      = 28592,
+    WINTERS_CHILL3                      = 28593,
+    ARCANE_EMPOWERMENT                  = 31583,//rank 3
+    INCANTERS_ABSORPTION1               = 44394,
+    INCANTERS_ABSORPTION2               = 44395,
+    INCANTERS_ABSORPTION3               = 44396,
+    MISSILE_BARRAGE                     = 54490,//rank 5
+    PYROMANIAC                          = 34296,//rank 3
+    SHATTERED_BARRIER                   = 54787,//rank 2
+    //ARCTIC_WINDS                        = 31678,//rank 5
+    FINGERS_OF_FROST                    = 44545,//rank 2
+    FIRESTARTER1                        = 44442,
+    FIRESTARTER2                        = 44443,
+    HOT_STREAK                          = 44448,//rank 3
+    BRAIN_FREEZE1                       = 44546,
+    BRAIN_FREEZE2                       = 44548,
+    BRAIN_FREEZE3                       = 44549,
 
-    IMPROVED_COUNTERSPELL1 = 11255,
-    IMPROVED_COUNTERSPELL2 = 12598,//强化法术反制
-    ARCANE_MEDITATION = 18464,//rank 3奥术冥想
-    TORMENT_THE_WEAK = 55340,//rank 3欺凌弱小
-    ARCANE_CONCENTRATION = 12577,//rank 5, 奥术专注
-    ARCANE_POTENCY1 = 31571,
-    ARCANE_POTENCY2 = 31572,//奥术潜能
-    INCANTERS_ABSORPTION3 = 44396,//咒术吸收
-    ARCANE_EMPOWERMENT = 31583,//rank 3奥术增效
-    MISSILE_BARRAGE = 54490,//rank 5飞弹速射
-    ARCANE_JIZHONG = 12840,//rank 3奥术集中
-    XINGLINGXUEZHE = 44399,//rank 心灵学者
-    AOSHUXINZHI = 12503,//rank 奥术心智
-    XINLINGZHANGWO = 31588,//心灵掌握
-    LINGFENGFUMIAN = 44403,//灵风拂面
-
-
-    IMPACT = 12358,//rank 3冲击
-    IGNITE = 12848,//rank 5点燃
-    BURNING_DETERMINATION = 54749,//rank 2燃烧意志
-    IMPROVED_SCORCH = 12873,//rank 3强化灼烧
-    MOLTEN_SHIELDS = 13043,//rank 2熔岩护盾
-    FIRESTARTER1 = 44442,//一触即燃
-    FIRESTARTER2 = 44443,//一触即燃
-    MASTER_OF_ELEMENTS = 29076,//rank 3元素大师
-    HOT_STREAK = 44448,//rank 3法术连击
-    PYROMANIAC = 34296,//rank 3纵火
-    BLAZING_SPEED = 31642,//rank 2炽热疾速
-    WANHUOZIFENG = 31640,//玩火自焚 
-
-    FROSTBITE1 = 11071,
-    FROSTBITE2 = 12496,
-    FROSTBITE3 = 12497,//霜寒刺骨
-    FROST_WARDING = 28332,//rank 2冰霜障壁
-    SHATTER1 = 11170,//碎冰
-    SHATTER2 = 12982,
-    SHATTER3 = 12983,//碎冰
-    WINTERS_CHILL1 = 11180,
-    WINTERS_CHILL2 = 28592,
-    WINTERS_CHILL3 = 28593,//深冬之寒
-    IMPROVED_BLIZZARD = 12488,//rank 3强化暴风雪
-    INCANTERS_ABSORPTION1 = 44394,
-    INCANTERS_ABSORPTION2 = 44395,
-    SHATTERED_BARRIER = 54787,//rank 2碎裂屏障
-    //ARCTIC_WINDS                        = 31678,//rank 5 极寒之风
-    FINGERS_OF_FROST = 44545,//rank 2寒冰指
-    BRAIN_FREEZE1 = 44546,
-    BRAIN_FREEZE2 = 44548,
-    BRAIN_FREEZE3 = 44549,//思维冷却
-
-    GLYPH_POLYMORPH = 56375,
-    GLYPG_REMOVE_CURSE = 56364,
-    GLYPH_ICY_VEINS = 56374,//冰冷血脉雕文
-    GLYPH_LIVING_BOMB = 63091,//活动炸弹雕文
-    GLYPH_ICE_LANCE = 56377//冰枪雕文
+    GLYPH_POLYMORPH                     = 56375,
+    GLYPG_REMOVE_CURSE                  = 56364,
+    GLYPH_ICY_VEINS                     = 56374,
+    GLYPH_LIVING_BOMB                   = 63091,
+    GLYPH_ICE_LANCE                     = 56377
 };
 enum MageSpecial
 {
@@ -177,11 +167,6 @@ public:
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
-      /*  if (creature->GetEntry() == 70330 && creature->IsInCombat()) {
-            player->PlayerTalkClass->SendCloseGossip();
-            player->GetSession()->SendTradeStatus(TRADE_STATUS_NO_TARGET);
-            return true;
-        }*/
         return creature->GetBotAI()->OnGossipHello(player, 0);
     }
 
@@ -408,11 +393,11 @@ public:
                 return;
 
             Unit::AttackerSet const& b_attackers = me->getAttackers();
-            uint8 manaPct = GetManaPCT(me);
+
             float dist = me->GetDistance(mytar);
 
             //COMBUSTION (no GCD)
-            if (IsSpellReady(COMBUSTION_1, diff, false) && manaPct > 20 &&
+            if (IsSpellReady(COMBUSTION_1, diff, false) && GetManaPCT(me) > 20 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 4 ||
                 master->getAttackers().size() > 1 || b_attackers.size() > 1) &&
                 Rand() < 45 &&
@@ -423,7 +408,7 @@ public:
                     return;
             }
             //ICY VEINS (no GCD)
-            if (IsSpellReady(ICY_VEINS_1, diff, false) && me->IsInCombat() && manaPct > 20 &&
+            if (IsSpellReady(ICY_VEINS_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 20 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 2 ||
                 (mytar->IsCreature() && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL)) &&
                 Rand() < 45)
@@ -432,7 +417,7 @@ public:
                     return;
             }
             //ARCANE POWER (no GCD, not with PoM)
-            if (IsSpellReady(ARCANE_POWER_1, diff, false) && me->IsInCombat() && manaPct > 50 &&
+            if (IsSpellReady(ARCANE_POWER_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 50 &&
                 (mytar->GetMaxHealth() > master->GetMaxHealth() * 2 ||
                 (mytar->IsCreature() && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL)) &&
                 Rand() < 75 && !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x20, 0x0))
@@ -441,7 +426,7 @@ public:
                     return;
             }
             //PRESENCE OF MIND (no GCD, not with AP)
-            if (IsSpellReady(PRESENCE_OF_MIND_1, diff, false) && me->IsInCombat() && manaPct > 10 && Rand() < 35 &&
+            if (IsSpellReady(PRESENCE_OF_MIND_1, diff, false) && me->IsInCombat() && GetManaPCT(me) > 10 && Rand() < 35 &&
                 !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x80000, 0x0))
             {
                 if (doCast(me, GetSpell(PRESENCE_OF_MIND_1)))
@@ -451,8 +436,6 @@ public:
             //Cheap check
             if (GC_Timer > diff) //!ensure none spells below ignore GCD!
                 return;
-            bool is_fire = GetSpec() == BOT_SPEC_MAGE_FIRE;
-            bool is_frost = GetSpec() == BOT_SPEC_MAGE_FROST;
             //NOVAS
             if ((IsSpellReady(FROST_NOVA_1, diff) || IsSpellReady(BLAST_WAVE_1, diff)) && Rand() < 85)
             {
@@ -462,7 +445,7 @@ public:
                 {
                     bool oneOnOne = (*targets.begin()) == mytar;
                     //Frost Nova
-                    if (IsSpellReady(FROST_NOVA_1, diff) && (targets.size() > 2 || oneOnOne))
+                    if (IsSpellReady(FROST_NOVA_1, diff) && (targets.size() > 1 || oneOnOne))
                     {
                         if (doCast(me, GetSpell(FROST_NOVA_1)))
                         {
@@ -471,7 +454,7 @@ public:
                         }
                     }
                     //Blast Wave
-                    else if (is_fire && IsSpellReady(BLAST_WAVE_1, diff) && (targets.size() > 1 || oneOnOne))
+                    else if (IsSpellReady(BLAST_WAVE_1, diff) && (targets.size() > 1 || oneOnOne))
                     {
                         if (doCast(me, GetSpell(BLAST_WAVE_1)))
                             return;
@@ -490,38 +473,18 @@ public:
             //CONES
             if (/*fbCasted && */(IsSpellReady(CONE_OF_COLD_1, diff) || IsSpellReady(DRAGON_BREATH_1, diff)) && Rand() < 65)
             {
-                Unit* pvpMeleeTarget = nullptr;
-                if (IsSpellReady(CONE_OF_COLD_1, diff))
-                {
-                    for (Unit* attacker : b_attackers)
-                    {
-                        if (attacker->IsControlledByPlayer() && attacker->GetVictim() == me && me->IsWithinMeleeRange(attacker))
-                        {
-                            pvpMeleeTarget = attacker;
-                            break;
-                        }
-                    }
-                }
-
-                if (pvpMeleeTarget)
-                {
-                    me->SetInFront(pvpMeleeTarget);
-                    if (doCast(me, GetSpell(CONE_OF_COLD_1)))
-                        return;
-                }
-
                 std::list<Unit*> targets;
                 GetNearbyTargetsInConeList(targets, 8); //both are radius 10 yd
                 if (!targets.empty())
                 {
                     //Cone of Cold
-                    if (is_frost && IsSpellReady(CONE_OF_COLD_1, diff))
+                    if (IsSpellReady(CONE_OF_COLD_1, diff))
                     {
                         if (doCast(me, GetSpell(CONE_OF_COLD_1)))
                             return;
                     }
                     //Dragon's Breath
-                    else if (is_fire && IsSpellReady(DRAGON_BREATH_1, diff))
+                    else if (IsSpellReady(DRAGON_BREATH_1, diff))
                     {
                         if (doCast(me, GetSpell(DRAGON_BREATH_1)))
                             return;
@@ -578,8 +541,8 @@ public:
                 if (doCast(mytar, GetSpell(DEEP_FREEZE_1)))
                     return;
             }
-            //Flamestrike (instant cast only)火冲
-            if (/*fbCasted && */IsSpellReady(FLAMESTRIKE_1, diff) && is_fire && can_do_fire && dist < CalcSpellMaxRange(FLAMESTRIKE_1) && Rand() < 80 &&
+            //Flamestrike (instant cast only)
+            if (/*fbCasted && */IsSpellReady(FLAMESTRIKE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(FLAMESTRIKE_1) && Rand() < 80 &&
                 me->HasAura(FIRESTARTER_BUFF))
             {
                 if (doCast(mytar, GetSpell(FLAMESTRIKE_1)))
@@ -612,34 +575,21 @@ public:
                 if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                     return;
             }
-            if (GetSpec() == BOT_SPEC_MAGE_ARCANE) {
-                //Main rotation
-                //Arcane Missiles (arcane spec only) 
-                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1) && manaPct > 30 &&
-                     me->HasAura(12042) )
-                {
-                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
-                        return;
-                }
-                if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
-                    ((manaPct < 15 && arcaneBlastStack >= 2) || (manaPct < 30 && arcaneBlastStack >= 3) || (arcaneBlastStack >= 4 && me->HasAura(MISSILE_BARRAGE_BUFF))))
-                {
-                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
-                        return;
-                }
-              /*  if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane &&dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
-                    (me->GetLevel() < 45 ||
-                        ((!GetSpell(ARCANE_BLAST_1) || arcaneBlastStack >= 4 || sSpellMgr->GetSpellInfo(ARCANE_BLAST_1)->CalcPowerCost(me, SPELL_SCHOOL_MASK_ARCANE) > int(me->GetPower(POWER_MANA))) &&
-                            me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))))
-                {
-                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
-                        return;
-                }*/
-                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1))
-                {
-                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
-                        return;
-                }
+            //Main rotation
+            //Arcane Missiles (arcane spec only)
+            if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane && GetSpec() == BOT_SPEC_MAGE_ARCANE && dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
+                (me->GetLevel() < 45 ||
+                ((!GetSpell(ARCANE_BLAST_1) || arcaneBlastStack >= 3 || sSpellMgr->GetSpellInfo(ARCANE_BLAST_1)->CalcPowerCost(me, SPELL_SCHOOL_MASK_ARCANE) > int(me->GetPower(POWER_MANA))) &&
+                me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))))
+            {
+                if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
+                    return;
+            }
+            if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && GetSpec() == BOT_SPEC_MAGE_ARCANE && dist < CalcSpellMaxRange(ARCANE_BLAST_1) &&
+                (arcaneBlastStack < 4 || !me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0)))
+            {
+                if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                    return;
             }
             if (GetSpec() != BOT_SPEC_MAGE_ARCANE || !GetSpell(ARCANE_BLAST_1))
             {
@@ -650,12 +600,8 @@ public:
                     if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                         return;
                 }
-                if (is_fire && IsSpellReady(FIREBALL_1, diff) && can_do_fire  && dist < CalcSpellMaxRange(FIREBALL_1))
-                {
-                    if (doCast(mytar, GetSpell(FIREBALL_1)))
-                        return;
-                }
-                if (is_frost && IsSpellReady(FROSTBOLT_1, diff) && can_do_frost  && dist < CalcSpellMaxRange(FROSTBOLT_1))
+
+                if (IsSpellReady(FROSTBOLT_1, diff) && can_do_frost && (GetSpec() != BOT_SPEC_MAGE_FIRE || !can_do_fire) && dist < CalcSpellMaxRange(FROSTBOLT_1))
                 {
                     if (doCast(mytar, GetSpell(FROSTBOLT_1)))
                         return;
@@ -710,7 +656,7 @@ public:
             }
             if (Rand() < 35)
             {
-                if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 32 && uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
+                if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 15 && uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
                 {
                     if (doCast(me, GetSpell(EVOCATION_1)))
                         return;
@@ -1622,7 +1568,7 @@ public:
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SUMMON_WATER_ELEMENTAL_1);
-            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
+
             botPet = myPet;
         }
 
@@ -1773,11 +1719,6 @@ public:
             RefreshAura(INCANTERS_ABSORPTION2, isArca && level >= 41 && level < 42 ? 1 : 0);
             RefreshAura(INCANTERS_ABSORPTION1, isArca && level >= 40 && level < 41 ? 1 : 0);
             RefreshAura(MISSILE_BARRAGE, isArca && level >= 45 ? 1 : 0);
-            RefreshAura(ARCANE_JIZHONG, isArca && level >= 45 ? 1 : 0);
-            RefreshAura(XINGLINGXUEZHE, isArca && level >= 45 ? 1 : 0);
-            RefreshAura(AOSHUXINZHI, isArca && level >= 75 ? 1 : 0);
-            RefreshAura(XINLINGZHANGWO, isArca && level >= 75 ? 1 : 0);
-            RefreshAura(LINGFENGFUMIAN, isArca && level >= 75 ? 1 : 0);
 
             RefreshAura(IGNITE, level >= 15 ? 1 : 0);
             RefreshAura(BURNING_DETERMINATION, level >= 15 ? 1 : 0);
@@ -1790,7 +1731,6 @@ public:
             RefreshAura(FIRESTARTER2, isFire && level >= 51 ? 1 : 0);
             RefreshAura(FIRESTARTER1, isFire && level >= 50 && level < 51 ? 1 : 0);
             RefreshAura(HOT_STREAK, isFire && level >= 50 ? 1 : 0);
-            RefreshAura(WANHUOZIFENG, isFire && level >= 60 ? 1 : 0);
 
             RefreshAura(FROSTBITE3, level >= 12 ? 1 : 0);
             RefreshAura(FROSTBITE2, level >= 11 && level < 12 ? 1 : 0);

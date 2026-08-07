@@ -120,7 +120,6 @@ enum DeathKnightPassives
     ACCLIMATION                         = 50152,//rank 3
     WANDERING_PLAGUE                    = 49655,//rank 3
     EBON_PLAGUEBRINGER                  = 51161,//rank 3
-    JIANRUOJINGGANG = 50138,//坚若精钢
 
 //Other
     GLYPH_DISEASE                       = 63334,
@@ -564,7 +563,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || !botPet->IsAlive() || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!botPet || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             if (IsPotionReady())
@@ -1713,7 +1712,7 @@ public:
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
-            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
+
             botPet = myPet;
         }
 
@@ -1728,13 +1727,6 @@ public:
                 default:
                     break;
             }
-        }
-
-        void SummonedCreatureDies(Creature*  summon , Unit* /*killer*/) override
-        {
-            //TC_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
-                botPet = nullptr;
         }
 
         void SummonedCreatureDespawn(Creature* summon) override
@@ -1897,7 +1889,6 @@ public:
             RefreshAura(IMPROVED_ICY_TALONS, !IAmFree() && isFros && level >= 60 ? 1 : 0);
             RefreshAura(THREAT_OF_THASSARIAN, isFros && level >= 62 ? 1 : 0);
             RefreshAura(ACCLIMATION, isFros && level >= 63 ? 1 : 0);
-            RefreshAura(JIANRUOJINGGANG, isFros && level >= 40 ? 1 : 0);
 
             RefreshAura(NECROSIS5, isUnho && level >= 62 ? 1 : 0);
             RefreshAura(NECROSIS4, isUnho && level >= 60 && level < 61 ? 1 : 0);

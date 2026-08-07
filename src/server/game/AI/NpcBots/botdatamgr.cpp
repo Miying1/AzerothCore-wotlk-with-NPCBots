@@ -3415,34 +3415,6 @@ uint8 BotDataMgr::GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask, bo
             ++count;
     return count;
 }
-uint32 BotDataMgr::GetNpcBotCountByIp(std::string ip) {
-    uint32 bot_count = 0;
-    QueryResult result = CharacterDatabase.Query("SELECT npc_count FROM view_player_botcount WHERE last_ip = '{}'", ip);
-    if (result)
-    {
-        bot_count = result->Fetch()[0].Get<uint32>();
-    }
-    return bot_count;
-}
-bool BotDataMgr::SetBotName(Creature* bot,std::string name) {
-    if (name.size()<3)
-        return false;  
-    QueryResult creres = WorldDatabase.Query("SELECT entry FROM creature_template WHERE name = '{}'", name);
-    if (creres)
-        return false;
-    bot->SetName(name);
-   
-    if (CreatureTemplate const* botCreature = bot->GetCreatureTemplate()) {
-        const_cast<CreatureTemplate*>(botCreature)->Name = name;
-    } 
-    WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
-    trans->Append("UPDATE creature_template SET name = '{}' where entry = {}", name, bot->GetEntry());
-    //trans->Append("UPDATE creature_template_npcbot_appearance SET name* = '{}' where entry = {}", name, bot->GetEntry());
-   /* if (modelId)
-        trans->Append("UPDATE creature_template_temp_npcbot_create SET modelid1 = {}", modelId);*/ 
-    WorldDatabase.DirectCommitTransaction(trans);
-    return true;
-}
 
 uint8 BotDataMgr::GetAccountBotsCount(uint32 account_id)
 {

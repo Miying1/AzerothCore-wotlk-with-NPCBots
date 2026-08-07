@@ -2694,8 +2694,6 @@ public:
     void SetMapChangeOrderCounter() { _mapChangeOrderCounter = GetSession()->GetOrderCounter(); }
     uint32 GetMapChangeOrderCounter() { return _mapChangeOrderCounter; }
 
-    void SetVip(bool val);
-    bool IsVip() const;
     /*****************************************************************/
     /***                        NPCBOT SYSTEM                      ***/
     /*****************************************************************/
@@ -3004,7 +3002,6 @@ protected:
     uint8 m_grantableLevels;
 
     bool m_needZoneUpdate;
-    bool _isvip = false;
 
 private:
     /*****************************************************************/

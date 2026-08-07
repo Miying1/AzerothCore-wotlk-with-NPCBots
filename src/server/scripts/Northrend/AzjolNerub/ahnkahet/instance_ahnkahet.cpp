@@ -60,15 +60,6 @@ public:
             LoadDoorData(doorData);
             LoadBossBoundaries(boundaries);
         }
-        void OnPlayerEnter(Player* plr) override
-        {
-            CheckChallengeMode();
-        }
-        void OnCreatureCreate(Creature* pCreature) override
-        {
-            AddChallengeCreature(pCreature);
-            InstanceScript::OnCreatureCreate(pCreature);
-        }
 
         void OnGameObjectCreate(GameObject* go) override
         {
@@ -108,20 +99,22 @@ public:
             {
                 StorePersistentData(index, DONE);
                 SaveToDB();
-                if (IsAllSpheresActivated())
-                {
-                    HandleGameObject(taldaramPlatform_GUID, true, nullptr);
 
-                    Creature* teldaram = GetCreature(DATA_PRINCE_TALDARAM);
-                    if (teldaram && teldaram->IsAlive())
+                if (Creature* taldaram = GetCreature(DATA_PRINCE_TALDARAM))
+                {
+                    if (taldaram->IsAlive())
                     {
-                        teldaram->AI()->Talk(SAY_SPHERE_ACTIVATED);
-                        teldaram->AI()->DoAction(ACTION_REMOVE_PRISON);
+                        taldaram->AI()->Talk(SAY_SPHERE_ACTIVATED);
+
+                        if (IsAllSpheresActivated())
+                        {
+                            HandleGameObject(taldaramPlatform_GUID, true, nullptr);
+                            taldaram->AI()->DoAction(ACTION_REMOVE_PRISON);
+                        }
                     }
-                } 
+                }
             }
         }
-
 
     private:
         // Teldaram related

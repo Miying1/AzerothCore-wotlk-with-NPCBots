@@ -187,9 +187,6 @@ public:
             if (!_instance || !_instance->GetCreature(DATA_GRAUF))
                 if (Creature* grauf = me->SummonCreature(NPC_GRAUF, GraufLoc))
                     _summons.Summon(grauf);
-
-            if (_instance)
-                _instance->SetChallengeMode(me);
         }
 
         void JustSummoned(Creature* summon) override
@@ -399,9 +396,6 @@ public:
             me->SetReactState(REACT_PASSIVE);
             me->SetSpeedRate(MOVE_RUN, 2.5f);
             _flyingToSide = false;
-
-            if (_instance)
-                _instance->SetChallengeMode(me);
             _passFreshStart = false;
         }
 

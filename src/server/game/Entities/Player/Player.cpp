@@ -370,7 +370,8 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
 
     m_declinedname = nullptr;
 
-    m_isActive = true; 
+    m_isActive = true;
+
     m_runes = nullptr;
 
     m_lastFallTime = 0;
@@ -16174,7 +16175,7 @@ bool Player::AddItem(uint32 itemId, uint32 count)
     if (count == 0 || dest.empty())
     {
         // -- TODO: Send to mailbox if no space
-        ChatHandler(GetSession()).PSendSysMessage("你的背包没有空间了.");
+        ChatHandler(GetSession()).PSendSysMessage("You don't have any space in your bags.");
         return false;
     }
 
@@ -16890,14 +16891,6 @@ std::string Player::GetDebugInfo() const
     std::stringstream sstr;
     sstr << Unit::GetDebugInfo();
     return sstr.str();
-}
-void Player::SetVip( bool val) 
-{ 
-    _isvip=val;
-}
-bool Player::IsVip() const
-{  
-    return _isvip;
 }
 
 void Player::SendSystemMessage(std::string_view msg, bool escapeCharacters)

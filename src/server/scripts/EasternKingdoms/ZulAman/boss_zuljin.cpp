@@ -41,8 +41,8 @@ enum Says
 enum Spells
 {
     // Troll Form
-    SPELL_WHIRLWIND               = 17207,//像旋风一般挥舞手中的武器，攻击周围的所有敌人，对它们造成普通伤害再加上50点伤害，持续2 seconds。
-    SPELL_GRIEVOUS_THROW          = 43093, // remove debuff after full healed一次残忍的攻击，使目标持续大量流血，每2秒造成6500点伤害直到被完全治愈。
+    SPELL_WHIRLWIND               = 17207,
+    SPELL_GRIEVOUS_THROW          = 43093, // remove debuff after full healed
     // Bear Form
     SPELL_CREEPING_PARALYSIS      = 43095, // should cast on the whole raid
     SPELL_OVERPOWER               = 43456, // use after melee attack dodged

@@ -56,55 +56,6 @@ using namespace std::string_view_literals;
 using namespace Bcore::ChatCommands;
 
 static bool isWPSpawnWarningGiven = false;
-
-#ifdef AC_COMPILER
-//Acore only
-enum rbac
-{
-    RBAC_PERM_COMMAND_NPCBOT                                 = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_ADD                             = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_REMOVE                          = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_SPAWN                           = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_MOVE                            = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_DELETE                          = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_LOOKUP                          = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_REVIVE                          = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_RELOADCONFIG                    = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_INFO                            = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_HIDE                            = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_UNHIDE                          = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_RECALL                          = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_KILL                            = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_DEBUG_RAID                      = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_DEBUG_MOUNT                     = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_DEBUG_VISUAL                    = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_DEBUG_STATES                    = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_TOGGLE_FLAGS                    = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_SET_FACTION                     = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_SET_OWNER                       = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_SET_SPEC                        = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL              = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY               = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_COMMAND_FOLLOW                  = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_ATTDISTANCE_SHORT               = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_ATTDISTANCE_LONG                = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_ATTDISTANCE_EXACT               = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_FOLDISTANCE_EXACT               = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_ORDER_CAST                      = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_VEHICLE_EJECT                   = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_DUMP_LOAD                       = SEC_ADMINISTRATOR,
-    RBAC_PERM_COMMAND_NPCBOT_DUMP_WRITE                      = SEC_ADMINISTRATOR,
-    RBAC_PERM_COMMAND_NPCBOT_SPAWNED                         = SEC_GAMEMASTER,
-    RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC                    = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_CREATENEW                       = SEC_ADMINISTRATOR,
-    RBAC_PERM_COMMAND_NPCBOT_SEND                            = SEC_PLAYER,
-    RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST                       = SEC_PLAYER
-};
-//end Acore only
-#endif
-
-using namespace Acore::ChatCommands;
-
 static uint32 last_model_id = 0;
 
 static constexpr size_t SOUND_SETS_COUNT = 3;
@@ -638,7 +589,6 @@ public:
 
         static ChatCommandTable npcbotCommandCommandTable =
         {
-            { "equip",      HandleNpcBotCommandEquipListCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST,          Console::No  },
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
             { "follow",     npcbotCommandFollowCommandTable                                                                         },
@@ -734,7 +684,7 @@ public:
         static ChatCommandTable npcbotUseOnBotCommandTable =
         {
             { "spell",      HandleNpcBotUseOnBotSpellCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
-            //{ "item",       HandleNpcBotUseOnBotItemCommand,        rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "item",       HandleNpcBotUseOnBotItemCommand,        rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
         };
 
         static ChatCommandTable npcbotCommandTable =
@@ -833,125 +783,6 @@ public:
         wp->SetupLinkToAura();
         wpc->m_serverSideVisibilityDetect.SetValue(SERVERSIDE_VISIBILITY_GM, wpc->m_serverSideVisibility.GetValue(SERVERSIDE_VISIBILITY_GM));
         return wpc;
-    }
-
-    static bool HandleNpcBotCommandEquipListCommand(ChatHandler* handler)
-    {
-        Player* owner = handler->GetSession()->GetPlayer();
-
-        if (!owner)
-        {
-            handler->SendSysMessage(".npcbot command equip");
-            handler->SendSysMessage("查看目标机器人的装备信息");
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        Unit* target = owner->GetSelectedUnit();
-        if (target && target->IsNPCBot())
-        {
-            target->ToCreature()->GetBotAI()->SendEquipList(owner);
-        }
-        else
-        {
-            std::string msg = "请选择机器人目标";
-            handler->SendSysMessage(msg.c_str());
-        }
-        return true;
-    }
-    static bool HandleNpcBotWPGenerateCommand(ChatHandler* handler, Optional<bool> save)
-    {
-        WanderNode::RemoveAllWPs();
-
-        handler->SendSysMessage("Generating wander nodes from POIs. No levels or flags will be set");
-
-        uint32 poiId_start = 0;
-        for (AreaPOIEntry const* aProto : sAreaPOIStore)
-        {
-            if (aProto->mapId != 0 && aProto->mapId != 1/* && aProto->ContinentID != 530 && aProto->ContinentID != 571*/)
-                continue;
-
-            uint32 poiId = ++poiId_start;
-            std::string poiName = aProto->name;
-            if (strlen(aProto->name2) > 0)
-            {
-                poiName += " - ";
-                poiName += aProto->name2;
-            }
-            poiName.erase(std::remove_if(std::begin(poiName), std::end(poiName), [](char c) { return c == '\''; }), poiName.end());
-            uint32 poiMapId = aProto->mapId;
-            float x = aProto->x;
-            float y = aProto->y;
-            float z = aProto->z;
-            float o = frand(0.001f, float(M_PI + M_PI) - 0.001f);
-            float ground_z = sMapMgr->CreateBaseMap(poiMapId)->GetHeight(PHASEMASK_NORMAL, x, y, z);
-            if (ground_z > INVALID_HEIGHT)
-                z = ground_z;
-            uint32 poiZoneId, poiAreaId;
-            sMapMgr->GetZoneAndAreaId(PHASEMASK_NORMAL, poiZoneId, poiAreaId, poiMapId, x, y, z);
-
-            poiZoneId = GetZoneIdOverride(poiZoneId);
-            if (IsNoWPZone(poiZoneId))
-            {
-                --poiId_start;
-                continue;
-            }
-
-            WanderNode* wp = new WanderNode(poiId, poiMapId, x, y, z, o, poiZoneId, poiAreaId, poiName);
-            auto [minl, maxl] = GetZoneLevels(poiZoneId);
-            wp->SetLevels(minl, maxl);
-            BotWPFlags flags = BotWPFlags::BOTWP_FLAG_NONE;
-            wp->SetFlags(flags);
-            WanderNode::DoForAllMapWPs(poiMapId, [wp = wp](WanderNode const* mwp) {
-                if (mwp->GetWPId() != wp->GetWPId() && mwp->GetExactDist2d(wp) < MAX_VISIBILITY_DISTANCE)
-                    wp->Link(const_cast<WanderNode*>(mwp));
-            });
-
-            handler->SendSysMessage(wp->ToString().c_str());
-        }
-
-        handler->PSendSysMessage("Generating wander nodes completed with %u nodes", uint32(WanderNode::GetAllWPsCount()));
-
-        if (!(save && *save))
-            return true;
-
-        WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
-        trans->Append("DROP TABLE IF EXISTS creature_wander_nodes_");
-        trans->Append(
-            "CREATE TABLE creature_wander_nodes_ ("
-            "  `id` int(10) unsigned NOT NULL,"
-            "  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'RENAME_ME',"
-            "  `mapid` smallint(5) unsigned NOT NULL DEFAULT '0',"
-            "  `zoneid` int(10) unsigned NOT NULL DEFAULT '0',"
-            "  `areaid` int(10) unsigned NOT NULL DEFAULT '0',"
-            "  `minlevel` tinyint(3) unsigned NOT NULL DEFAULT '0',"
-            "  `maxlevel` tinyint(3) unsigned NOT NULL DEFAULT '0',"
-            "  `flags` int(10) unsigned NOT NULL DEFAULT '0',"
-            "  `x` float NOT NULL DEFAULT '0',"
-            "  `y` float NOT NULL DEFAULT '0',"
-            "  `z` float NOT NULL DEFAULT '0',"
-            "  `o` float NOT NULL DEFAULT '0',"
-            "  `links` mediumtext COLLATE utf8mb4_unicode_ci,"
-            "  PRIMARY KEY (`id`)"
-            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bot Wander Map'"
-        );
-        std::ostringstream ss;
-        ss << "INSERT INTO creature_wander_nodes_ (id,mapid,x,y,z,o,zoneId,areaId,minlevel,maxlevel,flags,name,links) VALUES ";
-        WanderNode::DoForAllWPs([&ss](WanderNode const* wp) {
-            auto [minl, maxl] = wp->GetLevels();
-            ss << '(' << wp->GetWPId() << ',' << wp->GetMapId()
-                << ',' << wp->GetPositionX() << ',' << wp->GetPositionY() << ',' << wp->GetPositionZ() << ',' << wp->GetOrientation()
-                << ',' << wp->GetZoneId() << ',' << wp->GetAreaId() << ',' << uint32(minl) << ',' << uint32(maxl)
-                << ',' << wp->GetFlags() << ",'" << wp->GetName().c_str() << "','" << wp->FormatLinks() << "'),";
-        });
-        std::string val_str = ss.str();
-        val_str.resize(val_str.size() - 1u);
-        trans->Append(val_str);
-        WorldDatabase.CommitTransaction(trans);
-
-        handler->SendSysMessage("Saved.");
-
-        return true;
     }
 
     static bool HandleNpcBotWPSpawnAllCommand(ChatHandler* handler)
@@ -2442,7 +2273,7 @@ public:
             }
             if (!canBotUseSpell(bot, base_spell))
             {
-                handler->PSendSysMessage("%s': %s CD中!", bot->GetName().c_str(), sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()]);
+                handler->PSendSysMessage("{}'s {} is not ready yet!", bot->GetName(), sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()]);
                 return true;
             }
         }
@@ -2512,7 +2343,7 @@ public:
 
             if (!bot)
             {
-                handler->PSendSysMessage("{} CD中!", *spell_name);
+                handler->PSendSysMessage("None of {} found bots can use {} yet!", found_spell_bots_count, *spell_name);
                 return true;
             }
         }
@@ -2531,34 +2362,39 @@ public:
             target_guid = bot->GetTarget();
         else if (target_token == "mytarget")
             target_guid = owner->GetTarget();
-        else if (target_token == "star" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[0];
-        else if (target_token == "circle" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[1];
-        else if (target_token == "diamond" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[2];
-        else if (target_token == "triangle" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[3];
-        else if (target_token == "moon" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[4];
-        else if (target_token == "square" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[5];
-        else if (target_token == "cross" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[6];
-        else if (target_token == "skull" && owner->GetGroup())
-            target_guid = owner->GetGroup()->GetTargetIcons()[7];
-        else if (target_token->size() == 1u && owner->GetGroup() && std::isdigit(target_token->front()))
+        else if (Group const* group = owner->GetGroup())
         {
-            uint8 digit = static_cast<uint8>(std::stoi(std::string(*target_token)));
-            switch (digit)
+            if (target_token == "star")
+                target_guid = group->GetTargetIcons()[0];
+            else if (target_token == "circle")
+                target_guid = group->GetTargetIcons()[1];
+            else if (target_token == "diamond")
+                target_guid = group->GetTargetIcons()[2];
+            else if (target_token == "triangle")
+                target_guid = group->GetTargetIcons()[3];
+            else if (target_token == "moon")
+                target_guid = group->GetTargetIcons()[4];
+            else if (target_token == "square")
+                target_guid = group->GetTargetIcons()[5];
+            else if (target_token == "cross")
+                target_guid = group->GetTargetIcons()[6];
+            else if (target_token == "skull")
+                target_guid = group->GetTargetIcons()[7];
+            else if (target_token->size() == 1u && std::isdigit(target_token->front()))
             {
-                case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
-                    target_guid = owner->GetGroup()->GetTargetIcons()[digit - 1];
-                    break;
-                default:
-                    token_valid = false;
-                    break;
+                uint8 digit = static_cast<uint8>(std::stoi(std::string(*target_token)));
+                switch (digit)
+                {
+                    case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
+                        target_guid = group->GetTargetIcons()[digit - 1];
+                        break;
+                    default:
+                        token_valid = false;
+                        break;
+                }
             }
+            else
+                token_valid = false;
         }
         else
             token_valid = false;
@@ -2670,7 +2506,7 @@ public:
         uint8 newdist = uint8(std::min<int32>(std::max<int32>(*dist, 0), 100));
         owner->GetBotMgr()->SetBotFollowDist(newdist);
 
-        handler->PSendSysMessage("跟随距离设置为: %u", uint32(newdist));
+        handler->PSendSysMessage("Bots' follow distance is set to {}", uint32(newdist));
         return true;
     }
 
@@ -2686,7 +2522,7 @@ public:
 
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_SHORT);
 
-        handler->SendSysMessage("机器人将最小远程距离攻击");
+        handler->SendSysMessage("Bots' attack distance is set to 'short'");
         return true;
     }
 
@@ -2702,7 +2538,7 @@ public:
 
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_LONG);
 
-        handler->SendSysMessage("机器人将最大远程距离攻击");
+        handler->SendSysMessage("Bots' attack distance is set to 'long'");
         return true;
     }
 
@@ -2720,7 +2556,7 @@ public:
         uint8 newdist = uint8(std::min<int32>(std::max<int32>(*dist, 0), 50));
         owner->GetBotMgr()->SetBotAttackRangeMode(BOT_ATTACK_RANGE_EXACT, newdist);
 
-        handler->PSendSysMessage("机器人攻击距离设置为: %u", uint32(newdist));
+        handler->PSendSysMessage("Bots' attack distance is set to {}", uint32(newdist));
         return true;
     }
 
@@ -2738,14 +2574,9 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if(owner->GetMap()->IsNonRaidDungeon()){
-            handler->GetSession()->SendNotification("你不能在地下城中这样做!");
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
         if (!owner->IsAlive())
         {
-            handler->GetSession()->SendNotification("你死了");
+            handler->SendNotification("You are dead");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -2775,14 +2606,9 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if(owner->GetMap()->IsNonRaidDungeon()){
-            handler->GetSession()->SendNotification("你不能在地下城中这样做!");
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
         if (!owner->IsAlive())
         {
-            handler->GetSession()->SendNotification("你死了");
+            handler->SendNotification("You are dead");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -4688,12 +4514,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_STAY);
-            msg = target->GetName() + " 开始原地守卫";
+            msg = target->GetName() + "'s command state set to 'STAY'";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_STAY);
-            msg = "所有机器人 开始原地守卫";
+            msg = "Bots' command state set to 'STAY'";
         }
 
         handler->SendSysMessage(msg);
@@ -4717,12 +4543,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_FULLSTOP);
-            msg = target->GetName() + " 开始发呆";
+            msg = target->GetName() + "'s command state set to 'FULLSTOP'";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_FULLSTOP);
-            msg = "所有机器人 开始发呆";
+            msg = "Bots' command state set to 'FULLSTOP'";
         }
 
         handler->SendSysMessage(msg);
@@ -4830,12 +4656,12 @@ public:
         if (target && owner->GetBotMgr()->GetBot(target->GetGUID()))
         {
             target->ToCreature()->GetBotAI()->SetBotCommandState(BOT_COMMAND_FOLLOW);
-            msg = target->GetName() + " 开始跟随你(战斗)";
+            msg = target->GetName() + "'s command state set to 'FOLLOW'";
         }
         else
         {
             owner->GetBotMgr()->SendBotCommandState(BOT_COMMAND_FOLLOW);
-            msg = "所有机器人 开始跟随你(战斗)";
+            msg = "Bots' command state set to 'FOLLOW'";
         }
 
         handler->SendSysMessage(msg);

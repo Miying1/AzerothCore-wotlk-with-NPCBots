@@ -135,7 +135,7 @@ LONG WINAPI WheatyExceptionReport::WheatyUnhandledExceptionFilter(
     TCHAR* pos = _tcsrchr(module_folder_name, '\\');
     if (!pos)
     {
-        return EXCEPTION_EXECUTE_HANDLER;
+        return 0;
     }
     pos[0] = '\0';
     ++pos;
@@ -146,7 +146,7 @@ LONG WINAPI WheatyExceptionReport::WheatyUnhandledExceptionFilter(
     {
         if (GetLastError() != ERROR_ALREADY_EXISTS)
         {
-            return EXCEPTION_EXECUTE_HANDLER;
+            return 0;
         }
     }
 
@@ -210,14 +210,14 @@ LONG WINAPI WheatyExceptionReport::WheatyUnhandledExceptionFilter(
         m_hReportFile = 0;
     }
 
-   /* if (m_previousFilter)
+    if (m_previousFilter)
     {
         return m_previousFilter(pExceptionInfo);
     }
     else
-    {*/
+    {
         return EXCEPTION_EXECUTE_HANDLER/*EXCEPTION_CONTINUE_SEARCH*/;
-    //}
+    }
 }
 
 void __cdecl WheatyExceptionReport::WheatyCrtHandler(wchar_t const* /*expression*/, wchar_t const* /*function*/, wchar_t const* /*file*/, unsigned int /*line*/, uintptr_t /*pReserved*/)
