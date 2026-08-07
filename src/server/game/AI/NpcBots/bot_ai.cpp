@@ -11,6 +11,7 @@
 #include "botdatamgr.h"
 #include "botlog.h"
 #include "botmgr.h"
+#include "botpositioncontrol.h"
 #include "botgearscore.h"
 #include "botgossip.h"
 #include "botspell.h"
@@ -49,6 +50,8 @@
 #include "TemporarySummon.h"
 #include "Transport.h"
 #include "World.h"
+
+#include <limits>
 /*
 NpcBot System by Trickerer (https://github.com/trickerer/Trinity-Bots; onlysuffering@gmail.com)
 Version 5.2.77a
@@ -849,6 +852,9 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
 //Follow point calculation
 void bot_ai::_calculatePos(Unit const* followUnit, Position& pos, float* speed/* = nullptr*/) const
 {
+    if (!IAmFree() && master && master->GetBotMgr()->GetBotPositionControl()->TryGetMassPosition(*me, *this, followUnit, pos, speed))
+        return;
+
     Player const* player = followUnit->ToPlayer();
     uint8 followdist = !player ? BotMgr::GetBotFollowDistMax() / 2 : player->GetBotMgr()->GetBotFollowDist();
     float mydist, angle;
@@ -5485,21 +5491,31 @@ void bot_ai::CalculateAttackPos(Unit* target, Position& pos, bool& force) const
         //find closest safe spot
         Position const* closestPos = nullptr;
         Position const* closestAttackPos = nullptr;
-        float minposdist = 100.f;
-        float minattackposdist = 100.f;
+        float minPosDistance = std::numeric_limits<float>::max();
+        float minAttackPosDistance = std::numeric_limits<float>::max();
+        float minPosSpreadPenalty = std::numeric_limits<float>::max();
+        float minAttackPosSpreadPenalty = std::numeric_limits<float>::max();
+        BotPositionControl const* positionControl = IAmFree() ? nullptr : master->GetBotMgr()->GetBotPositionControl();
         for (Position const& safepos : safespots)
         {
-            float curdist = me->GetExactDist2d(safepos);
-            if (curdist < minposdist)
+            float currentDistance = me->GetExactDist2d(safepos);
+            float spreadPenalty = positionControl ? positionControl->GetSpreadPenalty(*me, safepos) : 0.0f;
+            bool isComparablePos = currentDistance <= minPosDistance + 1.0f;
+            if (currentDistance < minPosDistance - 1.0f || (isComparablePos && spreadPenalty < minPosSpreadPenalty))
             {
                 closestPos = &safepos;
-                minposdist = curdist;
+                minPosDistance = currentDistance;
+                minPosSpreadPenalty = spreadPenalty;
             }
-            if (curdist < minattackposdist &&
-                (HasRole(BOT_ROLE_RANGED) ? (target->GetDistance(safepos) - me->GetCombatReach() < dist) : me->IsWithinMeleeRangeAt(safepos, target)))
+            bool isAttackPosition = HasRole(BOT_ROLE_RANGED) ?
+                target->GetDistance(safepos) - me->GetCombatReach() < dist : me->IsWithinMeleeRangeAt(safepos, target);
+            bool isComparableAttackPos = currentDistance <= minAttackPosDistance + 1.0f;
+            if (isAttackPosition && (currentDistance < minAttackPosDistance - 1.0f ||
+                (isComparableAttackPos && spreadPenalty < minAttackPosSpreadPenalty)))
             {
                 closestAttackPos = &safepos;
-                minattackposdist = curdist;
+                minAttackPosDistance = currentDistance;
+                minAttackPosSpreadPenalty = spreadPenalty;
             }
         }
 
@@ -5563,6 +5579,11 @@ void bot_ai::CalculateAttackPos(Unit* target, Position& pos, bool& force) const
     }
 
     pos.Relocate(ppos);
+    if (!IAmFree())
+    {
+        float maxOwnerDistance = followdist > collision_dist_max ? float(collision_dist_max) : followdist < 20 ? 20.0f : float(followdist);
+        master->GetBotMgr()->GetBotPositionControl()->TryImproveSpreadPosition(*me, *this, *target, maxOwnerDistance, dist, pos);
+    }
     if (!me->IsWithinLOSInMap(target, VMAP::ModelIgnoreFlags::M2, LINEOFSIGHT_ALL_CHECKS))
         force = true;
 }
@@ -5586,6 +5607,19 @@ void bot_ai::GetInPosition(bool force, Unit* newtarget, Position* mypos)
         return;
     if (IsShootingWand(mover) && newtarget->GetVictim() == mover)
         return;
+
+    bool holdMassPosition = !mypos && !IAmFree() &&
+        master->GetBotMgr()->GetBotPositionControl()->ShouldHoldMassPosition(*me, *this, newtarget);
+    if (holdMassPosition)
+    {
+        if (newtarget != me->GetVictim() && (mover == me || CanBotAttackOnVehicle()))
+        {
+            if (!me->Attack(newtarget, !HasRole(BOT_ROLE_RANGED)))
+                me->SetInFront(newtarget);
+        }
+        return;
+    }
+
     if (UpdateImpossibleChase(newtarget))
         return;
     if (AdjustTankingPosition(newtarget))
@@ -5753,6 +5787,9 @@ void bot_ai::CheckAttackState()
 //Move behind current target if needed (avoid cleaves and dodges/parries, also rogues/ferals)
 void bot_ai::MoveBehind(Unit const* target) const
 {
+    if (!IAmFree() && master->GetBotMgr()->GetBotPositionControl()->ShouldHoldMassPosition(*me, *this, target))
+        return;
+
     if (_moveBehindTimer > lastdiff || HasBotCommandState(BOT_COMMAND_MASK_UNMOVING) || HasRole(BOT_ROLE_RANGED) || JumpingOrFalling() ||
         /*(me->isMoving() && !target->IsPlayer()) ||*/
         me->GetVehicle() || (IsTank() && target->GetVictim() == me) || CCed(me, true) ||
@@ -14890,6 +14927,15 @@ bool bot_ai::IsTank(Unit const* unit) const
     return false;
 }
 
+float bot_ai::GetMassAttackRange() const
+{
+    if (!IAmFree() && master->GetBotMgr()->GetBotAttackRangeMode() == BOT_ATTACK_RANGE_EXACT)
+        return master->GetBotMgr()->GetBotExactAttackRange();
+
+    bool longRange = IAmFree() || master->GetBotMgr()->GetBotAttackRangeMode() == BOT_ATTACK_RANGE_LONG;
+    return GetSpellAttackRange(longRange);
+}
+
 bool bot_ai::IsOffTank(Unit const* unit) const
 {
     if (!unit || unit == me)
@@ -18423,7 +18469,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         return false;
 
     //opponent unsafe
-    if ((IsWanderer() || (!IAmFree() && (!_lastTargetGuid || !master->GetBotMgr()->GetBotAllowCombatPositioning()))) &&
+    bool updateMassPosition = !IAmFree() && master->IsAlive() &&
+        master->GetBotMgr()->GetBotPositionControl()->CanUpdateMassPosition(*me, *this);
+    if ((IsWanderer() || (!IAmFree() && (!_lastTargetGuid || !master->GetBotMgr()->GetBotAllowCombatPositioning())) || updateMassPosition) &&
         !HasBotCommandState(BOT_COMMAND_STAY) &&
         (!me->GetVehicle() || (!CCed(me->GetVehicleBase(), true) && !me->GetVehicleBase()->GetTarget())))
     {

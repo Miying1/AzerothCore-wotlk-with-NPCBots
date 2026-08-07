@@ -5,10 +5,12 @@
 #include "DBCEnums.h"
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string_view>
 
 class bot_ai;
+class BotPositionControl;
 class Battleground;
 class Creature;
 class GameObject;
@@ -112,6 +114,7 @@ public:
     BotMgr& operator=(BotMgr&&) = delete;
 
     Player* GetOwner() const { return _owner; }
+    BotPositionControl* GetBotPositionControl() const { return _positionControl.get(); }
 
     BotMap const* GetBotMap() const { return &_bots; }
     BotMap* GetBotMap() { return &_bots; }
@@ -280,6 +283,7 @@ private:
 
     Player* const _owner;
     BotMap _bots;
+    std::unique_ptr<BotPositionControl> _positionControl;
     std::list<std::pair<ObjectGuid, BotRemoveType>> _delayedRemoveList;
     DPSTracker* const _dpstracker;
     NpcBotMgrData* _data;
