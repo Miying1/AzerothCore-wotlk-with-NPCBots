@@ -16,7 +16,6 @@
 NpcBot System by Trickerer (onlysuffering@gmail.com)
 */
 
-class BotPositionControl;
 class TeleportHomeEvent;
 class TeleportFinishEvent;
 class AwaitStateRemovalEvent;
@@ -132,7 +131,6 @@ public:
     Player* GetBotOwner() const { return master; }
     bool SetBotOwner(Player* newowner);
     void CheckOwnerExpiry();
-    void SendEquipsToOwner();
     uint8 GetBotClass() const { return _botclass; }
     uint32 GetBotClassMask0() const { return 1ul << (_botclass - 1u); }
     uint32 GetBotClassMask1() const { return 1ul << _botclass; }
@@ -187,7 +185,6 @@ public:
     void ToggleRole(uint32 role, bool force);
     bool IsTank(Unit const* unit = nullptr) const;
     bool IsOffTank(Unit const* unit = nullptr) const;
-    float GetMassAttackRange() const;
 
     uint32 GetLastZoneId() const { return _lastZoneId; }
     bool IsInHeroicOrRaid() const;
@@ -216,8 +213,6 @@ public:
     void SetAuraUpdateMaskForRaid(uint8 slot) { _auraRaidUpdateMask |= (uint64(1) << slot); }
     void ResetAuraUpdateMaskForRaid() { _auraRaidUpdateMask = 0; }
     void SendUpdateToOutOfRangeBotGroupMembers();
-    void SendEquipList(Player* player);
-    std::string LoadEquipPartName(uint8 slot);
     void SetBattlegroundOrBattlefieldRaid(Group* group, int8 subgroup);
     void RemoveFromBattlegroundOrBattlefieldRaid();
     Group* GetOriginalGroup() const { return _originalGroup.getTarget(); }
@@ -348,7 +343,6 @@ public:
     AoeSpotsVec const& GetAoeSpots() const;
     static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots);
     AoeSafeSpotsVec CalculateAoeSafeSpots(Unit* target, float maxdist) const;
-    bool IsBotPositionWithinAoE(Position const& pos) const { return IsWithinAoERadius(pos); }
 
     //Pet stuff
     static uint32 GetPetOriginalEntry(uint32 entry);
@@ -842,7 +836,6 @@ public:
                 ObjectGuid target_guid;
                 uint32 base_spell;
                 bool interrupt_self;
-                bool is_order;
             } spell_cast_params;
 
             struct

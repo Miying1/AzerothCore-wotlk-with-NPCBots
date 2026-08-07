@@ -7,7 +7,6 @@
 #include "botdpstracker.h"
 #include "botlog.h"
 #include "botmgr.h"
-#include "botpositioncontrol.h"
 #include "botspell.h"
 #include "bottext.h"
 #include "bpet_ai.h"
@@ -47,8 +46,7 @@ using namespace std::string_view_literals;
 
 static std::list<BotMgr::delayed_teleport_callback_type> delayed_bot_teleports;
 
-static uint8 _IpMaxBots = 8;
-BotMgr::BotMgr(Player* const master) : _owner(master), _positionControl(std::make_unique<BotPositionControl>(*this)), _dpstracker(new DPSTracker())
+BotMgr::BotMgr(Player* const master) : _owner(master), _dpstracker(new DPSTracker())
 {
     _quickrecall = false;
     _update_lock = false;
@@ -71,7 +69,6 @@ void BotMgr::LoadData()
 void BotMgr::Initialize()
 {
     BotCfg::ReloadConfig();
-    _IpMaxBots = sConfigMgr->GetIntDefault("NpcBot.IpMaxBots", 8);
     BotLogger::Log(NPCBOT_LOG_SYSTEM_START, uint32(0), std::string_view{ GitRevision::GetFileVersionStr() }.substr(0, MAX_BOT_LOG_PARAM_LENGTH));
 
     BotDataMgr::LoadNpcBots();
@@ -144,11 +141,6 @@ uint32 BotMgr::GetAllNpcBotsClassMask() const
     for (auto const& [_, mbot] : _bots)
         classMask |= (1u << (BotMgr::GetBotEquipmentClass(mbot->GetBotClass()) - 1));
     return classMask;
-}
-
-uint8 BotMgr::GetIPMaxBots()
-{
-    return _IpMaxBots;
 }
 
 bool BotMgr::LimitBots(Map const* map)
@@ -805,7 +797,6 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
             bpet->SetCreator(nullptr);
         bot->GetBotAI()->ResetBotAI(BOTAI_RESET_LOGOUT | BOTAI_RESET_DISMISS);
         BotDataMgr::DespawnDungeonBot(bot->GetEntry());
-        _positionControl->ForgetBot(guid);
         _bots.erase(itr);
         return;
     }
@@ -819,7 +810,6 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
     //if (GetNpcBotsCount() <= 1 && !_owner->GetPetGUID() && _owner->m_Controlled.empty())
     //    _owner->SendRemoveControlBar();
 
-    _positionControl->ForgetBot(guid);
     _bots.erase(itr);
 
     if (bot->GetBotAI()->IsTempBot())
@@ -1055,37 +1045,9 @@ bool BotMgr::RemoveBotFromGroup(Creature* bot)
 
     gr->RemoveMember(bot->GetGUID());
 
-    //if removed from group while in instance / bg then remove from world immediately.
-    //Cannot use TeleportBot here because FinishTeleport() always targets master's map
-    //and RestrictBots(me, true) checks group membership, causing an infinite retry loop.
-    //Instead directly remove bot from restricted map. It will reappear when master
-    //leaves the instance/bg via OnTeleportFar() -> FinishTeleport().
-    if (bot->IsInWorld() && RestrictBots(bot, true))
-    {
-        bot->GetBotAI()->UnsummonAll();
-        bot->CombatStop();
-
-        if (bot->GetVehicle())
-            bot->ExitVehicle();
-
-        if (bot->GetTransport())
-        {
-            bot->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
-            bot->GetTransport()->RemovePassenger(bot, true);
-        }
-
-        if (Battleground* bg = bot->GetBotBG())
-            bg->EventBotDroppedFlag(bot);
-
-        if (InstanceScript* iscr = _owner->GetInstanceScript())
-            iscr->OnNPCBotLeave(bot);
-
-        if (Map* map = bot->FindMap())
-        {
-            bot->RemoveFromWorld();
-            map->RemoveFromMap(bot, false);
-        }
-    }
+    //if removed from group while in instance / bg then remove from world immediately
+    if (bot->IsInWorld() && !bot->IsSummon() && RestrictBots(bot, true))
+        TeleportBot(bot, bot->GetMap(), bot);
 
     return true;
 }

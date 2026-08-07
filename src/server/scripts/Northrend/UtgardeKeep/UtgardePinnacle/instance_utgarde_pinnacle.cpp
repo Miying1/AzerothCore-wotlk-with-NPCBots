@@ -94,13 +94,8 @@ public:
 
             return false;
         }
-        void OnPlayerEnter(Player* plr) override
-        { 
-            CheckChallengeMode();
-        }
         void OnCreatureCreate(Creature* pCreature) override
         {
-            AddChallengeCreature(pCreature);
             switch (pCreature->GetEntry())
             {
                 case NPC_SVALA_SORROWGRAVE:

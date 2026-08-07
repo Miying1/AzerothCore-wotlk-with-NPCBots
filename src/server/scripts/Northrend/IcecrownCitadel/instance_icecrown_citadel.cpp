@@ -245,14 +245,6 @@ public:
             packet.Worldstates.emplace_back(WORLD_STATE_ICECROWN_CITADEL_ATTEMPTS_REMAINING, HeroicAttempts);
             packet.Worldstates.emplace_back(WORLD_STATE_ICECROWN_CITADEL_ATTEMPTS_MAX, MaxHeroicAttempts);
         }
-        bool IsEncounterInProgress() const override
-        {
-            Map::PlayerList const& pl = instance->GetPlayers();
-            if (pl.IsEmpty()) {
-                return false;
-            } 
-            return InstanceScript::IsEncounterInProgress();
-        }
 
         void OnPlayerAreaUpdate(Player* player, uint32  /*oldArea*/, uint32 newArea) override
         {
@@ -1178,10 +1170,6 @@ public:
                         LichKingHeroicAvailable = false;
                         SaveToDB();
                     }
-                    break;
-                case DATA_SUMMON_SINDRAGOSA:
-                    if (GetBossState(DATA_SINDRAGOSA) != DONE && !instance->GetCreature(SindragosaGUID) && Events.GetTimeUntilEvent(EVENT_RESPAWN_SINDRAGOSA) == Milliseconds::max())
-                        Events.ScheduleEvent(EVENT_RESPAWN_SINDRAGOSA, 30s);
                     break;
                 case DATA_THE_LICH_KING:
                     {

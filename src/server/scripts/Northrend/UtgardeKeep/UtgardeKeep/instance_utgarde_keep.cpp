@@ -107,13 +107,11 @@ public:
                     c->SetVisible(false);
                 }
             }
-            CheckChallengeMode(); 
         }
 
         void OnCreatureCreate(Creature* creature) override
         {
-            AddChallengeCreature(creature);
-            switch(creature->GetEntry())
+            switch (creature->GetEntry())
             {
                 case NPC_ENSLAVED_PROTO_DRAKE:
                     if (creature->GetPositionX() < 250.0f) NPC_SpecialDrakeGUID = creature->GetGUID();

@@ -15,7 +15,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
-#include "World.h" 
+#include "World.h"
 /*
 Hunter NpcBot (reworked by Trickerer onlysuffering@gmail.com)
 Complete - around 95%
@@ -516,7 +516,7 @@ public:
         void CheckMendPet(uint32 diff)
         {
             if (!IsSpellReady(MEND_PET_1, diff) || checkMendTimer > diff || Rand() > 75 ||
-                !botPet || !botPet->IsAlive() || !botPet->IsInWorld() || GetHealthPCT(botPet) > 80 ||
+                !botPet || !botPet->IsAlive() || GetHealthPCT(botPet) > 80 ||
                 me->GetDistance(botPet) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
                 return;
 
@@ -662,7 +662,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!botPet || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             //Scare Beast interrupt
@@ -698,7 +698,7 @@ public:
                     return;
             }
 
-            //CheckMendPet(diff);
+            CheckMendPet(diff);
 
             if (master->IsInCombat() || me->IsInCombat())
                 CheckScare(diff);
@@ -1766,14 +1766,14 @@ public:
 
         void OnBotDamageDealt(Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellInfo const* /*spellInfo*/) override
         {
-            if (botPet  && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
+            if (botPet && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
                 (damagetype == DIRECT_DAMAGE || damagetype == SPELL_DIRECT_DAMAGE) && me->GetLevel() >= 20)
-            { 
+            {
                 //Go for the Throat: energize pet
-               // me->EnergizeBySpell(botPet, GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
+                me->EnergizeBySpell(botPet, GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
                 //Frenzy hack: proc from hunter's crits
-               /* if (me->GetLevel() >= 35)
-                    botPet->CastSpell(botPet, FRENZY_BUFF, true);*/
+                if (me->GetLevel() >= 35)
+                    botPet->CastSpell(botPet, FRENZY_BUFF, true);
             }
         }
 
@@ -1857,7 +1857,7 @@ public:
             myPet->SetControlledByPlayer(!IAmFree());
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
-            myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
+
             //fix scale
             switch (myPetType)
             {
@@ -1869,7 +1869,7 @@ public:
                 case BOT_PET_BEAR:
                 case BOT_PET_WARPSTALKER:
                 case BOT_PET_COREHOUND:
-                    myPet->SetObjectScale(0.68f);
+                    myPet->SetObjectScale(0.75f);
                     break;
                 case BOT_PET_CHIMAERA:
                     myPet->SetObjectScale(0.67f);
@@ -1891,11 +1891,11 @@ public:
             UnsummonPet(savePets);
         }
 
-        void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
+        void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
-                botPet = nullptr;
+            //if (summon == botPet)
+            //    botPet = nullptr;
         }
 
         void SummonedCreatureDespawn(Creature* summon) override

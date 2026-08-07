@@ -69,17 +69,9 @@ public:
                     halionController->AI()->DoAction(ACTION_INTRO_HALION);
             }
         }
-        bool IsEncounterInProgress() const override
-        {
-            Map::PlayerList const& pl = instance->GetPlayers();
-            if(pl.IsEmpty()){
-                return false;
-            } 
-            return InstanceScript::IsEncounterInProgress();
-        }
+
         void OnCreatureCreate(Creature* creature) override
         {
-            AddChallengeCreature(creature);
             switch (creature->GetEntry())
             {
                 case NPC_BALTHARUS_THE_WARBORN:

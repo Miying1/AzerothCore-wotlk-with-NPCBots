@@ -79,7 +79,6 @@ public:
                 Position pos = {5658.15f, 2502.564f, 708.83f, 0.885207f};
                 instance->SummonCreature(NPC_SYLVANAS_PART2, pos);
             }
-            CheckChallengeMode();
         }
 
         void OnCreatureCreate(Creature* creature) override

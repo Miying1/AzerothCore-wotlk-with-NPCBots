@@ -87,13 +87,10 @@ public:
     static WhoListCacheMgr* instance();
 
     void Update();
-    void AddOnlineBot(uint32 count);
     WhoListInfoVector const& GetWhoList() const { return _whoListStorage; }
 
 protected:
     WhoListInfoVector _whoListStorage;
-    WhoListInfoVector _botwhoListStorage;
-    uint32 botupdatetimer=10;
 };
 
 #define sWhoListCacheMgr WhoListCacheMgr::instance()

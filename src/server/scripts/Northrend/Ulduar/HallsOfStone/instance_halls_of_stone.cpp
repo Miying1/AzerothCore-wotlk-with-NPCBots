@@ -137,10 +137,7 @@ public:
                     break;
             }
         }
-        void OnPlayerEnter(Player* plr) override
-        {
-            CheckChallengeMode();
-        }
+
         void OnCreatureCreate(Creature* creature) override
         {
             switch (creature->GetEntry())

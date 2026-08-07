@@ -847,10 +847,9 @@ bool Player::UpdateCraftSkill(uint32 spellid)
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellid);
             if (spellInfo && spellInfo->Mechanic == MECHANIC_DISCOVERY)
             {
-                for (int i = 0; i < 3; ++i) {
-                    if (uint32 discoveredSpell = GetSkillDiscoverySpell(_spell_idx->second->SkillLine, spellid, this))
-                        learnSpell(discoveredSpell);
-                }
+                if (uint32 discoveredSpell = GetSkillDiscoverySpell(
+                        _spell_idx->second->SkillLine, spellid, this))
+                    learnSpell(discoveredSpell);
             }
 
             uint32 craft_skill_gain =

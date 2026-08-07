@@ -81,7 +81,6 @@ public:
 
         void OnCreatureEvade(Creature* creature) override
         {
-            AddChallengeCreature(creature);
             switch (creature->GetEntry())
             {
                 case NPC_WATCHER_NARJIL:

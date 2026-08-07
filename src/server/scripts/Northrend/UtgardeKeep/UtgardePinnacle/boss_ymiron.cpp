@@ -228,7 +228,7 @@ public:
                                     cr->AddAura(SPELL_FLAMES, cr);
                                     summons2.Summon(cr);
                                 }
-                            events.ScheduleEvent(20, 10s);
+
                             BoatNum++;
                         }
 
@@ -254,19 +254,12 @@ public:
                         events.Repeat(30s, 35s);
                         break;
                     }
-                case 20:
-                    if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE)) {
-                        events.ScheduleEvent(EVENT_YMIRON_ACTIVATE_BOAT, 0);
-                    }
-                    break;
                 case EVENT_YMIRON_ACTIVATE_BOAT:
                     {
-                        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
-                        me->GetMotionMaster()->MoveChase(me->GetVictim());
                         // Spawn it!
                         if (Creature* king = me->SummonCreature(BoatStructure[BoatOrder[BoatNum - 1]].npc, BoatStructure[BoatOrder[BoatNum - 1]].SpawnX, BoatStructure[BoatOrder[BoatNum - 1]].SpawnY, BoatStructure[BoatOrder[BoatNum - 1]].SpawnZ, BoatStructure[BoatOrder[BoatNum - 1]].SpawnO, TEMPSUMMON_CORPSE_DESPAWN, 0))
-                        { 
+                        {
+                            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                             king->CastSpell(me, SPELL_CHANNEL_SPIRIT_TO_YMIRON, true);
                             summons.Summon(king);
                             king->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
@@ -290,7 +283,7 @@ public:
                                     break;
                             }
                         }
-                      
+
                         break;
                     }
                 case EVENT_YMIRON_BJORN_ABILITY:
