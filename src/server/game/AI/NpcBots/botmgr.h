@@ -161,6 +161,7 @@ public:
     uint8 GetNpcBotSlot(Creature const* bot) const;
     uint8 GetNpcBotSlotByRole(uint32 roles, Creature const* bot) const;
     uint32 GetAllNpcBotsClassMask() const;
+    static uint8 GetIPMaxBots();
     static bool LimitBots(Map const* map);
     static bool CanBotParryWhileCasting(Creature const* bot);
     static bool IsWanderingWorldBot(Creature const* bot);

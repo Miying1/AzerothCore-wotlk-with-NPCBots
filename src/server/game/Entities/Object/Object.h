@@ -203,7 +203,7 @@ public:
     virtual bool IsNPCBotPet() const { return false; }
     virtual bool IsNPCBotOrPet() const { return false; }
     //end npcbot
-
+    [[nodiscard]] inline bool IsNPlayer() const { return GetTypeId() == TYPEID_PLAYER || IsNPCBot(); }
     [[nodiscard]] inline bool IsPlayer() const { return GetTypeId() == TYPEID_PLAYER; }
     Player* ToPlayer() { if (IsPlayer()) return reinterpret_cast<Player*>(this); else return nullptr; }
     [[nodiscard]] Player const* ToPlayer() const { if (IsPlayer()) return reinterpret_cast<Player const*>(this); else return nullptr; }
@@ -533,7 +533,7 @@ public:
     [[nodiscard]] InstanceScript* GetInstanceScript() const;
 
     [[nodiscard]] std::string const& GetName() const { return m_name; }
-    void SetName(std::string const& newname) { m_name = newname; }
+    [[nodiscard]] void SetName(std::string const& newname) { m_name = newname; }
 
     [[nodiscard]] virtual std::string const& GetNameForLocaleIdx(LocaleConstant /*locale_idx*/) const { return m_name; }
 

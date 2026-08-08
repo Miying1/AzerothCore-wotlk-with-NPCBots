@@ -147,10 +147,11 @@ public:
     ~InstanceScript() override {}
 
     Map* instance;
-
+    std::vector<Creature*> AllChallengeCreature;
+   
     //On creation, NOT load.
     virtual void Initialize() {}
-
+   
     // On load
     virtual void Load(char const* data);
 
@@ -163,7 +164,7 @@ public:
     void SaveToDB();
 
     virtual void Update(uint32 /*diff*/);
-
+    virtual void TimeLimitUpdate(uint32 diff);
     //Used by the map's CanEnter function.
     //This is to prevent players from entering during boss encounters.
     virtual bool IsEncounterInProgress() const;
@@ -187,7 +188,6 @@ public:
 
     //Called when a player successfully leaves the instance.
     virtual void OnPlayerLeave(Player* /*player*/);
-
     virtual void OnPlayerAreaUpdate(Player* /*player*/, uint32 /*oldArea*/, uint32 /*newArea*/) {}
 
     //Called when a player enters/leaves water bodies.
@@ -294,18 +294,17 @@ public:
 
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
-
-    // 地下城挑战模式 - 开始
-    std::vector<Creature*> AllChallengeCreature;
-    virtual void TimeLimitUpdate(uint32 diff);
-    void SetChallengeMode(Unit* creature);
+    //设置生物挑战模式
+    void SetChallengeMode(Unit* creature);  
+    //重新设置所有生物挑战模式
     void CheckChallengeMode();
+    //根据挑战模式刷新生物BUFF
     void RefreshChallengeBuff();
+    //添加挑战模式生物
     void AddChallengeCreature(Creature* creature);
     void SetCMode(bool isopen) { isOpenChallenge = isopen; }
     void SetTimeLimitMinute(uint32 timelimit);
     uint32 GetTimeLimitMinute() { return timeLimitMinute; }
-    // 地下城挑战模式 - 结束
 
     //
     void StoreGameObjectState(ObjectGuid::LowType spawnId, uint8 state) { _objectStateMap[spawnId] = state; };
@@ -363,13 +362,7 @@ protected:
 
 private:
     static void LoadObjectData(ObjectData const* creatureData, ObjectInfoMap& objectInfo);
-
-    // 地下城挑战模式 - 开始
-    bool isOpenChallenge = false;
-    uint32 limitTimer = 0;
-    uint32 timeLimitMinute = 0;
-    // 地下城挑战模式 - 结束
-
+    bool isOpenChallenge =false;
     std::vector<char> headers;
     std::vector<BossInfo> bosses;
     std::vector<uint32> persistentData;
@@ -382,6 +375,8 @@ private:
     ObjectStateMap _objectStateMap;
     uint32 completedEncounters; // completed encounter mask, bit indexes are DungeonEncounter.dbc boss numbers, used for packets
     TeamId _teamIdInInstance;
+    uint32 limitTimer = 0;
+    uint32 timeLimitMinute = 0;
     std::unordered_set<uint32> _activatedAreaTriggers;
 };
 

@@ -53,7 +53,10 @@ public:
             SetBossNumber(MAX_ENCOUNTERS);
             LoadDoorData(doorData);
         }
-
+        void OnPlayerEnter(Player* plr) override
+        { 
+            CheckChallengeMode();
+        }
         void OnCreatureCreate(Creature* creature) override
         {
             switch (creature->GetEntry())

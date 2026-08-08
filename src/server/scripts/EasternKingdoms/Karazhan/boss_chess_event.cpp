@@ -431,49 +431,55 @@ struct npc_echo_of_medivh : public ScriptedAI
                         break;
                 }
 
-                for (KarazhanChessOrientationType orient : orientations)
-                {
-                    uint8 newRow = row;
-                    uint8 newCol = col;
-                    switch (orient)
+                    for (KarazhanChessOrientationType orient : orientations)
                     {
-                        case ORI_SE:
-                            newRow -= 1;
-                            break;
-                        case ORI_S:
-                            newRow -= 1;
-                            newCol -= 1;
-                            break;
-                        case ORI_SW:
-                            newCol -= 1;
-                            break;
-                        case ORI_W:
-                            newRow += 1;
-                            newCol -= 1;
-                            break;
-                        case ORI_NW:
-                            newRow += 1;
-                            break;
-                        case ORI_N:
-                            newRow += 1;
-                            newCol += 1;
-                            break;
-                        case ORI_NE:
-                            newCol += 1;
-                            break;
-                        case ORI_E:
-                            newRow -= 1;
-                            newCol += 1;
-                            break;
-                        default:
-                            break;
+                        uint8 newRow = row;
+                        uint8 newCol = col;
+                        switch (orient)
+                        {
+                            case ORI_SE:
+                                newRow -= 1;
+                                break;
+                            case ORI_S:
+                                newRow -= 1;
+                                newCol -= 1;
+                                break;
+                            case ORI_SW:
+                                newCol -= 1;
+                                break;
+                            case ORI_W:
+                                newRow += 1;
+                                newCol -= 1;
+                                break;
+                            case ORI_NW:
+                                newRow += 1;
+                                break;
+                            case ORI_N:
+                                newRow += 1;
+                                newCol += 1;
+                                break;
+                            case ORI_NE:
+                                newCol += 1;
+                                break;
+                            case ORI_E:
+                                newRow -= 1;
+                                newCol += 1;
+                                break;
+                            default:
+                                break;
+                        }
+                        if (newRow < _boards.size() && newCol < _boards[newRow].size()) {
+                            if (_boards[newRow][newCol].pieceGUID) {
+                                if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
+                                {
+                                    if (!IsFriendly(piece, targetPiece))
+                                    {
+                                        return targetPiece;
+                                    }
+                                }
+                            }
+                        }
                     }
-
-                    if (newRow < MAX_ROW && newCol < MAX_COL)
-                        if (Creature* targetPiece = ObjectAccessor::GetCreature(*me, _boards[newRow][newCol].pieceGUID))
-                            if (!IsFriendly(piece, targetPiece))
-                                return targetPiece;
-                }
 
                 return nullptr;
             }

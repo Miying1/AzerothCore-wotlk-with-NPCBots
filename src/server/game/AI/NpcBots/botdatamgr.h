@@ -11,6 +11,7 @@
 #include <ranges>
 #include <set>
 #include <shared_mutex>
+#include <vector>
 
 class BattlegroundQueue;
 class Creature;
@@ -237,6 +238,8 @@ public:
     static std::vector<uint32> GetExistingNPCBotIds();
     static uint8 GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask = 0, bool count_shared = false);
     static uint8 GetAccountBotsCount(uint32 account_id);
+    static uint32 GetNpcBotCountByIp(std::string ip);
+    static bool SetBotName(Creature* bot, std::string name);
 
     static void DespawnDungeonBot(uint32 entry);
     static void DespawnWandererBot(uint32 entry);

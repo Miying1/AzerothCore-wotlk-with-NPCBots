@@ -63,7 +63,14 @@ public:
             _keysInCount = 0;
             _activateTimer = 0;
         }
-
+        void OnPlayerEnter(Player* plr) override
+        {
+            CheckChallengeMode();
+        }
+        void OnCreatureCreate(Creature* creature) override
+        {
+            AddChallengeCreature(creature);
+        }
         void OnGameObjectCreate(GameObject* gameobject) override
         {
             switch (gameobject->GetEntry())

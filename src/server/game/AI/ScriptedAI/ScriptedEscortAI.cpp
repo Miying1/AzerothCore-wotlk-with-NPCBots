@@ -429,7 +429,7 @@ void npc_escortAI::Start(bool isActiveAttacker /* = true*/, ObjectGuid playerGUI
 {
     if (me->GetVictim())
     {
-        LOG_ERROR("entities.unit.ai", "ERROR: EscortAI (script: {}, creature entry: {}) attempts to Start while in combat", me->GetScriptName(), me->GetEntry());
+        //LOG_DEBUG("entities.unit.ai", "ERROR: EscortAI (script: {}, creature entry: {}) attempts to Start while in combat", me->GetScriptName(), me->GetEntry());
         return;
     }
 

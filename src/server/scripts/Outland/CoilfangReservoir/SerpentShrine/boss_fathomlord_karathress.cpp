@@ -27,11 +27,9 @@ enum Talk
 {
     SAY_AGGRO                       = 0,
     SAY_GAIN_BLESSING               = 1,
-    SAY_GAIN_ABILITY1               = 2,
-    SAY_GAIN_ABILITY2               = 3,
-    SAY_GAIN_ABILITY3               = 4,
-    SAY_SLAY                        = 5,
-    SAY_DEATH                       = 6
+    SAY_GAIN_ABILITY                = 2,
+    SAY_SLAY                        = 3,
+    SAY_DEATH                       = 4
 };
 
 enum Spells

@@ -12,7 +12,7 @@
 #include "Player.h"
 #include "RaceMgr.h"
 #include "ScriptedGossip.h"
-#include "ScriptMgr.h"
+#include "ScriptMgr.h" 
 /*
 NPCbot giver NPC by Trickerer (<https://github.com/trickerer/> <onlysuffering@gmail.com>)
 Complete - 100%
@@ -78,7 +78,6 @@ public:
                 case HIRE:
                 {
                     gossipTextId = GOSSIP_BOTGIVER_HIRE;
-
                     if (player->GetNpcBotsCount() >= BotCfg::GetMaxNpcBots(player->GetLevel()))
                     {
                         WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
@@ -92,6 +91,17 @@ public:
                         {
                             ChatHandler ch(player->GetSession());
                             ch.PSendSysMessage(bot_ai::LocalizedNpcText(player, BOT_TEXT_HIREFAIL_MAXBOTS_ACCOUNT).c_str(), accountBotsCount, maxBotsPerAccount);
+                            break;
+                        }
+                    }
+
+                    //test2: IP-based bot limits
+                    if (!player->IsGameMaster())
+                    {
+                        uint32 allcount = BotDataMgr::GetNpcBotCountByIp(player->GetSession()->GetRemoteAddress());
+                        if ((allcount >= BotMgr::GetIPMaxBots() && !player->IsVip()) )
+                        {
+                            WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
                             break;
                         }
                     }

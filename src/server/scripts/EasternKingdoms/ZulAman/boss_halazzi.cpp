@@ -15,20 +15,20 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "CreatureScript.h"
+#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "zulaman.h"
 
 enum Spells
 {
-    SPELL_DUAL_WIELD            = 29651,
-    SPELL_SABER_LASH            = 43267,
+    SPELL_DUAL_WIELD            = 29651,//可以在副手上装备单手和副手武器。
+    SPELL_SABER_LASH            = 43267,//造成伤害，由所有被影响的目标平均分担。
     SPELL_FRENZY                = 43139,
     SPELL_FLAMESHOCK            = 43303,
     SPELL_EARTHSHOCK            = 43305,
     SPELL_SUMMON_LYNX           = 43143,
-    SPELL_SUMMON_TOTEM          = 43302,
+    SPELL_SUMMON_TOTEM          = 43302,//召唤一个闪电图腾，持续存在60 seconds。该图腾会周期性地攻击附近的敌人。
     SPELL_BERSERK               = 45078,
     SPELL_LYNX_FRENZY           = 43290, // Used by Spirit Lynx
     SPELL_SHRED_ARMOR           = 43243, // Used by Spirit Lynx
@@ -70,7 +70,7 @@ enum Yells
     SAY_DEATH                    = 5
 };
 
-enum Groups
+class boss_halazzi : public CreatureScript
 {
     GROUP_LYNX                   = 0,
     GROUP_HUMAN                  = 1,
@@ -123,7 +123,6 @@ struct boss_halazzi : public BossAI
             if (me->HealthBelowPctDamaged(20, damage))
                 EnterPhase(PHASE_MERGE);
         }
-    }
 
     void SpellHit(Unit*, SpellInfo const* spell) override
     {
@@ -180,6 +179,8 @@ struct boss_halazzi : public BossAI
                 scheduler.Schedule(5s, 15s, GROUP_LYNX, [this](TaskContext context)
                 {
                     Talk(SAY_SABER);
+                    // A tank with more than 490 defense skills should receive no critical hit
+                    //DoCast(me, 41296, true);
                     DoCastVictim(SPELL_SABER_LASH, true);
                     context.Repeat();
                 }).Schedule(20s, 35s, GROUP_LYNX, [this](TaskContext context)
@@ -271,10 +272,17 @@ struct boss_halazzi : public BossAI
             EnterPhase(PHASE_MERGE);
     }
 
-    void JustDied(Unit* killer) override
+        void JustDied(Unit* /*killer*/) override
+        {
+            instance->SetData(DATA_HALAZZIEVENT, DONE);
+            Talk(SAY_DEATH);
+            summons.DespawnAll();
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
     {
-        BossAI::JustDied(killer);
-        Talk(SAY_DEATH);
+        return GetZulAmanAI<boss_halazziAI>(creature);
     }
 private:
     uint8 _transformCount;

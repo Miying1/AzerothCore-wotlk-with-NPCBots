@@ -832,8 +832,8 @@ void Creature::Update(uint32 diff)
             //npcbot - skip dead state for bots (handled by AI)
             if (!bot_AI && !bot_pet_AI)
             //end npcbot
-            if (!IsAlive())
-                break;
+                if (!IsAlive())
+                    break;
 
             GetThreatMgr().Update(diff);
 
@@ -4273,7 +4273,7 @@ uint8 Creature::GetBotClass() const
 
 Player* Creature::GetBotOwner() const
 {
-    return bot_AI ? bot_AI->GetBotOwner() : bot_pet_AI ? bot_pet_AI->GetPetsOwner()->GetBotOwner() : nullptr;
+    return bot_AI ? bot_AI->GetBotOwner() : (bot_pet_AI && bot_pet_AI->GetPetsOwner()) ? bot_pet_AI->GetPetsOwner()->GetBotOwner() : nullptr;
 }
 Unit* Creature::GetBotsPet() const
 {
