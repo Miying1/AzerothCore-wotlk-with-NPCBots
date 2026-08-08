@@ -1656,9 +1656,9 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
             //TODO: rename to ApplyBotDamageMultiplierPhysical
             ToCreature()->ApplyBotDamageMultiplierMelee(damage, *damageInfo, spellInfo, attackType, crit);
             if (damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL)
-                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotMgr::GetBotWandererDamageMod() : BotMgr::GetBotDamageModPhysical());
+                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotCfg::GetBotWandererDamageMod() : BotCfg::GetBotDamageModPhysical());
             else if (damageSchoolMask & SPELL_SCHOOL_MASK_MAGIC)
-                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotMgr::GetBotWandererDamageMod() : BotMgr::GetBotDamageModSpell());
+                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotCfg::GetBotWandererDamageMod() : BotCfg::GetBotDamageModSpell());
         }
         //End NpcBot
 
@@ -1846,9 +1846,9 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
         {
             ToCreature()->ApplyBotDamageMultiplierSpell(damage, *damageInfo, spellInfo, attackType, crit);
             if (damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL)
-                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotMgr::GetBotWandererDamageMod() : BotMgr::GetBotDamageModPhysical());
+                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotCfg::GetBotWandererDamageMod() : BotCfg::GetBotDamageModPhysical());
             else if (damageSchoolMask & SPELL_SCHOOL_MASK_MAGIC)
-                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotMgr::GetBotWandererDamageMod() : BotMgr::GetBotDamageModSpell());
+                damage *= (BotMgr::IsWanderingWorldBot(ToCreature()) ? BotCfg::GetBotWandererDamageMod() : BotCfg::GetBotDamageModSpell());
         }
         //End NpcBot
 

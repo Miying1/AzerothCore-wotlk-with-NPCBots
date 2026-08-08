@@ -2739,13 +2739,13 @@ public:
             return false;
         }
         if(owner->GetMap()->IsNonRaidDungeon()){
-            handler->GetSession()->SendNotification("你不能在地下城中这样做!");
+            handler->SendNotification("你不能在地下城中这样做!");
             handler->SetSentErrorMessage(true);
             return false;
         }
         if (!owner->IsAlive())
         {
-            handler->GetSession()->SendNotification("你死了");
+            handler->SendNotification("你死了");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -2776,13 +2776,13 @@ public:
             return false;
         }
         if(owner->GetMap()->IsNonRaidDungeon()){
-            handler->GetSession()->SendNotification("你不能在地下城中这样做!");
+            handler->SendNotification("你不能在地下城中这样做!");
             handler->SetSentErrorMessage(true);
             return false;
         }
         if (!owner->IsAlive())
         {
-            handler->GetSession()->SendNotification("你死了");
+            handler->SendNotification("你死了");
             handler->SetSentErrorMessage(true);
             return false;
         }
