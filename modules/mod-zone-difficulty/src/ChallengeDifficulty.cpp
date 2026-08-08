@@ -276,22 +276,24 @@ bool ChallengeDifficulty::OpenChallenge(uint32 inst_id, uint32 level, Player* pl
 
 bool ChallengeDifficulty::CloseChallenge(Map* instance)
 {
+    if (!HasChallengMode(instance->GetInstanceId()))
+        return false;
+
     auto insScript = instance->IsDungeon() ? instance->ToInstanceMap()->GetInstanceScript() : nullptr;
     if (!insScript) return false;
-    if (HasChallengMode(instance->GetInstanceId()))
-        ChallengeInstanceData.erase(instance->GetInstanceId());
+
+    ChallengeInstanceData.erase(instance->GetInstanceId());
     insScript->SetCMode(false);
     insScript->RefreshChallengeBuff();
-    insScript->SetTimeLimitMinute(0); 
+    insScript->SetTimeLimitMinute(0);
     CharacterDatabase.Execute("DELETE FROM zone_difficulty_instance_saves WHERE InstanceID = {}", instance->GetInstanceId());
     return true;
 }
 
 void ChallengeDifficulty::GetRandomGlobalSpell(uint8 count, std::array<uint32, 3>* apply_spell)
 {
-    if (ZoneChallengeSpellGroupData.size() < 1) return;
-    uint32 rand = urand(1, ZoneChallengeSpellGroupData.size()) - 1;
-    if (rand < 0) return ;
+    if (ZoneChallengeSpellGroupData.empty()) return;
+    uint32 rand = urand(0, ZoneChallengeSpellGroupData.size() - 1);
     auto sd_its = ZoneChallengeSpellGroupData.begin();
     std::advance(sd_its, rand);
     auto group = &(*sd_its).second;
@@ -314,9 +316,9 @@ void ChallengeDifficulty::SetPlayerChallengeLevel(Map* map)
     {
         uint32 playerid = i->GetSource()->GetGUID().GetCounter();
         if (PlayerLevelData[playerid] >= cdata->level) continue;
-        PlayerLevelData[playerid]= PlayerLevelData[playerid]+1;
-        CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid,PlayerLevelData[playerid]);
-        ChatHandler(i->GetSource()->GetSession()).SendSysMessage("你的挑战等级提升了,当前: "+ PlayerLevelData[playerid]);
+        PlayerLevelData[playerid] = cdata->level;
+        CharacterDatabase.Execute("REPLACE INTO zone_diffculty_playerlevel (player_guid,challenge_level) VALUES ({}, {})", playerid, PlayerLevelData[playerid]);
+        ChatHandler(i->GetSource()->GetSession()).SendSysMessage("你的挑战等级提升了,当前: " + std::to_string(PlayerLevelData[playerid]));
     }
 }
 void ChallengeDifficulty::AddBossScore(Map* map)

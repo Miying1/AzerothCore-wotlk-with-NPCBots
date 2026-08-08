@@ -439,7 +439,16 @@ class spell_kalecgos_spectral_blast_dummy : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
+        size_t total = targets.size();
         targets.remove_if(SpectralBlastCheck(GetCaster()->GetVictim()));
+        // Solo fallback: if filtering removed everyone (solo player is the tank),
+        // re-add the victim so the player can enter the Spectral Realm.
+        if (targets.empty() && total > 0)
+        {
+            if (Unit* victim = GetCaster()->GetVictim())
+                if (!victim->HasAura(SPELL_SPECTRAL_EXHAUSTION) && victim->GetPositionZ() >= 50.0f)
+                    targets.push_back(victim);
+        }
         Acore::Containers::RandomResize(targets, 1);
     }
 

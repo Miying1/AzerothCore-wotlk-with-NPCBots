@@ -256,7 +256,7 @@ struct go_orb_of_domination : public GameObjectAI
     bool GossipHello(Player* player, bool /*reportUse*/) override
     {
         if (InstanceScript* instance = me->GetInstanceScript())
-            if (instance->GetData(DATA_EGG_EVENT) != DONE && !player->HasAura(SPELL_MIND_EXHAUSTION) && !player->GetPet())
+            if (instance->GetData(DATA_EGG_EVENT) != DONE && !player->HasAura(SPELL_MIND_EXHAUSTION))
                 if (Creature* razor = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_RAZORGORE_THE_UNTAMED)))
                 {
                     razor->AI()->SetGUID(player->GetGUID());
