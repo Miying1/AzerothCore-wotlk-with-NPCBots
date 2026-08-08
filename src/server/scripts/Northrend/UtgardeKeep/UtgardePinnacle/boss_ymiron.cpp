@@ -256,7 +256,7 @@ public:
                     }
                 case 20:
                     if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE)) {
-                        events.ScheduleEvent(EVENT_YMIRON_ACTIVATE_BOAT, 0);
+                        events.ScheduleEvent(EVENT_YMIRON_ACTIVATE_BOAT, 0s);
                     }
                     break;
                 case EVENT_YMIRON_ACTIVATE_BOAT:

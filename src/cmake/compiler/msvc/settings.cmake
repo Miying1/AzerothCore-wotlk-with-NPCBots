@@ -50,9 +50,14 @@ if(PLATFORM EQUAL 64)
       -D_WIN64)
   message(STATUS "MSVC: 64-bit platform, enforced -D_WIN64 parameter")
 
-  # Enable extended object support for debug compiles on X64 (not required on X86)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
-  message(STATUS "MSVC: Enabled extended object-support for debug-compiles")
+  # Enable extended object support on X64 (not required on X86)
+  # /bigobj: increase number of sections per .obj (default 2^16, needed for large TUs)
+  # /Zm200: increase compiler heap allocation limit (prevents C1076)
+  target_compile_options(acore-compile-option-interface
+    INTERFACE
+      /bigobj
+      /Zm200)
+  message(STATUS "MSVC: Enabled extended object support (/bigobj /Zm200)")
 else()
   # mark 32 bit executables large address aware so they can use > 2GB address space
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
