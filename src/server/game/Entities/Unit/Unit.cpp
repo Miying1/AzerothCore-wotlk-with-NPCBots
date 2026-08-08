@@ -15951,12 +15951,7 @@ bool Unit::IsInRaidWith(Unit const* unit) const
         return true;
     
     Unit const* u1 = GetCharmerOrOwnerOrSelf();
-    Unit const* u2;
-    if(unit->IsNPCBotPet()){
-        u2= unit->GetCreator()->GetOwner();
-    }else{
-        u2 = unit->GetCharmerOrOwnerOrSelf();
-    }
+    Unit const* u2 = unit->GetCharmerOrOwnerOrSelf();
     if (u1 == u2)
         return true;
 
