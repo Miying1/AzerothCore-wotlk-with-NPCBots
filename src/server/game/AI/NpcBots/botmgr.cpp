@@ -46,7 +46,6 @@ using namespace std::string_view_literals;
 
 static std::list<BotMgr::delayed_teleport_callback_type> delayed_bot_teleports;
 
-static uint8 _IpMaxBots = 8;
 BotMgr::BotMgr(Player* const master) : _owner(master), _dpstracker(new DPSTracker())
 {
     _quickrecall = false;
@@ -69,8 +68,7 @@ void BotMgr::LoadData()
 
 void BotMgr::Initialize()
 {
-    BotCfg::ReloadConfig();
-    _IpMaxBots = sConfigMgr->GetIntDefault("NpcBot.IpMaxBots", 8);
+    BotCfg::ReloadConfig(); 
     BotLogger::Log(NPCBOT_LOG_SYSTEM_START, uint32(0), std::string_view{ GitRevision::GetFileVersionStr() }.substr(0, MAX_BOT_LOG_PARAM_LENGTH));
 
     BotDataMgr::LoadNpcBots();
@@ -147,7 +145,7 @@ uint32 BotMgr::GetAllNpcBotsClassMask() const
 
 uint8 BotMgr::GetIPMaxBots()
 {
-    return _IpMaxBots;
+    return BotCfg::GetIpMaxBots();
 }
 
 bool BotMgr::LimitBots(Map const* map)

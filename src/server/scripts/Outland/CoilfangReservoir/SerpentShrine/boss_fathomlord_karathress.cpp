@@ -25,84 +25,86 @@
 
 enum Talk
 {
-    SAY_AGGRO                       = 0,
-    SAY_GAIN_BLESSING               = 1,
-    SAY_GAIN_ABILITY                = 2,
-    SAY_SLAY                        = 3,
-    SAY_DEATH                       = 4
+    SAY_AGGRO = 0,
+    SAY_GAIN_BLESSING = 1,
+    SAY_GAIN_ABILITY1 = 2,
+    SAY_GAIN_ABILITY2 = 3,
+    SAY_GAIN_ABILITY3 = 4,
+    SAY_SLAY = 5,
+    SAY_DEATH = 6
 };
 
 enum Spells
 {
     //Fathomlord Karathress
-    SPELL_CATACLYSMIC_BOLT          = 38441,
-    SPELL_SEAR_NOVA                 = 38445,
-    SPELL_ENRAGE                    = 24318,
-    SPELL_BLESSING_OF_THE_TIDES     = 38449,
+    SPELL_CATACLYSMIC_BOLT = 38441,
+    SPELL_SEAR_NOVA = 38445,
+    SPELL_ENRAGE = 24318,
+    SPELL_BLESSING_OF_THE_TIDES = 38449,
     //Fathomguard Sharkkis
-    SPELL_HURL_TRIDENT              = 38374,
-    SPELL_LEECHING_THROW            = 29436,
-    SPELL_MULTI_TOSS                = 38366,
-    SPELL_SUMMON_FATHOM_SPOREBAT    = 38431,
-    SPELL_SUMMON_FATHOM_LURKER      = 38433,
-    SPELL_THE_BEAST_WITHIN          = 38373,
-    SPELL_BESTIAL_WRATH             = 38371,
-    SPELL_POWER_OF_SHARKKIS         = 38455,
+    SPELL_HURL_TRIDENT = 38374,
+    SPELL_LEECHING_THROW = 29436,
+    SPELL_MULTI_TOSS = 38366,
+    SPELL_SUMMON_FATHOM_SPOREBAT = 38431,
+    SPELL_SUMMON_FATHOM_LURKER = 38433,
+    SPELL_THE_BEAST_WITHIN = 38373,
+    SPELL_BESTIAL_WRATH = 38371,
+    SPELL_POWER_OF_SHARKKIS = 38455,
     //Fathomguard Tidalvess
-    SPELL_FROST_SHOCK               = 38234,
-    SPELL_EARTHBIND_TOTEM           = 38304,
-    SPELL_POISON_CLEANSING_TOTEM    = 38306,
-    SPELL_SPITFIRE_TOTEM            = 38236,
-    SPELL_POWER_OF_TIDALVESS        = 38452,
+    SPELL_FROST_SHOCK = 38234,
+    SPELL_EARTHBIND_TOTEM = 38304,
+    SPELL_POISON_CLEANSING_TOTEM = 38306,
+    SPELL_SPITFIRE_TOTEM = 38236,
+    SPELL_POWER_OF_TIDALVESS = 38452,
     //Fathomguard Caribdis
-    SPELL_SUMMON_CYCLONE            = 38337,
-    SPELL_WATER_BOLT_VOLLEY         = 38335,
-    SPELL_TIDAL_SURGE               = 38358,
-    SPELL_HEALING_WAVE              = 38330,
-    SPELL_POWER_OF_CARIBDIS         = 38451,
+    SPELL_SUMMON_CYCLONE = 38337,
+    SPELL_WATER_BOLT_VOLLEY = 38335,
+    SPELL_TIDAL_SURGE = 38358,
+    SPELL_HEALING_WAVE = 38330,
+    SPELL_POWER_OF_CARIBDIS = 38451,
     //Spitfire Totem
-    SPELL_ATTACK                    = 38296
+    SPELL_ATTACK = 38296
 };
 
 enum Misc
 {
-    GO_CAGE                         = 185474,
-    ACTION_RESET_ADDS               = 1
+    GO_CAGE = 185474,
+    ACTION_RESET_ADDS = 1
 };
 
 const Position olumWalk = { 456.17194f, -544.31866f, -7.5470476f, 0.00f };
 
 struct boss_fathomlord_karathress : public BossAI
 {
-    boss_fathomlord_karathress(Creature* creature) : BossAI(creature, DATA_FATHOM_LORD_KARATHRESS){ }
+    boss_fathomlord_karathress(Creature* creature) : BossAI(creature, DATA_FATHOM_LORD_KARATHRESS) {}
 
     void JustReachedHome() override
     {
         instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard)
-        {
-            if (!fathomguard->IsAlive())
             {
-                fathomguard->Respawn(true);
-            }
-        });
+                if (!fathomguard->IsAlive())
+                {
+                    fathomguard->Respawn(true);
+                }
+            });
     }
 
     void Reset() override
     {
         BossAI::Reset();
 
-        ScheduleHealthCheckEvent(75, [&]{
+        ScheduleHealthCheckEvent(75, [&] {
             instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard) {
                 if (fathomguard->IsAlive())
                 {
                     fathomguard->CastSpell(me, SPELL_BLESSING_OF_THE_TIDES, true);
                 }
-            });
+                });
             if (me->HasAura(SPELL_BLESSING_OF_THE_TIDES))
             {
                 Talk(SAY_GAIN_BLESSING);
             }
-        });
+            });
     }
 
     void JustSummoned(Creature* summon) override
@@ -141,23 +143,23 @@ struct boss_fathomlord_karathress : public BossAI
 
         instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard) {
             fathomguard->SetInCombatWithZone();
-        });
+            });
 
         scheduler.Schedule(10s, [this](TaskContext context)
-        {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, PowerUsersSelector(me, POWER_MANA, 50.0f, true)))
             {
-                me->CastSpell(target, SPELL_CATACLYSMIC_BOLT);
-            }
-            context.Repeat(6s);
-        }).Schedule(25s, [this](TaskContext context)
-        {
-            DoCastSelf(SPELL_SEAR_NOVA);
-            context.Repeat(20s, 40s);
-        }).Schedule(10min, [this](TaskContext)
-        {
-            DoCastSelf(SPELL_ENRAGE, true);
-        });
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, PowerUsersSelector(me, POWER_MANA, 50.0f, true)))
+                {
+                    me->CastSpell(target, SPELL_CATACLYSMIC_BOLT);
+                }
+                context.Repeat(6s);
+            }).Schedule(25s, [this](TaskContext context)
+                {
+                    DoCastSelf(SPELL_SEAR_NOVA);
+                    context.Repeat(20s, 40s);
+                }).Schedule(10min, [this](TaskContext)
+                    {
+                        DoCastSelf(SPELL_ENRAGE, true);
+                    });
     }
 
     void DoAction(int32 action) override
@@ -166,9 +168,9 @@ struct boss_fathomlord_karathress : public BossAI
         {
             EnterEvadeMode();
             instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard)
-            {
-                fathomguard->DespawnOrUnsummon();
-            });
+                {
+                    fathomguard->DespawnOrUnsummon();
+                });
         }
     }
 };
@@ -176,7 +178,7 @@ struct boss_fathomlord_karathress : public BossAI
 struct LeechingThrowSelector
 {
 public:
-    explicit LeechingThrowSelector(WorldObject const* source) : _source(source) { }
+    explicit LeechingThrowSelector(WorldObject const* source) : _source(source) {}
 
     bool operator() (Unit* unit) const
     {
@@ -216,33 +218,33 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
         }
 
         scheduler.Schedule(2500ms, [this](TaskContext context)
-        {
-            DoCastRandomTarget(SPELL_HURL_TRIDENT);
-            context.Repeat(5s);
-        }).Schedule(20650ms, [this](TaskContext context)
-        {
-            DoCastRandomTarget(SPELL_MULTI_TOSS);
-            context.Repeat(12150ms, 26350ms);
-        }).Schedule(6050ms, [this](TaskContext context)
-        {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, LeechingThrowSelector(me)))
             {
-                me->CastSpell(target, SPELL_LEECHING_THROW);
-            }
-            context.Repeat(6050ms, 22250ms);
-        }).Schedule(41250ms, [this](TaskContext context)
-        {
-            DoCastSelf(SPELL_THE_BEAST_WITHIN);
-            _summons.DoForAllSummons([&](WorldObject* summon)
-            {
-                me->CastSpell(summon->ToCreature(), SPELL_BESTIAL_WRATH, true);
-            });
-            context.Repeat(39950ms, 46050ms);
-        }).Schedule(14550ms, [this](TaskContext context)
-        {
-            DoCastSelf(urand(0, 1) ? SPELL_SUMMON_FATHOM_LURKER : SPELL_SUMMON_FATHOM_SPOREBAT);
-            context.Repeat(30300ms);
-        });
+                DoCastRandomTarget(SPELL_HURL_TRIDENT);
+                context.Repeat(5s);
+            }).Schedule(20650ms, [this](TaskContext context)
+                {
+                    DoCastRandomTarget(SPELL_MULTI_TOSS);
+                    context.Repeat(12150ms, 26350ms);
+                }).Schedule(6050ms, [this](TaskContext context)
+                    {
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, LeechingThrowSelector(me)))
+                        {
+                            me->CastSpell(target, SPELL_LEECHING_THROW);
+                        }
+                        context.Repeat(6050ms, 22250ms);
+                    }).Schedule(41250ms, [this](TaskContext context)
+                        {
+                            DoCastSelf(SPELL_THE_BEAST_WITHIN);
+                            _summons.DoForAllSummons([&](WorldObject* summon)
+                                {
+                                    me->CastSpell(summon->ToCreature(), SPELL_BESTIAL_WRATH, true);
+                                });
+                            context.Repeat(39950ms, 46050ms);
+                        }).Schedule(14550ms, [this](TaskContext context)
+                            {
+                                DoCastSelf(urand(0, 1) ? SPELL_SUMMON_FATHOM_LURKER : SPELL_SUMMON_FATHOM_SPOREBAT);
+                                context.Repeat(30300ms);
+                            });
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -283,21 +285,21 @@ private:
 
 enum NPCTotems
 {
-    NPC_SPITFIRE_TOTEM                  = 22091,
-    NPC_GREATER_EARTHBIND_TOTEM         = 22486,
-    NPC_GREATER_POISON_CLEANSING_TOTEM  = 22487
+    NPC_SPITFIRE_TOTEM = 22091,
+    NPC_GREATER_EARTHBIND_TOTEM = 22486,
+    NPC_GREATER_POISON_CLEANSING_TOTEM = 22487
 };
 
 enum TidalActions
 {
-    ACTION_REMOVE_SPITFIRE  = 1,
+    ACTION_REMOVE_SPITFIRE = 1,
     ACTION_REMOVE_EARTHBIND = 2,
     ACTION_REMOVE_CLEANSING = 3
 };
 
 enum TotemChoice
 {
-    SPITFIRE  = 1,
+    SPITFIRE = 1,
     EARTHBIND = 2,
     CLEANSING = 3
 };
@@ -310,9 +312,9 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
         SetBoundary(_instance->GetBossBoundary(DATA_FATHOM_LORD_KARATHRESS));
 
         _scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
-        });
+            {
+                return !me->HasUnitState(UNIT_STATE_CASTING);
+            });
     }
 
     void Reset() override
@@ -342,48 +344,48 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
 
         switch (entry)
         {
-            case NPC_SPITFIRE_TOTEM:
-                timer = 59s;
-                action = ACTION_REMOVE_SPITFIRE;
-                group = SPITFIRE;
-                break;
-            case NPC_GREATER_EARTHBIND_TOTEM:
-                timer = 44s;
-                action = ACTION_REMOVE_EARTHBIND;
-                group = EARTHBIND;
-                break;
-            case NPC_GREATER_POISON_CLEANSING_TOTEM:
-                timer = 29s;
-                action = ACTION_REMOVE_CLEANSING;
-                group = CLEANSING;
-                break;
-            default:
-                timer = 29s;
+        case NPC_SPITFIRE_TOTEM:
+            timer = 59s;
+            action = ACTION_REMOVE_SPITFIRE;
+            group = SPITFIRE;
+            break;
+        case NPC_GREATER_EARTHBIND_TOTEM:
+            timer = 44s;
+            action = ACTION_REMOVE_EARTHBIND;
+            group = EARTHBIND;
+            break;
+        case NPC_GREATER_POISON_CLEANSING_TOTEM:
+            timer = 29s;
+            action = ACTION_REMOVE_CLEANSING;
+            group = CLEANSING;
+            break;
+        default:
+            timer = 29s;
         }
         _totemScheduler.Schedule(timer, group, [this, action](TaskContext)
-        {
-            me->AI()->DoAction(action);
-        });
+            {
+                me->AI()->DoAction(action);
+            });
     }
 
     void DoAction(int32 action) override
     {
         switch (action)
         {
-            case ACTION_REMOVE_SPITFIRE:
-                _totemScheduler.CancelGroup(SPITFIRE);
-                _entryList.push_back(NPC_SPITFIRE_TOTEM);
-                break;
-            case ACTION_REMOVE_EARTHBIND:
-                _totemScheduler.CancelGroup(EARTHBIND);
-                _entryList.push_back(NPC_GREATER_EARTHBIND_TOTEM);
-                break;
-            case ACTION_REMOVE_CLEANSING:
-                _totemScheduler.CancelGroup(CLEANSING);
-                _entryList.push_back(NPC_GREATER_POISON_CLEANSING_TOTEM);
-                break;
-            default:
-                return;
+        case ACTION_REMOVE_SPITFIRE:
+            _totemScheduler.CancelGroup(SPITFIRE);
+            _entryList.push_back(NPC_SPITFIRE_TOTEM);
+            break;
+        case ACTION_REMOVE_EARTHBIND:
+            _totemScheduler.CancelGroup(EARTHBIND);
+            _entryList.push_back(NPC_GREATER_EARTHBIND_TOTEM);
+            break;
+        case ACTION_REMOVE_CLEANSING:
+            _totemScheduler.CancelGroup(CLEANSING);
+            _entryList.push_back(NPC_GREATER_POISON_CLEANSING_TOTEM);
+            break;
+        default:
+            return;
         }
     }
 
@@ -391,17 +393,17 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
     {
         switch (entry)
         {
-            case NPC_SPITFIRE_TOTEM:
-                DoCastSelf(SPELL_SPITFIRE_TOTEM);
-                break;
-            case NPC_GREATER_EARTHBIND_TOTEM:
-                DoCastSelf(SPELL_EARTHBIND_TOTEM);
-                break;
-            case NPC_GREATER_POISON_CLEANSING_TOTEM:
-                DoCastSelf(SPELL_POISON_CLEANSING_TOTEM);
-                break;
-            default:
-                return;
+        case NPC_SPITFIRE_TOTEM:
+            DoCastSelf(SPELL_SPITFIRE_TOTEM);
+            break;
+        case NPC_GREATER_EARTHBIND_TOTEM:
+            DoCastSelf(SPELL_EARTHBIND_TOTEM);
+            break;
+        case NPC_GREATER_POISON_CLEANSING_TOTEM:
+            DoCastSelf(SPELL_POISON_CLEANSING_TOTEM);
+            break;
+        default:
+            return;
         }
     }
 
@@ -412,20 +414,20 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
             karathress->Attack(who, false);
         }
         _scheduler.Schedule(10900ms, [this](TaskContext context)
-        {
-            DoCastVictim(SPELL_FROST_SHOCK);
-            context.Repeat(10900ms, 14700ms);
-        }).Schedule(15800ms, [this](TaskContext context)
-        {
-            if (_entryList.size() != 0) //don't summon when all totems are up
             {
-                uint32 totemEntry = _entryList.front();
-                _entryList.pop_front();
-                SummonTotem(totemEntry);
-                ScheduleRemoval(totemEntry);
-            }
-            context.Repeat(13350ms, 24250ms);
-        });
+                DoCastVictim(SPELL_FROST_SHOCK);
+                context.Repeat(10900ms, 14700ms);
+            }).Schedule(15800ms, [this](TaskContext context)
+                {
+                    if (_entryList.size() != 0) //don't summon when all totems are up
+                    {
+                        uint32 totemEntry = _entryList.front();
+                        _entryList.pop_front();
+                        SummonTotem(totemEntry);
+                        ScheduleRemoval(totemEntry);
+                    }
+                    context.Repeat(13350ms, 24250ms);
+                });
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -477,9 +479,9 @@ struct boss_fathomguard_caribdis : public ScriptedAI
         SetBoundary(_instance->GetBossBoundary(DATA_FATHOM_LORD_KARATHRESS));
 
         _scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
-        });
+            {
+                return !me->HasUnitState(UNIT_STATE_CASTING);
+            });
     }
 
     void Reset() override
@@ -501,25 +503,25 @@ struct boss_fathomguard_caribdis : public ScriptedAI
             karathress->Attack(who, false);
         }
         _scheduler.Schedule(27900ms, [this](TaskContext context)
-        {
-            DoCastSelf(SPELL_WATER_BOLT_VOLLEY);
-            context.Repeat(6050ms, 19750ms);
-        }).Schedule(23050ms, [this](TaskContext context)
-        {
-            DoCastSelf(SPELL_TIDAL_SURGE);
-            context.Repeat(24250ms, 33250ms);
-        }).Schedule(15750ms, [this](TaskContext context)
-        {
-            DoCastRandomTarget(SPELL_SUMMON_CYCLONE);
-            context.Repeat(47250ms, 51550ms);
-        }).Schedule(20s, [this](TaskContext context)
-        {
-            if (Unit* target = DoSelectLowestHpFriendly(60.0f, 150000))
             {
-                DoCast(target, SPELL_HEALING_WAVE);
-            }
-            context.Repeat(20s);
-        });
+                DoCastSelf(SPELL_WATER_BOLT_VOLLEY);
+                context.Repeat(6050ms, 19750ms);
+            }).Schedule(23050ms, [this](TaskContext context)
+                {
+                    DoCastSelf(SPELL_TIDAL_SURGE);
+                    context.Repeat(24250ms, 33250ms);
+                }).Schedule(15750ms, [this](TaskContext context)
+                    {
+                        DoCastRandomTarget(SPELL_SUMMON_CYCLONE);
+                        context.Repeat(47250ms, 51550ms);
+                    }).Schedule(20s, [this](TaskContext context)
+                        {
+                            if (Unit* target = DoSelectLowestHpFriendly(60.0f, 150000))
+                            {
+                                DoCast(target, SPELL_HEALING_WAVE);
+                            }
+                            context.Repeat(20s);
+                        });
     }
 
     void JustDied(Unit* /*killer*/) override

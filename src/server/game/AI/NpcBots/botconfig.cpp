@@ -29,6 +29,7 @@ Npc Bot Config by Trickerer (onlysuffering@gmail.com)
 static uint8 _basefollowdist;
 static uint8 _maxClassNpcBots;
 static uint8 _maxAccountNpcBots;
+static uint8 _IpMaxBots;
 static uint8 _maxSharedOwners;
 static uint8 _xpReductionExtraAmount;
 static uint8 _xpReductionExtraStartingNumber;
@@ -471,7 +472,7 @@ private:
         _bothk_message_enable           = sConfigMgr->GetBoolDefault("NpcBot.HK.Message.Enable", false);
         _bothk_achievements_enable      = sConfigMgr->GetBoolDefault("NpcBot.HK.Achievements.Enable", false);
         _bothk_rate_honor               = sConfigMgr->GetFloatDefault("NpcBot.HK.Rate.Honor", 1.0);
-
+        _IpMaxBots                      = sConfigMgr->GetIntDefault("NpcBot.IpMaxBots", 8);
         if (reload)
             BotLogger::Log(NPCBOT_LOG_CONFIG_RELOAD, uint32(0));
 
@@ -1042,6 +1043,10 @@ uint8 BotCfg::GetMaxClassBots()
 uint8 BotCfg::GetMaxAccountBots()
 {
     return _maxAccountNpcBots;
+}
+uint8 BotCfg::GetIpMaxBots()
+{
+    return _IpMaxBots;
 }
 uint8 BotCfg::GetMaxSharedOwners()
 {

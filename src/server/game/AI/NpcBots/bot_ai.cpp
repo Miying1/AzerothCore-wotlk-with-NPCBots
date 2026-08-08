@@ -10223,7 +10223,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 {
                     //if have incompatible offhand unequip it
                     if (_equips[BOT_SLOT_OFFHAND] != nullptr)
-                        _unequip(BOT_SLOT_OFFHAND, player->GetGUID());
+                        _unequip(BOT_SLOT_OFFHAND, player->GetGUID(), false);
                 }
                 break;
             }
@@ -15438,7 +15438,7 @@ void bot_ai::FindMaster()
                     return;
 
                 // Don't reconnect if bots are not allowed in player's current map
-                if (player->GetBotMgr() && !player->GetBotMgr()->IsMapAllowedForBots(player->GetMap()))
+                if (player->GetBotMgr() && !BotCfg::IsMapAllowedForBots(player->GetMap()))
                     return;
 
                 if (SetBotOwner(player))

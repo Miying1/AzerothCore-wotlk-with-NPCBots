@@ -73,6 +73,7 @@ public:
     static bool IsSharedOwnerOptionEnabled(SharedOwnerOptionMask options);
     static uint8 GetMaxClassBots();
     static uint8 GetMaxAccountBots();
+    static uint8 GetIpMaxBots();
     static uint8 GetMaxSharedOwners();
     static uint32 GetGearBankCapacity();
     static uint32 GetGearBankEquipmentSetsCount();

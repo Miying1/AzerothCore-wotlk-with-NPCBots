@@ -1071,11 +1071,11 @@ public:
                 {
                     std::list<Unit*> targets;
                     GetNearbyTargetsList(targets, 30.f, 0);
-                    if (targets.size() > 3)
-                        cast = true;
-                }*/
+                if (targets.size() > 3)
+                    cast = true;
+            }
 
-                if (doCast(me, GetSpell(STARFALL_1)))
+            if (doCast(me, GetSpell(STARFALL_1)))
                     return;
 
                 SetSpellCooldown(STARFALL_1, 1500); //fail
