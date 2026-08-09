@@ -4546,14 +4546,16 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         Player* owner = handler->GetSession()->GetPlayer();
         if (!owner->HaveBot())
         {
-            handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
-            handler->SendSysMessage("集合非坦克机器人到主人附近，ranged 模式仅包含远程和治疗职责");
+            handler->SendSysMessage(".npcbot command mass [all|ranged|botname|mytarget] [1-4]");
+            handler->SendSysMessage("集合机器人到主人附近");
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         BotMassMode mode = BotMassMode::AllNonTank;
+        ObjectGuid singleTargetGuid;
         float radius = 4.0f;
+
         if (modeArg)
         {
             if (*modeArg == "all")
@@ -4564,11 +4566,30 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             {
                 mode = BotMassMode::RangedAndHeal;
             }
+            else if (*modeArg == "mytarget")
+            {
+                Unit* target = owner->GetSelectedUnit();
+                if (!target || !target->IsCreature())
+                {
+                    handler->SendSysMessage("请先选中一个你的机器人");
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+                Creature* bot = owner->GetBotMgr()->GetBot(target->GetGUID());
+                if (!bot)
+                {
+                    handler->SendSysMessage("选中的目标不是你的机器人");
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+                mode = BotMassMode::SingleTarget;
+                singleTargetGuid = bot->GetGUID();
+            }
             else if (Optional<float> parsedRadius = Acore::StringTo<float>(*modeArg))
             {
                 if (radiusArg)
                 {
-                    handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
+                    handler->SendSysMessage(".npcbot command mass [all|ranged|botname|mytarget] [1-4]");
                     handler->SetSentErrorMessage(true);
                     return false;
                 }
@@ -4576,9 +4597,18 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             }
             else
             {
-                handler->SendSysMessage(".npcbot command mass [all|ranged] [1-4]");
-                handler->SetSentErrorMessage(true);
-                return false;
+                Creature* bot = owner->GetBotMgr()->GetBotByName(*modeArg);
+                if (bot)
+                {
+                    mode = BotMassMode::SingleTarget;
+                    singleTargetGuid = bot->GetGUID();
+                }
+                else
+                {
+                    handler->PSendSysMessage("未找到名为 '{}' 的机器人", *modeArg);
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
             }
         }
 
@@ -4602,17 +4632,94 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         }
 
         BotPositionControl* control = owner->GetBotMgr()->GetBotPositionControl();
-        uint32 count = control->EnableMass(mode, radius);
-        handler->PSendSysMessage("集合模式已启用：{}，半径 {:.1f} 码，当前 {} 个机器人符合条件",
-            mode == BotMassMode::RangedAndHeal ? "远程/治疗" : "所有非坦克", radius, count);
+
+        if (mode == BotMassMode::SingleTarget)
+        {
+            uint32 count = control->EnableMassForBot(singleTargetGuid, radius);
+            if (count == 0)
+            {
+                Creature* bot = owner->GetBotMgr()->GetBot(singleTargetGuid);
+                handler->PSendSysMessage("机器人 '{}' 无法执行集合命令（可能已死亡或状态异常）",
+                    bot ? bot->GetName() : "未知");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            Creature* bot = owner->GetBotMgr()->GetBot(singleTargetGuid);
+            handler->PSendSysMessage("机器人 '{}' 已设置集合，半径 {:.1f} 码",
+                bot ? bot->GetName() : "未知", radius);
+        }
+        else
+        {
+            uint32 count = control->EnableMass(mode, radius);
+            handler->PSendSysMessage("集合：{}，半径 {:.1f} 码，当前 {} 个机器人",
+                mode == BotMassMode::RangedAndHeal ? "远程/治疗" : "所有非坦克", radius, count);
+        }
+
         return true;
     }
 
-    static bool HandleNpcBotCommandUnmassCommand(ChatHandler* handler)
+    static bool HandleNpcBotCommandUnmassCommand(ChatHandler* handler, Optional<std::string_view> targetArg)
     {
         Player* owner = handler->GetSession()->GetPlayer();
-        owner->GetBotMgr()->GetBotPositionControl()->DisableMass();
-        handler->SendSysMessage("集合模式已关闭，机器人恢复原有走位策略");
+        BotPositionControl* control = owner->GetBotMgr()->GetBotPositionControl();
+
+        if (!control->IsMassEnabled())
+        {
+            handler->SendSysMessage("当前没有启用集合模式");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        // 无参数 → 关闭所有集合
+        if (!targetArg)
+        {
+            control->DisableMass();
+            handler->SendSysMessage("集合关闭，机器人恢复原有走位策略");
+            return true;
+        }
+
+        ObjectGuid toRemove;
+        std::string botName;
+
+        if (*targetArg == "mytarget")
+        {
+            Unit* target = owner->GetSelectedUnit();
+            if (!target || !target->IsCreature())
+            {
+                handler->SendSysMessage("请先选中一个你的机器人");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            Creature* bot = owner->GetBotMgr()->GetBot(target->GetGUID());
+            if (!bot)
+            {
+                handler->SendSysMessage("选中的目标不是你的机器人");
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            toRemove = bot->GetGUID();
+            botName = bot->GetName();
+        }
+        else
+        {
+            Creature* bot = owner->GetBotMgr()->GetBotByName(*targetArg);
+            if (!bot)
+            {
+                handler->PSendSysMessage("未找到名为 '{}' 的机器人", *targetArg);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+            toRemove = bot->GetGUID();
+            botName = bot->GetName();
+        }
+
+        control->RemoveMassForBot(toRemove);
+
+        if (control->IsMassEnabled())
+            handler->PSendSysMessage("机器人 '{}' 已从集合中移除", botName);
+        else
+            handler->PSendSysMessage("机器人 '{}' 已从集合中移除，集合模式已关闭", botName);
+
         return true;
     }
 
@@ -4654,7 +4761,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             return false;
         }
 
-        handler->PSendSysMessage("战斗分散模式已启用，目标间距 {:.1f} 码", distance);
+        handler->PSendSysMessage("战斗分散模式已启用，分散间距 {:.1f} 码", distance);
         return true;
     }
 

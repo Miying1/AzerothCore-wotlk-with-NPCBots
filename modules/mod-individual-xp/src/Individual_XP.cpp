@@ -219,13 +219,6 @@ public:
 
     static bool HandleDisableCommand(ChatHandler* handler)
     {
-        if (!individualXp.Enabled)
-        {
-            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)
@@ -247,13 +240,6 @@ public:
 
     static bool HandleEnableCommand(ChatHandler* handler)
     {
-        if (!individualXp.Enabled)
-        {
-            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
-            handler->SetSentErrorMessage(true);
-            return true;
-        }
-
         Player* player = handler->GetSession()->GetPlayer();
 
         if (!player)

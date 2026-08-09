@@ -6,9 +6,13 @@
 
 1. `mass`：非坦克、非守卫 Bot 集合到主人身边并继续跟随。
 2. `mass ranged`：仅远程和治疗职责 Bot 集合到主人身边并继续跟随。
-3. `unmass`：取消集合约束，恢复现有跟随和战斗走位。
-4. `spread`：战斗中尽量与其他 Bot 保持指定间距，默认 5 码。
-5. `spread off`：取消分散约束。
+3. `mass <botname>`：指定名称的单个 Bot 集合到主人身边，不区分职责。
+4. `mass mytarget`：当前选中的 Bot 集合到主人身边，不区分职责。
+5. `unmass`：取消集合约束，恢复现有跟随和战斗走位。
+6. `spread`：战斗中尽量与其他 Bot 保持指定间距，默认 5 码。
+7. `spread off`：取消分散约束。
+
+`mass` 与 `spread` 互斥：启用其中一种模式时自动关闭另一种。
 
 本方案不修改数据库，不新增持久化字段，不改变 `BotMgr::GetBotFollowDist()` 的全局语义，也不配置或构建项目。
 
@@ -228,7 +232,8 @@ enum class BotMassMode : uint8
 {
     None,
     AllNonTank,
-    RangedAndHeal
+    RangedAndHeal,
+    SingleTarget     // 单个指定 Bot，不区分职责
 };
 
 class BotPositionControl
@@ -237,6 +242,7 @@ public:
     explicit BotPositionControl(BotMgr& botMgr);
 
     bool EnableMass(BotMassMode mode, float radius);
+    bool EnableMassForBot(ObjectGuid botGuid, float radius);
     void DisableMass();
     bool IsMassEnabled() const;
     bool ShouldFollowMass(bot_ai const& ai) const;
@@ -270,6 +276,8 @@ public:
 .npcbot command mass
 .npcbot command mass all [radius]
 .npcbot command mass ranged [radius]
+.npcbot command mass <botname> [radius]
+.npcbot command mass mytarget [radius]
 .npcbot command unmass
 .npcbot command spread [distance]
 .npcbot command spread off
@@ -338,17 +346,28 @@ bool isTank = ai.HasRole(BOT_ROLE_TANK) || ai.IsTank();
 集合参与条件：
 
 ```cpp
+// 通用条件（所有模式）
 eligible =
     bot != nullptr &&
     bot->IsInWorld() &&
     bot->IsAlive() &&
     !ai.IsWanderer() &&
     !ai.IsTempBot() &&
-    !isTank &&
     !ai.HasBotCommandState(BOT_COMMAND_STAY | BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION);
+
+// SingleTarget 模式：仅按 GUID 匹配，不检查职责或坦克状态
+if (mode == BotMassMode::SingleTarget)
+    return eligible && bot->GetGUID() == singleTargetGuid;
+
+// AllNonTank / RangedAndHeal 模式：
+eligible = eligible && !isTank;
+if (mode == BotMassMode::RangedAndHeal)
+    eligible = eligible && ai.HasRole(BOT_ROLE_RANGED | BOT_ROLE_HEAL);
 ```
 
 是否排除临时 Bot 可以作为实现开关；推荐第一版排除，避免副本临时 Bot 与主人状态切换产生意外耦合。
+
+`SingleTarget` 模式不区分职责，允许坦克、近战等任意职责的 Bot 集合到主人身边。仅限玩家自己所有权的 Bot（通过 `GetBotByName()` / `GetBot()` 查找时仅限于 `_bots` 内）。
 
 ---
 
@@ -658,6 +677,11 @@ CMake 已经递归收集 `src/server/game` 下的源文件。
 5. 重复执行 `mass`，确认不会反复重排槽位；
 6. `unmass` 后确认普通职责槽位恢复；
 7. `spread off` 不影响集合模式。
+8. 执行 `mass <botname>`，确认仅指定名称的 Bot 集合（含坦克），不区分职责；
+9. 指定不存在的 Bot 名称，确认返回"未找到"错误；
+10. 执行 `mass mytarget` 时未选中目标，确认返回"请选中"错误；
+11. 执行 `mass mytarget` 时选中其他玩家的 Bot 或普通生物，确认报错；
+12. 执行 `mass mytarget` 时正确选中自己的 Bot，确认该 Bot 开始集合；
 
 ### 10.2 角色筛选测试
 
@@ -672,7 +696,9 @@ CMake 已经递归收集 `src/server/game` 下的源文件。
 - `BOT_COMMAND_STAY`；
 - `BOT_COMMAND_FULLSTOP`；
 - `BOT_COMMAND_INACTION`；
-- 临时 Bot 和游荡 Bot。
+- 临时 Bot 和游荡 Bot；
+- `SingleTarget` 模式下坦克 Bot 可被集合（不区分职责）；
+- `SingleTarget` 模式切换回 `AllNonTank`/`RangedAndHeal` 后坦克 Bot 恢复不参与。
 
 ### 10.3 集合战斗测试
 
@@ -683,7 +709,12 @@ CMake 已经递归收集 `src/server/game` 下的源文件。
 5. 目标离开后，Bot 继续集合跟随；
 6. 坦克和 `STAY` Bot 不被集合点覆盖；
 7. Bot 进入 AoE 时，AoE 规避优先于集合约束；
-8. `unmass` 后远程、近战和治疗恢复原有站位。
+8. `unmass` 后远程、近战和治疗恢复原有站位；
+9. `SingleTarget` 模式指定坦克 Bot，确认坦克也能集合到主人身边。<｜end▁of▁thinking｜>8. 执行 `mass <botname>`，确认仅指定名称的 Bot 集合（含坦克），不区分职责；
+9. 指定不存在的 Bot 名称，确认返回"未找到"错误；
+10. 执行 `mass mytarget` 时未选中目标，确认返回"请选中"错误；
+11. 执行 `mass mytarget` 时选中其他玩家的 Bot 或普通生物，确认报错；
+12. 执行 `mass mytarget` 时正确选中自己的 Bot，确认该 Bot 开始集合；
 
 ### 10.4 分散测试
 

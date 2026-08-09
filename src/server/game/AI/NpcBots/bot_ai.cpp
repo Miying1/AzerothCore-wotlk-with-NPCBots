@@ -18435,14 +18435,23 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                 }
                 else
                 {
-                    //BOT_LOG_ERROR("scripts", "%s calculates attack pos to attack %s", me->GetName().c_str(), victim->GetName().c_str());
-                    bool force = false;
-                    CalculateAttackPos(victim, attackpos, force);
-                    if (mover->GetExactDist2d(&attackpos) > (force ? 0.1f : 4.f) || (force && IsWanderer()))
+                    // 集合模式下，若 bot 应驻守主人身边则跳过攻击站位计算，
+                    // 否则 CalculateAttackPos 会算出远离主人的攻击位，与集合逻辑拉扯导致来回移动
+                    if (!IAmFree() && master->GetBotMgr()->GetBotPositionControl()->ShouldHoldMassPosition(*me, *this, victim))
                     {
-                        //BOT_LOG_ERROR("scripts", "%s moving to x %.2f y %.2f z %.2f to attack %s",
-                        //    me->GetName().c_str(), attackpos.m_positionX, attackpos.m_positionY, attackpos.m_positionZ, victim->GetName().c_str());
-                        GetInPosition(true, victim, &attackpos);
+                        // bot 保持现有位置攻击，不触发新站位计算
+                    }
+                    else
+                    {
+                        //BOT_LOG_ERROR("scripts", "%s calculates attack pos to attack %s", me->GetName().c_str(), victim->GetName().c_str());
+                        bool force = false;
+                        CalculateAttackPos(victim, attackpos, force);
+                        if (mover->GetExactDist2d(&attackpos) > (force ? 0.1f : 4.f) || (force && IsWanderer()))
+                        {
+                            //BOT_LOG_ERROR("scripts", "%s moving to x %.2f y %.2f z %.2f to attack %s",
+                            //    me->GetName().c_str(), attackpos.m_positionX, attackpos.m_positionY, attackpos.m_positionZ, victim->GetName().c_str());
+                            GetInPosition(true, victim, &attackpos);
+                        }
                     }
                 }
             }

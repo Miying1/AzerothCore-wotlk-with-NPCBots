@@ -5,6 +5,7 @@
 #include "ObjectGuid.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 class bot_ai;
 class BotMgr;
@@ -16,7 +17,8 @@ enum class BotMassMode : uint8
 {
     None,
     AllNonTank,
-    RangedAndHeal
+    RangedAndHeal,
+    SingleTarget     // single specified bot, no role filter
 };
 
 class AC_GAME_API BotPositionControl
@@ -25,7 +27,9 @@ public:
     explicit BotPositionControl(BotMgr& botMgr);
 
     uint32 EnableMass(BotMassMode mode, float radius);
+    uint32 EnableMassForBot(ObjectGuid botGuid, float radius);
     void DisableMass();
+    void RemoveMassForBot(ObjectGuid botGuid);
     bool IsMassEnabled() const { return _massMode != BotMassMode::None; }
     BotMassMode GetMassMode() const { return _massMode; }
     float GetMassRadius() const { return _massRadius; }
@@ -57,6 +61,9 @@ private:
         float x = 0.0f;
         float y = 0.0f;
         float z = 0.0f;
+        float ownerX = 0.0f;  // 记录目标点时主人的位置，用于检测主人移动
+        float ownerY = 0.0f;
+        float ownerZ = 0.0f;
     };
 
     bool IsMassEligible(Creature const& bot, bot_ai const& ai) const;
@@ -65,10 +72,12 @@ private:
 
     BotMgr& _botMgr;
     BotMassMode _massMode = BotMassMode::None;
+    ObjectGuid _singleTargetGuid;
     float _massRadius = 4.0f;
     float _spreadDistance = 0.0f;
     std::unordered_map<ObjectGuid, BotMassSlot> _massSlots;
     std::unordered_map<ObjectGuid, BotMassDestination> _massDestinations;
+    std::unordered_set<ObjectGuid> _extraMassGuids;  // 通过指定 Bot 单独加入集合的 Guid，不参与模式过滤
 };
 
 #endif
