@@ -173,14 +173,14 @@ void AuthSession::Start()
     LOG_TRACE("session", "Accepted connection from {}", ip_address);
 
     // 如果服务器未激活，仅允许本地连接
-    if (!sActivationChecker->IsActivated())
-    {
-        if (!sActivationChecker->IsLocalIP(ip_address))
-        {
-            CloseSocket();
-            return;
-        }
-    }
+    // if (!sActivationChecker->IsActivated())
+    // {
+    //     if (!sActivationChecker->IsLocalIP(ip_address))
+    //     {
+    //         CloseSocket();
+    //         return;
+    //     }
+    // }
 
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_IP_INFO);
     stmt->SetData(0, ip_address);
