@@ -1,0 +1,178 @@
+/*
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or any later version.
+ */
+
+#ifndef HEROIC_DUNGEON_RIFT_BOSS_BASE_H
+#define HEROIC_DUNGEON_RIFT_BOSS_BASE_H
+
+#include "rift_defines.h"
+
+#include "ScriptedCreature.h"
+
+#include <algorithm>
+#include <limits>
+#include <vector>
+
+namespace HeroicDungeonRift
+{
+class BossAIBase : public ScriptedAI
+{
+public:
+    explicit BossAIBase(Creature* creature) : ScriptedAI(creature), _baseHealth(std::max<uint32>(1, creature->GetMaxHealth())) { }
+
+    void Reset() override
+    {
+        DespawnRiftSummons();
+        events.Reset();
+        _raidSpellDamageMultiplier = 1.0f;
+        _tier = GetTierForCreature(me);
+        _tierConfig = GetTierConfigForCreature(me);
+        if (!_tierConfig || _tier < 1 || _tier > MaxTier)
+        {
+            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+            return;
+        }
+
+        ApplyTierStats(me, *_tierConfig, _baseHealth);
+        me->SetVisible(true);
+        me->SetStandState(UNIT_STAND_STATE_STAND);
+        me->SetReactState(REACT_AGGRESSIVE);
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_ATTACKABLE_1 | UNIT_FLAG_IMMUNE_TO_PC |
+            UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE_2 | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE);
+        me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH | UNIT_FLAG2_HIDE_BODY);
+        ConfigureTier();
+    }
+
+    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
+    {
+        if (_tierConfig)
+        {
+            double multiplier = _tierConfig->DamageMultiplier;
+            if (damageType != DIRECT_DAMAGE)
+                multiplier *= _raidSpellDamageMultiplier;
+            damage = uint32(std::min<double>(double(damage) * multiplier, std::numeric_limits<uint32>::max()));
+        }
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        DespawnRiftSummons();
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = events.ExecuteEvent())
+            ExecuteRiftEvent(eventId);
+
+        DoMeleeAttackIfReady();
+    }
+
+protected:
+    virtual void ConfigureTier() = 0;
+    virtual void ExecuteRiftEvent(uint32 eventId) = 0;
+
+    void ScheduleTieredEvent(uint32 eventId, uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay)
+    {
+        uint32 delay = _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
+        events.ScheduleEvent(eventId, Milliseconds(delay));
+    }
+
+    bool CastIfConfigured(Unit* target, uint32 spellId, bool triggered = false)
+    {
+        if (!target || !spellId)
+            return false;
+        DoCast(target, spellId, triggered);
+        return true;
+    }
+
+    bool CastRaidTunedSpell(Unit* target, uint32 spellId, int32 basePoint0, bool triggered = false)
+    {
+        if (!target || !spellId || basePoint0 <= 0)
+            return false;
+        me->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, basePoint0, target, triggered);
+        return true;
+    }
+
+    Unit* SelectRandomPlayer(float range = 100.0f, bool alive = true)
+    {
+        return SelectTarget(SelectTargetMethod::Random, 0, range, alive);
+    }
+
+    Creature* SummonTieredCreature(uint32 entry, Position const& position, float healthCoefficient = 1.0f,
+        float damageCoefficient = 1.0f, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN,
+        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS)
+    {
+        if (!entry || !_tierConfig)
+            return nullptr;
+
+        Creature* summon = me->SummonCreature(entry, position, summonType, despawnMilliseconds);
+        if (!summon)
+            return nullptr;
+
+        ApplySummonTierStats(summon, healthCoefficient, damageCoefficient);
+        _riftSummons.push_back(summon->GetGUID());
+        summon->SetInCombatWithZone();
+        return summon;
+    }
+
+    void ApplySummonTierStats(Creature* summon, float healthCoefficient = 1.0f, float damageCoefficient = 1.0f)
+    {
+        if (!summon || !_tierConfig)
+            return;
+
+        uint64 scaledHealth = uint64(std::max<uint32>(1, summon->GetMaxHealth())) *
+            _tierConfig->HealthMultiplier * std::max(0.01f, healthCoefficient);
+        scaledHealth = std::min<uint64>(scaledHealth, std::numeric_limits<uint32>::max());
+        summon->SetCreateHealth(uint32(scaledHealth));
+        summon->SetMaxHealth(uint32(scaledHealth));
+        summon->SetFullHealth();
+
+        float finalDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, damageCoefficient);
+        for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
+        {
+            float minDamage = summon->GetWeaponDamageRange(attackType, MINDAMAGE);
+            float maxDamage = summon->GetWeaponDamageRange(attackType, MAXDAMAGE);
+            summon->SetBaseWeaponDamage(attackType, MINDAMAGE, minDamage * finalDamageMultiplier);
+            summon->SetBaseWeaponDamage(attackType, MAXDAMAGE, maxDamage * finalDamageMultiplier);
+            summon->UpdateDamagePhysical(attackType);
+        }
+
+        summon->AI()->SetData(RiftDataTier, _tier);
+        summon->AI()->SetData(RiftDataDamagePermille, uint32(finalDamageMultiplier * 1000.0f));
+    }
+
+    void DespawnRiftSummons()
+    {
+        for (ObjectGuid const& guid : _riftSummons)
+            if (Creature* summon = ObjectAccessor::GetCreature(*me, guid))
+                summon->DespawnOrUnsummon();
+        _riftSummons.clear();
+    }
+
+    void SetRaidSpellDamageMultiplier(float multiplier)
+    {
+        _raidSpellDamageMultiplier = std::max(1.0f, multiplier);
+    }
+
+    uint32 _baseHealth = 1;
+    float _raidSpellDamageMultiplier = 1.0f;
+    uint8 _tier = 0;
+    TierConfig const* _tierConfig = nullptr;
+    EventMap events;
+    std::vector<ObjectGuid> _riftSummons;
+};
+
+} // namespace HeroicDungeonRift
+
+#endif
