@@ -220,11 +220,11 @@ INSERT INTO `creature_template_resistance`
 SELECT m.new_entry,src.School,src.Resistance,src.VerifiedBuild
 FROM `creature_template_resistance` src JOIN `_rift_template_map` m ON m.source_entry=src.CreatureID;
 
--- 主Boss不继承源副本的睡眠/石化姿态、事件光环或其他模板Addon；召唤物保留源外观数据。
+-- 主Boss保留常驻战斗光环，但清除 bytes1 低字节中的睡眠、死亡等站姿，确保生成时为站立状态。
 INSERT INTO `creature_template_addon`
-SELECT m.new_entry,0,src.mount,src.bytes1,src.bytes2,src.emote,src.visibilityDistanceType,src.auras
-FROM `creature_template_addon` src JOIN `_rift_template_map` m ON m.source_entry=src.entry
-WHERE m.is_boss=0;
+SELECT m.new_entry,0,src.mount,IF(m.is_boss=1,(src.bytes1 & 4294967040),src.bytes1),
+       src.bytes2,src.emote,src.visibilityDistanceType,src.auras
+FROM `creature_template_addon` src JOIN `_rift_template_map` m ON m.source_entry=src.entry;
 
 INSERT INTO `creature_equip_template`
 SELECT m.new_entry,src.ID,src.ItemID1,src.ItemID2,src.ItemID3,src.VerifiedBuild

@@ -378,8 +378,17 @@ bool RunManager::InitializeRunObjects(Map* map, std::shared_ptr<RunComponent> co
     if (!map || !run || run->SpawnInitialized)
         return run && run->SpawnInitialized;
 
-    Player* summoner = ObjectAccessor::FindConnectedPlayer(run->LeaderGuid);
-    if (!summoner || summoner->GetMap() != map)
+    Player* summoner = nullptr;
+    for (MemberState const& member : run->Members)
+    {
+        Player* candidate = ObjectAccessor::FindConnectedPlayer(member.PlayerGuid);
+        if (candidate && candidate->GetMap() == map)
+        {
+            summoner = candidate;
+            break;
+        }
+    }
+    if (!summoner)
         return false;
 
     RemoveOriginalBoss(map, run->BossId);
@@ -439,7 +448,7 @@ void RunManager::OnPlayerEnterMap(Map* map, Player* player)
         return;
     }
 
-    if (!run->SpawnInitialized && player->GetGUID() == run->LeaderGuid)
+    if (!run->SpawnInitialized)
     {
         if (!InitializeRunObjects(map, run))
         {
