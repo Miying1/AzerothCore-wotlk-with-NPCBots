@@ -12,6 +12,7 @@
 #include "rift_defines.h"
 
 #include "ScriptedCreature.h"
+#include "SpellInfo.h"
 #include "ThreatManager.h"
 
 #include <algorithm>
@@ -46,6 +47,20 @@ public:
             UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE_2 | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE);
         me->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH | UNIT_FLAG2_HIDE_BODY);
         ConfigureTier();
+    }
+
+    // 仅对注册过的读条技能免疫打断：读条开始时开启、读条结束时关闭，
+    // 其余技能（含 T1 基础技能）保持与源 Boss 一致的可打断性。
+    void OnSpellStart(SpellInfo const* spell) override
+    {
+        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
+            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
+    }
+
+    void OnSpellCast(SpellInfo const* spell) override
+    {
+        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
+            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
     }
 
     void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
@@ -184,12 +199,19 @@ protected:
         _raidSpellDamageMultiplier = std::max(1.0f, multiplier);
     }
 
+    void AddInterruptImmuneSpell(uint32 spellId)
+    {
+        if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())
+            _interruptImmuneSpells.push_back(spellId);
+    }
+
     uint32 _baseHealth = 1;
     float _raidSpellDamageMultiplier = 1.0f;
     uint8 _tier = 0;
     TierConfig const* _tierConfig = nullptr;
     EventMap events;
     std::vector<ObjectGuid> _riftSummons;
+    std::vector<uint32> _interruptImmuneSpells;
 };
 
 // Shared AI base for rift-summoned creatures (companions and adds). It mirrors the

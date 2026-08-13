@@ -55,7 +55,7 @@ struct boss_rift_ras_frostwhisper : public BossAIBase
         BossAIBase::JustDied(nullptr);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); AddInterruptImmuneSpell(SpellFear); }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -69,12 +69,12 @@ struct boss_rift_ras_frostwhisper : public BossAIBase
                 CastIfConfigured(me, SpellChillNova);
                 ScheduleTieredEvent(EventChillNova, 18000, 14500, 11500);
                 break;
-            case EventFreeze: // T2新增：冰冻术，点名随机目标，读条不可打断
+            case EventFreeze: // T2新增：冰冻术，点名随机目标，顺发
                 CastIfConfigured(SelectRandomPlayer(), SpellFreeze, true);
                 events.ScheduleEvent(EventFreeze, _tier == 3 ? 14s : 17s);
                 break;
-            case EventFear: // T3新增：恐惧，点名随机目标，读条不可打断
-                CastIfConfigured(SelectRandomPlayer(), SpellFear, true);
+            case EventFear: // T3新增：恐惧，点名随机目标，免疫打断
+                CastIfConfigured(SelectRandomPlayer(), SpellFear);
                 events.ScheduleEvent(EventFear, 20s);
                 break;
             default:

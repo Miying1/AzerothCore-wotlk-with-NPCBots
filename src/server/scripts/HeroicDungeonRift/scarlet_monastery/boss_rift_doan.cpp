@@ -95,11 +95,11 @@ struct boss_rift_doan : public BossAIBase
             case EventDetonation:
                 CastRaidTunedSpell(me, SpellDetonation, 4000);
                 break;
-            case EventTier2Skill: // T2新增：奥术飞弹，读条不可打断
+            case EventTier2Skill: // T2新增：奥术飞弹，瞬发
                 CastIfConfigured(me->GetVictim(), SpellArcaneMissiles, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 8s : 10s);
                 break;
-            case EventTier3Skill: // T3新增：烈焰风暴，点名随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：烈焰风暴，点名随机目标，顺发
                 CastIfConfigured(SelectRandomPlayer(), SpellFlamestrike, true);
                 events.ScheduleEvent(EventTier3Skill, 22s);
                 break;

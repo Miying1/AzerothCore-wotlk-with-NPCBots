@@ -64,11 +64,11 @@ struct boss_rift_gahzrilla : public BossAIBase
                 CastIfConfigured(me, SpellGahzrillaSlam);
                 ScheduleTieredEvent(EventSlam, 30000, 24000, 19000);
                 break;
-            case EventTier2Skill: // T2新增：痛击，读条不可打断
+            case EventTier2Skill: // T2新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 12s : 15s);
                 break;
-            case EventTier3Skill: // T3新增：冰霜新星，读条不可打断
+            case EventTier3Skill: // T3新增：冰霜新星，瞬发
                 CastIfConfigured(me, SpellFrostNova, true);
                 events.ScheduleEvent(EventTier3Skill, 22s);
                 break;

@@ -79,11 +79,11 @@ struct boss_rift_balnazzar : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellSleep);
                 ScheduleTieredEvent(EventSleep, 15000, 12000, 9500);
                 break;
-            case EventPsychicScream: // T2新增：心灵尖啸，读条不可打断
+            case EventPsychicScream: // T2新增：心灵尖啸，瞬发
                 CastIfConfigured(me, SpellPsychicScream, true);
                 events.ScheduleEvent(EventPsychicScream, _tier == 3 ? 18s : 22s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭雨，读条不可打断
+            case EventTier3Skill: // T3新增：暗影箭雨，瞬发
                 CastIfConfigured(me, SpellShadowBoltVolley, true);
                 events.ScheduleEvent(EventTier3Skill, 24s);
                 break;

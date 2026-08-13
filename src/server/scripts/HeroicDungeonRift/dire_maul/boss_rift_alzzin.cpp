@@ -79,15 +79,15 @@ struct boss_rift_alzzin : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellWither);
                 ScheduleTieredEvent(EventWither, 14000, 11000, 9000);
                 break;
-            case EventMangle: // T2新增：裂伤，读条不可打断
+            case EventMangle: // T2新增：裂伤，瞬发
                 CastIfConfigured(me->GetVictim(), SpellMangle, true);
                 events.ScheduleEvent(EventMangle, _tier == 3 ? 10s : 12s);
                 break;
-            case EventViciousBite: // T3新增：恶毒之咬，读条不可打断
+            case EventViciousBite: // T3新增：恶毒之咬，瞬发
                 CastIfConfigured(me->GetVictim(), SpellViciousBite, true);
                 events.ScheduleEvent(EventViciousBite, 12s);
                 break;
-            case EventDisarm: // T3新增：缴械，读条不可打断
+            case EventDisarm: // T3新增：缴械，瞬发
                 CastIfConfigured(me->GetVictim(), SpellDisarm, true);
                 events.ScheduleEvent(EventDisarm, 15s);
                 break;

@@ -64,11 +64,11 @@ struct boss_rift_roccor : public BossAIBase
                 CastIfConfigured(me, SpellGroundTremor);
                 ScheduleTieredEvent(EventGroundTremor, 14000, 11000, 9000);
                 break;
-            case EventTier2Skill: // T2新增：火焰冲击，读条不可打断
+            case EventTier2Skill: // T2新增：火焰冲击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellFireBlast, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 6s : 8s);
                 break;
-            case EventTier3Skill: // T3新增：熔岩喷溅，读条不可打断
+            case EventTier3Skill: // T3新增：熔岩喷溅，瞬发
                 CastIfConfigured(me->GetVictim(), SpellMagmaSplash, true);
                 events.ScheduleEvent(EventTier3Skill, 12s);
                 break;

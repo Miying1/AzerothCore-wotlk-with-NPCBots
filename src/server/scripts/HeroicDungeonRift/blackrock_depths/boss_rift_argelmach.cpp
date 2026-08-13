@@ -199,11 +199,11 @@ struct boss_rift_argelmach : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellShock);
                 ScheduleTieredEvent(EventShock, 8000, 6500, 5200);
                 break;
-            case EventTier2Skill: // T2新增：闪电箭，读条不可打断
+            case EventTier2Skill: // T2新增：闪电箭，顺发
                 CastIfConfigured(me->GetVictim(), SpellLightningBolt, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 6s : 8s);
                 break;
-            case EventTier3Skill: // T3新增：雷霆一击，读条不可打断
+            case EventTier3Skill: // T3新增：雷霆一击，瞬发
                 CastIfConfigured(me, SpellThunderclap, true);
                 events.ScheduleEvent(EventTier3Skill, 16s);
                 break;

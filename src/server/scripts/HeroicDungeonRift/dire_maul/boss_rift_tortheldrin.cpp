@@ -66,7 +66,7 @@ struct boss_rift_tortheldrin : public BossAIBase
                 CastIfConfigured(SelectCastingPlayer(), SpellCounterspell, true);
                 events.ScheduleEvent(EventCounterspell, _tier == 3 ? 10s : 12s);
                 break;
-            case EventTier3Skill: // T3新增：冰霜新星，读条不可打断
+            case EventTier3Skill: // T3新增：冰霜新星，瞬发
                 CastIfConfigured(me, SpellFrostNova, true);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;

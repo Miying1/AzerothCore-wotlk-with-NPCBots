@@ -91,11 +91,11 @@ struct boss_rift_springvale : public BossAIBase
                     CastIfConfigured(me, SpellHolyLight);
                 ScheduleTieredEvent(EventHolyLight, 10000, 8000, 6500);
                 break;
-            case EventConsecration: // T2新增：读条不可打断
+            case EventConsecration: // T2新增：瞬发
                 CastIfConfigured(me, SpellConsecration, true);
                 events.ScheduleEvent(EventConsecration, _tier == 3 ? 14s : 18s);
                 break;
-            case EventTier3Skill: // T3新增：点名单体，选随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：点名单体，选随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellHammerOfWrath, true);
                 events.ScheduleEvent(EventTier3Skill, 12s);
                 break;

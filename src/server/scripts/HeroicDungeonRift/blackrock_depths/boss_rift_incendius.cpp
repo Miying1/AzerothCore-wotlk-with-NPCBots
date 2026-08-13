@@ -74,11 +74,11 @@ struct boss_rift_incendius : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellMightyBlow);
                 ScheduleTieredEvent(EventMightyBlow, 18000, 14500, 11500);
                 break;
-            case EventCurseOfElementalLord: // T2新增：元素领主的诅咒，读条不可打断
+            case EventCurseOfElementalLord: // T2新增：元素领主的诅咒，瞬发
                 CastIfConfigured(me, SpellCurseOfElementalLord, true);
                 events.ScheduleEvent(EventCurseOfElementalLord, _tier == 3 ? 18s : 22s);
                 break;
-            case EventTier3Skill: // T3新增：烈焰震击，点名随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：烈焰震击，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellFlameShock, true);
                 events.ScheduleEvent(EventTier3Skill, 10s);
                 break;

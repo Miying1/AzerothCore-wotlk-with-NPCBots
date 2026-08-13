@@ -148,7 +148,7 @@ struct boss_rift_gordok : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellBerserkerCharge, true);
                 events.ScheduleEvent(EventBerserkerCharge, _tier == 3 ? 12s : 15s);
                 break;
-            case EventTier3Skill: // T3新增：雷霆一击，读条不可打断
+            case EventTier3Skill: // T3新增：雷霆一击，瞬发
                 CastIfConfigured(me, SpellThunderclap, true);
                 events.ScheduleEvent(EventTier3Skill, 14s);
                 break;

@@ -64,11 +64,11 @@ struct boss_rift_anastari : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellSilence);
                 ScheduleTieredEvent(EventSilence, 13000, 10500, 8500);
                 break;
-            case EventPossess: // T2新增：占据，点名随机目标，读条不可打断
+            case EventPossess: // T2新增：占据，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellPossess, true);
                 events.ScheduleEvent(EventPossess, _tier == 3 ? 22s : 28s);
                 break;
-            case EventTier3Skill: // T3新增：支配心灵，点名随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：支配心灵，点名随机目标，顺发
                 CastIfConfigured(SelectRandomPlayer(), SpellDominateMind, true);
                 events.ScheduleEvent(EventTier3Skill, 24s);
                 break;

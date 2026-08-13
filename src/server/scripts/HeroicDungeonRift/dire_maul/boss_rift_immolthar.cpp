@@ -81,11 +81,11 @@ struct boss_rift_immolthar : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellPortalOfImmolthar);
                 ScheduleTieredEvent(EventPortal, 18000, 14500, 11500);
                 break;
-            case EventEye: // T2新增：伊莫塔尔之眼，读条不可打断
+            case EventEye: // T2新增：伊莫塔尔之眼，瞬发
                 CastIfConfigured(me, SpellEyeOfImmolthar, true);
                 events.ScheduleEvent(EventEye, _tier == 3 ? 16s : 20s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭，读条不可打断
+            case EventTier3Skill: // T3新增：暗影箭，顺发
                 CastIfConfigured(me->GetVictim(), SpellShadowBolt, true);
                 events.ScheduleEvent(EventTier3Skill, 5s);
                 break;

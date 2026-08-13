@@ -64,11 +64,11 @@ struct boss_rift_lethtendris : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellImmolate);
                 ScheduleTieredEvent(EventImmolate, 18000, 14500, 11500);
                 break;
-            case EventCurseOfThorns: // T2新增：荆棘诅咒，读条不可打断
+            case EventCurseOfThorns: // T2新增：荆棘诅咒，顺发
                 CastIfConfigured(me->GetVictim(), SpellCurseOfThorns, true);
                 events.ScheduleEvent(EventCurseOfThorns, _tier == 3 ? 22s : 28s);
                 break;
-            case EventCurseOfTongues: // T3新增：语言诅咒，点名随机目标，读条不可打断
+            case EventCurseOfTongues: // T3新增：语言诅咒，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellCurseOfTongues, true);
                 events.ScheduleEvent(EventCurseOfTongues, 24s);
                 break;

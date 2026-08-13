@@ -40,7 +40,7 @@ struct boss_rift_verdan : public BossAIBase
             events.ScheduleEvent(EventEntanglingRoots, 12s);
     }
 
-    void ConfigureTier() override { }
+    void ConfigureTier() override { AddInterruptImmuneSpell(SpellEntanglingRoots); }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -50,12 +50,12 @@ struct boss_rift_verdan : public BossAIBase
                 CastIfConfigured(me, SpellGraspingVines);
                 ScheduleTieredEvent(EventGraspingVines, 12000, 9500, 7500);
                 break;
-            case EventThrash: // T2新增：痛击，读条不可打断
+            case EventThrash: // T2新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
                 events.ScheduleEvent(EventThrash, _tier == 3 ? 12s : 16s);
                 break;
-            case EventEntanglingRoots: // T3新增：纠缠根须，点名随机目标，读条不可打断
-                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots, true);
+            case EventEntanglingRoots: // T3新增：纠缠根须，点名随机目标，免疫打断
+                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
                 events.ScheduleEvent(EventEntanglingRoots, 20s);
                 break;
             default:

@@ -57,11 +57,11 @@ struct boss_rift_celebras : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
                 ScheduleTieredEvent(EventEntanglingRoots, 15000, 12000, 9500);
                 break;
-            case EventTwistedTranquility: // T2新增：扭曲宁静，读条不可打断
+            case EventTwistedTranquility: // T2新增：扭曲宁静，瞬发
                 CastIfConfigured(me, SpellTwistedTranquility, true);
                 events.ScheduleEvent(EventTwistedTranquility, _tier == 3 ? 30s : 38s);
                 break;
-            case EventTier3Skill: // T3新增：堕落自然之力，读条不可打断
+            case EventTier3Skill: // T3新增：堕落自然之力，瞬发
                 CastIfConfigured(me, SpellCorruptForcesOfNature, true);
                 events.ScheduleEvent(EventTier3Skill, 30s);
                 break;

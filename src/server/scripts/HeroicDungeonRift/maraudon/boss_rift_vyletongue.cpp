@@ -59,11 +59,11 @@ struct boss_rift_vyletongue : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellMultiShot);
                 ScheduleTieredEvent(EventMultiShot, 9000, 7000, 5500);
                 break;
-            case EventSmokeBomb: // T2新增：烟雾弹，读条不可打断
+            case EventSmokeBomb: // T2新增：烟雾弹，瞬发
                 CastIfConfigured(me, SpellSmokeBomb, true);
                 events.ScheduleEvent(EventSmokeBomb, _tier == 3 ? 13s : 16s);
                 break;
-            case EventTier3Skill: // T3新增：闪现术，读条不可打断
+            case EventTier3Skill: // T3新增：闪现术，瞬发
                 CastIfConfigured(me, SpellBlink, true);
                 events.ScheduleEvent(EventTier3Skill, 15s);
                 break;

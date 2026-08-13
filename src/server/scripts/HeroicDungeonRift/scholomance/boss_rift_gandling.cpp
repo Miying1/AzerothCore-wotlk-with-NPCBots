@@ -163,7 +163,7 @@ struct boss_rift_gandling : public BossAIBase
                     SummonTieredCreature(RiftEntryRisenGuardian, me->GetRandomNearPosition(8.0f), 0.6f, 0.7f);
                 events.ScheduleEvent(EventSummonGuardians, _tier == 3 ? 24s : 30s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭，读条不可打断
+            case EventTier3Skill: // T3新增：暗影箭，顺发
                 CastIfConfigured(me->GetVictim(), SpellShadowBolt, true);
                 events.ScheduleEvent(EventTier3Skill, 5s);
                 break;

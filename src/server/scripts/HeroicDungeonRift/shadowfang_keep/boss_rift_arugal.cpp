@@ -95,7 +95,7 @@ struct boss_rift_arugal : public BossAIBase
                 SummonVoidwalkers();
                 events.ScheduleEvent(EventSummonVoidwalkers, _tier == 3 ? 30s : 45s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭雨，读条不可打断
+            case EventTier3Skill: // T3新增：暗影箭雨，瞬发
                 CastIfConfigured(me, SpellShadowBoltVolley, true);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;

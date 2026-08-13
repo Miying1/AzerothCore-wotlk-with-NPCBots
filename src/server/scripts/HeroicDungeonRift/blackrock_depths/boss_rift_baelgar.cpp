@@ -61,11 +61,11 @@ struct boss_rift_baelgar : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellMagmaSplash);
                 ScheduleTieredEvent(EventMagmaSplash, 12000, 9500, 7500);
                 break;
-            case EventTier2Skill: // T2新增：火焰冲击，读条不可打断
+            case EventTier2Skill: // T2新增：火焰冲击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellFireBlast, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 6s : 8s);
                 break;
-            case EventTier3Skill: // T3新增：痛击，读条不可打断
+            case EventTier3Skill: // T3新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
                 events.ScheduleEvent(EventTier3Skill, 14s);
                 break;

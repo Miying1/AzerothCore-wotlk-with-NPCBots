@@ -126,11 +126,11 @@ struct boss_rift_ukorz : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellCleave);
                 ScheduleTieredEvent(EventUkorzCleave, 9000, 7000, 5500);
                 break;
-            case EventSunderArmor: // T2新增：破甲攻击，读条不可打断
+            case EventSunderArmor: // T2新增：破甲攻击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellSunderArmor, true);
                 events.ScheduleEvent(EventSunderArmor, _tier == 3 ? 8s : 10s);
                 break;
-            case EventTier3Skill: // T3新增：雷霆一击，读条不可打断
+            case EventTier3Skill: // T3新增：雷霆一击，瞬发
                 CastIfConfigured(me, SpellThunderclap, true);
                 events.ScheduleEvent(EventTier3Skill, 14s);
                 break;

@@ -137,11 +137,11 @@ struct boss_rift_thaurissan : public BossAIBase
                 CastIfConfigured(me, SpellAvatarOfFlame);
                 ScheduleTieredEvent(EventAvatarOfFlame, 25000, 20000, 16000);
                 break;
-            case EventTier2Skill: // T2新增：火焰冲击，读条不可打断
+            case EventTier2Skill: // T2新增：火焰冲击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellFireBlast, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 5s : 7s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭，读条不可打断
+            case EventTier3Skill: // T3新增：暗影箭，顺发
                 CastIfConfigured(me->GetVictim(), SpellShadowBolt, true);
                 events.ScheduleEvent(EventTier3Skill, 8s);
                 break;

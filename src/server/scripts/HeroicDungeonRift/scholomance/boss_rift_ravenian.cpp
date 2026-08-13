@@ -64,11 +64,11 @@ struct boss_rift_ravenian : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellKnockAway);
                 ScheduleTieredEvent(EventKnockAway, 14000, 11000, 9000);
                 break;
-            case EventTier2Skill: // T2新增：致死打击，读条不可打断
+            case EventTier2Skill: // T2新增：致死打击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellMortalStrike, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 10s : 12s);
                 break;
-            case EventTier3Skill: // T3新增：破甲顺劈，读条不可打断
+            case EventTier3Skill: // T3新增：破甲顺劈，瞬发
                 CastIfConfigured(me->GetVictim(), SpellSunderingCleave, true);
                 events.ScheduleEvent(EventTier3Skill, 16s);
                 break;

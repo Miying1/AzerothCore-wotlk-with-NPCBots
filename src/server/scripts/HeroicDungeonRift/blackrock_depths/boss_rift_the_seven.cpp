@@ -19,7 +19,7 @@ enum BossEvents : uint32
     EventShadowBoltVolley = 1, // 暗影箭雨（T1基础）
     EventImmolate,             // 献祭（T1基础）
     EventCurseOfWeakness,      // 虚弱诅咒（T2新增，点名）
-    EventTier3Skill            // 暗影箭（T3新增，读条不可打断）
+    EventTier3Skill            // 暗影箭（T3新增，顺发）
 };
 
 // 各成员事件（每个成员的 EventMap 独立，事件ID可各自从1开始）
@@ -319,11 +319,11 @@ struct boss_rift_the_seven : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellImmolate);
                 ScheduleTieredEvent(EventImmolate, 9000, 7000, 5500);
                 break;
-            case EventCurseOfWeakness: // T2新增：点名随机目标，读条不可打断
+            case EventCurseOfWeakness: // T2新增：点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellCurseOfWeakness, true);
                 events.ScheduleEvent(EventCurseOfWeakness, _tier == 3 ? 16s : 20s);
                 break;
-            case EventTier3Skill: // T3新增：读条不可打断
+            case EventTier3Skill: // T3新增：顺发
                 CastIfConfigured(me->GetVictim(), SpellShadowBolt, true);
                 events.ScheduleEvent(EventTier3Skill, 4s);
                 break;

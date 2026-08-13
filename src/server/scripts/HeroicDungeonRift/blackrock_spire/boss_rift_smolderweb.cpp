@@ -71,11 +71,11 @@ struct boss_rift_smolderweb : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellCrystallize);
                 ScheduleTieredEvent(EventCrystallize, 16000, 13000, 10500);
                 break;
-            case EventTier2Skill: // T2新增：毒液喷吐，读条不可打断
+            case EventTier2Skill: // T2新增：毒液喷吐，顺发
                 CastIfConfigured(me->GetVictim(), SpellPoisonSpit, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 9s : 12s);
                 break;
-            case EventTier3Skill: // T3新增：蛛网，点名随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：蛛网，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellWeb, true);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;

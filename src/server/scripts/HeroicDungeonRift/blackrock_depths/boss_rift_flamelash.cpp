@@ -72,7 +72,7 @@ struct boss_rift_flamelash : public BossAIBase
                         _burningSpirits.push_back(spirit->GetGUID());
                 events.ScheduleEvent(EventSummonBurningSpirits, _tier == 1 ? 13s : (_tier == 2 ? 11s : 9s));
                 break;
-            case EventTier3Skill: // T3新增：烈焰风暴，点名随机目标，读条不可打断
+            case EventTier3Skill: // T3新增：烈焰风暴，点名随机目标，顺发
                 CastIfConfigured(SelectRandomPlayer(), SpellFlamestrike, true);
                 events.ScheduleEvent(EventTier3Skill, 20s);
                 break;

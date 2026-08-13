@@ -238,53 +238,54 @@ DROP TEMPORARY TABLE IF EXISTS `_rift_summon_map`;
 CREATE TEMPORARY TABLE `_rift_summon_map` (
   `source_entry` INT UNSIGNED NOT NULL,
   `new_entry` INT UNSIGNED NOT NULL,
+  `boss_source_entry` INT UNSIGNED NOT NULL,
   `script_name` VARCHAR(64) NOT NULL,
   `name_suffix` VARCHAR(64) NOT NULL,
   PRIMARY KEY (`new_entry`)
 );
 
-INSERT INTO `_rift_summon_map` VALUES
-(3977,100100,'npc_rift_whitemane','裂隙怀特迈恩'),
-(7915,100101,'npc_rift_walking_bomb','裂隙步行炸弹'),
-(8585,100102,'npc_rift_frost_spectre','裂隙冰霜亡魂'),
-(6575,100103,'npc_rift_scarlet_trainee','裂隙血色预备兵'),
-(6066,100104,'npc_rift_earthgrab_totem','裂隙地缚图腾'),
-(7076,100105,'npc_rift_earthen_guardian','裂隙地灵守护者'),
-(10120,100106,'npc_rift_vault_warder','裂隙宝库守卫'),
-(7077,100107,'npc_rift_earthen_hallshaper','裂隙地灵塑石者'),
-(7309,100108,'npc_rift_earthen_custodian','裂隙地灵看守者'),
-(4825,100109,'npc_rift_akumai_snapjaw','裂隙阿库麦尔钳嘴龟'),
-(4978,100110,'npc_rift_akumai_servant','裂隙阿库麦尔仆从'),
-(7797,100300,'npc_rift_ruuzlu','裂隙卢兹鲁'),
-(14324,100301,'npc_rift_chorsh','裂隙观察者克鲁什'),
-(8929,100302,'npc_rift_moira','裂隙茉艾拉公主'),
-(11598,100303,'npc_rift_risen_guardian','裂隙复生的守卫'),
-(9178,100304,'npc_rift_burning_spirit','裂隙燃烧之灵'),
-(9216,100305,'npc_rift_spirestone_warlord','裂隙尖石军阀'),
-(9268,100306,'npc_rift_smolderthorn_berserker','裂隙燃棘狂战士'),
-(4627,100307,'npc_rift_arugal_voidwalker','裂隙阿鲁高的虚空行者'),
-(8996,100308,'npc_rift_voidwalker_minion','裂隙虚空行者仆从'),
-(10375,100309,'npc_rift_spire_spiderling','裂隙尖塔小蜘蛛'),
-(11197,100310,'npc_rift_mindless_skeleton','裂隙无脑骷髅'),
-(11460,100311,'npc_rift_alzzin_minion','裂隙奥兹恩仆从'),
-(9436,100312,'npc_rift_baelgar_spawn','裂隙贝尔加幼体',
-(9034,100313,'npc_rift_seven_haterel','裂隙七贤·仇恨者'),
-(9035,100314,'npc_rift_seven_angerrel','裂隙七贤·愤怒者'),
-(9036,100315,'npc_rift_seven_vilerel','裂隙七贤·邪恶者'),
-(9037,100316,'npc_rift_seven_gloomrel','裂隙七贤·忧郁者'),
-(9038,100317,'npc_rift_seven_seethrel','裂隙七贤·沸腾者'),
-(9040,100318,'npc_rift_seven_doperel','裂隙七贤·愚昧者',
-(8900,100319,'npc_rift_argelmach_arcanasmith','裂隙末日熔炉奥术铁匠'),
-(8906,100320,'npc_rift_argelmach_golem','裂隙怒削魔像'),
-(8907,100321,'npc_rift_argelmach_wrath_hammer','裂隙怒火之锤构造体'),
-(8920,100322,'npc_rift_argelmach_technician','裂隙武器技师');
+INSERT INTO `_rift_summon_map` (`source_entry`,`new_entry`,`boss_source_entry`,`script_name`,`name_suffix`) VALUES
+(3977,100100,3976,'npc_rift_whitemane','裂隙怀特迈恩'),
+(7915,100101,7800,'npc_rift_walking_bomb','裂隙步行炸弹'),
+(8585,100102,7358,'npc_rift_frost_spectre','裂隙冰霜亡魂'),
+(6575,100103,3975,'npc_rift_scarlet_trainee','裂隙血色预备兵'),
+(6066,100104,5710,'npc_rift_earthgrab_totem','裂隙地缚图腾'),
+(7076,100105,2748,'npc_rift_earthen_guardian','裂隙地灵守护者'),
+(10120,100106,2748,'npc_rift_vault_warder','裂隙宝库守卫'),
+(7077,100107,2748,'npc_rift_earthen_hallshaper','裂隙地灵塑石者'),
+(7309,100108,2748,'npc_rift_earthen_custodian','裂隙地灵看守者'),
+(4825,100109,4829,'npc_rift_akumai_snapjaw','裂隙阿库麦尔钳嘴龟'),
+(4978,100110,4829,'npc_rift_akumai_servant','裂隙阿库麦尔仆从'),
+(7797,100300,7267,'npc_rift_ruuzlu','裂隙卢兹鲁'),
+(14324,100301,11501,'npc_rift_chorsh','裂隙观察者克鲁什'),
+(8929,100302,9019,'npc_rift_moira','裂隙茉艾拉公主'),
+(11598,100303,1853,'npc_rift_risen_guardian','裂隙复生的守卫'),
+(9178,100304,9156,'npc_rift_burning_spirit','裂隙燃烧之灵'),
+(9216,100305,9568,'npc_rift_spirestone_warlord','裂隙尖石军阀'),
+(9268,100306,9568,'npc_rift_smolderthorn_berserker','裂隙燃棘狂战士'),
+(4627,100307,4275,'npc_rift_arugal_voidwalker','裂隙阿鲁高的虚空行者'),
+(8996,100308,4275,'npc_rift_voidwalker_minion','裂隙虚空行者仆从'),
+(10375,100309,10596,'npc_rift_spire_spiderling','裂隙尖塔小蜘蛛'),
+(11197,100310,10440,'npc_rift_mindless_skeleton','裂隙无脑骷髅'),
+(11460,100311,11492,'npc_rift_alzzin_minion','裂隙奥兹恩仆从'),
+(9436,100312,9016,'npc_rift_baelgar_spawn','裂隙贝尔加幼体'),
+(9034,100313,9039,'npc_rift_seven_haterel','裂隙七贤·仇恨者'),
+(9035,100314,9039,'npc_rift_seven_angerrel','裂隙七贤·愤怒者'),
+(9036,100315,9039,'npc_rift_seven_vilerel','裂隙七贤·邪恶者'),
+(9037,100316,9039,'npc_rift_seven_gloomrel','裂隙七贤·忧郁者'),
+(9038,100317,9039,'npc_rift_seven_seethrel','裂隙七贤·沸腾者'),
+(9040,100318,9039,'npc_rift_seven_doperel','裂隙七贤·愚昧者'),
+(8900,100319,8983,'npc_rift_argelmach_arcanasmith','裂隙末日熔炉奥术铁匠'),
+(8906,100320,8983,'npc_rift_argelmach_golem','裂隙怒削魔像'),
+(8907,100321,8983,'npc_rift_argelmach_wrath_hammer','裂隙怒火之锤构造体'),
+(8920,100322,8983,'npc_rift_argelmach_technician','裂隙武器技师');
 
 DROP TEMPORARY TABLE IF EXISTS `_rift_template_map`;
 CREATE TEMPORARY TABLE `_rift_template_map` AS
-SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('Rift T', `tier`) AS `name_suffix`, 1 AS `is_boss`
+SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('Rift T', `tier`) AS `name_suffix`, 1 AS `is_boss`, 0 AS `boss_source_entry`
 FROM `_rift_boss_map`
 UNION ALL
-SELECT `source_entry`, `new_entry`, `script_name`, `name_suffix`, 0
+SELECT `source_entry`, `new_entry`, `script_name`, `name_suffix`, 0, `boss_source_entry`
 FROM `_rift_summon_map`;
 
 -- ============================================================================
@@ -318,14 +319,20 @@ SELECT
   (ct.unit_flags & IF(m.is_boss=1,@RIFT_BOSS_UNIT_FLAGS_KEEP_MASK,@RIFT_SUMMON_UNIT_FLAGS_KEEP_MASK)),
   IF(m.is_boss=1,0,ct.unit_flags2),0,ct.family,ct.type,ct.type_flags,
   0,0,0,0,0,0,0,'',0,ct.HoverHeight,
-  ((CASE ct.exp WHEN 0 THEN srcStats.basehp0 WHEN 1 THEN srcStats.basehp1 ELSE srcStats.basehp2 END)
-    * ct.HealthModifier * IF(m.is_boss=1,1.0,10.0) / dstStats.basehp2),
+  (IF(m.is_boss=1,
+      1800000.0 / dstStats.basehp2,
+      1800000.0
+        * (CASE ct.exp WHEN 0 THEN srcStats.basehp0 WHEN 1 THEN srcStats.basehp1 ELSE srcStats.basehp2 END) * ct.HealthModifier
+        / (CASE bossCt.exp WHEN 0 THEN bossSrc.basehp0 WHEN 1 THEN bossSrc.basehp1 ELSE bossSrc.basehp2 END) / bossCt.HealthModifier
+        / dstStats.basehp2)),
   ct.ManaModifier,ct.ArmorModifier,ct.ExperienceModifier,0,0,ct.RegenHealth,ct.CreatureImmunitiesId,
   IF(m.is_boss=1,0,ct.flags_extra),m.script_name,ct.VerifiedBuild
 FROM `_rift_template_map` m
 JOIN `creature_template` ct ON ct.entry=m.source_entry
 JOIN `creature_classlevelstats` srcStats ON srcStats.level=ct.minlevel AND srcStats.`class`=ct.unit_class
-JOIN `creature_classlevelstats` dstStats ON dstStats.level=IF(m.is_boss=1,83,82) AND dstStats.`class`=ct.unit_class;
+JOIN `creature_classlevelstats` dstStats ON dstStats.level=IF(m.is_boss=1,83,82) AND dstStats.`class`=ct.unit_class
+LEFT JOIN `creature_template` bossCt ON bossCt.entry=m.boss_source_entry
+LEFT JOIN `creature_classlevelstats` bossSrc ON bossSrc.level=bossCt.minlevel AND bossSrc.`class`=bossCt.unit_class;
 
 INSERT INTO `creature_template_model`
 SELECT m.new_entry,src.Idx,src.CreatureDisplayID,src.DisplayScale,src.Probability,src.VerifiedBuild

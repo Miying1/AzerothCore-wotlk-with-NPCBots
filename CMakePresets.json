@@ -1,0 +1,27 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "win-vs2026-x64",
+      "displayName": "Visual Studio 2026 (x64)",
+      "description": "VS2026 Community x64；已预置 MySQL 8.0.46 / SCRIPTS=static / MODULES=static",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "MYSQL_INCLUDE_DIR": "D:/Program Files (x86)/mysql/include",
+        "MYSQL_LIBRARY": "D:/Program Files (x86)/mysql/lib/libmysql.lib",
+        "SCRIPTS": "static",
+        "MODULES": "static"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win-vs2026-x64",
+      "displayName": "VS2026 x64 Release",
+      "configurePreset": "win-vs2026-x64",
+      "configuration": "RelWithDebInfo"
+    }
+  ]
+}

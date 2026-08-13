@@ -80,7 +80,7 @@ struct boss_rift_wyrmthalak : public BossAIBase
                 CastIfConfigured(me, SpellBlastWave);
                 ScheduleTieredEvent(EventBlastWave, 20000, 16000, 13000);
                 break;
-            case EventTier3Skill: // T3新增：雷霆一击，读条不可打断
+            case EventTier3Skill: // T3新增：雷霆一击，瞬发
                 CastIfConfigured(me, SpellThunderclap, true);
                 events.ScheduleEvent(EventTier3Skill, 16s);
                 break;

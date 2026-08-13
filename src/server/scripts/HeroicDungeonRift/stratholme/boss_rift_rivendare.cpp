@@ -78,7 +78,7 @@ struct boss_rift_rivendare : public BossAIBase
                     SummonTieredCreature(RiftEntryMindlessSkeleton, me->GetRandomNearPosition(6.0f), 0.5f, 0.6f);
                 events.ScheduleEvent(EventRaiseDead, _tier == 3 ? 16s : 20s);
                 break;
-            case EventTier3Skill: // T3新增：死亡缠绕，读条不可打断
+            case EventTier3Skill: // T3新增：死亡缠绕，瞬发
                 CastIfConfigured(me->GetVictim(), SpellDeathCoil, true);
                 events.ScheduleEvent(EventTier3Skill, 15s);
                 break;

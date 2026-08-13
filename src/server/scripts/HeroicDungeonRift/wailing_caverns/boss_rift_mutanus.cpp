@@ -51,7 +51,7 @@ struct boss_rift_mutanus : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 16s); // T3新增
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); AddInterruptImmuneSpell(SpellEntanglingRoots); }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -69,12 +69,12 @@ struct boss_rift_mutanus : public BossAIBase
                 CastRaidTunedSpell(me, SpellThundercrack, ThundercrackRaidDamage);
                 ScheduleTieredEvent(EventThundercrack, 17000, 14000, 11000);
                 break;
-            case EventTier2Skill: // T2新增：痛击，读条不可打断
+            case EventTier2Skill: // T2新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 12s : 15s);
                 break;
-            case EventTier3Skill: // T3新增：纠缠根须，点名随机目标，读条不可打断
-                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots, true);
+            case EventTier3Skill: // T3新增：纠缠根须，点名随机目标，免疫打断
+                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;
             default:
