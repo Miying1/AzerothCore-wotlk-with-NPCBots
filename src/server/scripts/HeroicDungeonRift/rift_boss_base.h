@@ -12,6 +12,7 @@
 #include "rift_defines.h"
 
 #include "ScriptedCreature.h"
+#include "ThreatManager.h"
 
 #include <algorithm>
 #include <limits>
@@ -109,6 +110,24 @@ protected:
         return SelectTarget(SelectTargetMethod::Random, 0, range, alive);
     }
 
+    // 优先选中正在读条的真实玩家（供冲锋带打断类技能使用）；无读条目标时回退为随机玩家。
+    Unit* SelectCastingPlayer(float range = 100.0f)
+    {
+        std::vector<Unit*> casters;
+        for (ThreatReference const* ref : me->GetThreatMgr().GetUnsortedThreatList())
+        {
+            Unit* unit = ref->GetVictim();
+            if (unit && unit->IsAlive() && unit->IsPlayer() && unit->HasUnitState(UNIT_STATE_CASTING) &&
+                me->IsWithinDistInMap(unit, range))
+                casters.push_back(unit);
+        }
+
+        if (!casters.empty())
+            return casters[urand(0, casters.size() - 1)];
+
+        return SelectRandomPlayer(range);
+    }
+
     Creature* SummonTieredCreature(uint32 entry, Position const& position, float healthCoefficient = 1.0f,
         float damageCoefficient = 1.0f, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN,
         uint32 despawnMilliseconds = 10 * IN_MILLISECONDS)
@@ -171,6 +190,80 @@ protected:
     TierConfig const* _tierConfig = nullptr;
     EventMap events;
     std::vector<ObjectGuid> _riftSummons;
+};
+
+// Shared AI base for rift-summoned creatures (companions and adds). It mirrors the
+// scaling contract used by BossAIBase::ApplySummonTierStats: melee weapon damage is
+// already rescaled on the instance attributes, spell damage is rescaled here through
+// RiftDataDamagePermille, and the tier is used to shorten ability cooldowns.
+class RiftSummonAI : public ScriptedAI
+{
+public:
+    explicit RiftSummonAI(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        _tier = 1;
+        _spellDamagePermille = 15000;
+        _events.Reset();
+        ScheduleAbilities();
+    }
+
+    void IsSummonedBy(WorldObject* summoner) override
+    {
+        if (Unit* unit = summoner->ToUnit())
+            if (Unit* victim = unit->GetVictim())
+                AttackStart(victim);
+    }
+
+    void SetData(uint32 type, uint32 data) override
+    {
+        if (type == RiftDataTier)
+        {
+            _tier = uint8(std::clamp<uint32>(data, 1, MaxTier));
+            _events.Reset();
+            ScheduleAbilities();
+        }
+        else if (type == RiftDataDamagePermille)
+            _spellDamagePermille = std::max<uint32>(1, data) * 15;
+    }
+
+    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
+    {
+        if (damageType == DIRECT_DAMAGE)
+            return;
+
+        uint64 scaledDamage = uint64(damage) * _spellDamagePermille / 1000;
+        damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        _events.Update(diff);
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = _events.ExecuteEvent())
+            ExecuteAbility(eventId);
+
+        DoMeleeAttackIfReady();
+    }
+
+protected:
+    virtual void ScheduleAbilities() { }
+    virtual void ExecuteAbility(uint32 /*eventId*/) { }
+
+    uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
+    {
+        return _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
+    }
+
+    EventMap _events;
+    uint8 _tier = 1;
+    uint32 _spellDamagePermille = 15000;
 };
 
 } // namespace HeroicDungeonRift

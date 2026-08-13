@@ -64,6 +64,68 @@ uint32 GetSourceEntry(uint32 bossId)
             return SourceEntryEranikus;
         case BossIdJammalan:
             return SourceEntryJammalan;
+        case BossIdVerdan:
+            return SourceEntryVerdan;
+        case BossIdMutanus:
+            return SourceEntryMutanus;
+        case BossIdSpringvale:
+            return SourceEntrySpringvale;
+        case BossIdArugal:
+            return SourceEntryArugal;
+        case BossIdDoan:
+            return SourceEntryDoan;
+        case BossIdGahzrilla:
+            return SourceEntryGahzrilla;
+        case BossIdUkorz:
+            return SourceEntryUkorz;
+        case BossIdVyletongue:
+            return SourceEntryVyletongue;
+        case BossIdCelebras:
+            return SourceEntryCelebras;
+        case BossIdTheradras:
+            return SourceEntryTheradras;
+        case BossIdRoccor:
+            return SourceEntryRoccor;
+        case BossIdIncendius:
+            return SourceEntryIncendius;
+        case BossIdBaelGar:
+            return SourceEntryBaelGar;
+        case BossIdArgelmach:
+            return SourceEntryArgelmach;
+        case BossIdFlamelash:
+            return SourceEntryFlamelash;
+        case BossIdTheSeven:
+            return SourceEntryTheSeven;
+        case BossIdThaurissan:
+            return SourceEntryThaurissan;
+        case BossIdSmolderweb:
+            return SourceEntrySmolderweb;
+        case BossIdWyrmthalak:
+            return SourceEntryWyrmthalak;
+        case BossIdLethtendris:
+            return SourceEntryLethtendris;
+        case BossIdAlzzin:
+            return SourceEntryAlzzin;
+        case BossIdImmolthar:
+            return SourceEntryImmolthar;
+        case BossIdTortheldrin:
+            return SourceEntryTortheldrin;
+        case BossIdMoldar:
+            return SourceEntryMoldar;
+        case BossIdGordok:
+            return SourceEntryGordok;
+        case BossIdRasFrostwhisper:
+            return SourceEntryRasFrostwhisper;
+        case BossIdRavenian:
+            return SourceEntryRavenian;
+        case BossIdGandling:
+            return SourceEntryGandling;
+        case BossIdBalnazzar:
+            return SourceEntryBalnazzar;
+        case BossIdAnastari:
+            return SourceEntryAnastari;
+        case BossIdRivendare:
+            return SourceEntryRivendare;
         default:
             return 0;
     }

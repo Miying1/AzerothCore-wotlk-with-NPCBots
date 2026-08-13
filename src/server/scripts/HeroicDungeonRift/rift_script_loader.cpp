@@ -17,6 +17,15 @@ void AddSC_rift_scarlet_monastery();
 void AddSC_rift_blackfathom_deeps();
 void AddSC_rift_uldaman();
 void AddSC_rift_sunken_temple();
+void AddSC_rift_wailing_caverns();
+void AddSC_rift_shadowfang_keep();
+void AddSC_rift_zulfarrak();
+void AddSC_rift_maraudon();
+void AddSC_rift_blackrock_depths();
+void AddSC_rift_blackrock_spire();
+void AddSC_rift_dire_maul();
+void AddSC_rift_scholomance();
+void AddSC_rift_stratholme();
 
 void AddHeroicDungeonRiftScripts()
 {
@@ -31,4 +40,13 @@ void AddHeroicDungeonRiftScripts()
     AddSC_rift_blackfathom_deeps();
     AddSC_rift_uldaman();
     AddSC_rift_sunken_temple();
+    AddSC_rift_wailing_caverns();
+    AddSC_rift_shadowfang_keep();
+    AddSC_rift_zulfarrak();
+    AddSC_rift_maraudon();
+    AddSC_rift_blackrock_depths();
+    AddSC_rift_blackrock_spire();
+    AddSC_rift_dire_maul();
+    AddSC_rift_scholomance();
+    AddSC_rift_stratholme();
 }

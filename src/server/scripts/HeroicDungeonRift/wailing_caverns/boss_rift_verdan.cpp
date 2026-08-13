@@ -1,0 +1,72 @@
+/*
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ */
+
+#include "../rift_boss_base.h"
+
+#include "Creature.h"
+#include "ScriptMgr.h"
+
+namespace HeroicDungeonRift
+{
+namespace
+{
+// 哀嚎洞穴 - 永生者沃尔丹（Verdan the Everliving）
+enum Events : uint32
+{
+    EventGraspingVines = 1, // 缠绕之藤（T1基础）
+    EventThrash,            // 痛击（T2新增）
+    EventEntanglingRoots    // 纠缠根须（T3新增）
+};
+
+enum Spells : uint32
+{
+    SpellGraspingVines = 8142,  // 缠绕之藤
+    SpellThrash = 3391,         // 痛击
+    SpellEntanglingRoots = 12747 // 纠缠根须
+};
+}
+
+struct boss_rift_verdan : public BossAIBase
+{
+    explicit boss_rift_verdan(Creature* creature) : BossAIBase(creature) { }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        ScheduleTieredEvent(EventGraspingVines, 8000, 6500, 5000);
+        if (_tier >= 2)
+            events.ScheduleEvent(EventThrash, 6s);
+        if (_tier >= 3)
+            events.ScheduleEvent(EventEntanglingRoots, 12s);
+    }
+
+    void ConfigureTier() override { }
+
+    void ExecuteRiftEvent(uint32 eventId) override
+    {
+        switch (eventId)
+        {
+            case EventGraspingVines:
+                CastIfConfigured(me, SpellGraspingVines);
+                ScheduleTieredEvent(EventGraspingVines, 12000, 9500, 7500);
+                break;
+            case EventThrash: // T2新增：痛击，读条不可打断
+                CastIfConfigured(me, SpellThrash, true);
+                events.ScheduleEvent(EventThrash, _tier == 3 ? 12s : 16s);
+                break;
+            case EventEntanglingRoots: // T3新增：纠缠根须，点名随机目标，读条不可打断
+                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots, true);
+                events.ScheduleEvent(EventEntanglingRoots, 20s);
+                break;
+            default:
+                break;
+        }
+    }
+};
+
+void AddSC_boss_rift_verdan()
+{
+    RegisterCreatureAI(boss_rift_verdan);
+}
+
+} // namespace HeroicDungeonRift
