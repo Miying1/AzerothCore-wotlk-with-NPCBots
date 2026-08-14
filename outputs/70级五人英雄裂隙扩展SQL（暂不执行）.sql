@@ -24,58 +24,11 @@ SET @RIFT_SUMMON_DAMAGE_MODIFIER := 12.0000;
 SET @RIFT_BOSS_UNIT_FLAGS_KEEP_MASK := 2113862781;
 SET @RIFT_SUMMON_UNIT_FLAGS_KEEP_MASK := 4261412093;
 
--- ============================================================================
--- 1. 静态配置表；运行状态仅保存在服务器内存
--- ============================================================================
-CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_boss` (
-  `boss_id` INT UNSIGNED NOT NULL,
-  `map_name` VARCHAR(64) NOT NULL,
-  `map_id` SMALLINT UNSIGNED NOT NULL,
-  `dungeon_version` TINYINT UNSIGNED NOT NULL DEFAULT 60,
-  `player_entry_x` FLOAT DEFAULT NULL,
-  `player_entry_y` FLOAT DEFAULT NULL,
-  `player_entry_z` FLOAT DEFAULT NULL,
-  `player_entry_o` FLOAT DEFAULT NULL,
-  `enabled` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-  `remark` VARCHAR(255) DEFAULT NULL,
-  PRIMARY KEY (`boss_id`),
-  KEY `idx_rift_boss_enabled_map` (`enabled`, `map_id`),
-  CONSTRAINT `chk_rift_boss_dungeon_version` CHECK (`dungeon_version` IN (60, 70))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 兼容此前已经创建的旧表：已有经典数据默认标记为60级，基础玩家传入点改为可空。
-ALTER TABLE `heroic_dungeon_rift_boss`
-  ADD COLUMN IF NOT EXISTS `dungeon_version` TINYINT UNSIGNED NOT NULL DEFAULT 60 AFTER `map_id`;
-ALTER TABLE `heroic_dungeon_rift_boss`
-  MODIFY COLUMN `player_entry_x` FLOAT DEFAULT NULL,
-  MODIFY COLUMN `player_entry_y` FLOAT DEFAULT NULL,
-  MODIFY COLUMN `player_entry_z` FLOAT DEFAULT NULL,
-  MODIFY COLUMN `player_entry_o` FLOAT DEFAULT NULL;
-
-CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_boss_tier` (
-  `boss_id` INT UNSIGNED NOT NULL,
-  `entry_id` INT UNSIGNED NOT NULL,
-  `boss_spawn_x` FLOAT NOT NULL,
-  `boss_spawn_y` FLOAT NOT NULL,
-  `boss_spawn_z` FLOAT NOT NULL,
-  `boss_spawn_o` FLOAT NOT NULL,
-  `tier` TINYINT UNSIGNED NOT NULL,
-  `health_multiplier` DECIMAL(8,4) NOT NULL DEFAULT 1.0000,
-  `damage_multiplier` DECIMAL(8,4) NOT NULL DEFAULT 1.0000,
-  `player_entry_x` FLOAT DEFAULT NULL,
-  `player_entry_y` FLOAT DEFAULT NULL,
-  `player_entry_z` FLOAT DEFAULT NULL,
-  `player_entry_o` FLOAT DEFAULT NULL,
-  PRIMARY KEY (`boss_id`, `tier`),
-  UNIQUE KEY `uk_rift_boss_tier_entry` (`entry_id`),
-  KEY `idx_rift_boss_tier_tier` (`tier`),
-  CONSTRAINT `chk_rift_boss_tier_value` CHECK (`tier` BETWEEN 1 AND 3),
-  CONSTRAINT `chk_rift_boss_tier_health` CHECK (`health_multiplier` > 0),
-  CONSTRAINT `chk_rift_boss_tier_damage` CHECK (`damage_multiplier` > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- 本扩展SQL默认 `heroic_dungeon_rift_boss` 与 `heroic_dungeon_rift_boss_tier` 已由60级基础SQL创建，
+-- 不在此重复创建或修改正式配置表结构。
 
 -- ============================================================================
--- 2. 本次完整Boss映射
+-- 1. 70级Boss映射
 -- ============================================================================
 DROP TEMPORARY TABLE IF EXISTS `_rift_boss_map`;
 CREATE TEMPORARY TABLE `_rift_boss_map` (
@@ -162,7 +115,7 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 68,17537,@RIFT_BOSS_ENTRY_BASE + 206,3,'boss_rift_vazruden','地狱火城墙',543,-1406.5,1746.5,81.2,5.46,-1183.01,1686.34,90.96,0.48,'维斯路登/纳杉脚本召唤遭遇；玩家传入点沿用整合表格传令官瓦兹德行');
 
 -- ============================================================================
--- 3. 裂隙专用动态同伴和召唤物映射
+-- 2. 裂隙专用动态同伴和召唤物映射
 -- ============================================================================
 DROP TEMPORARY TABLE IF EXISTS `_rift_summon_map`;
 CREATE TEMPORARY TABLE `_rift_summon_map` (
@@ -210,7 +163,7 @@ SELECT `source_entry`, `new_entry`, `script_name`, `name_suffix`, 0, `boss_sourc
 FROM `_rift_summon_map`;
 
 -- ============================================================================
--- 4. 生成全部Boss与召唤物模板
+-- 3. 生成70级Boss与召唤物模板
 -- ============================================================================
 DELETE FROM `creature_template_model` WHERE `CreatureID` IN (SELECT `new_entry` FROM `_rift_template_map`);
 DELETE FROM `creature_template_spell` WHERE `CreatureID` IN (SELECT `new_entry` FROM `_rift_template_map`);
@@ -286,7 +239,7 @@ FROM `creature_template_movement` src JOIN `_rift_template_map` m ON m.source_en
 WHERE m.is_boss=0;
 
 -- ============================================================================
--- 5. 仅写入70级Boss与Tier配置
+-- 4. 写入70级Boss与Tier配置
 -- ============================================================================
 DELETE FROM `heroic_dungeon_rift_boss_tier`
 WHERE `boss_id` BETWEEN @RIFT_BOSS_ID_BASE + 47 AND @RIFT_BOSS_ID_BASE + 68;
@@ -308,7 +261,7 @@ SELECT boss_id,new_entry,boss_x,boss_y,boss_z,boss_o,tier,
 FROM `_rift_boss_map`;
 
 -- ============================================================================
--- 6. 70级内容审核查询
+-- 5. 70级内容审核查询
 -- ============================================================================
 SELECT `entry`,`name`,`minlevel`,`maxlevel`,`unit_flags`,`unit_flags2`,`flags_extra`,
        `AIName`,`ScriptName`,`HealthModifier`,`DamageModifier`
