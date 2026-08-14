@@ -61,8 +61,22 @@ CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_boss` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 兼容此前已经创建的旧表：已有经典数据默认标记为60级，基础玩家传入点改为可空。
-ALTER TABLE `heroic_dungeon_rift_boss`
-  ADD COLUMN IF NOT EXISTS `dungeon_version` TINYINT UNSIGNED NOT NULL DEFAULT 60 AFTER `map_id`;
+-- MySQL 8.0不支持 ADD COLUMN IF NOT EXISTS，改为根据 information_schema 条件执行迁移。
+SET @RIFT_HAS_DUNGEON_VERSION := (
+  SELECT COUNT(*)
+  FROM `information_schema`.`COLUMNS`
+  WHERE `TABLE_SCHEMA` = DATABASE()
+    AND `TABLE_NAME` = 'heroic_dungeon_rift_boss'
+    AND `COLUMN_NAME` = 'dungeon_version'
+);
+SET @RIFT_ADD_DUNGEON_VERSION_SQL := IF(
+  @RIFT_HAS_DUNGEON_VERSION = 0,
+  'ALTER TABLE `heroic_dungeon_rift_boss` ADD COLUMN `dungeon_version` TINYINT UNSIGNED NOT NULL DEFAULT 60 AFTER `map_id`',
+  'SELECT 1'
+);
+PREPARE `rift_add_dungeon_version_stmt` FROM @RIFT_ADD_DUNGEON_VERSION_SQL;
+EXECUTE `rift_add_dungeon_version_stmt`;
+DEALLOCATE PREPARE `rift_add_dungeon_version_stmt`;
 ALTER TABLE `heroic_dungeon_rift_boss`
   MODIFY COLUMN `player_entry_x` FLOAT DEFAULT NULL,
   MODIFY COLUMN `player_entry_y` FLOAT DEFAULT NULL,
@@ -159,9 +173,9 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 15,5710,@RIFT_BOSS_ENTRY_BASE + 45,1,'boss_rift_jammalan','沉没的神庙',109,-425.894,-86.0747,-88.224,3.11157,-493.84,-85.272,-90.827,6.28,'预言者迦玛兰；裂隙专用地缚图腾'),
 (@RIFT_BOSS_ID_BASE + 15,5710,@RIFT_BOSS_ENTRY_BASE + 46,2,'boss_rift_jammalan','沉没的神庙',109,-425.894,-86.0747,-88.224,3.11157,-493.84,-85.272,-90.827,6.28,'预言者迦玛兰；裂隙专用地缚图腾'),
 (@RIFT_BOSS_ID_BASE + 15,5710,@RIFT_BOSS_ENTRY_BASE + 47,3,'boss_rift_jammalan','沉没的神庙',109,-425.894,-86.0747,-88.224,3.11157,-493.84,-85.272,-90.827,6.28,'预言者迦玛兰；裂隙专用地缚图腾'),
-(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 48,1,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-81.855,32.256,-31.077,3.71,'永生者沃尔丹；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 49,2,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-81.855,32.256,-31.077,3.71,'永生者沃尔丹；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 50,3,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-81.855,32.256,-31.077,3.71,'永生者沃尔丹；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 48,1,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-138.47,-4.46,-28.17,0.48,'永生者沃尔丹；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 49,2,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-138.47,-4.46,-28.17,0.48,'永生者沃尔丹；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 16,5775,@RIFT_BOSS_ENTRY_BASE + 50,3,'boss_rift_verdan','哀嚎洞穴',43,-81.8554,32.2565,-30.9939,0,-138.47,-4.46,-28.17,0.48,'永生者沃尔丹；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 17,3654,@RIFT_BOSS_ENTRY_BASE + 51,1,'boss_rift_mutanus','哀嚎洞穴',43,151.27,252.26,-102.82,0,115.407,240.016,-94.021,3.08,'吞噬者穆坦努斯；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 17,3654,@RIFT_BOSS_ENTRY_BASE + 52,2,'boss_rift_mutanus','哀嚎洞穴',43,151.27,252.26,-102.82,0,115.407,240.016,-94.021,3.08,'吞噬者穆坦努斯；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 17,3654,@RIFT_BOSS_ENTRY_BASE + 53,3,'boss_rift_mutanus','哀嚎洞穴',43,151.27,252.26,-102.82,0,115.407,240.016,-94.021,3.08,'吞噬者穆坦努斯；传入点来自表格'),
@@ -183,9 +197,9 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 23,12236,@RIFT_BOSS_ENTRY_BASE + 69,1,'boss_rift_vyletongue','玛拉顿',349,748.874,-219.647,-47.6926,0,692.71,-219.9,-47.28,6.26,'维利塔恩；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 23,12236,@RIFT_BOSS_ENTRY_BASE + 70,2,'boss_rift_vyletongue','玛拉顿',349,748.874,-219.647,-47.6926,0,692.71,-219.9,-47.28,6.26,'维利塔恩；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 23,12236,@RIFT_BOSS_ENTRY_BASE + 71,3,'boss_rift_vyletongue','玛拉顿',349,748.874,-219.647,-47.6926,0,692.71,-219.9,-47.28,6.26,'维利塔恩；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 72,1,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,726.11,77.98,-86.59,6.00,'被诅咒的塞雷布拉斯；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 73,2,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,726.11,77.98,-86.59,6.00,'被诅咒的塞雷布拉斯；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 74,3,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,726.11,77.98,-86.59,6.00,'被诅咒的塞雷布拉斯；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 72,1,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,796.76,62.35,-86.86,2.75,'被诅咒的塞雷布拉斯；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 73,2,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,796.76,62.35,-86.86,2.75,'被诅咒的塞雷布拉斯；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 24,12225,@RIFT_BOSS_ENTRY_BASE + 74,3,'boss_rift_celebras','玛拉顿',349,726.106,77.9764,-86.5913,0,796.76,62.35,-86.86,2.75,'被诅咒的塞雷布拉斯；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 25,12201,@RIFT_BOSS_ENTRY_BASE + 75,1,'boss_rift_theradras','玛拉顿',349,27.8981,83.1932,-124.483,0,29.17,4.66,-127.46,1.53,'瑟莱德丝公主；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 25,12201,@RIFT_BOSS_ENTRY_BASE + 76,2,'boss_rift_theradras','玛拉顿',349,27.8981,83.1932,-124.483,0,29.17,4.66,-127.46,1.53,'瑟莱德丝公主；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 25,12201,@RIFT_BOSS_ENTRY_BASE + 77,3,'boss_rift_theradras','玛拉顿',349,27.8981,83.1932,-124.483,0,29.17,4.66,-127.46,1.53,'瑟莱德丝公主；传入点来自表格'),
@@ -198,9 +212,9 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 28,9016,@RIFT_BOSS_ENTRY_BASE + 84,1,'boss_rift_baelgar','黑石深渊',230,702.416,184.462,-71.988,0,683.17,135.67,-73.22,1.20,'贝尔加；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 28,9016,@RIFT_BOSS_ENTRY_BASE + 85,2,'boss_rift_baelgar','黑石深渊',230,702.416,184.462,-71.988,0,683.17,135.67,-73.22,1.20,'贝尔加；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 28,9016,@RIFT_BOSS_ENTRY_BASE + 86,3,'boss_rift_baelgar','黑石深渊',230,702.416,184.462,-71.988,0,683.17,135.67,-73.22,1.20,'贝尔加；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 87,1,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,846.8,16.28,-53.64,3.14,'傀儡统帅阿格曼奇；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 88,2,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,846.8,16.28,-53.64,3.14,'傀儡统帅阿格曼奇；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 89,3,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,846.8,16.28,-53.64,3.14,'傀儡统帅阿格曼奇；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 87,1,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,801.99,22.66,-53.66,6.12,'傀儡统帅阿格曼奇；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 88,2,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,801.99,22.66,-53.66,6.12,'傀儡统帅阿格曼奇；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 29,8983,@RIFT_BOSS_ENTRY_BASE + 89,3,'boss_rift_argelmach','黑石深渊',230,846.801,16.2806,-53.6395,0,801.99,22.66,-53.66,6.12,'傀儡统帅阿格曼奇；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 30,9156,@RIFT_BOSS_ENTRY_BASE + 90,1,'boss_rift_flamelash','黑石深渊',230,1009.75,-239.017,-61.3038,0,982.96,-212.1,-61.79,5.50,'弗莱拉斯大使；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 30,9156,@RIFT_BOSS_ENTRY_BASE + 91,2,'boss_rift_flamelash','黑石深渊',230,1009.75,-239.017,-61.3038,0,982.96,-212.1,-61.79,5.50,'弗莱拉斯大使；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 30,9156,@RIFT_BOSS_ENTRY_BASE + 92,3,'boss_rift_flamelash','黑石深渊',230,1009.75,-239.017,-61.3038,0,982.96,-212.1,-61.79,5.50,'弗莱拉斯大使；传入点来自表格'),
