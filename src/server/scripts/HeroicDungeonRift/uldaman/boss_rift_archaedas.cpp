@@ -195,7 +195,7 @@ struct boss_rift_archaedas : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        events.ScheduleEvent(EventGroundTremor, 11000);
+        events.ScheduleEvent(EventGroundTremor, 11000ms);
         events.ScheduleEvent(EventSupportWave, 24s);
     }
 
@@ -228,7 +228,7 @@ struct boss_rift_archaedas : public BossAIBase
         {
             case EventGroundTremor:
                 CastIfConfigured(me, SpellGroundTremor);
-                events.ScheduleEvent(EventGroundTremor, 14000);
+                events.ScheduleEvent(EventGroundTremor, 14000ms);
                 break;
             case EventSupportWave:
                 SummonGuards(RiftEntryEarthenHallshaper, 1, 0.55f, 0.7f);

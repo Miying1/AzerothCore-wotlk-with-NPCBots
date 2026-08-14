@@ -44,9 +44,9 @@ struct boss_rift_eranikus : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        events.ScheduleEvent(EventWarStomp, 17000);
-        events.ScheduleEvent(EventDeepSlumber, 10000);
-        events.ScheduleEvent(EventAcidBreath, 5000);
+        events.ScheduleEvent(EventWarStomp, 17000ms);
+        events.ScheduleEvent(EventDeepSlumber, 10000ms);
+        events.ScheduleEvent(EventAcidBreath, 5000ms);
     }
 
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
@@ -57,15 +57,15 @@ struct boss_rift_eranikus : public BossAIBase
         {
             case EventWarStomp:
                 CastIfConfigured(me, SpellWarStomp);
-                events.ScheduleEvent(EventWarStomp, 25000);
+                events.ScheduleEvent(EventWarStomp, 25000ms);
                 break;
             case EventDeepSlumber:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellDeepSlumber);
-                events.ScheduleEvent(EventDeepSlumber, 23000);
+                events.ScheduleEvent(EventDeepSlumber, 23000ms);
                 break;
             case EventAcidBreath:
                 CastIfConfigured(me->GetVictim(), SpellAcidBreath);
-                events.ScheduleEvent(EventAcidBreath, 13000);
+                events.ScheduleEvent(EventAcidBreath, 13000ms);
                 break;
             default:
                 break;

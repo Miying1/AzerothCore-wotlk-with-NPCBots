@@ -37,8 +37,8 @@ struct boss_rift_theradras : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         CastIfConfigured(me, SpellThrash, true);
-        events.ScheduleEvent(EventBoulder, 5000);
-        events.ScheduleEvent(EventDustField, 15000);
+        events.ScheduleEvent(EventBoulder, 5000ms);
+        events.ScheduleEvent(EventDustField, 15000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventRepulsiveGaze, 10s);
         if (_tier >= 3)
@@ -53,11 +53,11 @@ struct boss_rift_theradras : public BossAIBase
         {
             case EventBoulder:
                 CastIfConfigured(SelectRandomPlayer(), SpellBoulder);
-                events.ScheduleEvent(EventBoulder, 17000);
+                events.ScheduleEvent(EventBoulder, 17000ms);
                 break;
             case EventDustField:
                 CastIfConfigured(me, SpellDustField);
-                events.ScheduleEvent(EventDustField, 30000);
+                events.ScheduleEvent(EventDustField, 30000ms);
                 break;
             case EventRepulsiveGaze: // T2新增：憎恨怒视，瞬发
                 CastIfConfigured(me, SpellRepulsiveGaze, true);

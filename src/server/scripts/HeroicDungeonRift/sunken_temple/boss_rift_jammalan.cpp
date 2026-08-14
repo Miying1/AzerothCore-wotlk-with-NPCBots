@@ -88,10 +88,10 @@ struct boss_rift_jammalan : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        events.ScheduleEvent(EventEarthgrabTotem, 7000);
-        events.ScheduleEvent(EventFlamestrike, 5000);
-        events.ScheduleEvent(EventHealingWave, 9000);
-        events.ScheduleEvent(EventHex, 12000);
+        events.ScheduleEvent(EventEarthgrabTotem, 7000ms);
+        events.ScheduleEvent(EventFlamestrike, 5000ms);
+        events.ScheduleEvent(EventHealingWave, 9000ms);
+        events.ScheduleEvent(EventHex, 12000ms);
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
@@ -117,20 +117,20 @@ struct boss_rift_jammalan : public BossAIBase
         {
             case EventEarthgrabTotem:
                 SummonTotem();
-                events.ScheduleEvent(EventEarthgrabTotem, 30000);
+                events.ScheduleEvent(EventEarthgrabTotem, 30000ms);
                 break;
             case EventFlamestrike:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellFlamestrike);
-                events.ScheduleEvent(EventFlamestrike, 16000);
+                events.ScheduleEvent(EventFlamestrike, 16000ms);
                 break;
             case EventHealingWave:
                 if (me->HealthBelowPct(85))
                     CastIfConfigured(me, SpellHealingWave);
-                events.ScheduleEvent(EventHealingWave, 11000);
+                events.ScheduleEvent(EventHealingWave, 11000ms);
                 break;
             case EventHex:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellHexAura);
-                events.ScheduleEvent(EventHex, 40000);
+                events.ScheduleEvent(EventHex, 40000ms);
                 break;
             default:
                 break;

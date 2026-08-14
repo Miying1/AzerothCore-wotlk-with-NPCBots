@@ -16,7 +16,7 @@ namespace
 constexpr uint32 RiftEntryNazan = 102058; // 源 Entry 17536
 
 // 原版由17307控制器在该点召唤17537维斯路登和17536纳杉；裂隙直接复用该战斗点。
-constexpr Position NazanSpawnPosition = { -1406.5f, 1746.5f, 81.2f, 5.46f };
+static Position const NazanSpawnPosition = { -1406.5f, 1746.5f, 81.2f, 5.46f };
 
 enum Events : uint32
 {

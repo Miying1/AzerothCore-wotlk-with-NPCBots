@@ -13,7 +13,7 @@ namespace
 {
 // 奴隶围栏 - 背叛者门努（Mennu the Betrayer）
 constexpr uint32 RiftEntryMennuHealingWard = 102043; // 原型：门努的治疗图腾 20208
-constexpr uint32 RiftEntryEarthgrabTotem = 102044;   // 原型：腐蚀地缚图腾 18176
+constexpr uint32 RiftEntryMennuEarthgrabTotem = 102044;   // 原型：腐蚀地缚图腾 18176
 constexpr uint32 RiftEntryStoneskinTotem = 102045;   // 原型：腐蚀石肤图腾 18177
 constexpr uint32 RiftEntryNovaTotem = 102046;        // 原型：堕落新星图腾 18179
 constexpr int32 ChainLightningRaidDamage = 4500;
@@ -250,7 +250,7 @@ struct boss_rift_mennu : public BossAIBase
                 events.ScheduleEvent(EventNovaTotem, 26s);
                 break;
             case EventEarthgrabTotem:
-                SummonTotem(RiftEntryEarthgrabTotem, 0.25f, 20 * IN_MILLISECONDS);
+                SummonTotem(RiftEntryMennuEarthgrabTotem, 0.25f, 20 * IN_MILLISECONDS);
                 events.ScheduleEvent(EventEarthgrabTotem, 26s);
                 break;
             case EventStoneskinTotem:

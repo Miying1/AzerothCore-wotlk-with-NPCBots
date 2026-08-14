@@ -39,9 +39,9 @@ struct boss_rift_gahzrilla : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        events.ScheduleEvent(EventIcicle, 5000);
-        events.ScheduleEvent(EventFreezeSolid, 16000);
-        events.ScheduleEvent(EventSlam, 13000);
+        events.ScheduleEvent(EventIcicle, 5000ms);
+        events.ScheduleEvent(EventFreezeSolid, 16000ms);
+        events.ScheduleEvent(EventSlam, 13000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 9s);  // T2新增
         if (_tier >= 3)
@@ -56,15 +56,15 @@ struct boss_rift_gahzrilla : public BossAIBase
         {
             case EventIcicle:
                 CastIfConfigured(SelectRandomPlayer(), SpellIcicle);
-                events.ScheduleEvent(EventIcicle, 10000);
+                events.ScheduleEvent(EventIcicle, 10000ms);
                 break;
             case EventFreezeSolid:
                 CastIfConfigured(SelectRandomPlayer(), SpellFreezeSolid);
-                events.ScheduleEvent(EventFreezeSolid, 20000);
+                events.ScheduleEvent(EventFreezeSolid, 20000ms);
                 break;
             case EventSlam:
                 CastIfConfigured(me, SpellGahzrillaSlam);
-                events.ScheduleEvent(EventSlam, 30000);
+                events.ScheduleEvent(EventSlam, 30000ms);
                 break;
             case EventTier2Skill: // T2新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
