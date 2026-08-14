@@ -12,41 +12,58 @@ namespace HeroicDungeonRift
 namespace
 {
 // 黑石深渊 - 傀儡统帅阿格曼奇（Golem Lord Argelmach）
-// 原版机制：进战后唤醒身边的4个构造体（末日熔炉奥术铁匠、怒削魔像、怒火之锤构造体、武器技师）协同战斗。
+// 原版/T1多成员机制：裂隙开战同时召唤4个构造体同伴协同战斗。
 enum Events : uint32
 {
-    EventChainLightning = 1, // 闪电链（T1基础）
-    EventShock,              // 震击（T1基础）
+    EventChainLightning = 1, // 闪电链（原版/T1基础）
+    EventShock,              // 震击（原版/T1基础）
     EventTier2Skill,         // 闪电箭（T2新增）
     EventTier3Skill          // 雷霆一击（T3新增）
 };
 
-// 各构造体事件（EventMap 独立）
-enum ArcanasmithEvents : uint32 { EventArcaneBolt = 1, EventArcaneExplosion };
-enum WrathHammerEvents : uint32 { EventFlameCannon = 1, EventUppercut };
-enum TechnicianEvents : uint32 { EventShoot = 1, EventExplodingShot };
+// 以下均为原版同伴/T1基础技能；各类构造体使用独立EventMap。
+enum ArcanasmithEvents : uint32
+{
+    EventArcaneBolt = 1, // 末日熔炉奥术铁匠：奥术箭
+    EventArcaneExplosion // 末日熔炉奥术铁匠：魔爆术
+};
+
+enum WrathHammerEvents : uint32
+{
+    EventFlameCannon = 1, // 怒火之锤构造体：烈焰火炮
+    EventUppercut         // 怒火之锤构造体：上钩拳
+};
+
+enum TechnicianEvents : uint32
+{
+    EventShoot = 1,      // 武器技师：射击
+    EventExplodingShot   // 武器技师：爆炸射击
+};
 
 enum Spells : uint32
 {
     // 主Boss 阿格曼奇
-    SpellLightningShield = 15507, // 闪电之盾
-    SpellChainLightning = 15305,  // 闪电链
-    SpellShock = 15605,           // 震击
-    SpellLightningBolt = 15801,   // 闪电箭
-    SpellThunderclap = 15588,     // 雷霆一击
-    // 末日熔炉奥术铁匠
-    SpellArcaneBolt = 13748,    // 奥术箭
+    SpellLightningShield = 15507, // 闪电之盾（原版/T1基础）
+    SpellChainLightning = 15305,  // 闪电链（原版/T1基础）
+    SpellShock = 15605,           // 震击（原版/T1基础）
+    SpellLightningBolt = 15801,   // 闪电箭（T2新增）
+    SpellThunderclap = 15588,     // 雷霆一击（T3新增）
+    // 末日熔炉奥术铁匠（原版同伴/T1基础）
+    SpellArcaneBolt = 13748,      // 奥术箭
     SpellArcaneExplosion = 13745, // 魔爆术
-    // 怒削魔像
+    // 怒削魔像（原版同伴/T1基础）
     SpellFlurry = 15088, // 乱舞
     SpellFrenzy = 12795, // 狂乱
-    // 怒火之锤构造体
+    // 怒火之锤构造体（原版同伴/T1基础）
     SpellFlameCannon = 15575, // 烈焰火炮
     SpellUppercut = 10966,    // 上钩拳
-    // 武器技师
+    // 武器技师（原版同伴/T1基础）
     SpellShoot = 6660,       // 射击
     SpellExplodingShot = 7896 // 爆炸射击
 };
+
+constexpr int32 LightningBoltTier1DirectDamage = 4500;
+constexpr int32 ThunderclapTier1DirectDamage = 3500;
 
 // 喊话（中文，对应原版 creature_text）
 constexpr char const* ArgelmachAggroText = "工厂里有入侵者？我的构造体会毁灭你们！";
@@ -60,8 +77,8 @@ struct npc_rift_argelmach_arcanasmith : public RiftSummonAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventArcaneBolt, Milliseconds(TierDelay(2500, 2000, 1600)));
-        _events.ScheduleEvent(EventArcaneExplosion, Milliseconds(TierDelay(10000, 8000, 6500)));
+        _events.ScheduleEvent(EventArcaneBolt, 2500ms);
+        _events.ScheduleEvent(EventArcaneExplosion, 10000ms);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -70,11 +87,11 @@ struct npc_rift_argelmach_arcanasmith : public RiftSummonAI
         {
             case EventArcaneBolt:
                 DoCastVictim(SpellArcaneBolt);
-                _events.ScheduleEvent(EventArcaneBolt, Milliseconds(TierDelay(3000, 2400, 1900)));
+                _events.ScheduleEvent(EventArcaneBolt, 3000ms);
                 break;
             case EventArcaneExplosion:
                 DoCast(me, SpellArcaneExplosion);
-                _events.ScheduleEvent(EventArcaneExplosion, Milliseconds(TierDelay(12000, 9500, 7500)));
+                _events.ScheduleEvent(EventArcaneExplosion, 12000ms);
                 break;
             default:
                 break;
@@ -112,8 +129,8 @@ struct npc_rift_argelmach_wrath_hammer : public RiftSummonAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventFlameCannon, Milliseconds(TierDelay(6000, 4800, 3800)));
-        _events.ScheduleEvent(EventUppercut, Milliseconds(TierDelay(10000, 8000, 6500)));
+        _events.ScheduleEvent(EventFlameCannon, 6000ms);
+        _events.ScheduleEvent(EventUppercut, 10000ms);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -122,11 +139,11 @@ struct npc_rift_argelmach_wrath_hammer : public RiftSummonAI
         {
             case EventFlameCannon:
                 DoCastVictim(SpellFlameCannon);
-                _events.ScheduleEvent(EventFlameCannon, Milliseconds(TierDelay(8000, 6500, 5200)));
+                _events.ScheduleEvent(EventFlameCannon, 8000ms);
                 break;
             case EventUppercut:
                 DoCastVictim(SpellUppercut);
-                _events.ScheduleEvent(EventUppercut, Milliseconds(TierDelay(12000, 9500, 7500)));
+                _events.ScheduleEvent(EventUppercut, 12000ms);
                 break;
             default:
                 break;
@@ -141,8 +158,8 @@ struct npc_rift_argelmach_technician : public RiftSummonAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventShoot, Milliseconds(TierDelay(2500, 2000, 1600)));
-        _events.ScheduleEvent(EventExplodingShot, Milliseconds(TierDelay(8000, 6500, 5200)));
+        _events.ScheduleEvent(EventShoot, 2500ms);
+        _events.ScheduleEvent(EventExplodingShot, 8000ms);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -151,12 +168,12 @@ struct npc_rift_argelmach_technician : public RiftSummonAI
         {
             case EventShoot:
                 DoCastVictim(SpellShoot);
-                _events.ScheduleEvent(EventShoot, Milliseconds(TierDelay(3000, 2400, 1900)));
+                _events.ScheduleEvent(EventShoot, 3000ms);
                 break;
             case EventExplodingShot:
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
                     DoCast(target, SpellExplodingShot);
-                _events.ScheduleEvent(EventExplodingShot, Milliseconds(TierDelay(11000, 9000, 7200)));
+                _events.ScheduleEvent(EventExplodingShot, 11000ms);
                 break;
             default:
                 break;
@@ -174,11 +191,11 @@ struct boss_rift_argelmach : public BossAIBase
         me->PlayDirectSound(ArgelmachAggroSound);
         CastIfConfigured(me, SpellLightningShield, true);
 
-        // 原版：进战后唤醒身边的4个构造体
+        // 原版/T1：裂隙开战同时召唤4个构造体同伴
         SummonConstructs();
 
-        ScheduleTieredEvent(EventChainLightning, 15000, 12000, 9500);
-        ScheduleTieredEvent(EventShock, 6500, 5200, 4200);
+        events.ScheduleEvent(EventChainLightning, 15000ms);
+        events.ScheduleEvent(EventShock, 6500ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 8s);  // T2新增
         if (_tier >= 3)
@@ -193,18 +210,20 @@ struct boss_rift_argelmach : public BossAIBase
         {
             case EventChainLightning:
                 CastIfConfigured(me->GetVictim(), SpellChainLightning);
-                ScheduleTieredEvent(EventChainLightning, 16000, 13000, 10500);
+                events.ScheduleEvent(EventChainLightning, 16000ms);
                 break;
             case EventShock:
                 CastIfConfigured(me->GetVictim(), SpellShock);
-                ScheduleTieredEvent(EventShock, 8000, 6500, 5200);
+                events.ScheduleEvent(EventShock, 8000ms);
                 break;
-            case EventTier2Skill: // T2新增：闪电箭，顺发
-                CastIfConfigured(me->GetVictim(), SpellLightningBolt, true);
+            case EventTier2Skill: // T2新增：闪电箭，瞬发
+                CastFinalRaidDamageSpell(me->GetVictim(), SpellLightningBolt, SPELLVALUE_BASE_POINT0,
+                    LightningBoltTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 6s : 8s);
                 break;
             case EventTier3Skill: // T3新增：雷霆一击，瞬发
-                CastIfConfigured(me, SpellThunderclap, true);
+                CastFinalRaidDamageSpell(me, SpellThunderclap, SPELLVALUE_BASE_POINT0,
+                    ThunderclapTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 16s);
                 break;
             default:

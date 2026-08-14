@@ -26,6 +26,20 @@ void AddSC_rift_blackrock_spire();
 void AddSC_rift_dire_maul();
 void AddSC_rift_scholomance();
 void AddSC_rift_stratholme();
+void AddSC_rift_shattered_halls();
+void AddSC_rift_blood_furnace();
+void AddSC_rift_hellfire_ramparts();
+void AddSC_rift_steam_vault();
+void AddSC_rift_underbog();
+void AddSC_rift_slave_pens();
+void AddSC_rift_arcatraz();
+void AddSC_rift_botanica();
+void AddSC_rift_mechanar();
+void AddSC_rift_shadow_labyrinth();
+void AddSC_rift_sethekk_halls();
+void AddSC_rift_mana_tombs();
+void AddSC_rift_auchenai_crypts();
+void AddSC_rift_magisters_terrace();
 
 void AddHeroicDungeonRiftScripts()
 {
@@ -49,4 +63,18 @@ void AddHeroicDungeonRiftScripts()
     AddSC_rift_dire_maul();
     AddSC_rift_scholomance();
     AddSC_rift_stratholme();
+    AddSC_rift_shattered_halls();
+    AddSC_rift_blood_furnace();
+    AddSC_rift_hellfire_ramparts();
+    AddSC_rift_steam_vault();
+    AddSC_rift_underbog();
+    AddSC_rift_slave_pens();
+    AddSC_rift_arcatraz();
+    AddSC_rift_botanica();
+    AddSC_rift_mechanar();
+    AddSC_rift_shadow_labyrinth();
+    AddSC_rift_sethekk_halls();
+    AddSC_rift_mana_tombs();
+    AddSC_rift_auchenai_crypts();
+    AddSC_rift_magisters_terrace();
 }

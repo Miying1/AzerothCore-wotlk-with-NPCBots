@@ -16,26 +16,26 @@ namespace
 {
 enum BossEvents : uint32
 {
-    EventPoisonCloud = 1,
-    EventFrenziedRage,
-    EventSnapjawWave,
-    EventServantWave
+    EventPoisonCloud = 1, // 毒云（原版/T1基础）
+    EventFrenziedRage,    // 狂暴怒气（原版/T1基础）
+    EventSnapjawWave,     // 阿库麦尔钳嘴龟波（T2新增；T3提高数量与频率）
+    EventServantWave      // 阿库麦尔仆从波（T3新增）
 };
 
 enum AddEvents : uint32
 {
-    EventSnapjawAbility = 1,
-    EventServantFrostbolt,
-    EventServantFrostNova
+    EventSnapjawAbility = 1, // 毁灭（T2/T3钳嘴龟技能）
+    EventServantFrostbolt,   // 寒冰箭（T3仆从技能）
+    EventServantFrostNova    // 冰霜新星（T3仆从技能）
 };
 
 enum Spells : uint32
 {
-    SpellPoisonCloud = 3815,
-    SpellFrenziedRage = 3490,
-    SpellSnapjawAbility = 8391,
-    SpellServantFrostbolt = 15043,
-    SpellServantFrostNova = 865
+    SpellPoisonCloud = 3815,       // 毒云（原版/T1基础）
+    SpellFrenziedRage = 3490,      // 狂暴怒气（原版/T1基础）
+    SpellSnapjawAbility = 8391,    // 毁灭（T2/T3钳嘴龟技能）
+    SpellServantFrostbolt = 15043, // 寒冰箭（T3仆从技能）
+    SpellServantFrostNova = 865    // 冰霜新星（T3仆从技能）
 };
 
 class AkumaiAddAI : public ScriptedAI
@@ -98,11 +98,6 @@ protected:
     virtual void ScheduleAbilities() = 0;
     virtual void ExecuteAbility(uint32 eventId) = 0;
 
-    uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
-    {
-        return _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
-    }
-
     EventMap _events;
     uint8 _tier = 1;
     uint32 _damagePermille = 1000;
@@ -115,7 +110,7 @@ struct npc_rift_akumai_snapjaw : public AkumaiAddAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventSnapjawAbility, Milliseconds(TierDelay(7000, 5500, 4000)));
+        _events.ScheduleEvent(EventSnapjawAbility, Milliseconds(7000));
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -124,7 +119,7 @@ struct npc_rift_akumai_snapjaw : public AkumaiAddAI
             return;
 
         DoCastVictim(SpellSnapjawAbility);
-        _events.ScheduleEvent(EventSnapjawAbility, Milliseconds(TierDelay(10000, 7500, 5500)));
+        _events.ScheduleEvent(EventSnapjawAbility, Milliseconds(10000));
     }
 };
 
@@ -134,8 +129,8 @@ struct npc_rift_akumai_servant : public AkumaiAddAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventServantFrostbolt, Milliseconds(TierDelay(4000, 3000, 2200)));
-        _events.ScheduleEvent(EventServantFrostNova, Milliseconds(TierDelay(9000, 7500, 6000)));
+        _events.ScheduleEvent(EventServantFrostbolt, Milliseconds(4000));
+        _events.ScheduleEvent(EventServantFrostNova, Milliseconds(9000));
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -144,11 +139,11 @@ struct npc_rift_akumai_servant : public AkumaiAddAI
         {
             case EventServantFrostbolt:
                 DoCastVictim(SpellServantFrostbolt);
-                _events.ScheduleEvent(EventServantFrostbolt, Milliseconds(TierDelay(5500, 4000, 3000)));
+                _events.ScheduleEvent(EventServantFrostbolt, Milliseconds(5500));
                 break;
             case EventServantFrostNova:
                 DoCast(me, SpellServantFrostNova);
-                _events.ScheduleEvent(EventServantFrostNova, Milliseconds(TierDelay(14000, 11000, 8500)));
+                _events.ScheduleEvent(EventServantFrostNova, Milliseconds(14000));
                 break;
             default:
                 break;
@@ -168,8 +163,8 @@ struct boss_rift_akumai : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventPoisonCloud, 9000, 7000, 5500);
-        ScheduleTieredEvent(EventFrenziedRage, 18000, 15000, 12000);
+        events.ScheduleEvent(EventPoisonCloud, Milliseconds(9000));
+        events.ScheduleEvent(EventFrenziedRage, Milliseconds(18000));
         if (_tier >= 2)
             events.ScheduleEvent(EventSnapjawWave, 20s);
         if (_tier >= 3)
@@ -178,6 +173,7 @@ struct boss_rift_akumai : public BossAIBase
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
     {
+        // T2/T3在65%生命值开启钳嘴龟阶段并立即出波；此前排定的周期事件仅等待阶段解锁。
         if (_tier >= 2 && !_snapjawPhaseStarted && me->HealthBelowPctDamaged(65, damage))
         {
             _snapjawPhaseStarted = true;
@@ -199,11 +195,11 @@ struct boss_rift_akumai : public BossAIBase
         {
             case EventPoisonCloud:
                 CastIfConfigured(me->GetVictim(), SpellPoisonCloud);
-                ScheduleTieredEvent(EventPoisonCloud, 12000, 9000, 7000);
+                events.ScheduleEvent(EventPoisonCloud, Milliseconds(12000));
                 break;
             case EventFrenziedRage:
                 CastIfConfigured(me, SpellFrenziedRage);
-                ScheduleTieredEvent(EventFrenziedRage, 26000, 21000, 17000);
+                events.ScheduleEvent(EventFrenziedRage, Milliseconds(26000));
                 break;
             case EventSnapjawWave:
                 if (_snapjawPhaseStarted)
@@ -232,6 +228,7 @@ private:
 
     void SummonWave(uint32 entry, uint32 amount, float healthCoefficient, float damageCoefficient)
     {
+        // 存活上限按类型独立计算：钳嘴龟T2为3、T3为5；T3仆从为3。
         uint32 cap = entry == RiftEntryAkumaiSnapjaw ? (_tier == 2 ? 3 : 5) : 3;
         uint32 alive = CountAlive(entry);
         for (uint32 i = alive; i < cap && amount > 0; ++i, --amount)

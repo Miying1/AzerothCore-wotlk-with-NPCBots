@@ -6,6 +6,7 @@
 
 #include "Creature.h"
 #include "ScriptMgr.h"
+#include "SpellScript.h"
 
 namespace HeroicDungeonRift
 {
@@ -14,22 +15,56 @@ namespace
 // 厄运之槌东区 - 蕾瑟塔蒂丝（Lethtendris）
 enum Events : uint32
 {
-    EventVoidBolt = 1,      // 虚空箭（T1基础）
-    EventShadowBoltVolley,  // 暗影箭雨（T1基础）
-    EventImmolate,          // 献祭（T1基础）
-    EventCurseOfThorns,     // 荆棘诅咒（T2新增）
-    EventCurseOfTongues     // 语言诅咒（T3新增）
+    EventVoidBolt = 1,      // 虚空箭（Spell 22709，T1原版）
+    EventShadowBoltVolley,  // 暗影箭雨（Spell 14887，T1原版）
+    EventImmolate,          // 献祭（Spell 20787，T1原版）
+    EventCurseOfThorns,     // 荆棘诅咒（Spell 16247，T2新增）
+    EventCurseOfTongues     // 语言诅咒（Spell 13338，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellVoidBolt = 22709,        // 虚空箭
-    SpellShadowBoltVolley = 14887,// 暗影箭雨
-    SpellImmolate = 20787,        // 献祭
-    SpellCurseOfThorns = 16247,   // 荆棘诅咒
-    SpellCurseOfTongues = 13338   // 语言诅咒
+    SpellVoidBolt = 22709,               // 虚空箭（T1原版）
+    SpellShadowBoltVolley = 14887,       // 暗影箭雨（T1原版）
+    SpellImmolate = 20787,               // 献祭（T1原版）
+    SpellCurseOfThorns = 16247,          // 荆棘诅咒（T2新增，父Aura）
+    SpellCurseOfThornsDamage = 16248,    // 荆棘诅咒反伤法术（父Aura 16247触发）
+    SpellCurseOfTongues = 13338          // 语言诅咒（T3新增）
 };
+
+constexpr int32 CurseOfThornsTier1DirectDamage = 3500;
 }
+
+class spell_rift_lethtendris_curse_of_thorns : public AuraScript
+{
+    PrepareAuraScript(spell_rift_lethtendris_curse_of_thorns);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SpellCurseOfThornsDamage });
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        Creature* caster = GetCaster() ? GetCaster()->ToCreature() : nullptr;
+        Unit* target = GetTarget();
+        Unit* attacker = target == eventInfo.GetActor() ? eventInfo.GetActionTarget() : eventInfo.GetActor();
+        if (!caster || !target || !attacker || GetTierForCreature(caster) < 2)
+            return;
+
+        PreventDefaultAction();
+        int32 damage = std::max<int32>(1, int32(std::lround(
+            double(CurseOfThornsTier1DirectDamage) / 15.0)));
+        target->CastCustomSpell(SpellCurseOfThornsDamage, SPELLVALUE_BASE_POINT0, damage, attacker,
+            TRIGGERED_FULL_MASK, nullptr, aurEff, caster->GetGUID());
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_rift_lethtendris_curse_of_thorns::HandleProc,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
 
 struct boss_rift_lethtendris : public BossAIBase
 {
@@ -37,9 +72,9 @@ struct boss_rift_lethtendris : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventVoidBolt, 3000, 2400, 1800);
-        ScheduleTieredEvent(EventShadowBoltVolley, 8000, 6500, 5200);
-        ScheduleTieredEvent(EventImmolate, 10000, 8000, 6500);
+        events.ScheduleEvent(EventVoidBolt, Milliseconds(3000));
+        events.ScheduleEvent(EventShadowBoltVolley, Milliseconds(8000));
+        events.ScheduleEvent(EventImmolate, Milliseconds(10000));
         if (_tier >= 2)
             events.ScheduleEvent(EventCurseOfThorns, 12s);
         if (_tier >= 3)
@@ -54,17 +89,17 @@ struct boss_rift_lethtendris : public BossAIBase
         {
             case EventVoidBolt:
                 CastIfConfigured(me->GetVictim(), SpellVoidBolt);
-                ScheduleTieredEvent(EventVoidBolt, 3200, 2600, 2000);
+                events.ScheduleEvent(EventVoidBolt, Milliseconds(3200));
                 break;
             case EventShadowBoltVolley:
                 CastIfConfigured(me, SpellShadowBoltVolley);
-                ScheduleTieredEvent(EventShadowBoltVolley, 14000, 11000, 9000);
+                events.ScheduleEvent(EventShadowBoltVolley, Milliseconds(14000));
                 break;
             case EventImmolate:
                 CastIfConfigured(SelectRandomPlayer(), SpellImmolate);
-                ScheduleTieredEvent(EventImmolate, 18000, 14500, 11500);
+                events.ScheduleEvent(EventImmolate, Milliseconds(18000));
                 break;
-            case EventCurseOfThorns: // T2新增：荆棘诅咒，顺发
+            case EventCurseOfThorns: // T2新增：荆棘诅咒，瞬发；父Aura 16247触发反伤法术16248
                 CastIfConfigured(me->GetVictim(), SpellCurseOfThorns, true);
                 events.ScheduleEvent(EventCurseOfThorns, _tier == 3 ? 22s : 28s);
                 break;
@@ -81,6 +116,7 @@ struct boss_rift_lethtendris : public BossAIBase
 void AddSC_boss_rift_lethtendris()
 {
     RegisterCreatureAI(boss_rift_lethtendris);
+    RegisterSpellScript(spell_rift_lethtendris_curse_of_thorns);
 }
 
 } // namespace HeroicDungeonRift

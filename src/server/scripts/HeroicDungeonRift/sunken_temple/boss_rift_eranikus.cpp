@@ -13,18 +13,18 @@ namespace
 {
 enum Events : uint32
 {
-    EventWarStomp = 1,
-    EventDeepSlumber,
-    EventAcidBreath
+    EventWarStomp = 1, // 战争践踏（原版/T1基础）
+    EventDeepSlumber,  // 深度沉睡（原版/T1基础）
+    EventAcidBreath    // 酸息术（原版/T1基础）
 };
 
 enum Spells : uint32
 {
-    SpellPassiveVisual = 12535,
-    SpellThrashAura = 8876,
-    SpellWarStomp = 11876,
-    SpellDeepSlumber = 12890,
-    SpellAcidBreath = 12884
+    SpellPassiveVisual = 12535, // 伊兰尼库斯之影被动视觉（原版/T1基础）
+    SpellThrashAura = 8876,     // 痛击（原版/T1基础）
+    SpellWarStomp = 11876,      // 战争践踏（原版/T1基础）
+    SpellDeepSlumber = 12890,   // 深度沉睡（原版/T1基础）
+    SpellAcidBreath = 12884     // 酸息术（原版/T1基础）
 };
 }
 
@@ -44,9 +44,9 @@ struct boss_rift_eranikus : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventWarStomp, 17000, 13500, 10500);
-        ScheduleTieredEvent(EventDeepSlumber, 10000, 8000, 6500);
-        ScheduleTieredEvent(EventAcidBreath, 5000, 4000, 3200);
+        events.ScheduleEvent(EventWarStomp, 17000);
+        events.ScheduleEvent(EventDeepSlumber, 10000);
+        events.ScheduleEvent(EventAcidBreath, 5000);
     }
 
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
@@ -57,15 +57,15 @@ struct boss_rift_eranikus : public BossAIBase
         {
             case EventWarStomp:
                 CastIfConfigured(me, SpellWarStomp);
-                ScheduleTieredEvent(EventWarStomp, 25000, 20000, 16000);
+                events.ScheduleEvent(EventWarStomp, 25000);
                 break;
             case EventDeepSlumber:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellDeepSlumber);
-                ScheduleTieredEvent(EventDeepSlumber, 23000, 18000, 14500);
+                events.ScheduleEvent(EventDeepSlumber, 23000);
                 break;
             case EventAcidBreath:
                 CastIfConfigured(me->GetVictim(), SpellAcidBreath);
-                ScheduleTieredEvent(EventAcidBreath, 13000, 10500, 8000);
+                events.ScheduleEvent(EventAcidBreath, 13000);
                 break;
             default:
                 break;

@@ -14,17 +14,19 @@ namespace
 // 黑石深渊 - 贝尔加（Bael'Gar）
 enum Events : uint32
 {
-    EventMagmaSplash = 1, // 熔岩喷溅（T1基础）
+    EventMagmaSplash = 1, // 熔岩喷溅（原版/T1基础）
     EventTier2Skill,      // 火焰冲击（T2新增）
     EventTier3Skill       // 痛击（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellMagmaSplash = 13880, // 熔岩喷溅
-    SpellFireBlast = 13342,   // 火焰冲击
-    SpellThrash = 3391        // 痛击
+    SpellMagmaSplash = 13880, // 熔岩喷溅（原版/T1基础）
+    SpellFireBlast = 13342,   // 火焰冲击（T2新增）
+    SpellThrash = 3391        // 痛击（T3新增）
 };
+
+constexpr int32 FireBlastTier1DirectDamage = 4500;
 }
 
 struct boss_rift_baelgar : public BossAIBase
@@ -33,7 +35,7 @@ struct boss_rift_baelgar : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventMagmaSplash, 9000, 7000, 5500);
+        events.ScheduleEvent(EventMagmaSplash, 9000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 7s);  // T2新增
         if (_tier >= 3)
@@ -42,7 +44,7 @@ struct boss_rift_baelgar : public BossAIBase
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
     {
-        // 原版机制：血量每下降20%召唤贝尔加幼体（82%/62%/42%/22%）
+        // 原版/T1阶段召唤：血量降至80/60/40/20%时，每阶段召唤2只贝尔加幼体
         if (!me->HealthBelowPctDamaged(_nextSpawnThreshold, damage))
             return;
 
@@ -59,10 +61,11 @@ struct boss_rift_baelgar : public BossAIBase
         {
             case EventMagmaSplash:
                 CastIfConfigured(me->GetVictim(), SpellMagmaSplash);
-                ScheduleTieredEvent(EventMagmaSplash, 12000, 9500, 7500);
+                events.ScheduleEvent(EventMagmaSplash, 12000ms);
                 break;
             case EventTier2Skill: // T2新增：火焰冲击，瞬发
-                CastIfConfigured(me->GetVictim(), SpellFireBlast, true);
+                CastFinalRaidDamageSpell(me->GetVictim(), SpellFireBlast, SPELLVALUE_BASE_POINT0,
+                    FireBlastTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 6s : 8s);
                 break;
             case EventTier3Skill: // T3新增：痛击，瞬发

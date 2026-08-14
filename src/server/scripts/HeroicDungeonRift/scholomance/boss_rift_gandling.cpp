@@ -15,35 +15,38 @@ namespace HeroicDungeonRift
 namespace
 {
 // 通灵学院 - 黑暗院长加丁（Darkmaster Gandling）
-// 原版机制：周期性用暗影传送门随机传送一名玩家到6个房间之一，关该房门并在房间召唤3只复生的守卫。
+// T1原版暗影传送门：随机传送一名玩家到6个房间之一，关门并在该传送房召唤3只复生的守卫。
+// T2额外守卫：直接在Boss场内召唤3只，不属于暗影传送门房间守卫。
 enum Events : uint32
 {
-    EventArcaneMissiles = 1, // 奥术飞弹（T1基础）
-    EventCurseOfDarkmaster,  // 黑暗主宰诅咒（T1基础）
-    EventShadowShield,       // 暗影之盾（T1基础）
-    EventShadowPortal,       // 暗影传送门（T1基础，传送玩家到房间）
-    EventSummonGuardians,    // 召唤复生的守卫（T2新增）
-    EventTier3Skill          // 暗影箭（T3新增）
+    EventArcaneMissiles = 1, // 奥术飞弹（Spell 15790，T1原版）
+    EventCurseOfDarkmaster,  // 黑暗主宰诅咒（Spell 18702，T1原版）
+    EventShadowShield,       // 暗影之盾（Spell 12040，T1原版）
+    EventShadowPortal,       // 暗影传送门（Spell 17950，T1原版，传送房机制）
+    EventSummonGuardians,    // 场内额外守卫（T2新增，无独立施法ID）
+    EventTier3Skill          // 暗影箭（Spell 20791，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellArcaneMissiles = 15790,  // 奥术飞弹
-    SpellCurseOfDarkmaster = 18702, // 黑暗主宰诅咒
-    SpellShadowShield = 12040,    // 暗影之盾
-    SpellShadowPortal = 17950,    // 暗影传送门
-    SpellShadowBolt = 20791       // 暗影箭
+    SpellArcaneMissiles = 15790,  // 奥术飞弹（T1原版）
+    SpellCurseOfDarkmaster = 18702, // 黑暗主宰诅咒（T1原版）
+    SpellShadowShield = 12040,    // 暗影之盾（T1原版）
+    SpellShadowPortal = 17950,    // 暗影传送门（T1原版；命中后关门、召唤房间守卫并传送）
+    SpellShadowBolt = 20791       // 暗影箭（T3新增，覆写BP0直接伤害）
 };
 
-// 6房间传送法术（顺序对应 GandlingGateIds 与 GandlingSummonPos）
+constexpr int32 ShadowBoltTier1DirectDamage = 4500;
+
+// T1原版6房间定向传送法术（顺序对应 GandlingGateIds 与 GandlingSummonPos）
 constexpr uint32 GandlingPortalSpells[6] =
 {
-    17944, // 下北·暗影金库
-    17946, // 下东·巴罗夫家族墓室
-    17948, // 下南·拉文尼亚之墓
-    17863, // 上北·秘密大厅
-    17939, // 上东·受诅咒者大厅
-    17943  // 上南·女巫会
+    17944, // 下北·暗影金库（T1原版）
+    17946, // 下东·巴罗夫家族墓室（T1原版）
+    17948, // 下南·拉文尼亚之墓（T1原版）
+    17863, // 上北·秘密大厅（T1原版）
+    17939, // 上东·受诅咒者大厅（T1原版）
+    17943  // 上南·女巫会（T1原版）
 };
 
 // 6房间对应房门
@@ -95,9 +98,9 @@ struct boss_rift_gandling : public BossAIBase
         me->Yell(GandlingAggroText, LANG_UNIVERSAL);
         me->PlayDirectSound(GandlingAggroSound);
 
-        ScheduleTieredEvent(EventArcaneMissiles, 6000, 4800, 3800);
-        ScheduleTieredEvent(EventCurseOfDarkmaster, 12000, 9500, 7500);
-        ScheduleTieredEvent(EventShadowShield, 15000, 12000, 9500);
+        events.ScheduleEvent(EventArcaneMissiles, Milliseconds(6000));
+        events.ScheduleEvent(EventCurseOfDarkmaster, Milliseconds(12000));
+        events.ScheduleEvent(EventShadowShield, Milliseconds(15000));
         events.ScheduleEvent(EventShadowPortal, 20s); // 原版周期传送
         if (_tier >= 2)
             events.ScheduleEvent(EventSummonGuardians, 18s);
@@ -140,15 +143,15 @@ struct boss_rift_gandling : public BossAIBase
         {
             case EventArcaneMissiles:
                 CastIfConfigured(me->GetVictim(), SpellArcaneMissiles);
-                ScheduleTieredEvent(EventArcaneMissiles, 7000, 5500, 4500);
+                events.ScheduleEvent(EventArcaneMissiles, Milliseconds(7000));
                 break;
             case EventCurseOfDarkmaster:
                 CastIfConfigured(SelectRandomPlayer(), SpellCurseOfDarkmaster);
-                ScheduleTieredEvent(EventCurseOfDarkmaster, 20000, 16000, 13000);
+                events.ScheduleEvent(EventCurseOfDarkmaster, Milliseconds(20000));
                 break;
             case EventShadowShield:
                 CastIfConfigured(me, SpellShadowShield);
-                ScheduleTieredEvent(EventShadowShield, 25000, 20000, 16000);
+                events.ScheduleEvent(EventShadowShield, Milliseconds(25000));
                 break;
             case EventShadowPortal:
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 15.0f, true))
@@ -158,13 +161,14 @@ struct boss_rift_gandling : public BossAIBase
                 }
                 events.ScheduleEvent(EventShadowPortal, 25s);
                 break;
-            case EventSummonGuardians: // T2新增
+            case EventSummonGuardians: // T2新增：Boss场内额外召唤3只守卫，区别于T1传送房守卫
                 for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
                     SummonTieredCreature(RiftEntryRisenGuardian, me->GetRandomNearPosition(8.0f), 0.6f, 0.7f);
                 events.ScheduleEvent(EventSummonGuardians, _tier == 3 ? 24s : 30s);
                 break;
-            case EventTier3Skill: // T3新增：暗影箭，顺发
-                CastIfConfigured(me->GetVictim(), SpellShadowBolt, true);
+            case EventTier3Skill: // T3新增：暗影箭，瞬发；覆写BP0直接伤害
+                CastFinalRaidDamageSpell(me->GetVictim(), SpellShadowBolt, SPELLVALUE_BASE_POINT0,
+                    ShadowBoltTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 5s);
                 break;
             default:

@@ -13856,7 +13856,7 @@ void bot_ai::ApplyItemEquipSpells(Item* item, bool apply)
         //CastSpellExtraArgs args(item);
         if (apply)
             //me->CastSpell(me, spellInfo->Id, args);
-            me->CastSpell(me, spellInfo, false, item);
+            me->CastSpell(me, spellInfo, true, item);
         else
             me->RemoveAurasDueToItemSpell(spellInfo->Id, item->GetGUID());  // un-apply all spells, not only at-equipped
     }
@@ -13962,7 +13962,7 @@ void bot_ai::ApplyItemSetBonuses(Item* item, bool apply)
             {
                 //CastSpellExtraArgs args(item);
                 //me->CastSpell(me, spellInfo->Id, args);
-                me->CastSpell(me, spellInfo, false, item);
+                me->CastSpell(me, spellInfo, true, item);
             }
             else
                 me->RemoveAurasDueToSpell(spellInfo->Id);           // un-apply spell (item set case)
@@ -14018,7 +14018,7 @@ void bot_ai::ApplyItemSetBonuses(Item* item, bool apply)
             {
                 //CastSpellExtraArgs args(item);
                 //me->CastSpell(me, spellInfo->Id, args);
-                me->CastSpell(me, spellInfo, false, item);
+                me->CastSpell(me, spellInfo, true, item);
 
             }
             else

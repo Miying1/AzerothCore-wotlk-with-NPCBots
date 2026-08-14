@@ -13,13 +13,13 @@ namespace
 {
 enum Events : uint32
 {
-    EventDiseasePulse = 1
+    EventDiseasePulse = 1 // 疾病云脉冲（T2新增；T3缩短周期）
 };
 
 enum Spells : uint32
 {
-    SpellDiseaseCloud = 12627,
-    SpellFrenzy = 12795
+    SpellDiseaseCloud = 12627, // 疾病云（原版/T1基础；T2新增脉冲，T3缩短周期）：对自身施放
+    SpellFrenzy = 12795 // 狂暴（原版/T1基础）：生命值低于20%时对自身施放
 };
 }
 
@@ -50,6 +50,7 @@ struct boss_rift_glutton : public BossAIBase
         }
     }
 
+    // 裂隙伤害校准：疾病云的周期伤害在通用Tier倍率外补偿15倍。
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
 
     void ExecuteRiftEvent(uint32 eventId) override

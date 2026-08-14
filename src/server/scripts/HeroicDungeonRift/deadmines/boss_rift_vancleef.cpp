@@ -14,18 +14,19 @@ namespace
 {
 enum Events : uint32
 {
-    EventThrash = 1,
-    EventTier2Skill,
-    EventTier3Skill
+    EventThrash = 1, // 痛击（原版/T1基础）
+    EventTier2Skill, // 致死打击（T2新增；T3沿用并缩短循环间隔）
+    EventTier3Skill // 旋风斩（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellThrash = 3391,
-    SpellMortalStrike = 16856,
-    SpellWhirlwind = 15589
+    SpellThrash = 3391, // 痛击（原版/T1基础）：对当前目标施放
+    SpellMortalStrike = 16856, // 致死打击（T2新增）：对当前目标施放
+    SpellWhirlwind = 15589 // 旋风斩（T3新增）：使用裂隙伤害校准施放
 };
 
+// 裂隙伤害校准：旋风斩以2500点覆盖基础点0，后续仍统一应用Tier伤害倍率。
 constexpr int32 WhirlwindRaidAdditionalDamage = 2500;
 }
 
@@ -35,7 +36,7 @@ struct boss_rift_vancleef : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventThrash, 8000, 6500, 5000);
+        events.ScheduleEvent(EventThrash, Milliseconds(8000));
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 12s);
         if (_tier >= 3)
@@ -50,7 +51,7 @@ struct boss_rift_vancleef : public BossAIBase
         {
             case EventThrash:
                 CastIfConfigured(me->GetVictim(), SpellThrash);
-                ScheduleTieredEvent(EventThrash, 8000, 6500, 5000);
+                events.ScheduleEvent(EventThrash, Milliseconds(8000));
                 break;
             case EventTier2Skill:
                 CastIfConfigured(me->GetVictim(), SpellMortalStrike);

@@ -13,21 +13,23 @@ namespace
 {
 enum Events : uint32
 {
-    EventEnrage = 1,
-    EventSlow,
-    EventTier2Skill,
-    EventTier3Skill
+    EventEnrage = 1, // 恐吓（变量名沿用历史命名）：原版/T1基础
+    EventSlow, // 干扰之痛（原版/T1基础）
+    EventTier2Skill, // 雷霆一击（T2新增；T3沿用并缩短循环间隔）
+    EventTier3Skill // 击退（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellEnrage = 7399,
-    SpellSlow = 3603,
-    SpellThunderclap = 15588,
-    SpellKnockAway = 10101
+    SpellEnrage = 7399, // 恐吓（变量名沿用历史命名）：经DBC确认，原版/T1基础
+    SpellSlow = 3603, // 干扰之痛（原版/T1基础）：对当前目标施放
+    SpellThunderclap = 15588, // 雷霆一击（T2新增）：直接伤害由调用处校准
+    SpellKnockAway = 10101 // 击退（T3新增）：使用裂隙伤害校准施放
 };
 
-constexpr int32 ThunderclapRaidDamage = 2500;
+// 裂隙伤害校准：雷霆一击以3500点作为T1基准直接伤害，不改变其余DBC效果。
+constexpr int32 ThunderclapTier1DirectDamage = 3500;
+// 裂隙伤害校准：击退以2000点覆盖基础点0，后续仍统一应用Tier伤害倍率。
 constexpr int32 KnockAwayRaidAdditionalDamage = 2000;
 }
 
@@ -38,7 +40,7 @@ struct boss_rift_sneed : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventEnrage, 15s);
-        ScheduleTieredEvent(EventSlow, 9000, 7000, 5500);
+        events.ScheduleEvent(EventSlow, Milliseconds(9000));
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 13s);
         if (_tier >= 3)
@@ -53,14 +55,14 @@ struct boss_rift_sneed : public BossAIBase
         {
             case EventEnrage:
                 CastIfConfigured(me, SpellEnrage);
-                events.ScheduleEvent(EventEnrage, _tier == 3 ? 22s : 30s);
+                events.ScheduleEvent(EventEnrage, 30s);
                 break;
             case EventSlow:
                 CastIfConfigured(me->GetVictim(), SpellSlow);
-                ScheduleTieredEvent(EventSlow, 9000, 7000, 5500);
+                events.ScheduleEvent(EventSlow, Milliseconds(9000));
                 break;
             case EventTier2Skill:
-                CastRaidTunedSpell(me, SpellThunderclap, ThunderclapRaidDamage);
+                CastFinalRaidDamageSpell(me, SpellThunderclap, SPELLVALUE_BASE_POINT0, ThunderclapTier1DirectDamage);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 12s : 15s);
                 break;
             case EventTier3Skill:

@@ -19,14 +19,14 @@ namespace
 {
 enum Events : uint32
 {
-    EventKnockAway = 1,
-    EventWalkingBomb
+    EventKnockAway = 1, // 击退（原版/T1基础）
+    EventWalkingBomb // 召唤行走炸弹（原版/T1基础；T2/T3提高存活上限）
 };
 
 enum Spells : uint32
 {
-    SpellKnockAway = 10101,
-    SpellWalkingBombEffect = 11504
+    SpellKnockAway = 10101, // 击退（原版/T1基础）：对当前目标施放
+    SpellWalkingBombEffect = 11504 // 行走炸弹爆炸（原版/T1基础召唤物技能）：接近目标时对自身施放
 };
 
 constexpr float WalkingBombTriggerRange = 5.0f;
@@ -40,7 +40,7 @@ struct boss_rift_thermaplugg : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventKnockAway, 3s);
-        ScheduleTieredEvent(EventWalkingBomb, 10000, 8000, 6000);
+        events.ScheduleEvent(EventWalkingBomb, Milliseconds(10000));
     }
 
     void ConfigureTier() override { }
@@ -51,15 +51,17 @@ struct boss_rift_thermaplugg : public BossAIBase
         {
             case EventKnockAway:
                 CastIfConfigured(me->GetVictim(), SpellKnockAway);
-                ScheduleTieredEvent(EventKnockAway, 13500, 11500, 9500);
+                events.ScheduleEvent(EventKnockAway, Milliseconds(13500));
                 break;
             case EventWalkingBomb:
+                // 原版/T1召唤物：每次尝试召唤1个行走炸弹；T1/T2/T3存活上限为1/2/3个。
+                // 行走炸弹在45秒后或留尸时消失。
                 PruneWalkingBombs();
                 if (_walkingBombs.size() < _tier)
                     if (Creature* bomb = SummonTieredCreature(RiftEntryWalkingBomb, me->GetRandomNearPosition(8.0f), 1.0f, 1.0f,
                         TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 45 * IN_MILLISECONDS))
                         _walkingBombs.push_back(bomb->GetGUID());
-                ScheduleTieredEvent(EventWalkingBomb, 15000, 11000, 7500);
+                events.ScheduleEvent(EventWalkingBomb, Milliseconds(15000));
                 break;
             default:
                 break;
@@ -93,6 +95,7 @@ struct npc_rift_walking_bomb : public ScriptedAI
     void SetData(uint32 id, uint32 value) override
     {
         if (id == RiftDataDamagePermille)
+            // 裂隙伤害校准：召唤物爆炸在通用召唤物Tier伤害倍率外补偿15倍。
             _damagePermille = value * 15;
     }
 

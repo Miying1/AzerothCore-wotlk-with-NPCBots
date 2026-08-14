@@ -11,62 +11,65 @@ namespace HeroicDungeonRift
 {
 namespace
 {
-// 厄运之槌北区 - 戈多克大王（King Gordok）+ 观察者克鲁什（Cho'Rush the Observer，双Boss同伴）
+// 厄运之槌北区 - 戈多克大王（King Gordok）
+// 观察者克鲁什（Cho'Rush the Observer）是原版同伴，不是Tier新增守卫；裂隙开战时随Boss召唤。
 enum GordokEvents : uint32
 {
-    EventMortalStrike = 1,   // 致死打击（T1基础）
-    EventSunderArmor,        // 破甲攻击（T1基础）
-    EventWarStomp,           // 战争践踏（T1基础）
-    EventBerserkerCharge,    // 狂暴冲锋（T2新增）
-    EventTier3Skill          // 雷霆一击（T3新增）
+    EventMortalStrike = 1,   // 致死打击（Spell 15708，T1原版）
+    EventSunderArmor,        // 破甲攻击（Spell 15572，T1原版）
+    EventWarStomp,           // 战争践踏（Spell 16727，T1原版）
+    EventBerserkerCharge,    // 狂暴冲锋（Spell 22886，T2新增）
+    EventTier3Skill          // 雷霆一击（Spell 15588，T3新增）
 };
 
 enum ChoRushEvents : uint32
 {
-    EventLightningBolt = 1,  // 闪电箭
-    EventChainLightning,     // 闪电链
-    EventMindBlast,          // 心灵震爆
-    EventPsychicScream,      // 心灵尖啸
-    EventHeal                // 治疗术
+    EventLightningBolt = 1,  // 闪电箭（Spell 15801，原版同伴）
+    EventChainLightning,     // 闪电链（Spell 16006，原版同伴）
+    EventMindBlast,          // 心灵震爆（Spell 15587，原版同伴）
+    EventPsychicScream,      // 心灵尖啸（Spell 22884，原版同伴）
+    EventHeal                // 治疗术（Spell 38209，原版同伴）
 };
 
 enum Spells : uint32
 {
-    SpellMortalStrike = 15708,    // 致死打击
-    SpellSunderArmor = 15572,     // 破甲攻击
-    SpellWarStomp = 16727,        // 战争践踏
-    SpellBerserkerCharge = 22886, // 狂暴冲锋
-    SpellThunderclap = 15588,     // 雷霆一击
-    SpellLightningBolt = 15801,   // 闪电箭
-    SpellChainLightning = 16006,  // 闪电链
-    SpellMindBlast = 15587,       // 心灵震爆
-    SpellPsychicScream = 22884,   // 心灵尖啸
-    SpellHeal = 38209             // 治疗术
+    SpellMortalStrike = 15708,    // 致死打击（T1原版）
+    SpellSunderArmor = 15572,     // 破甲攻击（T1原版）
+    SpellWarStomp = 16727,        // 战争践踏（T1原版）
+    SpellBerserkerCharge = 22886, // 狂暴冲锋（T2新增）
+    SpellThunderclap = 15588,     // 雷霆一击（T3新增，覆写BP0直接伤害）
+    SpellLightningBolt = 15801,   // 闪电箭（原版同伴Cho'Rush）
+    SpellChainLightning = 16006,  // 闪电链（原版同伴Cho'Rush）
+    SpellMindBlast = 15587,       // 心灵震爆（原版同伴Cho'Rush）
+    SpellPsychicScream = 22884,   // 心灵尖啸（原版同伴Cho'Rush）
+    SpellHeal = 38209             // 治疗术（原版同伴Cho'Rush）
 };
+
+constexpr int32 ThunderclapTier1DirectDamage = 3500;
 
 constexpr char const* GordokAggroText = "没人能挑战戈多克！";
 }
 
-struct npc_rift_chorsh : public RiftSummonAI // 裂隙观察者克鲁什
+struct npc_rift_chorsh : public RiftSummonAI // 原版同伴观察者克鲁什
 {
     explicit npc_rift_chorsh(Creature* creature) : RiftSummonAI(creature) { }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        _events.ScheduleEvent(EventLightningBolt, Milliseconds(TierDelay(2500, 2000, 1600)));
-        _events.ScheduleEvent(EventChainLightning, Milliseconds(TierDelay(10000, 8000, 6500)));
-        _events.ScheduleEvent(EventMindBlast, Milliseconds(TierDelay(7000, 5500, 4500)));
-        _events.ScheduleEvent(EventPsychicScream, Milliseconds(TierDelay(16000, 13000, 10500)));
-        _events.ScheduleEvent(EventHeal, Milliseconds(TierDelay(9000, 7500, 6000)));
+        _events.ScheduleEvent(EventLightningBolt, Milliseconds(2500));
+        _events.ScheduleEvent(EventChainLightning, Milliseconds(10000));
+        _events.ScheduleEvent(EventMindBlast, Milliseconds(7000));
+        _events.ScheduleEvent(EventPsychicScream, Milliseconds(16000));
+        _events.ScheduleEvent(EventHeal, Milliseconds(9000));
     }
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventLightningBolt, Milliseconds(TierDelay(2500, 2000, 1600)));
-        _events.ScheduleEvent(EventChainLightning, Milliseconds(TierDelay(10000, 8000, 6500)));
-        _events.ScheduleEvent(EventMindBlast, Milliseconds(TierDelay(7000, 5500, 4500)));
-        _events.ScheduleEvent(EventPsychicScream, Milliseconds(TierDelay(16000, 13000, 10500)));
-        _events.ScheduleEvent(EventHeal, Milliseconds(TierDelay(9000, 7500, 6000)));
+        _events.ScheduleEvent(EventLightningBolt, Milliseconds(2500));
+        _events.ScheduleEvent(EventChainLightning, Milliseconds(10000));
+        _events.ScheduleEvent(EventMindBlast, Milliseconds(7000));
+        _events.ScheduleEvent(EventPsychicScream, Milliseconds(16000));
+        _events.ScheduleEvent(EventHeal, Milliseconds(9000));
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -75,20 +78,20 @@ struct npc_rift_chorsh : public RiftSummonAI // 裂隙观察者克鲁什
         {
             case EventLightningBolt:
                 DoCastVictim(SpellLightningBolt);
-                _events.ScheduleEvent(EventLightningBolt, Milliseconds(TierDelay(3000, 2400, 1900)));
+                _events.ScheduleEvent(EventLightningBolt, Milliseconds(3000));
                 break;
             case EventChainLightning:
                 DoCastVictim(SpellChainLightning);
-                _events.ScheduleEvent(EventChainLightning, Milliseconds(TierDelay(12000, 9500, 7500)));
+                _events.ScheduleEvent(EventChainLightning, Milliseconds(12000));
                 break;
             case EventMindBlast:
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
                     DoCast(target, SpellMindBlast);
-                _events.ScheduleEvent(EventMindBlast, Milliseconds(TierDelay(9000, 7000, 5500)));
+                _events.ScheduleEvent(EventMindBlast, Milliseconds(9000));
                 break;
             case EventPsychicScream:
                 DoCast(me, SpellPsychicScream);
-                _events.ScheduleEvent(EventPsychicScream, Milliseconds(TierDelay(18000, 14500, 11500)));
+                _events.ScheduleEvent(EventPsychicScream, Milliseconds(18000));
                 break;
             case EventHeal:
                 if (Unit* target = me)
@@ -100,7 +103,7 @@ struct npc_rift_chorsh : public RiftSummonAI // 裂隙观察者克鲁什
                     if (target->HealthBelowPct(80))
                         DoCast(target, SpellHeal);
                 }
-                _events.ScheduleEvent(EventHeal, Milliseconds(TierDelay(10000, 8000, 6500)));
+                _events.ScheduleEvent(EventHeal, Milliseconds(10000));
                 break;
             default:
                 break;
@@ -117,9 +120,9 @@ struct boss_rift_gordok : public BossAIBase
         me->Yell(GordokAggroText, LANG_UNIVERSAL);
         SummonTieredCreature(RiftEntryChoRush, me->GetRandomNearPosition(4.0f), 0.8f, 0.8f);
 
-        ScheduleTieredEvent(EventMortalStrike, 6000, 4800, 3800);
-        ScheduleTieredEvent(EventSunderArmor, 4000, 3200, 2500);
-        ScheduleTieredEvent(EventWarStomp, 15000, 12000, 9500);
+        events.ScheduleEvent(EventMortalStrike, Milliseconds(6000));
+        events.ScheduleEvent(EventSunderArmor, Milliseconds(4000));
+        events.ScheduleEvent(EventWarStomp, Milliseconds(15000));
         if (_tier >= 2)
             events.ScheduleEvent(EventBerserkerCharge, 8s);
         if (_tier >= 3)
@@ -134,22 +137,23 @@ struct boss_rift_gordok : public BossAIBase
         {
             case EventMortalStrike:
                 CastIfConfigured(me->GetVictim(), SpellMortalStrike);
-                ScheduleTieredEvent(EventMortalStrike, 12000, 9500, 7500);
+                events.ScheduleEvent(EventMortalStrike, Milliseconds(12000));
                 break;
             case EventSunderArmor:
                 CastIfConfigured(me->GetVictim(), SpellSunderArmor);
-                ScheduleTieredEvent(EventSunderArmor, 8000, 6500, 5200);
+                events.ScheduleEvent(EventSunderArmor, Milliseconds(8000));
                 break;
             case EventWarStomp:
                 CastIfConfigured(me, SpellWarStomp);
-                ScheduleTieredEvent(EventWarStomp, 19000, 15500, 12500);
+                events.ScheduleEvent(EventWarStomp, Milliseconds(19000));
                 break;
             case EventBerserkerCharge: // T2新增：冲锋，选随机目标
                 CastIfConfigured(SelectRandomPlayer(), SpellBerserkerCharge, true);
                 events.ScheduleEvent(EventBerserkerCharge, _tier == 3 ? 12s : 15s);
                 break;
             case EventTier3Skill: // T3新增：雷霆一击，瞬发
-                CastIfConfigured(me, SpellThunderclap, true);
+                CastFinalRaidDamageSpell(me, SpellThunderclap, SPELLVALUE_BASE_POINT0,
+                    ThunderclapTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 14s);
                 break;
             default:

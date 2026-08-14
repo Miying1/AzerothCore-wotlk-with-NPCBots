@@ -14,19 +14,19 @@ namespace
 // 玛拉顿 - 瑟莱德丝公主（Princess Theradras）
 enum Events : uint32
 {
-    EventBoulder = 1,      // 投石（T1基础）
-    EventDustField,        // 灰尘力场（T1基础）
+    EventBoulder = 1,      // 投石（原版/T1基础）
+    EventDustField,        // 灰尘力场（原版/T1基础）
     EventRepulsiveGaze,    // 憎恨怒视（T2新增）
     EventTier3Skill        // 击退（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellThrash = 8876,         // 痛击
-    SpellBoulder = 21832,       // 投石
-    SpellDustField = 21909,     // 灰尘力场
-    SpellRepulsiveGaze = 21869, // 憎恨怒视
-    SpellKnockAway = 10101      // 击退
+    SpellThrash = 8876,         // 痛击（原版/T1基础）
+    SpellBoulder = 21832,       // 投石（原版/T1基础）
+    SpellDustField = 21909,     // 灰尘力场（原版/T1基础）
+    SpellRepulsiveGaze = 21869, // 憎恨怒视（T2新增）
+    SpellKnockAway = 10101      // 击退（T3新增）
 };
 }
 
@@ -37,8 +37,8 @@ struct boss_rift_theradras : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         CastIfConfigured(me, SpellThrash, true);
-        ScheduleTieredEvent(EventBoulder, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventDustField, 15000, 12000, 9500);
+        events.ScheduleEvent(EventBoulder, 5000);
+        events.ScheduleEvent(EventDustField, 15000);
         if (_tier >= 2)
             events.ScheduleEvent(EventRepulsiveGaze, 10s);
         if (_tier >= 3)
@@ -53,11 +53,11 @@ struct boss_rift_theradras : public BossAIBase
         {
             case EventBoulder:
                 CastIfConfigured(SelectRandomPlayer(), SpellBoulder);
-                ScheduleTieredEvent(EventBoulder, 17000, 14000, 11000);
+                events.ScheduleEvent(EventBoulder, 17000);
                 break;
             case EventDustField:
                 CastIfConfigured(me, SpellDustField);
-                ScheduleTieredEvent(EventDustField, 30000, 24000, 19000);
+                events.ScheduleEvent(EventDustField, 30000);
                 break;
             case EventRepulsiveGaze: // T2新增：憎恨怒视，瞬发
                 CastIfConfigured(me, SpellRepulsiveGaze, true);

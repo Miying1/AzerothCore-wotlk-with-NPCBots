@@ -15,25 +15,26 @@ namespace HeroicDungeonRift
 {
 namespace
 {
+// 裂隙版以动态召唤的四类石像守卫替代原版阶段中预置并唤醒的场景单位，避免依赖副本原生布置。
 enum BossEvents : uint32
 {
-    EventGroundTremor = 1,
-    EventSupportWave
+    EventGroundTremor = 1, // 大地震颤（原版/T1基础）
+    EventSupportWave       // 塑石者与看守者支援波（全Tier；裂隙版原版阶段替代机制）
 };
 
 enum GuardEvents : uint32
 {
-    EventGuardianWhirlwind = 1,
-    EventWarderTrample,
-    EventHallshaperHeal
+    EventGuardianWhirlwind = 1, // 旋风斩（全Tier裂隙地灵守护者技能）
+    EventWarderTrample,          // 践踏（全Tier裂隙宝库守卫技能）
+    EventHallshaperHeal          // 重铸（全Tier裂隙地灵塑石者技能）
 };
 
 enum Spells : uint32
 {
-    SpellGroundTremor = 6524,
-    SpellGuardianWhirlwind = 17207,
-    SpellWarderTrample = 5568,
-    SpellHallshaperHealVisual = 10260
+    SpellGroundTremor = 6524,          // 大地震颤（原版/T1基础）
+    SpellGuardianWhirlwind = 17207,    // 旋风斩（全Tier裂隙守护者技能）
+    SpellWarderTrample = 5568,         // 践踏（全Tier裂隙宝库守卫技能）
+    SpellHallshaperHealVisual = 10260  // 重铸（全Tier裂隙塑石者治疗视觉）
 };
 
 class EarthenGuardAI : public ScriptedAI
@@ -96,11 +97,6 @@ protected:
     virtual void ScheduleAbilities() { }
     virtual void ExecuteAbility(uint32 /*eventId*/) { }
 
-    uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
-    {
-        return _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
-    }
-
     EventMap _events;
     uint8 _tier = 1;
     uint32 _damagePermille = 1000;
@@ -113,7 +109,7 @@ struct npc_rift_earthen_guardian : public EarthenGuardAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventGuardianWhirlwind, Milliseconds(TierDelay(9000, 7000, 5500)));
+        _events.ScheduleEvent(EventGuardianWhirlwind, 9s);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -122,7 +118,7 @@ struct npc_rift_earthen_guardian : public EarthenGuardAI
             return;
 
         DoCast(me, SpellGuardianWhirlwind);
-        _events.ScheduleEvent(EventGuardianWhirlwind, Milliseconds(TierDelay(13000, 10000, 7500)));
+        _events.ScheduleEvent(EventGuardianWhirlwind, 13s);
     }
 };
 
@@ -132,7 +128,7 @@ struct npc_rift_vault_warder : public EarthenGuardAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventWarderTrample, Milliseconds(TierDelay(8000, 6500, 5000)));
+        _events.ScheduleEvent(EventWarderTrample, 8s);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -141,7 +137,7 @@ struct npc_rift_vault_warder : public EarthenGuardAI
             return;
 
         DoCast(me, SpellWarderTrample);
-        _events.ScheduleEvent(EventWarderTrample, Milliseconds(TierDelay(12000, 9000, 7000)));
+        _events.ScheduleEvent(EventWarderTrample, 12s);
     }
 };
 
@@ -151,7 +147,7 @@ struct npc_rift_earthen_hallshaper : public EarthenGuardAI
 
     void ScheduleAbilities() override
     {
-        _events.ScheduleEvent(EventHallshaperHeal, Milliseconds(TierDelay(9000, 7500, 6000)));
+        _events.ScheduleEvent(EventHallshaperHeal, 9s);
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -177,7 +173,7 @@ struct npc_rift_earthen_hallshaper : public EarthenGuardAI
             }
         }
 
-        _events.ScheduleEvent(EventHallshaperHeal, Milliseconds(TierDelay(12000, 9500, 7500)));
+        _events.ScheduleEvent(EventHallshaperHeal, 12s);
     }
 };
 
@@ -199,12 +195,13 @@ struct boss_rift_archaedas : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventGroundTremor, 11000, 8500, 6500);
-        events.ScheduleEvent(EventSupportWave, _tier == 1 ? 24s : (_tier == 2 ? 19s : 15s));
+        events.ScheduleEvent(EventGroundTremor, 11000);
+        events.ScheduleEvent(EventSupportWave, 24s);
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
     {
+        // 原版阶段守卫改为裂隙专用召唤：70%地灵守护者、40%宝库守卫，不激活预置单位。
         if (!_guardianWaveTriggered && me->HealthBelowPctDamaged(70, damage))
         {
             _guardianWaveTriggered = true;
@@ -231,12 +228,12 @@ struct boss_rift_archaedas : public BossAIBase
         {
             case EventGroundTremor:
                 CastIfConfigured(me, SpellGroundTremor);
-                ScheduleTieredEvent(EventGroundTremor, 14000, 10500, 8000);
+                events.ScheduleEvent(EventGroundTremor, 14000);
                 break;
             case EventSupportWave:
                 SummonGuards(RiftEntryEarthenHallshaper, 1, 0.55f, 0.7f);
                 SummonGuards(RiftEntryEarthenCustodian, _tier == 3 ? 2 : 1, 0.7f, 0.8f);
-                events.ScheduleEvent(EventSupportWave, _tier == 1 ? 30s : (_tier == 2 ? 23s : 18s));
+                events.ScheduleEvent(EventSupportWave, 30s);
                 break;
             default:
                 break;
@@ -244,6 +241,7 @@ struct boss_rift_archaedas : public BossAIBase
     }
 
 private:
+    // 各类守卫T1/T2/T3存活上限：守护者1/2/3、宝库守卫1/1/2、塑石者1/2/3、看守者2/3/4。
     uint32 GetEntryCap(uint32 entry) const
     {
         switch (entry)

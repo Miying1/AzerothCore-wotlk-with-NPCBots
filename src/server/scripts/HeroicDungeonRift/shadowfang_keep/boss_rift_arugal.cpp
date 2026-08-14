@@ -14,27 +14,28 @@ namespace
 // 影牙城堡 - 大法师阿鲁高（Archmage Arugal）
 enum Events : uint32
 {
-    EventVoidBolt = 1,       // 虚空箭（T1基础）
-    EventThundershock,       // 雷霆震荡（T1基础）
-    EventArugalsCurse,       // 阿鲁高的诅咒（T1基础，变羊+魅惑）
-    EventShadowPort,         // 暗影传送（T1基础，随机传送到阳台）
-    EventSummonVoidwalkers,  // 召唤虚空行者（T2新增）
+    EventVoidBolt = 1,       // 虚空箭（原版/T1基础）
+    EventThundershock,       // 雷霆震荡（原版/T1基础）
+    EventArugalsCurse,       // 阿鲁高的诅咒（原版/T1基础，变羊+魅惑）
+    EventShadowPort,         // 暗影传送（原版/T1基础，随机传送到阳台）
+    EventSummonVoidwalkers,  // 召唤4名虚空行者（T2新增；T3提高频率）
     EventTier3Skill          // 暗影箭雨（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellVoidBolt = 7588,         // 虚空箭
-    SpellThundershock = 7803,     // 雷霆震荡
-    SpellArugalsCurse = 7621,     // 阿鲁高的诅咒
-    SpellShadowPort1 = 7136,      // 暗影传送（阳台点1）
-    SpellShadowPort2 = 7586,      // 暗影传送（阳台点2）
-    SpellShadowPort3 = 7587,      // 暗影传送（阳台点3）
-    SpellShadowBoltVolley = 20741 // 暗影箭雨
+    SpellVoidBolt = 7588,         // 虚空箭（原版/T1基础）
+    SpellThundershock = 7803,     // 雷霆震荡（原版/T1基础）
+    SpellArugalsCurse = 7621,     // 阿鲁高的诅咒（原版/T1基础）
+    SpellShadowPort1 = 7136,      // 暗影传送（原版/T1基础，阳台点1）
+    SpellShadowPort2 = 7586,      // 暗影传送（原版/T1基础，阳台点2）
+    SpellShadowPort3 = 7587,      // 暗影传送（原版/T1基础，阳台点3）
+    SpellShadowBoltVolley = 20741 // 暗影箭雨（T3新增）
 };
 
 constexpr uint32 ShadowPortSpells[] = { SpellShadowPort1, SpellShadowPort2, SpellShadowPort3 };
 
+constexpr int32 ShadowBoltVolleyTier1DirectDamage = 4500;
 constexpr uint32 VoidwalkerSummonCount = 4;
 constexpr char const* ArugalAggroText = "你也要服侍我！";
 constexpr char const* ArugalCurseText = "释放你的怒火！";
@@ -49,9 +50,9 @@ struct boss_rift_arugal : public BossAIBase
     {
         me->Yell(ArugalAggroText, LANG_UNIVERSAL);
 
-        ScheduleTieredEvent(EventVoidBolt, 3000, 2400, 1800);
-        ScheduleTieredEvent(EventThundershock, 9000, 7000, 5500);
-        ScheduleTieredEvent(EventArugalsCurse, 13000, 10000, 8000);
+        events.ScheduleEvent(EventVoidBolt, Milliseconds(3000));
+        events.ScheduleEvent(EventThundershock, Milliseconds(9000));
+        events.ScheduleEvent(EventArugalsCurse, Milliseconds(13000));
         events.ScheduleEvent(EventShadowPort, 18s); // 暗影传送：随机传送到阳台
         if (_tier >= 2)
             events.ScheduleEvent(EventSummonVoidwalkers, 15s);
@@ -73,11 +74,11 @@ struct boss_rift_arugal : public BossAIBase
         {
             case EventVoidBolt:
                 CastIfConfigured(me->GetVictim(), SpellVoidBolt);
-                ScheduleTieredEvent(EventVoidBolt, 3200, 2600, 2000);
+                events.ScheduleEvent(EventVoidBolt, Milliseconds(3200));
                 break;
             case EventThundershock:
                 CastIfConfigured(me, SpellThundershock);
-                ScheduleTieredEvent(EventThundershock, 26000, 21000, 17000);
+                events.ScheduleEvent(EventThundershock, Milliseconds(26000));
                 break;
             case EventArugalsCurse:
                 if (Unit* target = SelectRandomPlayer())
@@ -85,7 +86,7 @@ struct boss_rift_arugal : public BossAIBase
                     CastIfConfigured(target, SpellArugalsCurse);
                     me->Yell(ArugalCurseText, LANG_UNIVERSAL, target);
                 }
-                ScheduleTieredEvent(EventArugalsCurse, 26000, 21000, 17000);
+                events.ScheduleEvent(EventArugalsCurse, Milliseconds(26000));
                 break;
             case EventShadowPort: // 暗影传送：随机传送到阳台3点之一
                 me->CastSpell(me, ShadowPortSpells[urand(0, 2)], true);
@@ -96,7 +97,8 @@ struct boss_rift_arugal : public BossAIBase
                 events.ScheduleEvent(EventSummonVoidwalkers, _tier == 3 ? 30s : 45s);
                 break;
             case EventTier3Skill: // T3新增：暗影箭雨，瞬发
-                CastIfConfigured(me, SpellShadowBoltVolley, true);
+                CastFinalRaidDamageSpell(me, SpellShadowBoltVolley, SPELLVALUE_BASE_POINT0,
+                    ShadowBoltVolleyTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;
             default:

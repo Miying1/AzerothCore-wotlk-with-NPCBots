@@ -30,7 +30,7 @@ void ConfigStore::Load()
     _entryToBoss.clear();
 
     QueryResult bossResult = WorldDatabase.Query(
-        "SELECT boss_id, map_name, map_id, player_entry_x, player_entry_y, player_entry_z, "
+        "SELECT boss_id, map_name, map_id, dungeon_version, player_entry_x, player_entry_y, player_entry_z, "
         "player_entry_o, enabled, remark FROM heroic_dungeon_rift_boss");
 
     if (!bossResult)
@@ -46,13 +46,39 @@ void ConfigStore::Load()
         config.BossId = fields[0].Get<uint32>();
         config.MapName = fields[1].Get<std::string>();
         config.MapId = fields[2].Get<uint16>();
-        config.DefaultPlayerEntry.Relocate(fields[3].Get<float>(), fields[4].Get<float>(), fields[5].Get<float>(), fields[6].Get<float>());
-        config.Enabled = fields[7].Get<uint8>() != 0;
-        config.Remark = fields[8].IsNull() ? std::string() : fields[8].Get<std::string>();
+        config.DungeonVersion = fields[3].Get<uint8>();
 
-        if (!config.BossId || !config.MapId || !MapMgr::IsValidMapCoord(config.MapId, config.DefaultPlayerEntry))
+        bool const entryXNull = fields[4].IsNull();
+        bool const entryYNull = fields[5].IsNull();
+        bool const entryZNull = fields[6].IsNull();
+        bool const entryONull = fields[7].IsNull();
+        bool const allEntryNull = entryXNull && entryYNull && entryZNull && entryONull;
+        bool const anyEntryNull = entryXNull || entryYNull || entryZNull || entryONull;
+        if (anyEntryNull && !allEntryNull)
         {
-            LOG_ERROR("sql.sql", "Five-player heroic rift boss {} has invalid map or player entry coordinates and was ignored.", config.BossId);
+            LOG_ERROR("sql.sql", "Five-player heroic rift boss {} has partially empty player entry coordinates and was ignored.",
+                config.BossId);
+            continue;
+        }
+
+        config.HasDefaultPlayerEntry = !allEntryNull;
+        if (config.HasDefaultPlayerEntry)
+            config.DefaultPlayerEntry.Relocate(fields[4].Get<float>(), fields[5].Get<float>(), fields[6].Get<float>(), fields[7].Get<float>());
+
+        config.Enabled = fields[8].Get<uint8>() != 0;
+        config.Remark = fields[9].IsNull() ? std::string() : fields[9].Get<std::string>();
+
+        if (!config.BossId || !config.MapId || (config.DungeonVersion != 60 && config.DungeonVersion != 70))
+        {
+            LOG_ERROR("sql.sql", "Five-player heroic rift boss {} has invalid keys, map, or dungeon version {} and was ignored.",
+                config.BossId, config.DungeonVersion);
+            continue;
+        }
+
+        if (config.HasDefaultPlayerEntry && !MapMgr::IsValidMapCoord(config.MapId, config.DefaultPlayerEntry))
+        {
+            LOG_ERROR("sql.sql", "Five-player heroic rift boss {} has invalid default player entry coordinates and was ignored.",
+                config.BossId);
             continue;
         }
 
@@ -81,13 +107,17 @@ void ConfigStore::Load()
         config.Tier = fields[6].Get<uint8>();
         config.HealthMultiplier = fields[7].Get<float>();
         config.DamageMultiplier = fields[8].Get<float>();
-        config.PlayerEntry.Relocate(fields[9].Get<float>(), fields[10].Get<float>(), fields[11].Get<float>(), fields[12].Get<float>());
+
+        bool const playerEntryComplete = !fields[9].IsNull() && !fields[10].IsNull() &&
+            !fields[11].IsNull() && !fields[12].IsNull();
+        if (playerEntryComplete)
+            config.PlayerEntry.Relocate(fields[9].Get<float>(), fields[10].Get<float>(), fields[11].Get<float>(), fields[12].Get<float>());
 
         BossConfig const* boss = GetBoss(config.BossId);
-        if (!boss || !boss->Enabled || config.Tier < 1 || config.Tier > MaxTier || !config.EntryId ||
+        if (!boss || !boss->Enabled || !playerEntryComplete || config.Tier < 1 || config.Tier > MaxTier || !config.EntryId ||
             config.HealthMultiplier <= 0.0f || config.DamageMultiplier <= 0.0f)
         {
-            LOG_ERROR("sql.sql", "Five-player heroic rift tier boss_id {}, tier {} has invalid keys or multipliers and was ignored.", config.BossId, config.Tier);
+            LOG_ERROR("sql.sql", "Five-player heroic rift tier boss_id {}, tier {} has invalid keys, player entry, or multipliers and was ignored.", config.BossId, config.Tier);
             continue;
         }
 

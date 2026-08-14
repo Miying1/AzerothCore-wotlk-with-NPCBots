@@ -14,23 +14,25 @@ namespace
 // 厄运之槌东区 - 奥兹恩（Alzzin the Wildshaper）
 enum Events : uint32
 {
-    EventThorns = 1,  // 荆棘术（T1基础）
-    EventEnervate,    // 弱化（T1基础）
-    EventWither,      // 寒冬（T1基础）
-    EventMangle,      // 裂伤（T2新增）
-    EventViciousBite, // 恶毒之咬（T3新增）
-    EventDisarm       // 缴械（T3新增）
+    EventThorns = 1,  // 荆棘术（Spell 22128，T1原版）
+    EventEnervate,    // 弱化（Spell 22661，T1原版）
+    EventWither,      // 寒冬（Spell 22662，T1原版）
+    EventMangle,      // 裂伤（Spell 22689，T2新增）
+    EventViciousBite, // 恶毒之咬（Spell 19319，T3新增）
+    EventDisarm       // 缴械（Spell 22691，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellThorns = 22128,       // 荆棘术
-    SpellEnervate = 22661,     // 弱化
-    SpellWither = 22662,       // 寒冬
-    SpellMangle = 22689,       // 裂伤
-    SpellViciousBite = 19319,  // 恶毒之咬
-    SpellDisarm = 22691        // 缴械
+    SpellThorns = 22128,       // 荆棘术（T1原版）
+    SpellEnervate = 22661,     // 弱化（T1原版）
+    SpellWither = 22662,       // 寒冬（T1原版）
+    SpellMangle = 22689,       // 裂伤（T2新增，混合BP：仅覆写BP1周期伤害）
+    SpellViciousBite = 19319,  // 恶毒之咬（T3新增）
+    SpellDisarm = 22691        // 缴械（T3新增）
 };
+
+constexpr int32 MangleTier1DamagePerTick = 1800;
 }
 
 struct boss_rift_alzzin : public BossAIBase
@@ -39,9 +41,9 @@ struct boss_rift_alzzin : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventThorns, 8000, 6500, 5200);
-        ScheduleTieredEvent(EventEnervate, 12000, 9500, 7500);
-        ScheduleTieredEvent(EventWither, 10000, 8000, 6500);
+        events.ScheduleEvent(EventThorns, Milliseconds(8000));
+        events.ScheduleEvent(EventEnervate, Milliseconds(12000));
+        events.ScheduleEvent(EventWither, Milliseconds(10000));
         if (_tier >= 2)
             events.ScheduleEvent(EventMangle, 7s);
         if (_tier >= 3)
@@ -51,8 +53,9 @@ struct boss_rift_alzzin : public BossAIBase
         }
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*type*/, SpellSchoolMask /*school*/) override
     {
+        // 50%生命值阶段：仅触发一次，按Tier在Boss附近直接召唤2/3/4只小怪，无独立施法ID。
         if (_minionsSummoned || !me->HealthBelowPctDamaged(50, damage))
             return;
 
@@ -69,18 +72,19 @@ struct boss_rift_alzzin : public BossAIBase
         {
             case EventThorns:
                 CastIfConfigured(me, SpellThorns);
-                ScheduleTieredEvent(EventThorns, 40000, 32000, 26000);
+                events.ScheduleEvent(EventThorns, Milliseconds(40000));
                 break;
             case EventEnervate:
                 CastIfConfigured(SelectRandomPlayer(), SpellEnervate);
-                ScheduleTieredEvent(EventEnervate, 16000, 13000, 10500);
+                events.ScheduleEvent(EventEnervate, Milliseconds(16000));
                 break;
             case EventWither:
                 CastIfConfigured(SelectRandomPlayer(), SpellWither);
-                ScheduleTieredEvent(EventWither, 14000, 11000, 9000);
+                events.ScheduleEvent(EventWither, Milliseconds(14000));
                 break;
-            case EventMangle: // T2新增：裂伤，瞬发
-                CastIfConfigured(me->GetVictim(), SpellMangle, true);
+            case EventMangle: // T2新增：裂伤，瞬发；混合BP仅覆写BP1周期伤害
+                CastFinalRaidDamageSpell(me->GetVictim(), SpellMangle, SPELLVALUE_BASE_POINT1,
+                    MangleTier1DamagePerTick, true);
                 events.ScheduleEvent(EventMangle, _tier == 3 ? 10s : 12s);
                 break;
             case EventViciousBite: // T3新增：恶毒之咬，瞬发

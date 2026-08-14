@@ -14,22 +14,24 @@ namespace
 // 厄运之槌北区 - 卫兵摩尔达（Guard Mol'dar）
 enum Events : uint32
 {
-    EventStrike = 1,     // 打击（T1基础）
-    EventShieldSlam,     // 盾牌猛击（T1基础）
-    EventCleave,         // 顺劈斩（T1基础）
-    EventShieldCharge,   // 盾牌冲锋（T2新增）
-    EventShieldBash      // 盾击（T3新增）
+    EventStrike = 1,     // 打击（Spell 15580，T1原版）
+    EventShieldSlam,     // 盾牌猛击（Spell 15655，T1原版）
+    EventCleave,         // 顺劈斩（Spell 20691，T1原版）
+    EventShieldCharge,   // 盾牌冲锋（Spell 15749，T2新增）
+    EventShieldBash      // 盾击（Spell 11972，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellStrike = 15580,      // 打击
-    SpellShieldSlam = 15655,  // 盾牌猛击
-    SpellCleave = 20691,      // 顺劈斩
-    SpellShieldCharge = 15749,// 盾牌冲锋
-    SpellShieldBash = 11972,  // 盾击
-    SpellFrenzy = 8269        // 狂乱
+    SpellStrike = 15580,      // 打击（T1原版）
+    SpellShieldSlam = 15655,  // 盾牌猛击（T1原版）
+    SpellCleave = 20691,       // 顺劈斩（T1原版）
+    SpellShieldCharge = 15749, // 盾牌冲锋（T2新增）
+    SpellShieldBash = 11972,  // 盾击（T3新增，混合BP：BP0打断、仅覆写BP1伤害）
+    SpellFrenzy = 8269        // 狂乱（原版50%生命值阶段）
 };
+
+constexpr int32 ShieldBashTier1DirectDamage = 3500;
 }
 
 struct boss_rift_moldar : public BossAIBase
@@ -38,16 +40,17 @@ struct boss_rift_moldar : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventStrike, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventShieldSlam, 9000, 7000, 5500);
-        ScheduleTieredEvent(EventCleave, 12000, 9500, 7500);
+        events.ScheduleEvent(EventStrike, Milliseconds(5000));
+        events.ScheduleEvent(EventShieldSlam, Milliseconds(9000));
+        events.ScheduleEvent(EventCleave, Milliseconds(12000));
         if (_tier >= 2)
             events.ScheduleEvent(EventShieldCharge, 8s);
         if (_tier >= 3)
             events.ScheduleEvent(EventShieldBash, 11s);
     }
 
-    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/,
+        SpellSchoolMask /*damageSchoolMask*/) override
     {
         if (_frenzied || !me->HealthBelowPctDamaged(50, damage))
             return;
@@ -64,22 +67,23 @@ struct boss_rift_moldar : public BossAIBase
         {
             case EventStrike:
                 CastIfConfigured(me->GetVictim(), SpellStrike);
-                ScheduleTieredEvent(EventStrike, 7000, 5500, 4500);
+                events.ScheduleEvent(EventStrike, Milliseconds(7000));
                 break;
             case EventShieldSlam:
                 CastIfConfigured(me->GetVictim(), SpellShieldSlam);
-                ScheduleTieredEvent(EventShieldSlam, 11000, 9000, 7200);
+                events.ScheduleEvent(EventShieldSlam, Milliseconds(11000));
                 break;
             case EventCleave:
                 CastIfConfigured(me->GetVictim(), SpellCleave);
-                ScheduleTieredEvent(EventCleave, 10000, 8000, 6500);
+                events.ScheduleEvent(EventCleave, Milliseconds(10000));
                 break;
             case EventShieldCharge: // T2新增：盾牌冲锋，选随机目标
                 CastIfConfigured(SelectRandomPlayer(), SpellShieldCharge, true);
                 events.ScheduleEvent(EventShieldCharge, _tier == 3 ? 12s : 15s);
                 break;
-            case EventShieldBash: // T3新增：盾击，冲锋带打断，优先打断正在读条的目标
-                CastIfConfigured(SelectCastingPlayer(), SpellShieldBash, true);
+            case EventShieldBash: // T3新增：混合BP，保留BP0打断、仅覆写BP1伤害；优先读条目标
+                CastFinalRaidDamageSpell(SelectCastingPlayer(), SpellShieldBash, SPELLVALUE_BASE_POINT1,
+                    ShieldBashTier1DirectDamage, true);
                 events.ScheduleEvent(EventShieldBash, 12s);
                 break;
             default:

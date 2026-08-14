@@ -16,6 +16,7 @@
 #include "ThreatManager.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -30,6 +31,8 @@ public:
     {
         DespawnRiftSummons();
         events.Reset();
+        me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
+        _interruptImmuneSpells.clear();
         _raidSpellDamageMultiplier = 1.0f;
         _tier = GetTierForCreature(me);
         _tierConfig = GetTierConfigForCreature(me);
@@ -59,8 +62,12 @@ public:
 
     void OnSpellCast(SpellInfo const* spell) override
     {
-        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
-            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
+        RemoveInterruptImmunity(spell);
+    }
+
+    void OnSpellFailed(SpellInfo const* spell) override
+    {
+        RemoveInterruptImmunity(spell);
     }
 
     void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
@@ -117,6 +124,31 @@ protected:
         if (!target || !spellId || basePoint0 <= 0)
             return false;
         me->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, basePoint0, target, triggered);
+        return true;
+    }
+
+    // T2/T3新增技能按Spell_dbc的具体效果单独给出T1基准伤害。
+    // 这里只反算Boss原版法术倍率；运行时Tier倍率继续由DamageDealt统一应用。
+    bool CastFinalRaidDamageSpell(Unit* target, uint32 spellId, SpellValueMod damageEffect,
+        int32 tier1BaseDamage, bool triggered = false)
+    {
+        if (!target || !spellId || tier1BaseDamage <= 0)
+            return false;
+
+        me->CastCustomSpell(spellId, damageEffect, GetUnscaledRaidDamage(tier1BaseDamage), target, triggered);
+        return true;
+    }
+
+    bool CastFinalRaidDamageSpell(Unit* target, uint32 spellId, int32 tier1BaseDamage0,
+        int32 tier1BaseDamage1, bool triggered = false)
+    {
+        if (!target || !spellId || tier1BaseDamage0 <= 0 || tier1BaseDamage1 <= 0)
+            return false;
+
+        CustomSpellValues values;
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0, GetUnscaledRaidDamage(tier1BaseDamage0));
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1, GetUnscaledRaidDamage(tier1BaseDamage1));
+        me->CastCustomSpell(spellId, values, target, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
         return true;
     }
 
@@ -199,10 +231,22 @@ protected:
         _raidSpellDamageMultiplier = std::max(1.0f, multiplier);
     }
 
+    int32 GetUnscaledRaidDamage(int32 tier1BaseDamage) const
+    {
+        return std::max<int32>(1, int32(std::lround(
+            double(tier1BaseDamage) / std::max(1.0f, _raidSpellDamageMultiplier))));
+    }
+
     void AddInterruptImmuneSpell(uint32 spellId)
     {
         if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())
             _interruptImmuneSpells.push_back(spellId);
+    }
+
+    void RemoveInterruptImmunity(SpellInfo const* spell)
+    {
+        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
+            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
     }
 
     uint32 _baseHealth = 1;
@@ -216,8 +260,8 @@ protected:
 
 // Shared AI base for rift-summoned creatures (companions and adds). It mirrors the
 // scaling contract used by BossAIBase::ApplySummonTierStats: melee weapon damage is
-// already rescaled on the instance attributes, spell damage is rescaled here through
-// RiftDataDamagePermille, and the tier is used to shorten ability cooldowns.
+// already rescaled on the instance attributes, while spell damage applies the value
+// received through RiftDataDamagePermille on top of a content-specific base factor.
 class RiftSummonAI : public ScriptedAI
 {
 public:
@@ -226,7 +270,7 @@ public:
     void Reset() override
     {
         _tier = 1;
-        _spellDamagePermille = 15000;
+        _spellDamagePermille = 1000 * GetSpellDamageBaseFactor();
         _events.Reset();
         ScheduleAbilities();
     }
@@ -247,7 +291,7 @@ public:
             ScheduleAbilities();
         }
         else if (type == RiftDataDamagePermille)
-            _spellDamagePermille = std::max<uint32>(1, data) * 15;
+            _spellDamagePermille = std::max<uint32>(1, data) * GetSpellDamageBaseFactor();
     }
 
     void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
@@ -277,6 +321,7 @@ public:
 protected:
     virtual void ScheduleAbilities() { }
     virtual void ExecuteAbility(uint32 /*eventId*/) { }
+    virtual uint32 GetSpellDamageBaseFactor() const { return 15; }
 
     uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
     {
@@ -286,6 +331,18 @@ protected:
     EventMap _events;
     uint8 _tier = 1;
     uint32 _spellDamagePermille = 15000;
+};
+
+// Level-70 dungeon spells already carry TBC heroic damage values. They must only
+// receive the configured tier/damage coefficient, without the classic-content 15x
+// base correction retained by RiftSummonAI for the existing level-60 encounters.
+class RiftLevel70SummonAI : public RiftSummonAI
+{
+public:
+    explicit RiftLevel70SummonAI(Creature* creature) : RiftSummonAI(creature) { }
+
+protected:
+    uint32 GetSpellDamageBaseFactor() const override { return 1; }
 };
 
 } // namespace HeroicDungeonRift

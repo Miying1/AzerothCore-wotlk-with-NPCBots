@@ -126,6 +126,50 @@ uint32 GetSourceEntry(uint32 bossId)
             return SourceEntryAnastari;
         case BossIdRivendare:
             return SourceEntryRivendare;
+        case BossIdNetherkurse:
+            return SourceEntryNetherkurse;
+        case BossIdKargath:
+            return SourceEntryKargath;
+        case BossIdBroggok:
+            return SourceEntryBroggok;
+        case BossIdKelidan:
+            return SourceEntryKelidan;
+        case BossIdOmor:
+            return SourceEntryOmor;
+        case BossIdKalithresh:
+            return SourceEntryKalithresh;
+        case BossIdMuselEk:
+            return SourceEntryMuselEk;
+        case BossIdBlackStalker:
+            return SourceEntryBlackStalker;
+        case BossIdMennu:
+            return SourceEntryMennu;
+        case BossIdQuagmirran:
+            return SourceEntryQuagmirran;
+        case BossIdDalliah:
+            return SourceEntryDalliah;
+        case BossIdSoccothrates:
+            return SourceEntrySoccothrates;
+        case BossIdLaj:
+            return SourceEntryLaj;
+        case BossIdWarpSplinter:
+            return SourceEntryWarpSplinter;
+        case BossIdPathaleon:
+            return SourceEntryPathaleon;
+        case BossIdMurmur:
+            return SourceEntryMurmur;
+        case BossIdIkiss:
+            return SourceEntryIkiss;
+        case BossIdShaffar:
+            return SourceEntryShaffar;
+        case BossIdShirrak:
+            return SourceEntryShirrak;
+        case BossIdMaladaar:
+            return SourceEntryMaladaar;
+        case BossIdKaelthas:
+            return SourceEntryKaelthas;
+        case BossIdVazruden:
+            return SourceEntryVazruden;
         default:
             return 0;
     }

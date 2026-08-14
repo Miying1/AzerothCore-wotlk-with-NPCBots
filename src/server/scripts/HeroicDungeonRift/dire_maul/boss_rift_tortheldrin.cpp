@@ -14,21 +14,23 @@ namespace
 // 厄运之槌西区 - 托塞德林王子（Prince Tortheldrin）
 enum Events : uint32
 {
-    EventArcaneBlast = 1, // 奥术冲击（T1基础）
-    EventWhirlwind,       // 旋风斩（T1基础）
-    EventCounterspell,    // 法术反制（T2新增）
-    EventTier3Skill       // 冰霜新星（T3新增）
+    EventArcaneBlast = 1, // 奥术冲击（Spell 22920，T1原版）
+    EventWhirlwind,       // 旋风斩（Spell 13736，T1原版）
+    EventCounterspell,    // 法术反制（Spell 20537，T2新增）
+    EventTier3Skill       // 冰霜新星（Spell 12674，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellDualWield = 674,       // 双武器
-    SpellThrash = 3417,         // 痛击
-    SpellArcaneBlast = 22920,   // 奥术冲击
-    SpellWhirlwind = 13736,     // 旋风斩
-    SpellCounterspell = 20537,  // 法术反制
-    SpellFrostNova = 12674      // 冰霜新星
+    SpellDualWield = 674,       // 双武器（T1原版，开战自施）
+    SpellThrash = 3417,         // 痛击（T1原版，开战自施）
+    SpellArcaneBlast = 22920,   // 奥术冲击（T1原版）
+    SpellWhirlwind = 13736,     // 旋风斩（T1原版）
+    SpellCounterspell = 20537,  // 法术反制（T2新增）
+    SpellFrostNova = 12674      // 冰霜新星（T3新增，覆写BP0直接伤害）
 };
+
+constexpr int32 FrostNovaTier1DirectDamage = 3500;
 }
 
 struct boss_rift_tortheldrin : public BossAIBase
@@ -40,8 +42,8 @@ struct boss_rift_tortheldrin : public BossAIBase
         CastIfConfigured(me, SpellDualWield, true);
         CastIfConfigured(me, SpellThrash, true);
 
-        ScheduleTieredEvent(EventArcaneBlast, 6000, 4800, 3800);
-        ScheduleTieredEvent(EventWhirlwind, 11000, 9000, 7200);
+        events.ScheduleEvent(EventArcaneBlast, Milliseconds(6000));
+        events.ScheduleEvent(EventWhirlwind, Milliseconds(11000));
         if (_tier >= 2)
             events.ScheduleEvent(EventCounterspell, 10s);
         if (_tier >= 3)
@@ -56,18 +58,19 @@ struct boss_rift_tortheldrin : public BossAIBase
         {
             case EventArcaneBlast:
                 CastIfConfigured(me->GetVictim(), SpellArcaneBlast);
-                ScheduleTieredEvent(EventArcaneBlast, 13000, 10500, 8500);
+                events.ScheduleEvent(EventArcaneBlast, Milliseconds(13000));
                 break;
             case EventWhirlwind:
                 CastIfConfigured(me, SpellWhirlwind);
-                ScheduleTieredEvent(EventWhirlwind, 13000, 10500, 8500);
+                events.ScheduleEvent(EventWhirlwind, Milliseconds(13000));
                 break;
             case EventCounterspell: // T2新增：法术反制，冲锋带打断，优先打断正在读条的目标
                 CastIfConfigured(SelectCastingPlayer(), SpellCounterspell, true);
                 events.ScheduleEvent(EventCounterspell, _tier == 3 ? 10s : 12s);
                 break;
             case EventTier3Skill: // T3新增：冰霜新星，瞬发
-                CastIfConfigured(me, SpellFrostNova, true);
+                CastFinalRaidDamageSpell(me, SpellFrostNova, SPELLVALUE_BASE_POINT0,
+                    FrostNovaTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 18s);
                 break;
             default:

@@ -13,18 +13,18 @@ namespace
 {
 enum Events : uint32
 {
-    EventChainBolt = 1,
-    EventPurity,
-    EventRenew,
-    EventManaSpike
+    EventChainBolt = 1, // 连锁闪电（原版/T1基础）
+    EventPurity,        // 净化术（原版/T1基础）
+    EventRenew,         // 恢复（原版/T1基础；生命值低于85%时施放）
+    EventManaSpike      // 法力尖刺（原版/T1基础；法力值不高于20%时施放）
 };
 
 enum Spells : uint32
 {
-    SpellChainBolt = 8292,
-    SpellPurity = 8361,
-    SpellRenew = 6077,
-    SpellManaSpike = 8358
+    SpellChainBolt = 8292, // 连锁闪电（原版/T1基础）
+    SpellPurity = 8361,    // 净化术（原版/T1基础）
+    SpellRenew = 6077,     // 恢复（原版/T1基础）
+    SpellManaSpike = 8358  // 法力尖刺（原版/T1基础）
 };
 }
 
@@ -34,9 +34,9 @@ struct boss_rift_charlga : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventChainBolt, 3000, 2200, 1600);
-        ScheduleTieredEvent(EventPurity, 10000, 8000, 6500);
-        ScheduleTieredEvent(EventRenew, 12000, 9500, 7500);
+        events.ScheduleEvent(EventChainBolt, Milliseconds(3000));
+        events.ScheduleEvent(EventPurity, Milliseconds(10000));
+        events.ScheduleEvent(EventRenew, Milliseconds(12000));
         events.ScheduleEvent(EventManaSpike, 18s);
     }
 
@@ -48,16 +48,16 @@ struct boss_rift_charlga : public BossAIBase
         {
             case EventChainBolt:
                 CastIfConfigured(me->GetVictim(), SpellChainBolt);
-                ScheduleTieredEvent(EventChainBolt, 6500, 5000, 3800);
+                events.ScheduleEvent(EventChainBolt, Milliseconds(6500));
                 break;
             case EventPurity:
                 CastIfConfigured(me, SpellPurity);
-                ScheduleTieredEvent(EventPurity, 18000, 14500, 11500);
+                events.ScheduleEvent(EventPurity, Milliseconds(18000));
                 break;
             case EventRenew:
                 if (me->HealthBelowPct(85))
                     CastIfConfigured(me, SpellRenew);
-                ScheduleTieredEvent(EventRenew, 18000, 14500, 11500);
+                events.ScheduleEvent(EventRenew, Milliseconds(18000));
                 break;
             case EventManaSpike:
                 if (me->GetPowerPct(POWER_MANA) <= 20.0f)

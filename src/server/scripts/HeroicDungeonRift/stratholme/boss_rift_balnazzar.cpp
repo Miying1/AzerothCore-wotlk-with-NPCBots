@@ -12,23 +12,26 @@ namespace HeroicDungeonRift
 namespace
 {
 // 斯坦索姆 - 巴纳扎尔（Balnazzar）
+// 原版先以达索汉形态作战，40%生命值进入巴纳扎尔阶段；裂隙脚本直接使用巴纳扎尔形态。
 enum Events : uint32
 {
-    EventMindBlast = 1,    // 心灵震爆（T1基础）
-    EventShadowShock,      // 暗影震击（T1基础）
-    EventSleep,            // 催眠术（T1基础）
-    EventPsychicScream,    // 心灵尖啸（T2新增）
-    EventTier3Skill        // 暗影箭雨（T3新增）
+    EventMindBlast = 1,    // 心灵震爆（Spell 17287，T1原版）
+    EventShadowShock,      // 暗影震击（Spell 17399，T1原版）
+    EventSleep,            // 催眠术（Spell 12098，T1原版）
+    EventPsychicScream,    // 心灵尖啸（Spell 13704，T2新增）
+    EventTier3Skill        // 暗影箭雨（Spell 20741，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellMindBlast = 17287,       // 心灵震爆
-    SpellShadowShock = 17399,     // 暗影震击
-    SpellSleep = 12098,           // 催眠术
-    SpellPsychicScream = 13704,   // 心灵尖啸
-    SpellShadowBoltVolley = 20741 // 暗影箭雨
+    SpellMindBlast = 17287,       // 心灵震爆（T1原版）
+    SpellShadowShock = 17399,     // 暗影震击（T1原版）
+    SpellSleep = 12098,           // 催眠术（T1原版）
+    SpellPsychicScream = 13704,   // 心灵尖啸（T2新增）
+    SpellShadowBoltVolley = 20741 // 暗影箭雨（T3新增，覆写BP0直接伤害）
 };
+
+constexpr int32 ShadowBoltVolleyTier1DirectDamage = 4500;
 
 constexpr char const* BalnazzarAggroText = "你们这些蠢货以为能这么轻易打败我？见识一下纳斯雷兹姆真正的力量吧！";
 constexpr char const* BalnazzarDeathText = "该死的凡人！我所有的复仇计划，所有的仇恨……我会复仇的……";
@@ -45,9 +48,9 @@ struct boss_rift_balnazzar : public BossAIBase
         me->Yell(BalnazzarAggroText, LANG_UNIVERSAL);
         me->PlayDirectSound(BalnazzarAggroSound);
 
-        ScheduleTieredEvent(EventMindBlast, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventShadowShock, 8000, 6500, 5200);
-        ScheduleTieredEvent(EventSleep, 12000, 9500, 7500);
+        events.ScheduleEvent(EventMindBlast, Milliseconds(5000));
+        events.ScheduleEvent(EventShadowShock, Milliseconds(8000));
+        events.ScheduleEvent(EventSleep, Milliseconds(12000));
         if (_tier >= 2)
             events.ScheduleEvent(EventPsychicScream, 16s);
         if (_tier >= 3)
@@ -69,22 +72,23 @@ struct boss_rift_balnazzar : public BossAIBase
         {
             case EventMindBlast:
                 CastIfConfigured(me->GetVictim(), SpellMindBlast);
-                ScheduleTieredEvent(EventMindBlast, 6000, 4800, 3800);
+                events.ScheduleEvent(EventMindBlast, Milliseconds(6000));
                 break;
             case EventShadowShock:
                 CastIfConfigured(me->GetVictim(), SpellShadowShock);
-                ScheduleTieredEvent(EventShadowShock, 9000, 7000, 5500);
+                events.ScheduleEvent(EventShadowShock, Milliseconds(9000));
                 break;
             case EventSleep:
                 CastIfConfigured(SelectRandomPlayer(), SpellSleep);
-                ScheduleTieredEvent(EventSleep, 15000, 12000, 9500);
+                events.ScheduleEvent(EventSleep, Milliseconds(15000));
                 break;
             case EventPsychicScream: // T2新增：心灵尖啸，瞬发
                 CastIfConfigured(me, SpellPsychicScream, true);
                 events.ScheduleEvent(EventPsychicScream, _tier == 3 ? 18s : 22s);
                 break;
             case EventTier3Skill: // T3新增：暗影箭雨，瞬发
-                CastIfConfigured(me, SpellShadowBoltVolley, true);
+                CastFinalRaidDamageSpell(me, SpellShadowBoltVolley, SPELLVALUE_BASE_POINT0,
+                    ShadowBoltVolleyTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 24s);
                 break;
             default:

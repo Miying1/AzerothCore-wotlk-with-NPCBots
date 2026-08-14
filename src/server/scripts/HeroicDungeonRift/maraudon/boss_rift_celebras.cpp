@@ -14,19 +14,21 @@ namespace
 // 玛拉顿 - 被诅咒的塞雷布拉斯（Celebras the Cursed）
 enum Events : uint32
 {
-    EventWrath = 1,            // 愤怒（T1基础）
-    EventEntanglingRoots,      // 纠缠根须（T1基础）
+    EventWrath = 1,            // 愤怒（原版/T1基础）
+    EventEntanglingRoots,      // 纠缠根须（原版/T1基础）
     EventTwistedTranquility,   // 扭曲宁静（T2新增）
     EventTier3Skill            // 堕落自然之力（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellWrath = 21807,             // 愤怒
-    SpellEntanglingRoots = 12747,   // 纠缠根须
-    SpellTwistedTranquility = 21793,// 扭曲宁静
-    SpellCorruptForcesOfNature = 21968 // 堕落自然之力
+    SpellWrath = 21807,                 // 愤怒（原版/T1基础）
+    SpellEntanglingRoots = 12747,       // 纠缠根须（原版/T1基础）
+    SpellTwistedTranquility = 21793,    // 扭曲宁静（T2新增，混合BP）
+    SpellCorruptForcesOfNature = 21968  // 堕落自然之力（T3新增）
 };
+
+constexpr int32 TwistedTranquilityTier1DamagePerTick = 1800;
 }
 
 struct boss_rift_celebras : public BossAIBase
@@ -35,8 +37,8 @@ struct boss_rift_celebras : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventWrath, 2500, 2000, 1600);
-        ScheduleTieredEvent(EventEntanglingRoots, 8000, 6500, 5200);
+        events.ScheduleEvent(EventWrath, 2500);
+        events.ScheduleEvent(EventEntanglingRoots, 8000);
         if (_tier >= 2)
             events.ScheduleEvent(EventTwistedTranquility, 12s);
         if (_tier >= 3)
@@ -51,14 +53,15 @@ struct boss_rift_celebras : public BossAIBase
         {
             case EventWrath:
                 CastIfConfigured(me->GetVictim(), SpellWrath);
-                ScheduleTieredEvent(EventWrath, 2800, 2200, 1800);
+                events.ScheduleEvent(EventWrath, 2800);
                 break;
             case EventEntanglingRoots:
                 CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
-                ScheduleTieredEvent(EventEntanglingRoots, 15000, 12000, 9500);
+                events.ScheduleEvent(EventEntanglingRoots, 15000);
                 break;
-            case EventTwistedTranquility: // T2新增：扭曲宁静，瞬发
-                CastIfConfigured(me, SpellTwistedTranquility, true);
+            case EventTwistedTranquility: // T2新增：混合BP；仅覆盖BP0周期伤害，BP1/BP2保留减速
+                CastFinalRaidDamageSpell(me, SpellTwistedTranquility, SPELLVALUE_BASE_POINT0,
+                    TwistedTranquilityTier1DamagePerTick, true);
                 events.ScheduleEvent(EventTwistedTranquility, _tier == 3 ? 30s : 38s);
                 break;
             case EventTier3Skill: // T3新增：堕落自然之力，瞬发

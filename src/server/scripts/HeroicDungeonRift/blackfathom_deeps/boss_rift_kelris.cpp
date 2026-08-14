@@ -13,15 +13,15 @@ namespace
 {
 enum Events : uint32
 {
-    EventSleep = 1,
-    EventMindBlast
+    EventSleep = 1, // 催眠术（原版/T1基础）
+    EventMindBlast  // 心灵震爆（原版/T1基础）
 };
 
 enum Spells : uint32
 {
-    SpellResetVisual = 8734,
-    SpellSleep = 8399,
-    SpellMindBlast = 15587
+    SpellResetVisual = 8734, // 黑暗深渊引导（原版/T1基础；重置视觉）
+    SpellSleep = 8399,       // 催眠术（原版/T1基础）
+    SpellMindBlast = 15587   // 心灵震爆（原版/T1基础）
 };
 }
 
@@ -38,8 +38,8 @@ struct boss_rift_kelris : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventSleep, 12000, 9000, 7000);
-        ScheduleTieredEvent(EventMindBlast, 7000, 5500, 4000);
+        events.ScheduleEvent(EventSleep, Milliseconds(12000));
+        events.ScheduleEvent(EventMindBlast, Milliseconds(7000));
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -55,11 +55,11 @@ struct boss_rift_kelris : public BossAIBase
         {
             case EventSleep:
                 CastIfConfigured(SelectRandomPlayer(), SpellSleep);
-                ScheduleTieredEvent(EventSleep, 18000, 14000, 11000);
+                events.ScheduleEvent(EventSleep, Milliseconds(18000));
                 break;
             case EventMindBlast:
                 CastIfConfigured(me->GetVictim(), SpellMindBlast);
-                ScheduleTieredEvent(EventMindBlast, 10000, 7500, 5500);
+                events.ScheduleEvent(EventMindBlast, Milliseconds(10000));
                 break;
             default:
                 break;

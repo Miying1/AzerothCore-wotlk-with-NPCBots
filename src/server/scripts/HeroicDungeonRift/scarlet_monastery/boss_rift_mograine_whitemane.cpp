@@ -19,35 +19,36 @@ namespace HeroicDungeonRift
 {
 namespace
 {
+// 原版/T1组合战：莫格莱尼首次致死时假死，怀特迈恩入场；她半血沉睡全场并复活莫格莱尼，随后双人作战。
 enum MograineEvents : uint32
 {
-    EventMograineCrusaderStrike = 1,
-    EventMograineHammerOfJustice,
-    EventMograineResurrectionYell
+    EventMograineCrusaderStrike = 1, // 十字军打击（原版/T1基础）
+    EventMograineHammerOfJustice,    // 制裁之锤（原版/T1基础）
+    EventMograineResurrectionYell    // 复活台词（原版/T1流程）
 };
 
 enum WhitemaneEvents : uint32
 {
-    EventWhitemaneSmite = 1,
-    EventWhitemaneShield,
-    EventWhitemaneHeal,
-    EventWhitemaneDominateMind,
-    EventWhitemaneResurrectMograine,
-    EventWhitemaneResurrectionYell
+    EventWhitemaneSmite = 1,        // 神圣惩击（原版/T1基础）
+    EventWhitemaneShield,           // 真言术：盾（原版/T1基础）
+    EventWhitemaneHeal,             // 治疗术（原版/T1复活后阶段）
+    EventWhitemaneDominateMind,     // 统御意志（原版/T1复活后阶段）
+    EventWhitemaneResurrectMograine,// 血色复活（原版/T1组合战流程）
+    EventWhitemaneResurrectionYell  // 复活台词（原版/T1流程）
 };
 
 enum Spells : uint32
 {
-    SpellRetributionAura = 8990,
-    SpellCrusaderStrike = 14518,
-    SpellHammerOfJustice = 5589,
-    SpellSmite = 9481,
-    SpellPowerWordShield = 22187,
-    SpellHeal = 12039,
-    SpellDominateMind = 14515,
-    SpellDeepSleep = 9256,
-    SpellScarletResurrection = 9232,
-    SpellLayOnHands = 9257
+    SpellRetributionAura = 8990,     // 惩戒光环（原版/T1基础）
+    SpellCrusaderStrike = 14518,     // 十字军打击（原版/T1基础）
+    SpellHammerOfJustice = 5589,     // 制裁之锤（原版/T1基础）
+    SpellSmite = 9481,               // 神圣惩击（原版/T1基础）
+    SpellPowerWordShield = 22187,    // 真言术：盾（原版/T1基础）
+    SpellHeal = 12039,               // 治疗术（原版/T1复活后阶段）
+    SpellDominateMind = 14515,       // 统御意志（原版/T1复活后阶段）
+    SpellDeepSleep = 9256,           // 深度睡眠（原版/T1复活流程）
+    SpellScarletResurrection = 9232, // 血色复活（原版/T1复活流程）
+    SpellLayOnHands = 9257           // 圣疗术（原版/T1；莫格莱尼复活后施放）
 };
 
 enum Actions : int32
@@ -264,21 +265,21 @@ struct npc_rift_whitemane : public ScriptedAI
             {
                 case EventWhitemaneSmite:
                     DoCastVictim(SpellSmite);
-                    _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(TierDelay(6000, 4800, 3600)));
+                    _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(6000));
                     break;
                 case EventWhitemaneShield:
                     DoCast(me, SpellPowerWordShield);
-                    _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(TierDelay(18000, 15000, 12000)));
+                    _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(18000));
                     break;
                 case EventWhitemaneHeal:
                     if (me->HealthBelowPct(80))
                         DoCast(me, SpellHeal);
-                    _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(TierDelay(12000, 9500, 7500)));
+                    _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(12000));
                     break;
                 case EventWhitemaneDominateMind:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                         DoCast(target, SpellDominateMind);
-                    _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(TierDelay(24000, 20000, 16000)));
+                    _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(24000));
                     break;
                 default:
                     break;
@@ -296,19 +297,14 @@ private:
         me->PlayDirectSound(soundId);
     }
 
-    uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
-    {
-        return _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
-    }
-
     void ScheduleCombatEvents()
     {
-        _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(TierDelay(3000, 2500, 2000)));
-        _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(TierDelay(9000, 7500, 6000)));
+        _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(3000));
+        _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(9000));
         if (_phase == WhitemaneCombatPhaseTwo)
         {
-            _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(TierDelay(7000, 6000, 5000)));
-            _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(TierDelay(14000, 12000, 10000)));
+            _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(7000));
+            _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(14000));
         }
     }
 
@@ -449,11 +445,11 @@ struct boss_rift_mograine : public BossAIBase
                 break;
             case EventMograineCrusaderStrike:
                 CastIfConfigured(me->GetVictim(), SpellCrusaderStrike);
-                ScheduleTieredEvent(EventMograineCrusaderStrike, 7000, 5500, 4200);
+                events.ScheduleEvent(EventMograineCrusaderStrike, Milliseconds(7000));
                 break;
             case EventMograineHammerOfJustice:
                 CastIfConfigured(SelectRandomPlayer(), SpellHammerOfJustice);
-                ScheduleTieredEvent(EventMograineHammerOfJustice, 15000, 12000, 9500);
+                events.ScheduleEvent(EventMograineHammerOfJustice, Milliseconds(15000));
                 break;
             default:
                 break;
@@ -469,8 +465,8 @@ private:
 
     void ScheduleCombatEvents()
     {
-        ScheduleTieredEvent(EventMograineCrusaderStrike, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventMograineHammerOfJustice, 9000, 7500, 6000);
+        events.ScheduleEvent(EventMograineCrusaderStrike, Milliseconds(5000));
+        events.ScheduleEvent(EventMograineHammerOfJustice, Milliseconds(9000));
     }
 
     void SummonWhitemane()

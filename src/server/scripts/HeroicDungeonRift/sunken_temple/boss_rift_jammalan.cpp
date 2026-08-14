@@ -14,26 +14,26 @@ namespace
 {
 enum BossEvents : uint32
 {
-    EventEarthgrabTotem = 1,
-    EventFlamestrike,
-    EventHealingWave,
-    EventHex
+    EventEarthgrabTotem = 1, // 召唤地缚图腾（原版/T1基础；T3并存上限提高）
+    EventFlamestrike,        // 烈焰风暴（原版/T1基础）
+    EventHealingWave,        // 治疗波（原版/T1基础）
+    EventHex                 // 迦玛兰的妖术（原版/T1基础）
 };
 
 enum TotemEvents : uint32
 {
-    EventEarthgrab = 1
+    EventEarthgrab = 1 // 陷地（原版/T1图腾技能）
 };
 
 enum Spells : uint32
 {
-    SpellEarthgrab = 8377,
-    SpellFlamestrike = 12468,
-    SpellHealingWave = 12492,
-    SpellHexAura = 12479,
-    SpellHexTransform = 12480,
-    SpellHexCharm = 12483,
-    SpellGreenChanneling = 13540
+    SpellEarthgrab = 8377,       // 陷地（原版/T1图腾技能）
+    SpellFlamestrike = 12468,    // 烈焰风暴（原版/T1基础）
+    SpellHealingWave = 12492,    // 治疗波（原版/T1基础）
+    SpellHexAura = 12479,        // 迦玛兰的妖术：入口光环（原版/T1基础）
+    SpellHexTransform = 12480,   // 迦玛兰的妖术：变形（由入口光环触发）
+    SpellHexCharm = 12483,       // 迦玛兰的妖术：魅惑（由入口光环触发）
+    SpellGreenChanneling = 13540 // 绿色引导（原版/T1重置视觉）
 };
 }
 
@@ -64,7 +64,7 @@ struct npc_rift_earthgrab_totem : public ScriptedAI
         if (_events.ExecuteEvent() == EventEarthgrab)
         {
             DoCast(me, SpellEarthgrab);
-            _events.ScheduleEvent(EventEarthgrab, _tier == 1 ? 15s : (_tier == 2 ? 12s : 10s));
+            _events.ScheduleEvent(EventEarthgrab, 15s);
         }
     }
 
@@ -88,10 +88,10 @@ struct boss_rift_jammalan : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventEarthgrabTotem, 7000, 5500, 4200);
-        ScheduleTieredEvent(EventFlamestrike, 5000, 4000, 3000);
-        ScheduleTieredEvent(EventHealingWave, 9000, 7500, 6000);
-        ScheduleTieredEvent(EventHex, 12000, 10000, 8000);
+        events.ScheduleEvent(EventEarthgrabTotem, 7000);
+        events.ScheduleEvent(EventFlamestrike, 5000);
+        events.ScheduleEvent(EventHealingWave, 9000);
+        events.ScheduleEvent(EventHex, 12000);
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
@@ -117,20 +117,20 @@ struct boss_rift_jammalan : public BossAIBase
         {
             case EventEarthgrabTotem:
                 SummonTotem();
-                ScheduleTieredEvent(EventEarthgrabTotem, 30000, 25000, 20000);
+                events.ScheduleEvent(EventEarthgrabTotem, 30000);
                 break;
             case EventFlamestrike:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellFlamestrike);
-                ScheduleTieredEvent(EventFlamestrike, 16000, 13000, 10000);
+                events.ScheduleEvent(EventFlamestrike, 16000);
                 break;
             case EventHealingWave:
                 if (me->HealthBelowPct(85))
                     CastIfConfigured(me, SpellHealingWave);
-                ScheduleTieredEvent(EventHealingWave, 11000, 9000, 7000);
+                events.ScheduleEvent(EventHealingWave, 11000);
                 break;
             case EventHex:
                 CastIfConfigured(SelectRandomPlayer(30.0f), SpellHexAura);
-                ScheduleTieredEvent(EventHex, 40000, 34000, 28000);
+                events.ScheduleEvent(EventHex, 40000);
                 break;
             default:
                 break;
@@ -150,6 +150,7 @@ private:
 
     void SummonTotem()
     {
+        // 地缚图腾存活上限：T1/T2为1，T3为2；达到上限时本次召唤不补充。
         uint32 cap = _tier == 3 ? 2 : 1;
         if (CountTotems() >= cap)
             return;
@@ -157,6 +158,7 @@ private:
             TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 35 * IN_MILLISECONDS);
     }
 
+    // 重置与死亡时清除附近玩家整条妖术链，避免入口、变形或魅惑控制残留。
     void ClearHexAuras()
     {
         Map::PlayerList const& players = me->GetMap()->GetPlayers();

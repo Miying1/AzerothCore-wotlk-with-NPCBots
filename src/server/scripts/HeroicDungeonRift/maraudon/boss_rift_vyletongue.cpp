@@ -14,19 +14,19 @@ namespace
 // 玛拉顿 - 维利塔恩（Lord Vyletongue）
 enum Events : uint32
 {
-    EventShoot = 1,     // 射击（T1基础）
-    EventMultiShot,     // 多重射击（T1基础）
+    EventShoot = 1,     // 射击（原版/T1基础）
+    EventMultiShot,     // 多重射击（原版/T1基础）
     EventSmokeBomb,     // 烟雾弹（T2新增）
     EventTier3Skill     // 闪现术（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellDualWield = 42459, // 双武器
-    SpellShoot = 16100,     // 射击
-    SpellMultiShot = 21390, // 多重射击
-    SpellSmokeBomb = 7964,  // 烟雾弹
-    SpellBlink = 21655      // 闪现术
+    SpellDualWield = 42459, // 双武器（原版/T1基础）
+    SpellShoot = 16100,     // 射击（原版/T1基础）
+    SpellMultiShot = 21390, // 多重射击（原版/T1基础）
+    SpellSmokeBomb = 7964,  // 烟雾弹（T2新增）
+    SpellBlink = 21655      // 闪现术（T3新增）
 };
 }
 
@@ -37,8 +37,8 @@ struct boss_rift_vyletongue : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         CastIfConfigured(me, SpellDualWield, true);
-        ScheduleTieredEvent(EventShoot, 2500, 2000, 1600);
-        ScheduleTieredEvent(EventMultiShot, 6000, 4800, 3800);
+        events.ScheduleEvent(EventShoot, 2500);
+        events.ScheduleEvent(EventMultiShot, 6000);
         if (_tier >= 2)
             events.ScheduleEvent(EventSmokeBomb, 14s);
         if (_tier >= 3)
@@ -53,11 +53,11 @@ struct boss_rift_vyletongue : public BossAIBase
         {
             case EventShoot:
                 CastIfConfigured(me->GetVictim(), SpellShoot);
-                ScheduleTieredEvent(EventShoot, 2600, 2100, 1700);
+                events.ScheduleEvent(EventShoot, 2600);
                 break;
             case EventMultiShot:
                 CastIfConfigured(me->GetVictim(), SpellMultiShot);
-                ScheduleTieredEvent(EventMultiShot, 9000, 7000, 5500);
+                events.ScheduleEvent(EventMultiShot, 9000);
                 break;
             case EventSmokeBomb: // T2新增：烟雾弹，瞬发
                 CastIfConfigured(me, SpellSmokeBomb, true);

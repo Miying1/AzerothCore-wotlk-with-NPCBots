@@ -13,16 +13,16 @@ namespace
 {
 enum Events : uint32
 {
-    EventCleave = 1,
-    EventWhirlwind,
-    EventTraineeWave
+    EventCleave = 1, // 顺劈斩（原版/T1基础）
+    EventWhirlwind,  // 旋风斩（原版/T1基础）
+    EventTraineeWave // 血色预备兵周期波（T2新增；T3提高数量与频率）
 };
 
 enum Spells : uint32
 {
-    SpellCleave = 15496,
-    SpellWhirlwind = 8989,
-    SpellEnrage = 8269
+    SpellCleave = 15496,   // 顺劈斩（原版/T1基础）
+    SpellWhirlwind = 8989, // 旋风斩（原版/T1基础）
+    SpellEnrage = 8269     // 狂乱（原版/T1基础；生命值低于40%时触发）
 };
 }
 
@@ -58,8 +58,8 @@ struct boss_rift_herod : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventCleave, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventWhirlwind, 15000, 12000, 9500);
+        events.ScheduleEvent(EventCleave, Milliseconds(5000));
+        events.ScheduleEvent(EventWhirlwind, Milliseconds(15000));
         if (_tier >= 2)
             events.ScheduleEvent(EventTraineeWave, 18s);
     }
@@ -71,6 +71,7 @@ struct boss_rift_herod : public BossAIBase
             _enraged = true;
             CastIfConfigured(me, SpellEnrage, true);
         }
+        // 15%最终波为全Tier一次性触发；不同于仅T2/T3启用且会持续重排的周期学员波。
         if (!_finalWave && me->HealthBelowPctDamaged(15, damage))
         {
             _finalWave = true;
@@ -87,11 +88,11 @@ struct boss_rift_herod : public BossAIBase
         {
             case EventCleave:
                 CastIfConfigured(me->GetVictim(), SpellCleave);
-                ScheduleTieredEvent(EventCleave, 8000, 6500, 5000);
+                events.ScheduleEvent(EventCleave, Milliseconds(8000));
                 break;
             case EventWhirlwind:
                 CastIfConfigured(me, SpellWhirlwind);
-                ScheduleTieredEvent(EventWhirlwind, 35000, 29000, 23000);
+                events.ScheduleEvent(EventWhirlwind, Milliseconds(35000));
                 break;
             case EventTraineeWave:
                 SummonTrainees(_tier == 2 ? 3 : 4);
@@ -115,6 +116,7 @@ private:
 
     void SummonTrainees(uint32 amount)
     {
+        // 周期波与15%最终波共用存活上限：T1/T2/T3分别为4/8/12只。
         uint32 cap = _tier == 1 ? 4 : (_tier == 2 ? 8 : 12);
         for (uint32 alive = CountAliveTrainees(); alive < cap && amount > 0; ++alive, --amount)
         {

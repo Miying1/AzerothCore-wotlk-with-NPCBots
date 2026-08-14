@@ -14,20 +14,23 @@ namespace
 // 影牙城堡 - 指挥官斯普林瓦尔（Commander Springvale）
 enum Events : uint32
 {
-    EventHammerOfJustice = 1, // 制裁之锤（T1基础，眩晕当前目标）
-    EventHolyLight,           // 圣光术（T1基础，低血量自疗）
+    EventHammerOfJustice = 1, // 制裁之锤（原版/T1基础，眩晕当前目标）
+    EventHolyLight,           // 圣光术（原版/T1基础，低血量自疗）
     EventConsecration,        // 奉献（T2新增）
     EventTier3Skill           // 愤怒之锤（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellHammerOfJustice = 5588, // 制裁之锤
-    SpellHolyLight = 1026,       // 圣光术
-    SpellDivineShield = 33581,   // 圣盾术（低血量无敌）
-    SpellConsecration = 26573,   // 奉献
-    SpellHammerOfWrath = 24275   // 愤怒之锤
+    SpellHammerOfJustice = 5588, // 制裁之锤（原版/T1基础）
+    SpellHolyLight = 1026,       // 圣光术（原版/T1基础）
+    SpellDivineShield = 33581,   // 圣盾术（原版/T1基础，低血量无敌）
+    SpellConsecration = 26573,   // 奉献（T2新增）
+    SpellHammerOfWrath = 24275   // 愤怒之锤（T3新增）
 };
+
+constexpr int32 ConsecrationTier1DamagePerTick = 2000;
+constexpr int32 HammerOfWrathTier1DirectDamage = 4500;
 
 // 喊话（中文，对应原版 creature_text）
 constexpr char const* SpringvaleAggroText = "城堡里有入侵者！准备战斗！";
@@ -51,8 +54,8 @@ struct boss_rift_springvale : public BossAIBase
         me->Yell(SpringvaleAggroText, LANG_UNIVERSAL);
         me->PlayDirectSound(SpringvaleAggroSound);
 
-        ScheduleTieredEvent(EventHammerOfJustice, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventHolyLight, 8000, 6500, 5200);
+        events.ScheduleEvent(EventHammerOfJustice, Milliseconds(5000));
+        events.ScheduleEvent(EventHolyLight, Milliseconds(8000));
         if (_tier >= 2)
             events.ScheduleEvent(EventConsecration, 12s); // T2新增
         if (_tier >= 3)
@@ -84,19 +87,21 @@ struct boss_rift_springvale : public BossAIBase
         {
             case EventHammerOfJustice:
                 CastIfConfigured(me->GetVictim(), SpellHammerOfJustice);
-                ScheduleTieredEvent(EventHammerOfJustice, 16000, 13000, 10500);
+                events.ScheduleEvent(EventHammerOfJustice, Milliseconds(16000));
                 break;
             case EventHolyLight:
                 if (me->HealthBelowPct(60))
                     CastIfConfigured(me, SpellHolyLight);
-                ScheduleTieredEvent(EventHolyLight, 10000, 8000, 6500);
+                events.ScheduleEvent(EventHolyLight, Milliseconds(10000));
                 break;
             case EventConsecration: // T2新增：瞬发
-                CastIfConfigured(me, SpellConsecration, true);
+                CastFinalRaidDamageSpell(me, SpellConsecration, SPELLVALUE_BASE_POINT0,
+                    ConsecrationTier1DamagePerTick, true);
                 events.ScheduleEvent(EventConsecration, _tier == 3 ? 14s : 18s);
                 break;
             case EventTier3Skill: // T3新增：点名单体，选随机目标，瞬发
-                CastIfConfigured(SelectRandomPlayer(), SpellHammerOfWrath, true);
+                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellHammerOfWrath, SPELLVALUE_BASE_POINT0,
+                    HammerOfWrathTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 12s);
                 break;
             default:

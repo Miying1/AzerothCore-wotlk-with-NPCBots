@@ -14,21 +14,23 @@ namespace
 // 祖尔法拉克 - 加兹瑞拉（Gahz'rilla）
 enum Events : uint32
 {
-    EventIcicle = 1,      // 冰柱（T1基础）
-    EventFreezeSolid,     // 冰霜凝固（T1基础）
-    EventSlam,            // 加兹瑞拉猛击（T1基础）
+    EventIcicle = 1,      // 冰柱（原版/T1基础）
+    EventFreezeSolid,     // 冰霜凝固（原版/T1基础）
+    EventSlam,            // 加兹瑞拉猛击（原版/T1基础）
     EventTier2Skill,      // 痛击（T2新增）
     EventTier3Skill       // 冰霜新星（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellIcicle = 11131,        // 冰柱
-    SpellFreezeSolid = 11836,   // 冰霜凝固
-    SpellGahzrillaSlam = 11902, // 加兹瑞拉猛击
-    SpellThrash = 3391,         // 痛击
-    SpellFrostNova = 12674      // 冰霜新星
+    SpellIcicle = 11131,        // 冰柱（原版/T1基础）
+    SpellFreezeSolid = 11836,   // 冰霜凝固（原版/T1基础）
+    SpellGahzrillaSlam = 11902, // 加兹瑞拉猛击（原版/T1基础）
+    SpellThrash = 3391,         // 痛击（T2新增）
+    SpellFrostNova = 12674      // 冰霜新星（T3新增）
 };
+
+constexpr int32 FrostNovaTier1DirectDamage = 3500;
 }
 
 struct boss_rift_gahzrilla : public BossAIBase
@@ -37,9 +39,9 @@ struct boss_rift_gahzrilla : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventIcicle, 5000, 4000, 3200);
-        ScheduleTieredEvent(EventFreezeSolid, 16000, 13000, 10500);
-        ScheduleTieredEvent(EventSlam, 13000, 10500, 8500);
+        events.ScheduleEvent(EventIcicle, 5000);
+        events.ScheduleEvent(EventFreezeSolid, 16000);
+        events.ScheduleEvent(EventSlam, 13000);
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 9s);  // T2新增
         if (_tier >= 3)
@@ -54,22 +56,23 @@ struct boss_rift_gahzrilla : public BossAIBase
         {
             case EventIcicle:
                 CastIfConfigured(SelectRandomPlayer(), SpellIcicle);
-                ScheduleTieredEvent(EventIcicle, 10000, 8000, 6500);
+                events.ScheduleEvent(EventIcicle, 10000);
                 break;
             case EventFreezeSolid:
                 CastIfConfigured(SelectRandomPlayer(), SpellFreezeSolid);
-                ScheduleTieredEvent(EventFreezeSolid, 20000, 16000, 13000);
+                events.ScheduleEvent(EventFreezeSolid, 20000);
                 break;
             case EventSlam:
                 CastIfConfigured(me, SpellGahzrillaSlam);
-                ScheduleTieredEvent(EventSlam, 30000, 24000, 19000);
+                events.ScheduleEvent(EventSlam, 30000);
                 break;
             case EventTier2Skill: // T2新增：痛击，瞬发
                 CastIfConfigured(me, SpellThrash, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 12s : 15s);
                 break;
             case EventTier3Skill: // T3新增：冰霜新星，瞬发
-                CastIfConfigured(me, SpellFrostNova, true);
+                CastFinalRaidDamageSpell(me, SpellFrostNova, SPELLVALUE_BASE_POINT0,
+                    FrostNovaTier1DirectDamage, true);
                 events.ScheduleEvent(EventTier3Skill, 22s);
                 break;
             default:

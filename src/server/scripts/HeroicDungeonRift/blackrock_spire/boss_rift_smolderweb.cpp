@@ -14,19 +14,22 @@ namespace
 // 黑石塔下层 - 烟网蛛后（Mother Smolderweb）
 enum Events : uint32
 {
-    EventMothersMilk = 1, // 蛛后的乳汁（T1基础）
-    EventCrystallize,     // 结晶（T1基础）
+    EventMothersMilk = 1, // 蛛后的乳汁（原版/T1基础）
+    EventCrystallize,     // 结晶（原版/T1基础）
     EventTier2Skill,      // 毒液喷吐（T2新增）
     EventTier3Skill       // 蛛网（T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellMothersMilk = 16468, // 蛛后的乳汁
-    SpellCrystallize = 16104, // 结晶
-    SpellPoisonSpit = 15664,  // 毒液喷吐
-    SpellWeb = 12023          // 蛛网
+    SpellMothersMilk = 16468, // 蛛后的乳汁（原版/T1基础）
+    SpellCrystallize = 16104, // 结晶（原版/T1基础）
+    SpellPoisonSpit = 15664,  // 毒液喷吐（T2新增，混合BP0直伤/BP1周期）
+    SpellWeb = 12023          // 蛛网（T3新增）
 };
+
+constexpr int32 PoisonSpitTier1DirectDamage = 3500;
+constexpr int32 PoisonSpitTier1DamagePerTick = 1800;
 }
 
 struct boss_rift_smolderweb : public BossAIBase
@@ -35,8 +38,8 @@ struct boss_rift_smolderweb : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventMothersMilk, 11000, 9000, 7200);
-        ScheduleTieredEvent(EventCrystallize, 16000, 13000, 10500);
+        events.ScheduleEvent(EventMothersMilk, 11000ms);
+        events.ScheduleEvent(EventCrystallize, 16000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventTier2Skill, 8s);  // T2新增
         if (_tier >= 3)
@@ -45,7 +48,7 @@ struct boss_rift_smolderweb : public BossAIBase
 
     void JustDied(Unit* /*killer*/) override
     {
-        // 原版机制：死亡时召唤尖塔小蜘蛛。小蜘蛛须存活到Boss清理之后，
+        // 原版/T1死亡阶段召唤：尖塔小蜘蛛数量随Tier增加。小蜘蛛须存活到Boss清理之后，
         // 因此直接召唤而不计入战斗召唤物跟踪。
         for (uint32 i = 0; i < _tier + 1; ++i)
             if (Creature* spiderling = me->SummonCreature(RiftEntrySpireSpiderling, me->GetRandomNearPosition(5.0f),
@@ -65,14 +68,15 @@ struct boss_rift_smolderweb : public BossAIBase
         {
             case EventMothersMilk:
                 CastIfConfigured(me, SpellMothersMilk);
-                ScheduleTieredEvent(EventMothersMilk, 12000, 9500, 7500);
+                events.ScheduleEvent(EventMothersMilk, 12000ms);
                 break;
             case EventCrystallize:
                 CastIfConfigured(me->GetVictim(), SpellCrystallize);
-                ScheduleTieredEvent(EventCrystallize, 16000, 13000, 10500);
+                events.ScheduleEvent(EventCrystallize, 16000ms);
                 break;
-            case EventTier2Skill: // T2新增：毒液喷吐，顺发
-                CastIfConfigured(me->GetVictim(), SpellPoisonSpit, true);
+            case EventTier2Skill: // T2新增：毒液喷吐，混合BP0直伤/BP1周期，瞬发
+                CastFinalRaidDamageSpell(me->GetVictim(), SpellPoisonSpit,
+                    PoisonSpitTier1DirectDamage, PoisonSpitTier1DamagePerTick, true);
                 events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 9s : 12s);
                 break;
             case EventTier3Skill: // T3新增：蛛网，点名随机目标，瞬发

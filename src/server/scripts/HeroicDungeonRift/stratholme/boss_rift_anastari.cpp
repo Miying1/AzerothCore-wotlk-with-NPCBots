@@ -14,20 +14,20 @@ namespace
 // 斯坦索姆 - 安娜丝塔丽男爵夫人（Baroness Anastari）
 enum Events : uint32
 {
-    EventBansheeWail = 1, // 女妖哀嚎（T1基础）
-    EventBansheeCurse,    // 女妖诅咒（T1基础）
-    EventSilence,         // 沉默（T1基础）
-    EventPossess,         // 占据（T2新增）
-    EventTier3Skill       // 支配心灵（T3新增）
+    EventBansheeWail = 1, // 女妖哀嚎（Spell 16565，T1原版）
+    EventBansheeCurse,    // 女妖诅咒（Spell 16867，T1原版）
+    EventSilence,         // 沉默（Spell 18327，T1原版）
+    EventPossess,         // 占据（Spell 17244，T2新增）
+    EventTier3Skill       // 支配心灵（Spell 14515，T3新增）
 };
 
 enum Spells : uint32
 {
-    SpellBansheeWail = 16565,   // 女妖哀嚎
-    SpellBansheeCurse = 16867,  // 女妖诅咒
-    SpellSilence = 18327,       // 沉默
-    SpellPossess = 17244,       // 占据
-    SpellDominateMind = 14515   // 支配心灵
+    SpellBansheeWail = 16565,   // 女妖哀嚎（T1原版）
+    SpellBansheeCurse = 16867,  // 女妖诅咒（T1原版）
+    SpellSilence = 18327,       // 沉默（T1原版）
+    SpellPossess = 17244,       // 占据（T2新增）
+    SpellDominateMind = 14515   // 支配心灵（T3新增）
 };
 }
 
@@ -37,9 +37,9 @@ struct boss_rift_anastari : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        ScheduleTieredEvent(EventBansheeWail, 4000, 3200, 2500);
-        ScheduleTieredEvent(EventBansheeCurse, 12000, 9500, 7500);
-        ScheduleTieredEvent(EventSilence, 14000, 11000, 9000);
+        events.ScheduleEvent(EventBansheeWail, Milliseconds(4000));
+        events.ScheduleEvent(EventBansheeCurse, Milliseconds(12000));
+        events.ScheduleEvent(EventSilence, Milliseconds(14000));
         if (_tier >= 2)
             events.ScheduleEvent(EventPossess, 20s);
         if (_tier >= 3)
@@ -54,21 +54,21 @@ struct boss_rift_anastari : public BossAIBase
         {
             case EventBansheeWail:
                 CastIfConfigured(me->GetVictim(), SpellBansheeWail);
-                ScheduleTieredEvent(EventBansheeWail, 5000, 4000, 3200);
+                events.ScheduleEvent(EventBansheeWail, Milliseconds(5000));
                 break;
             case EventBansheeCurse:
                 CastIfConfigured(me->GetVictim(), SpellBansheeCurse);
-                ScheduleTieredEvent(EventBansheeCurse, 18000, 14500, 11500);
+                events.ScheduleEvent(EventBansheeCurse, Milliseconds(18000));
                 break;
             case EventSilence:
                 CastIfConfigured(me->GetVictim(), SpellSilence);
-                ScheduleTieredEvent(EventSilence, 13000, 10500, 8500);
+                events.ScheduleEvent(EventSilence, Milliseconds(13000));
                 break;
             case EventPossess: // T2新增：占据，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellPossess, true);
                 events.ScheduleEvent(EventPossess, _tier == 3 ? 22s : 28s);
                 break;
-            case EventTier3Skill: // T3新增：支配心灵，点名随机目标，顺发
+            case EventTier3Skill: // T3新增：支配心灵，点名随机目标，瞬发
                 CastIfConfigured(SelectRandomPlayer(), SpellDominateMind, true);
                 events.ScheduleEvent(EventTier3Skill, 24s);
                 break;
