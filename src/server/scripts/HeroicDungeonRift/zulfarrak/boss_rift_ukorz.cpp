@@ -95,7 +95,7 @@ struct boss_rift_ukorz : public BossAIBase
         me->Yell(UkorzAggroText, LANG_UNIVERSAL);
         CastIfConfigured(me, SpellBerserkerStance, true);
         SummonRuuzlu(); // 原版同伴：裂隙开战时与乌克兹同时参战
-        events.ScheduleEvent(EventUkorzCleave, 6000);
+        events.ScheduleEvent(EventUkorzCleave, 6000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventSunderArmor, 7s); // T2新增
         if (_tier >= 3)
@@ -126,7 +126,7 @@ struct boss_rift_ukorz : public BossAIBase
         {
             case EventUkorzCleave:
                 CastIfConfigured(me->GetVictim(), SpellCleave);
-                events.ScheduleEvent(EventUkorzCleave, 9000);
+                events.ScheduleEvent(EventUkorzCleave, 9000ms);
                 break;
             case EventSunderArmor: // T2新增：破甲攻击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellSunderArmor, true);

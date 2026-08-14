@@ -37,8 +37,8 @@ struct boss_rift_celebras : public BossAIBase
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        events.ScheduleEvent(EventWrath, 2500);
-        events.ScheduleEvent(EventEntanglingRoots, 8000);
+        events.ScheduleEvent(EventWrath, 2500ms);
+        events.ScheduleEvent(EventEntanglingRoots, 8000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventTwistedTranquility, 12s);
         if (_tier >= 3)
@@ -53,11 +53,11 @@ struct boss_rift_celebras : public BossAIBase
         {
             case EventWrath:
                 CastIfConfigured(me->GetVictim(), SpellWrath);
-                events.ScheduleEvent(EventWrath, 2800);
+                events.ScheduleEvent(EventWrath, 2800ms);
                 break;
             case EventEntanglingRoots:
                 CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
-                events.ScheduleEvent(EventEntanglingRoots, 15000);
+                events.ScheduleEvent(EventEntanglingRoots, 15s);
                 break;
             case EventTwistedTranquility: // T2新增：混合BP；仅覆盖BP0周期伤害，BP1/BP2保留减速
                 CastFinalRaidDamageSpell(me, SpellTwistedTranquility, SPELLVALUE_BASE_POINT0,

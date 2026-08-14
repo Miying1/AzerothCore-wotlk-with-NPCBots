@@ -37,8 +37,8 @@ struct boss_rift_vyletongue : public BossAIBase
     void JustEngagedWith(Unit* /*who*/) override
     {
         CastIfConfigured(me, SpellDualWield, true);
-        events.ScheduleEvent(EventShoot, 2500);
-        events.ScheduleEvent(EventMultiShot, 6000);
+        events.ScheduleEvent(EventShoot, 2500ms);
+        events.ScheduleEvent(EventMultiShot, 6000ms);
         if (_tier >= 2)
             events.ScheduleEvent(EventSmokeBomb, 14s);
         if (_tier >= 3)
@@ -53,11 +53,11 @@ struct boss_rift_vyletongue : public BossAIBase
         {
             case EventShoot:
                 CastIfConfigured(me->GetVictim(), SpellShoot);
-                events.ScheduleEvent(EventShoot, 2600);
+                events.ScheduleEvent(EventShoot, 2600ms);
                 break;
             case EventMultiShot:
                 CastIfConfigured(me->GetVictim(), SpellMultiShot);
-                events.ScheduleEvent(EventMultiShot, 9000);
+                events.ScheduleEvent(EventMultiShot, 9000ms);
                 break;
             case EventSmokeBomb: // T2新增：烟雾弹，瞬发
                 CastIfConfigured(me, SpellSmokeBomb, true);
