@@ -21,7 +21,7 @@ class rift_world_script : public WorldScript
 public:
     rift_world_script() : WorldScript("rift_world_script") { }
 
-    void OnLoadCustomDatabaseTable() override
+    void OnBeforeWorldInitialized() override
     {
         ConfigStore::Instance().Load();
     }
