@@ -573,11 +573,18 @@ void RunManager::OnPlayerLeaveMap(Map* map, Player* player)
     if (!run || run->MapId != map->GetId() || run->InstanceId != map->GetInstanceId())
         return;
 
-    // Leaving the map is not the same as permanently exiting the rift. In
-    // particular, releasing spirit normally moves a ghost to an outdoor
-    // graveyard. Keep the run association and temporary instance bind so the
-    // player can run back into this exact instance. Exited is set only after a
-    // successful portal/rollback transfer.
+    // 死亡释放灵魂去墓地属于暂时离开，保留运行关联与临时实例绑定，以便玩家跑尸回到本实例。
+    // 活着时通过非传送门方式离开（炉石/GM传送等）视为彻底放弃本场裂隙，解除关联避免卡住后续进入。
+    if (!player->isDead())
+    {
+        MemberState* member = FindMember(*run, player->GetGUID());
+        if (member && !member->Exited)
+        {
+            member->Exited = true;
+            _playerRuns.erase(player->GetGUID());
+            _pendingPlayers.erase(player->GetGUID());
+        }
+    }
 }
 
 void RunManager::OnMapUpdate(Map* map, uint32 diff)
@@ -603,6 +610,26 @@ void RunManager::OnMapUpdate(Map* map, uint32 diff)
         if (rollbackFinished || run->ElapsedMilliseconds >= RollbackGraceMilliseconds)
             CleanupRun(key, true);
         return;
+    }
+
+    // 兜底检测：已进入裂隙的成员若活着却不在本实例内，说明通过炉石/GM传送/墓地复活等方式彻底离开，
+    // 标记退出并解除关联，避免其残留导致无法再次进入。
+    for (MemberState& member : run->Members)
+    {
+        if (member.Exited || !member.Entered)
+            continue;
+
+        Player* memberPlayer = ObjectAccessor::FindConnectedPlayer(member.PlayerGuid);
+        if (!memberPlayer)
+            continue;
+
+        bool insideRift = memberPlayer->GetMapId() == run->MapId && memberPlayer->GetInstanceId() == run->InstanceId;
+        if (!insideRift && !memberPlayer->isDead())
+        {
+            member.Exited = true;
+            _playerRuns.erase(member.PlayerGuid);
+            _pendingPlayers.erase(member.PlayerGuid);
+        }
     }
 
     bool allExited = std::all_of(run->Members.begin(), run->Members.end(), [](MemberState const& member)
