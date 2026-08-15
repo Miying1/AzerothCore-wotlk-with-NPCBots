@@ -432,13 +432,13 @@ INSERT INTO `gameobject_template` (
   `Data0`,`Data1`,`Data2`,`Data3`,`Data4`,`Data5`,`Data6`,`Data7`,`Data8`,`Data9`,`Data10`,`Data11`,
   `Data12`,`Data13`,`Data14`,`Data15`,`Data16`,`Data17`,`Data18`,`Data19`,`Data20`,`Data21`,`Data22`,`Data23`,
   `AIName`,`ScriptName`,`VerifiedBuild`)
-SELECT tier.entry,src.type,tier.display_id,CONCAT('五人英雄裂隙 T',tier.tier,' 出口'),'','','',src.size,
+SELECT tier.entry,src.type,tier.display_id,CONCAT('英雄裂隙 T',tier.tier,' 出口'),'','','',src.size,
   src.Data0,src.Data1,src.Data2,src.Data3,src.Data4,src.Data5,src.Data6,src.Data7,src.Data8,src.Data9,src.Data10,src.Data11,
   src.Data12,src.Data13,src.Data14,src.Data15,src.Data16,src.Data17,src.Data18,src.Data19,src.Data20,src.Data21,src.Data22,src.Data23,
   '','rift_exit_portal',src.VerifiedBuild
 FROM `gameobject_template` src
 CROSS JOIN (
-  SELECT 1 tier,@RIFT_EXIT_PORTAL_ENTRY_BASE + 0 entry,7148 display_id
+  SELECT 1 tier,@RIFT_EXIT_PORTAL_ENTRY_BASE + 0 entry,8275 display_id
   UNION ALL SELECT 2,@RIFT_EXIT_PORTAL_ENTRY_BASE + 1,8196
   UNION ALL SELECT 3,@RIFT_EXIT_PORTAL_ENTRY_BASE + 2,8197
 ) tier
@@ -463,7 +463,7 @@ INSERT INTO `creature_template` (
   `lootid`,`pickpocketloot`,`skinloot`,`PetSpellDataId`,`VehicleId`,`mingold`,`maxgold`,`AIName`,`MovementType`,
   `HoverHeight`,`HealthModifier`,`ManaModifier`,`ArmorModifier`,`ExperienceModifier`,`RacialLeader`,`movementId`,`RegenHealth`,
   `CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`)
-SELECT @RIFT_ENTRY_NPC_ENTRY,0,0,0,0,0,'五人英雄裂隙引导者','选择裂隙难度',src.IconName,0,
+SELECT @RIFT_ENTRY_NPC_ENTRY,0,0,0,0,0,'英雄裂隙引导者','选择裂隙难度',src.IconName,0,
   src.minlevel,src.maxlevel,src.exp,src.faction,1,src.speed_walk,src.speed_run,src.speed_swim,src.speed_flight,
   src.detection_range,0,src.dmgschool,1,src.BaseAttackTime,src.RangeAttackTime,src.BaseVariance,src.RangeVariance,
   src.unit_class,src.unit_flags,src.unit_flags2,0,src.family,src.type,src.type_flags,0,0,0,0,0,0,0,'',0,
