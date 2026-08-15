@@ -221,6 +221,9 @@ enum GossipActions : uint32
     GossipEnterTier1 = GOSSIP_ACTION_INFO_DEF + 1,
     GossipEnterTier2 = GOSSIP_ACTION_INFO_DEF + 2,
     GossipEnterTier3 = GOSSIP_ACTION_INFO_DEF + 3,
+    GossipSpecifyTier1 = GOSSIP_ACTION_INFO_DEF + 4,
+    GossipSpecifyTier2 = GOSSIP_ACTION_INFO_DEF + 5,
+    GossipSpecifyTier3 = GOSSIP_ACTION_INFO_DEF + 6,
     GossipExit = GOSSIP_ACTION_INFO_DEF + 10
 };
 
@@ -311,6 +314,7 @@ public:
     static RunManager& Instance();
 
     bool StartRun(Player* initiator, uint8 tier, std::string& error);
+    bool StartRun(Player* initiator, uint8 tier, uint32 bossId, std::string& error);
     bool ExitRun(Player* player, GameObject* portal, std::string& error);
     void OnPlayerEnterMap(Map* map, Player* player);
     void OnPlayerLeaveMap(Map* map, Player* player);
@@ -326,6 +330,8 @@ private:
     using RunKey = std::pair<uint32, uint32>;
 
     RunManager() = default;
+    bool StartRun(Player* initiator, TierConfig const& tierConfig, std::vector<Player*> const& members,
+        std::string& error);
     bool ValidateAndCollectMembers(Player* initiator, std::vector<Player*>& members, std::string& error) const;
     Position MakePlayerDestination(Map const* map, Position const& center, Position const& boss, uint8 index, uint8 count) const;
     bool InitializeRunObjects(Map* map, std::shared_ptr<RunComponent> const& run);

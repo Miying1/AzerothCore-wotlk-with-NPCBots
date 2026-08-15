@@ -322,10 +322,38 @@ bool RunManager::StartRun(Player* initiator, uint8 tier, std::string& error)
         return false;
     }
 
-    BossConfig const* bossConfig = ConfigStore::Instance().GetBoss(tierConfig->BossId);
+    return StartRun(initiator, *tierConfig, members, error);
+}
+
+bool RunManager::StartRun(Player* initiator, uint8 tier, uint32 bossId, std::string& error)
+{
+    if (tier < 1 || tier > MaxTier)
+    {
+        error = "无效的裂隙难度。";
+        return false;
+    }
+
+    TierConfig const* tierConfig = ConfigStore::Instance().GetTier(bossId, tier);
+    if (!tierConfig)
+    {
+        error = "指定的boss_id或对应难度配置不存在或未启用。";
+        return false;
+    }
+
+    std::vector<Player*> members;
+    if (!ValidateAndCollectMembers(initiator, members, error))
+        return false;
+
+    return StartRun(initiator, *tierConfig, members, error);
+}
+
+bool RunManager::StartRun(Player* initiator, TierConfig const& tierConfig, std::vector<Player*> const& members,
+    std::string& error)
+{
+    BossConfig const* bossConfig = ConfigStore::Instance().GetBoss(tierConfig.BossId);
     if (!bossConfig)
     {
-        error = "随机到的Boss基础配置不存在。";
+        error = "Boss基础配置不存在。";
         return false;
     }
 
@@ -374,13 +402,13 @@ bool RunManager::StartRun(Player* initiator, uint8 tier, std::string& error)
     run->InitiatorGuid = initiator->GetGUID();
     run->GroupGuid = initiator->GetGroup() ? initiator->GetGroup()->GetGUID() : ObjectGuid::Empty;
     run->LeaderGuid = leader->GetGUID();
-    run->BossId = tierConfig->BossId;
-    run->Tier = tierConfig->Tier;
-    run->EntryId = tierConfig->EntryId;
+    run->BossId = tierConfig.BossId;
+    run->Tier = tierConfig.Tier;
+    run->EntryId = tierConfig.EntryId;
     run->MapId = bossConfig->MapId;
     run->InstanceId = targetMap->GetInstanceId();
-    run->BossSpawn = tierConfig->BossSpawn;
-    run->PlayerEntry = tierConfig->PlayerEntry;
+    run->BossSpawn = tierConfig.BossSpawn;
+    run->PlayerEntry = tierConfig.PlayerEntry;
     run->SharedReturnLocation = WorldLocation(initiator->GetMapId(), initiator->GetPositionX(), initiator->GetPositionY(), initiator->GetPositionZ(), initiator->GetOrientation());
     run->SharedReturnInstanceId = initiator->GetInstanceId();
     run->SharedReturnDifficulty = uint8(initiator->GetMap()->GetDifficulty());
