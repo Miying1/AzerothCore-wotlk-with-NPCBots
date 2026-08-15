@@ -18,8 +18,8 @@ struct RiftSpellDamageTuning
     float WeaponDamageMultiplier;
 };
 
-// T1 damage baselines tuned per spell to WotLK 10-player normal raid ranges.
-// Zero keeps the original DBC effect (notably weapon-damage effects); T2/T3 scaling stays in DamageDealt.
+// 按法术分别设置T1伤害基线，数值参考WotLK 10人普通团队副本的伤害区间。
+// 数值为0时保留DBC原始效果（主要用于武器伤害效果）；T2/T3倍率仍由DamageDealt统一应用。
 constexpr RiftSpellDamageTuning RiftSpellDamageTunings[] =
 {
     { 865, {{ 2200, 0, 0 }}, 1.00f }, // 冰霜新星

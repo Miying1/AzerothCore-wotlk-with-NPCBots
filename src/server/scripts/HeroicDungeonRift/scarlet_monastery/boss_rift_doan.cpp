@@ -64,7 +64,8 @@ class spell_rift_doan_arcane_missiles : public AuraScript
             return;
 
         PreventDefaultAction();
-        int32 damage = ArcaneMissilesTier1DamagePerTick;
+        int32 damage = CompensateRiftCreatureLevelScaling(caster, SpellArcaneMissilesDamage, EFFECT_0,
+            ArcaneMissilesTier1DamagePerTick);
         caster->CastCustomSpell(SpellArcaneMissilesDamage, SPELLVALUE_BASE_POINT0, damage, target,
             TRIGGERED_FULL_MASK, nullptr, aurEff);
     }

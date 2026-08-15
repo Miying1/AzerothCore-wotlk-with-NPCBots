@@ -54,6 +54,8 @@ class spell_rift_lethtendris_curse_of_thorns : public AuraScript
 
         PreventDefaultAction();
         int32 damage = CurseOfThornsTier1DirectDamage;
+        if (Creature* damageCaster = target->ToCreature())
+            damage = CompensateRiftCreatureLevelScaling(damageCaster, SpellCurseOfThornsDamage, EFFECT_0, damage);
         target->CastCustomSpell(SpellCurseOfThornsDamage, SPELLVALUE_BASE_POINT0, damage, attacker,
             TRIGGERED_FULL_MASK, nullptr, aurEff, caster->GetGUID());
     }

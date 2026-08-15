@@ -12,10 +12,12 @@
 #include "rift_defines.h"
 #include "rift_spell_damage.h"
 
+#include "ObjectMgr.h"
 #include "ScriptedCreature.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "StringFormat.h"
 #include "ThreatManager.h"
 
@@ -26,6 +28,87 @@
 
 namespace HeroicDungeonRift
 {
+inline int32 CompensateRiftCreatureLevelScaling(Creature const* caster, SpellInfo const* spellInfo,
+    uint8 effectIndex, int32 intendedBasePoint)
+{
+    if (!caster || !spellInfo || effectIndex >= MAX_SPELL_EFFECTS || !intendedBasePoint ||
+        caster->IsControlledByPlayer() || !spellInfo->SpellLevel || spellInfo->SpellLevel == caster->GetLevel() ||
+        spellInfo->Effects[effectIndex].RealPointsPerLevel ||
+        !spellInfo->HasAttribute(SPELL_ATTR0_SCALES_WITH_CREATURE_LEVEL))
+        return intendedBasePoint;
+
+    SpellEffectInfo const& effect = spellInfo->Effects[effectIndex];
+    bool canEffectScale = false;
+    switch (effect.Effect)
+    {
+        case SPELL_EFFECT_SCHOOL_DAMAGE:
+        case SPELL_EFFECT_DUMMY:
+        case SPELL_EFFECT_POWER_DRAIN:
+        case SPELL_EFFECT_HEALTH_LEECH:
+        case SPELL_EFFECT_HEAL:
+        case SPELL_EFFECT_WEAPON_DAMAGE:
+        case SPELL_EFFECT_POWER_BURN:
+        case SPELL_EFFECT_SCRIPT_EFFECT:
+        case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+        case SPELL_EFFECT_FORCE_CAST_WITH_VALUE:
+        case SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE:
+        case SPELL_EFFECT_TRIGGER_MISSILE_SPELL_WITH_VALUE:
+            canEffectScale = true;
+            break;
+        default:
+            break;
+    }
+
+    switch (effect.ApplyAuraName)
+    {
+        case SPELL_AURA_PERIODIC_DAMAGE:
+        case SPELL_AURA_DUMMY:
+        case SPELL_AURA_PERIODIC_HEAL:
+        case SPELL_AURA_DAMAGE_SHIELD:
+        case SPELL_AURA_PROC_TRIGGER_DAMAGE:
+        case SPELL_AURA_PERIODIC_LEECH:
+        case SPELL_AURA_PERIODIC_MANA_LEECH:
+        case SPELL_AURA_SCHOOL_ABSORB:
+        case SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE:
+            canEffectScale = true;
+            break;
+        default:
+            break;
+    }
+
+    SpellInfo const* triggerSpell = sSpellMgr->GetSpellInfo(effect.TriggerSpell);
+    if (!canEffectScale || (triggerSpell && triggerSpell->HasAttribute(SPELL_ATTR0_SCALES_WITH_CREATURE_LEVEL)))
+        return intendedBasePoint;
+
+    CreatureTemplate const* creatureTemplate = caster->GetCreatureTemplate();
+    CreatureBaseStats const* casterStats = sObjectMgr->GetCreatureBaseStats(caster->GetLevel(), caster->getClass());
+    CreatureBaseStats const* spellStats = sObjectMgr->GetCreatureBaseStats(spellInfo->SpellLevel, caster->getClass());
+    if (!creatureTemplate || !casterStats || !spellStats)
+        return intendedBasePoint;
+
+    float casterPower = casterStats->BaseDamage[creatureTemplate->expansion];
+    float spellPower = spellStats->BaseDamage[creatureTemplate->expansion];
+    if (casterPower <= 0.0f || spellPower <= 0.0f)
+        return intendedBasePoint;
+
+    // CalcValue稍后会乘以casterPower / spellPower，此处先乘倒数，使最终数值回到配置的T1基线。
+    double compensated = double(intendedBasePoint) * spellPower / casterPower;
+    compensated = std::clamp(compensated, double(std::numeric_limits<int32>::min()),
+        double(std::numeric_limits<int32>::max()));
+    int32 rounded = int32(std::lround(compensated));
+    if (intendedBasePoint > 0)
+        return std::max<int32>(1, rounded);
+
+    return std::min<int32>(-1, rounded);
+}
+
+inline int32 CompensateRiftCreatureLevelScaling(Creature const* caster, uint32 spellId,
+    uint8 effectIndex, int32 intendedBasePoint)
+{
+    return CompensateRiftCreatureLevelScaling(caster, sSpellMgr->GetSpellInfo(spellId), effectIndex,
+        intendedBasePoint);
+}
+
 inline SpellCastResult CastRiftTunedSpell(Creature* caster, Unit* target, uint32 spellId, bool triggered = false,
     uint32* lastSpellId = nullptr)
 {
@@ -40,7 +123,8 @@ inline SpellCastResult CastRiftTunedSpell(Creature* caster, Unit* target, uint32
         CustomSpellValues values;
         for (uint8 effectIndex = 0; effectIndex < tuning->EffectBasePoints.size(); ++effectIndex)
             if (int32 basePoint = tuning->EffectBasePoints[effectIndex])
-                values.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + effectIndex), basePoint);
+                values.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + effectIndex),
+                    CompensateRiftCreatureLevelScaling(caster, spellId, effectIndex, basePoint));
 
         if (!values.empty())
             return caster->CastCustomSpell(spellId, values, target,
@@ -56,13 +140,11 @@ inline void ScaleRiftSummonSpellDamage(uint32 spellId, uint32& damage, DamageEff
     if (damageType == DIRECT_DAMAGE || !spellDamageBaseFactor)
         return;
 
-    double multiplier = double(spellDamagePermille) / 1000.0;
+    // spellDamagePermille包含Tier配置倍率、召唤物伤害系数以及60级内容沿用的历史法术基准系数。
+    // 无论AI回调能否识别触发型子法术，都必须先移除该基准系数，否则T1技能会退回旧的15倍修正并被严重放大。
+    double multiplier = double(spellDamagePermille) / (1000.0 * spellDamageBaseFactor);
     if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
-    {
-        multiplier /= spellDamageBaseFactor;
-        if (tuning->WeaponDamageMultiplier > 1.0f)
-            multiplier *= tuning->WeaponDamageMultiplier;
-    }
+        multiplier *= tuning->WeaponDamageMultiplier;
 
     uint64 scaledDamage = uint64(double(damage) * multiplier);
     damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
@@ -79,7 +161,6 @@ public:
         events.Reset();
         me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
         _interruptImmuneSpells.clear();
-        _raidSpellDamageMultiplier = 1.0f;
         _lastCastSpellId = 0;
         _tier = GetTierForCreature(me);
         _tierConfig = GetTierConfigForCreature(me);
@@ -122,21 +203,13 @@ public:
         double multiplier = _tierConfig->DamageMultiplier;
         if (damageType != DIRECT_DAMAGE)
         {
-            uint32 spellId = damageType == DOT ? GetTunedPeriodicSpellId(victim) : GetCurrentDamageSpellId();
-            if (!spellId)
-                spellId = GetCurrentDamageSpellId();
-            if (!spellId)
-                spellId = _lastCastSpellId;
-
+            uint32 spellId = GetDamageSpellId(victim, damageType);
             if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
             {
                 // 固定伤害/DoT在施法时已写入T1基线；武器技能则保留独立武器倍率。
                 if (tuning->WeaponDamageMultiplier > 1.0f)
                     multiplier *= tuning->WeaponDamageMultiplier;
             }
-            else
-                // 未识别的触发子法术保留旧Boss级倍率作为兼容兜底。
-                multiplier *= _raidSpellDamageMultiplier;
         }
 
         damage = uint32(std::min<double>(double(damage) * multiplier, std::numeric_limits<uint32>::max()));
@@ -200,7 +273,8 @@ protected:
         if (!target || !spellId || basePoint0 <= 0)
             return false;
         _lastCastSpellId = spellId;
-        me->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, basePoint0, target, triggered);
+        int32 compensatedBasePoint = CompensateRiftCreatureLevelScaling(me, spellId, EFFECT_0, basePoint0);
+        me->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, compensatedBasePoint, target, triggered);
         return true;
     }
 
@@ -209,11 +283,13 @@ protected:
     bool CastFinalRaidDamageSpell(Unit* target, uint32 spellId, SpellValueMod damageEffect,
         int32 tier1BaseDamage, bool triggered = false)
     {
-        if (!target || !spellId || tier1BaseDamage <= 0)
+        if (!target || !spellId || tier1BaseDamage <= 0 || damageEffect > SPELLVALUE_BASE_POINT2)
             return false;
 
         _lastCastSpellId = spellId;
-        me->CastCustomSpell(spellId, damageEffect, tier1BaseDamage, target, triggered);
+        uint8 effectIndex = uint8(damageEffect - SPELLVALUE_BASE_POINT0);
+        int32 compensatedBasePoint = CompensateRiftCreatureLevelScaling(me, spellId, effectIndex, tier1BaseDamage);
+        me->CastCustomSpell(spellId, damageEffect, compensatedBasePoint, target, triggered);
         return true;
     }
 
@@ -225,8 +301,10 @@ protected:
 
         _lastCastSpellId = spellId;
         CustomSpellValues values;
-        values.AddSpellMod(SPELLVALUE_BASE_POINT0, tier1BaseDamage0);
-        values.AddSpellMod(SPELLVALUE_BASE_POINT1, tier1BaseDamage1);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0,
+            CompensateRiftCreatureLevelScaling(me, spellId, EFFECT_0, tier1BaseDamage0));
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1,
+            CompensateRiftCreatureLevelScaling(me, spellId, EFFECT_1, tier1BaseDamage1));
         me->CastCustomSpell(spellId, values, target, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
         return true;
     }
@@ -326,15 +404,27 @@ protected:
         _riftSummons.clear();
     }
 
-    void SetRaidSpellDamageMultiplier(float multiplier)
-    {
-        _raidSpellDamageMultiplier = std::max(1.0f, multiplier);
-    }
+    // 旧Boss脚本仍调用此接口，但Spell ID调谐后不再使用Boss级法术倍率。
+    void SetRaidSpellDamageMultiplier(float /*multiplier*/) { }
 
     void AddInterruptImmuneSpell(uint32 spellId)
     {
         if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())
             _interruptImmuneSpells.push_back(spellId);
+    }
+
+    uint32 GetDamageSpellId(Unit* victim, DamageEffectType damageType) const
+    {
+        if (damageType == DOT)
+            if (uint32 spellId = GetTunedPeriodicSpellId(victim))
+                return spellId;
+
+        // OnSpellStart/OnSpellCast会记录实际产生本次伤害的法术，优先级应高于GetCurrentSpell()。
+        // 触发型伤害命中时，当前法术槽可能仍保留上一次施法，进而错误选中其他调谐项。
+        if (_lastCastSpellId)
+            return _lastCastSpellId;
+
+        return GetCurrentDamageSpellId();
     }
 
     uint32 GetCurrentDamageSpellId() const
@@ -368,7 +458,6 @@ protected:
     }
 
     uint32 _baseHealth = 1;
-    float _raidSpellDamageMultiplier = 1.0f;
     uint32 _lastCastSpellId = 0;
     uint8 _tier = 0;
     TierConfig const* _tierConfig = nullptr;
@@ -377,10 +466,9 @@ protected:
     std::vector<uint32> _interruptImmuneSpells;
 };
 
-// Shared AI base for rift-summoned creatures (companions and adds). It mirrors the
-// scaling contract used by BossAIBase::ApplySummonTierStats: melee weapon damage is
-// already rescaled on the instance attributes, while spell damage applies the value
-// received through RiftDataDamagePermille on top of a content-specific base factor.
+// 裂隙召唤生物（同伴和增援）的共享AI基类。
+// 缩放规则与BossAIBase::ApplySummonTierStats保持一致：近战武器伤害已在单位属性中完成缩放，
+// 法术伤害则先移除对应内容的基准系数，再应用Tier倍率和召唤物伤害系数。
 class RiftSummonAI : public ScriptedAI
 {
 public:
@@ -431,12 +519,10 @@ public:
         if (damageType == DIRECT_DAMAGE)
             return;
 
-        uint32 spellId = damageType == DOT ? GetTunedPeriodicSpellId(victim) : GetCurrentDamageSpellId();
-        if (!spellId)
-            spellId = _lastCastSpellId;
+        uint32 spellId = GetDamageSpellId(victim, damageType);
 
         // 表中数值是T1基线；召唤物的Tier和damageCoefficient由ApplySummonTierStats传入，
-        // 经典副本保留旧的15倍法术基准仅用于未纳入独立表的触发子法术。
+        // 不再为未识别的触发子法术额外保留15倍基准。
         ScaleRiftSummonSpellDamage(spellId, damage, damageType, _spellDamagePermille, GetSpellDamageBaseFactor());
     }
 
@@ -481,6 +567,20 @@ protected:
     }
 
 protected:
+    uint32 GetDamageSpellId(Unit* victim, DamageEffectType damageType) const
+    {
+        if (damageType == DOT)
+            if (uint32 spellId = GetTunedPeriodicSpellId(victim))
+                return spellId;
+
+        // OnSpellStart/OnSpellCast会记录实际产生本次伤害的法术，优先级应高于GetCurrentSpell()。
+        // 触发型伤害命中时，当前法术槽可能仍保留上一次施法，进而错误选中其他调谐项。
+        if (_lastCastSpellId)
+            return _lastCastSpellId;
+
+        return GetCurrentDamageSpellId();
+    }
+
     uint32 GetCurrentDamageSpellId() const
     {
         for (CurrentSpellTypes spellType : { CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL, CURRENT_MELEE_SPELL,
@@ -511,9 +611,8 @@ protected:
     uint32 _lastCastSpellId = 0;
 };
 
-// Level-70 dungeon spells already carry TBC heroic damage values. They must only
-// receive the configured tier/damage coefficient, without the classic-content 15x
-// base correction retained by RiftSummonAI for the existing level-60 encounters.
+// 70级副本法术已经包含TBC英雄难度伤害，只应用配置的Tier倍率和伤害系数，
+// 不使用RiftSummonAI为既有60级遭遇保留的经典内容15倍基准修正。
 class RiftLevel70SummonAI : public RiftSummonAI
 {
 public:

@@ -87,6 +87,7 @@ struct npc_rift_walking_bomb : public ScriptedAI
 
     void Reset() override
     {
+        _tier = 1;
         _damagePermille = 1000;
         _exploded = false;
         _targetGuid.Clear();
@@ -94,7 +95,9 @@ struct npc_rift_walking_bomb : public ScriptedAI
 
     void SetData(uint32 id, uint32 value) override
     {
-        if (id == RiftDataDamagePermille)
+        if (id == RiftDataTier)
+            _tier = uint8(std::clamp<uint32>(value, 1, MaxTier));
+        else if (id == RiftDataDamagePermille)
             _damagePermille = std::max<uint32>(1, value);
     }
 
@@ -128,8 +131,12 @@ struct npc_rift_walking_bomb : public ScriptedAI
             CustomSpellValues values;
             for (uint8 effectIndex = 0; effectIndex < tuning->EffectBasePoints.size(); ++effectIndex)
                 if (int32 basePoint = tuning->EffectBasePoints[effectIndex])
+                {
+                    int32 intendedBasePoint = int32(int64(basePoint) * _damagePermille / 1000);
                     values.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + effectIndex),
-                        int32(int64(basePoint) * _damagePermille / 1000));
+                        CompensateRiftCreatureLevelScaling(me, SpellWalkingBombEffect, effectIndex,
+                            intendedBasePoint));
+                }
 
             if (!values.empty())
                 me->CastCustomSpell(SpellWalkingBombEffect, values, me, TRIGGERED_FULL_MASK);
