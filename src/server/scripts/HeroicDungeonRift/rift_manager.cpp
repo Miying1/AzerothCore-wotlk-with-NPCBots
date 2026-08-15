@@ -368,21 +368,18 @@ bool RunManager::StartRun(Player* initiator, TierConfig const& tierConfig, std::
         return false;
     }
 
-    // 裂隙实例难度必须与 MapMgr::CreateMap 实际创建的实例难度保持一致。
-    // CreateMap 内部（MapInstanced::CreateInstanceForPlayer 的 else 分支）在无既有绑定路由时，
-    // 按“队长所在小队的副本难度（无小队则取个人难度）”创建新实例；
-    // 这里提前用同一规则算出实际难度，避免英雄小队下实例为英雄难度却按普通难度校验/绑定，
-    // 触发“新裂隙实例缺少InstanceSave，无法建立整队路由”的误报。
+    // 关键修复：进入裂隙时直接强制小队地下城模式为普通。
+    // 裂隙使用的多为低级 5 人副本（如死亡矿井），没有英雄难度（MapDifficulty 表无英雄记录）。
+    // 若小队仍为英雄模式，CreateInstance 内部会把实例难度降级为普通，导致 instanceSave 的难度（普通）
+    // 与此处的队伍难度（英雄）不一致，触发“新裂隙实例缺少InstanceSave，无法建立整队路由”校验失败。
+    // 因此在进入前直接把小队地下城模式改为普通，保证难度全程一致。
     Difficulty difficulty = DUNGEON_DIFFICULTY_NORMAL;
     if (Group* leaderGroup = leader->GetGroup())
-        difficulty = leaderGroup->GetDungeonDifficulty();
+        leaderGroup->SetDungeonDifficulty(difficulty);
     else
-        difficulty = leader->GetDungeonDifficulty();
+        leader->SetDungeonDifficulty(difficulty);
 
-    // 关键修复：按地图实际支持的难度降级。裂隙使用的多为低级 5 人副本（如死亡矿井），
-    // 没有英雄难度（MapDifficulty 表无英雄记录）。若小队为英雄模式，CreateInstance 内部会用
-    // GetDownscaledMapDifficultyData 把实例难度降级为普通，导致 instanceSave 的难度（普通）与这里的
-    // 队伍难度（英雄）不一致，触发“新裂隙实例缺少InstanceSave”校验失败。这里用同一函数提前降级保持一致。
+    // 防御性校验：确认目标副本确实存在可用的普通难度记录。
     if (!GetDownscaledMapDifficultyData(bossConfig->MapId, difficulty))
     {
         error = "目标副本没有可用的副本难度。";

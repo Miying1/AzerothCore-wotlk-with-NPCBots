@@ -46,6 +46,7 @@ public:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T3", GOSSIP_SENDER_MAIN, GossipSpecifyTier3,
                 "请输入 boss_id", 0, true);
         }
+        
         SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
         return true;
     }

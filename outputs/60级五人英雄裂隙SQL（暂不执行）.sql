@@ -30,7 +30,7 @@ SET @RIFT_T3_DAMAGE := 2.0000;
 --   战士/圣骑士（unit_class 1/2）：HealthModifier=129 → 血量≈180万；
 --   法系（unit_class 8）       ：HealthModifier=115 → 血量≈128万（47个源Boss中仅秘法师杜安为 class 8）。
 SET @RIFT_BOSS_HM_MELEE := 100;
-SET @RIFT_BOSS_HM_CASTER := 93;
+SET @RIFT_BOSS_HM_CASTER := 92;
 
 -- creature_template基础近战伤害系数；与运行时Tier伤害倍率分开配置。
 SET @RIFT_BOSS_DAMAGE_MODIFIER := 35.0000;
@@ -152,9 +152,9 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 8,4421,@RIFT_BOSS_ENTRY_BASE + 24,1,'boss_rift_charlga','剃刀沼泽',47,2190.4,1864.29,79.1389,1.37881,2188.083,1912.97,70.221,5.04,'卡尔加·刺肋；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 8,4421,@RIFT_BOSS_ENTRY_BASE + 25,2,'boss_rift_charlga','剃刀沼泽',47,2190.4,1864.29,79.1389,1.37881,2188.083,1912.97,70.221,5.04,'卡尔加·刺肋；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 8,4421,@RIFT_BOSS_ENTRY_BASE + 26,3,'boss_rift_charlga','剃刀沼泽',47,2190.4,1864.29,79.1389,1.37881,2188.083,1912.97,70.221,5.04,'卡尔加·刺肋；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 27,1,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1054.209,1399.082,27.299,0,'莫格莱尼/怀特迈恩双Boss遭遇'),
-(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 28,2,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1054.209,1399.082,27.299,0,'莫格莱尼/怀特迈恩双Boss遭遇'),
-(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 29,3,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1054.209,1399.082,27.299,0,'莫格莱尼/怀特迈恩双Boss遭遇'),
+(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 27,1,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1082.57,1399.14,30.30,3.14,'莫格莱尼/怀特迈恩双Boss遭遇'),
+(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 28,2,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1082.57,1399.14,30.30,3.14,'莫格莱尼/怀特迈恩双Boss遭遇'),
+(@RIFT_BOSS_ID_BASE + 9,3976,@RIFT_BOSS_ENTRY_BASE + 29,3,'boss_rift_mograine','血色大教堂',189,1153.87,1398.39,32.6112,6.12611,1082.57,1399.14,30.30,3.14,'莫格莱尼/怀特迈恩双Boss遭遇'),
 (@RIFT_BOSS_ID_BASE + 10,3975,@RIFT_BOSS_ENTRY_BASE + 30,1,'boss_rift_herod','血色军械库',189,1965.09,-431.607,6.26076,2.98451,1925.698,-408.605,18.007,4.68,'赫洛德；裂隙专用血色预备兵'),
 (@RIFT_BOSS_ID_BASE + 10,3975,@RIFT_BOSS_ENTRY_BASE + 31,2,'boss_rift_herod','血色军械库',189,1965.09,-431.607,6.26076,2.98451,1925.698,-408.605,18.007,4.68,'赫洛德；裂隙专用血色预备兵'),
 (@RIFT_BOSS_ID_BASE + 10,3975,@RIFT_BOSS_ENTRY_BASE + 32,3,'boss_rift_herod','血色军械库',189,1965.09,-431.607,6.26076,2.98451,1925.698,-408.605,18.007,4.68,'赫洛德；裂隙专用血色预备兵'),
@@ -263,9 +263,9 @@ INSERT INTO `_rift_boss_map` VALUES
 (@RIFT_BOSS_ID_BASE + 45,10436,@RIFT_BOSS_ENTRY_BASE + 135,1,'boss_rift_anastari','斯坦索姆后门',329,3855.34,-3715.75,148.175,0,3836.7,-3655.99,145.29,5.08,'安娜丝塔丽男爵夫人；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 45,10436,@RIFT_BOSS_ENTRY_BASE + 136,2,'boss_rift_anastari','斯坦索姆后门',329,3855.34,-3715.75,148.175,0,3836.7,-3655.99,145.29,5.08,'安娜丝塔丽男爵夫人；传入点来自表格'),
 (@RIFT_BOSS_ID_BASE + 45,10436,@RIFT_BOSS_ENTRY_BASE + 137,3,'boss_rift_anastari','斯坦索姆后门',329,3855.34,-3715.75,148.175,0,3836.7,-3655.99,145.29,5.08,'安娜丝塔丽男爵夫人；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 138,1,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4033.2,-3402.78,115.26,1.64,'瑞文戴尔男爵；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 139,2,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4033.2,-3402.78,115.26,1.64,'瑞文戴尔男爵；传入点来自表格'),
-(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 140,3,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4033.2,-3402.78,115.26,1.64,'瑞文戴尔男爵；传入点来自表格');
+(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 138,1,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4032.94,-3369.95,115.06,1.53,'瑞文戴尔男爵；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 139,2,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4032.94,-3369.95,115.06,1.53,'瑞文戴尔男爵；传入点来自表格'),
+(@RIFT_BOSS_ID_BASE + 46,10440,@RIFT_BOSS_ENTRY_BASE + 140,3,'boss_rift_rivendare','斯坦索姆后门',329,4035.83,-3336.31,115.144,0,4032.94,-3369.95,115.06,1.53,'瑞文戴尔男爵；传入点来自表格');
 
 -- ============================================================================
 -- 3. 裂隙专用动态同伴和召唤物映射
