@@ -414,17 +414,11 @@ bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
     if (ZoneScript* zoneScript = me->GetZoneScript() ? me->GetZoneScript() : (ZoneScript*)me->GetInstanceScript())
         zoneScript->OnCreatureEvade(me);
 
-    if (sChallengeDiff->HasChallengMode(me->GetInstanceId())) {
+    if (sChallengeDiff->HasChallengMode(me->GetInstanceId()))
         me->GetInstanceScript()->SetChallengeMode(me);
-    }
-    if (me->IsInEvadeMode())
-    {
-        return false;
-    }
-    else if (CreatureGroup* formation = me->GetFormation())
-    {
+
+    if (CreatureGroup* formation = me->GetFormation())
         formation->MemberEvaded(me);
-    }
 
     if (TempSummon* summon = me->ToTempSummon())
     {
