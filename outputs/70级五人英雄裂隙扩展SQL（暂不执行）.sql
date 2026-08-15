@@ -193,7 +193,7 @@ SELECT
   ct.BaseAttackTime,ct.RangeAttackTime,ct.BaseVariance,ct.RangeVariance,ct.unit_class,
   (ct.unit_flags & IF(m.is_boss=1,@RIFT_BOSS_UNIT_FLAGS_KEEP_MASK,@RIFT_SUMMON_UNIT_FLAGS_KEEP_MASK)),
   IF(m.is_boss=1,0,ct.unit_flags2),0,ct.family,ct.type,ct.type_flags,
-  0,0,0,0,0,0,0,'',0,ct.HoverHeight,
+  IF(m.is_boss=1,m.new_entry,0),0,0,0,0,0,0,'',0,ct.HoverHeight,
   (IF(m.is_boss=1,
       IF(ct.unit_class IN (1,2), @RIFT_BOSS_HM_MELEE, @RIFT_BOSS_HM_CASTER),
       (bossDst.basehp2 * IF(bossCt.unit_class IN (1,2), @RIFT_BOSS_HM_MELEE, @RIFT_BOSS_HM_CASTER))
@@ -261,7 +261,31 @@ SELECT boss_id,new_entry,boss_x,boss_y,boss_z,boss_o,tier,
 FROM `_rift_boss_map`;
 
 -- ============================================================================
--- 5. 70级内容审核查询
+-- 5. 70级裂隙Boss掉落
+-- T1：230装等2件 + 240装等1件；T2：250装等2件；T3：260装等2件。
+-- 依赖对应装备SQL先建立Reference池：230=914000、240=924000、250=934000、260=944000。
+-- 每个Reference组是一个独立掉落槽；Chance=0 + GroupId=1表示池内等概率选1件。
+-- ============================================================================
+DELETE FROM `creature_loot_template`
+WHERE `Entry` BETWEEN @RIFT_BOSS_ENTRY_BASE + 141 AND @RIFT_BOSS_ENTRY_BASE + 206;
+
+INSERT INTO `creature_loot_template`
+(`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
+SELECT m.new_entry,0,s.reference_entry,0,0,1,s.group_id,1,1,
+       CONCAT('70级裂隙 T',s.tier,' - ',s.item_level,'装等装备池 - ',s.slot_name)
+FROM `_rift_boss_map` m
+JOIN (
+    SELECT 1 AS tier,230 AS item_level,914000 AS reference_entry,1 AS group_id,'掉落槽1' AS slot_name
+    UNION ALL SELECT 1,230,914000,2,'掉落槽2'
+    UNION ALL SELECT 1,240,924000,3,'掉落槽3'
+    UNION ALL SELECT 2,250,934000,1,'掉落槽1'
+    UNION ALL SELECT 2,250,934000,2,'掉落槽2'
+    UNION ALL SELECT 3,260,944000,1,'掉落槽1'
+    UNION ALL SELECT 3,260,944000,2,'掉落槽2'
+) s ON s.tier=m.tier;
+
+-- ============================================================================
+-- 6. 70级内容审核查询
 -- ============================================================================
 SELECT `entry`,`name`,`minlevel`,`maxlevel`,`unit_flags`,`unit_flags2`,`flags_extra`,
        `AIName`,`ScriptName`,`HealthModifier`,`DamageModifier`
