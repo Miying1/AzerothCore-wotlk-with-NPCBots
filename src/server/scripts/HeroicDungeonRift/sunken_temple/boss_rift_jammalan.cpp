@@ -37,25 +37,14 @@ enum Spells : uint32
 };
 }
 
-struct npc_rift_earthgrab_totem : public ScriptedAI
+struct npc_rift_earthgrab_totem : public RiftSummonAI
 {
-    explicit npc_rift_earthgrab_totem(Creature* creature) : ScriptedAI(creature) { }
+    explicit npc_rift_earthgrab_totem(Creature* creature) : RiftSummonAI(creature) { }
 
     void Reset() override
     {
-        _events.Reset();
-        _tier = 1;
+        RiftSummonAI::Reset();
         me->SetReactState(REACT_PASSIVE);
-        _events.ScheduleEvent(EventEarthgrab, 1s);
-    }
-
-    void SetData(uint32 type, uint32 data) override
-    {
-        if (type == RiftDataTier)
-        {
-            _tier = uint8(std::clamp<uint32>(data, 1, MaxTier));
-            _events.RescheduleEvent(EventEarthgrab, 1s);
-        }
     }
 
     void UpdateAI(uint32 diff) override
@@ -68,9 +57,11 @@ struct npc_rift_earthgrab_totem : public ScriptedAI
         }
     }
 
-private:
-    EventMap _events;
-    uint8 _tier = 1;
+protected:
+    void ScheduleAbilities() override
+    {
+        _events.ScheduleEvent(EventEarthgrab, 1s);
+    }
 };
 
 struct boss_rift_jammalan : public BossAIBase

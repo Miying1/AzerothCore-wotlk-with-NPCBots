@@ -53,8 +53,7 @@ class spell_rift_lethtendris_curse_of_thorns : public AuraScript
             return;
 
         PreventDefaultAction();
-        int32 damage = std::max<int32>(1, int32(std::lround(
-            double(CurseOfThornsTier1DirectDamage) / 15.0)));
+        int32 damage = CurseOfThornsTier1DirectDamage;
         target->CastCustomSpell(SpellCurseOfThornsDamage, SPELLVALUE_BASE_POINT0, damage, attacker,
             TRIGGERED_FULL_MASK, nullptr, aurEff, caster->GetGUID());
     }

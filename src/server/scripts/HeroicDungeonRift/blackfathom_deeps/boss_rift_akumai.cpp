@@ -38,69 +38,14 @@ enum Spells : uint32
     SpellServantFrostNova = 865    // 冰霜新星（T3仆从技能）
 };
 
-class AkumaiAddAI : public ScriptedAI
+class AkumaiAddAI : public RiftSummonAI
 {
 public:
-    explicit AkumaiAddAI(Creature* creature) : ScriptedAI(creature) { }
-
-    void Reset() override
-    {
-        _events.Reset();
-        _tier = 1;
-        _damagePermille = 1000;
-        ScheduleAbilities();
-    }
-
-    void IsSummonedBy(WorldObject* summoner) override
-    {
-        if (Unit* unit = summoner->ToUnit())
-            if (Unit* victim = unit->GetVictim())
-                AttackStart(victim);
-    }
-
-    void SetData(uint32 type, uint32 data) override
-    {
-        if (type == RiftDataTier)
-        {
-            _tier = uint8(std::clamp<uint32>(data, 1, MaxTier));
-            _events.Reset();
-            ScheduleAbilities();
-        }
-        else if (type == RiftDataDamagePermille)
-            _damagePermille = std::max<uint32>(1, data) * 15;
-    }
-
-    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
-    {
-        if (damageType != DIRECT_DAMAGE)
-        {
-            uint64 scaledDamage = uint64(damage) * _damagePermille / 1000;
-            damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
-        }
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        if (!UpdateVictim())
-            return;
-
-        _events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        while (uint32 eventId = _events.ExecuteEvent())
-            ExecuteAbility(eventId);
-
-        DoMeleeAttackIfReady();
-    }
+    explicit AkumaiAddAI(Creature* creature) : RiftSummonAI(creature) { }
 
 protected:
-    virtual void ScheduleAbilities() = 0;
-    virtual void ExecuteAbility(uint32 eventId) = 0;
-
-    EventMap _events;
-    uint8 _tier = 1;
-    uint32 _damagePermille = 1000;
+    void ScheduleAbilities() override = 0;
+    void ExecuteAbility(uint32 eventId) override = 0;
 };
 }
 

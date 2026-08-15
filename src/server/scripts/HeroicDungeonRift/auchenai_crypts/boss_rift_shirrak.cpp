@@ -195,7 +195,7 @@ private:
     void FireAtFocus()
     {
         if (Creature* focus = ObjectAccessor::GetCreature(*me, _focusGuid))
-            focus->CastSpell(focus, SpellFieryBlast, false);
+            CastRiftTunedSpell(focus, focus, SpellFieryBlast);
 
         if (--_focusBlasts)
             events.ScheduleEvent(EventFocusBlast, 500ms);

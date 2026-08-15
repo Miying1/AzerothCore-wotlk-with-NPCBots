@@ -34,7 +34,9 @@ enum Spells : uint32
     SpellDamageImmuneNature = 34308,
     SpellDamageImmuneShadow = 34309,
     SpellArcaneResonance = 34794,
-    SpellArcaneDevastation = 34799
+    SpellArcaneDevastation = 34799,
+    SpellThornShot = 34745,
+    SpellMindFlay = 35507
 };
 
 enum Entries : uint32
@@ -84,7 +86,7 @@ struct npc_rift_thorn_lasher : public RiftLevel70SummonAI
             return;
 
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
-            DoCast(target, 34745); // 荆棘射击
+            DoCast(target, SpellThornShot); // 荆棘射击
         _events.ScheduleEvent(1, 4s);
     }
 };
@@ -104,7 +106,7 @@ struct npc_rift_thorn_flayer : public RiftLevel70SummonAI
             return;
 
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
-            DoCast(target, 35507); // 精神鞭笞
+            DoCast(target, SpellMindFlay); // 精神鞭笞
         _events.ScheduleEvent(1, 7s);
     }
 };
@@ -179,10 +181,7 @@ struct boss_rift_laj : public BossAIBase
                 events.ScheduleEvent(EventArcaneResonance, _tier == 3 ? 14s : 18s);
                 break;
             case EventArcaneDevastation: // T3新增：生态船奥术毁灭
-                // 武器伤害技能按83级Boss武器基线结算，不继承T1法术放大系数。
-                SetRaidSpellDamageMultiplier(1.0f);
                 CastIfConfigured(SelectRandomPlayer(), SpellArcaneDevastation, true);
-                SetRaidSpellDamageMultiplier(3.5f);
                 events.ScheduleEvent(EventArcaneDevastation, 22s);
                 break;
             default:

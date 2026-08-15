@@ -10,9 +10,11 @@
 #define HEROIC_DUNGEON_RIFT_BOSS_BASE_H
 
 #include "rift_defines.h"
+#include "rift_spell_damage.h"
 
 #include "ScriptedCreature.h"
 #include "Spell.h"
+#include "SpellAuraEffects.h"
 #include "SpellInfo.h"
 #include "StringFormat.h"
 #include "ThreatManager.h"
@@ -24,6 +26,48 @@
 
 namespace HeroicDungeonRift
 {
+inline SpellCastResult CastRiftTunedSpell(Creature* caster, Unit* target, uint32 spellId, bool triggered = false,
+    uint32* lastSpellId = nullptr)
+{
+    if (!caster || !target || !spellId)
+        return SPELL_FAILED_BAD_TARGETS;
+
+    if (lastSpellId)
+        *lastSpellId = spellId;
+
+    if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
+    {
+        CustomSpellValues values;
+        for (uint8 effectIndex = 0; effectIndex < tuning->EffectBasePoints.size(); ++effectIndex)
+            if (int32 basePoint = tuning->EffectBasePoints[effectIndex])
+                values.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + effectIndex), basePoint);
+
+        if (!values.empty())
+            return caster->CastCustomSpell(spellId, values, target,
+                triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
+    }
+
+    return caster->CastSpell(target, spellId, triggered);
+}
+
+inline void ScaleRiftSummonSpellDamage(uint32 spellId, uint32& damage, DamageEffectType damageType,
+    uint32 spellDamagePermille, uint32 spellDamageBaseFactor)
+{
+    if (damageType == DIRECT_DAMAGE || !spellDamageBaseFactor)
+        return;
+
+    double multiplier = double(spellDamagePermille) / 1000.0;
+    if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
+    {
+        multiplier /= spellDamageBaseFactor;
+        if (tuning->WeaponDamageMultiplier > 1.0f)
+            multiplier *= tuning->WeaponDamageMultiplier;
+    }
+
+    uint64 scaledDamage = uint64(double(damage) * multiplier);
+    damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
+}
+
 class BossAIBase : public ScriptedAI
 {
 public:
@@ -36,6 +80,7 @@ public:
         me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
         _interruptImmuneSpells.clear();
         _raidSpellDamageMultiplier = 1.0f;
+        _lastCastSpellId = 0;
         _tier = GetTierForCreature(me);
         _tierConfig = GetTierConfigForCreature(me);
         if (!_tierConfig || _tier < 1 || _tier > MaxTier)
@@ -56,14 +101,10 @@ public:
 
     // 仅对注册过的读条技能免疫打断：读条开始时开启、读条结束时关闭，
     // 其余技能（含 T1 基础技能）保持与源 Boss 一致的可打断性。
-    void OnSpellStart(SpellInfo const* spell) override
-    {
-        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
-            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
-    }
-
     void OnSpellCast(SpellInfo const* spell) override
     {
+        if (spell)
+            _lastCastSpellId = spell->Id;
         RemoveInterruptImmunity(spell);
     }
 
@@ -72,23 +113,46 @@ public:
         RemoveInterruptImmunity(spell);
     }
 
-    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
+    void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType,
+        SpellSchoolMask /*damageSchoolMask*/) override
     {
-        if (_tierConfig)
+        if (!_tierConfig)
+            return;
+
+        double multiplier = _tierConfig->DamageMultiplier;
+        if (damageType != DIRECT_DAMAGE)
         {
-            double multiplier = _tierConfig->DamageMultiplier;
-            // 经典内容的法术伤害修正仅作用于纯法术/DoT；武器伤害类技能（近战/远程武器伤害）
-            // 与平砍同源、其伤害已隐含武器伤害缩放，不应再叠加该修正，否则会被放大到异常值。
-            bool isWeaponDamageAbility = (damageType == SPELL_DIRECT_DAMAGE) && IsCurrentSpellWeaponDamageBased();
-            if (damageType != DIRECT_DAMAGE && !isWeaponDamageAbility)
+            uint32 spellId = damageType == DOT ? GetTunedPeriodicSpellId(victim) : GetCurrentDamageSpellId();
+            if (!spellId)
+                spellId = GetCurrentDamageSpellId();
+            if (!spellId)
+                spellId = _lastCastSpellId;
+
+            if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
+            {
+                // 固定伤害/DoT在施法时已写入T1基线；武器技能则保留独立武器倍率。
+                if (tuning->WeaponDamageMultiplier > 1.0f)
+                    multiplier *= tuning->WeaponDamageMultiplier;
+            }
+            else
+                // 未识别的触发子法术保留旧Boss级倍率作为兼容兜底。
                 multiplier *= _raidSpellDamageMultiplier;
-            damage = uint32(std::min<double>(double(damage) * multiplier, std::numeric_limits<uint32>::max()));
         }
+
+        damage = uint32(std::min<double>(double(damage) * multiplier, std::numeric_limits<uint32>::max()));
     }
 
     void JustDied(Unit* /*killer*/) override
     {
         DespawnRiftSummons();
+    }
+
+    void OnSpellStart(SpellInfo const* spell) override
+    {
+        if (spell)
+            _lastCastSpellId = spell->Id;
+        if (spell && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spell->Id) != _interruptImmuneSpells.end())
+            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
     }
 
     void UpdateAI(uint32 diff) override
@@ -116,31 +180,40 @@ protected:
         events.ScheduleEvent(eventId, Milliseconds(delay));
     }
 
-    bool CastIfConfigured(Unit* target, uint32 spellId, bool triggered = false)
+    SpellCastResult DoCast(Unit* target, uint32 spellId, bool triggered = false)
     {
-        if (!target || !spellId)
-            return false;
-        DoCast(target, spellId, triggered);
-        return true;
+        return CastIfConfigured(target, spellId, triggered);
+    }
+
+    SpellCastResult DoCastVictim(uint32 spellId, bool triggered = false)
+    {
+        return DoCast(me->GetVictim(), spellId, triggered);
+    }
+
+    SpellCastResult CastIfConfigured(Unit* target, uint32 spellId, bool triggered = false)
+    {
+        return CastRiftTunedSpell(me, target, spellId, triggered, &_lastCastSpellId);
     }
 
     bool CastRaidTunedSpell(Unit* target, uint32 spellId, int32 basePoint0, bool triggered = false)
     {
         if (!target || !spellId || basePoint0 <= 0)
             return false;
+        _lastCastSpellId = spellId;
         me->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, basePoint0, target, triggered);
         return true;
     }
 
     // T2/T3新增技能按Spell_dbc的具体效果单独给出T1基准伤害。
-    // 这里只反算Boss原版法术倍率；运行时Tier倍率继续由DamageDealt统一应用。
+    // 运行时Tier倍率继续由DamageDealt统一应用。
     bool CastFinalRaidDamageSpell(Unit* target, uint32 spellId, SpellValueMod damageEffect,
         int32 tier1BaseDamage, bool triggered = false)
     {
         if (!target || !spellId || tier1BaseDamage <= 0)
             return false;
 
-        me->CastCustomSpell(spellId, damageEffect, GetUnscaledRaidDamage(tier1BaseDamage), target, triggered);
+        _lastCastSpellId = spellId;
+        me->CastCustomSpell(spellId, damageEffect, tier1BaseDamage, target, triggered);
         return true;
     }
 
@@ -150,9 +223,10 @@ protected:
         if (!target || !spellId || tier1BaseDamage0 <= 0 || tier1BaseDamage1 <= 0)
             return false;
 
+        _lastCastSpellId = spellId;
         CustomSpellValues values;
-        values.AddSpellMod(SPELLVALUE_BASE_POINT0, GetUnscaledRaidDamage(tier1BaseDamage0));
-        values.AddSpellMod(SPELLVALUE_BASE_POINT1, GetUnscaledRaidDamage(tier1BaseDamage1));
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0, tier1BaseDamage0);
+        values.AddSpellMod(SPELLVALUE_BASE_POINT1, tier1BaseDamage1);
         me->CastCustomSpell(spellId, values, target, triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
         return true;
     }
@@ -257,25 +331,34 @@ protected:
         _raidSpellDamageMultiplier = std::max(1.0f, multiplier);
     }
 
-    int32 GetUnscaledRaidDamage(int32 tier1BaseDamage) const
-    {
-        return std::max<int32>(1, int32(std::lround(
-            double(tier1BaseDamage) / std::max(1.0f, _raidSpellDamageMultiplier))));
-    }
-
     void AddInterruptImmuneSpell(uint32 spellId)
     {
         if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())
             _interruptImmuneSpells.push_back(spellId);
     }
 
-    // 判断当前正在结算的技能是否为武器伤害类技能（近战/远程武器伤害）。
-    bool IsCurrentSpellWeaponDamageBased() const
+    uint32 GetCurrentDamageSpellId() const
     {
-        if (Spell const* spell = me->GetCurrentSpell(CURRENT_GENERIC_SPELL))
-            if (SpellInfo const* spellInfo = spell->GetSpellInfo())
-                return spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE || spellInfo->DmgClass == SPELL_DAMAGE_CLASS_RANGED;
-        return false;
+        for (CurrentSpellTypes spellType : { CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL, CURRENT_MELEE_SPELL,
+            CURRENT_AUTOREPEAT_SPELL })
+            if (Spell const* spell = me->GetCurrentSpell(spellType))
+                if (SpellInfo const* spellInfo = spell->GetSpellInfo())
+                    return spellInfo->Id;
+
+        return 0;
+    }
+
+    uint32 GetTunedPeriodicSpellId(Unit* victim) const
+    {
+        if (!victim)
+            return 0;
+
+        for (AuraEffect const* auraEffect : victim->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
+            if (auraEffect && auraEffect->GetCasterGUID() == me->GetGUID())
+                if (GetRiftSpellDamageTuning(auraEffect->GetSpellInfo()->Id))
+                    return auraEffect->GetSpellInfo()->Id;
+
+        return 0;
     }
 
     void RemoveInterruptImmunity(SpellInfo const* spell)
@@ -286,6 +369,7 @@ protected:
 
     uint32 _baseHealth = 1;
     float _raidSpellDamageMultiplier = 1.0f;
+    uint32 _lastCastSpellId = 0;
     uint8 _tier = 0;
     TierConfig const* _tierConfig = nullptr;
     EventMap events;
@@ -306,6 +390,7 @@ public:
     {
         _tier = 1;
         _spellDamagePermille = 1000 * GetSpellDamageBaseFactor();
+        _lastCastSpellId = 0;
         _events.Reset();
         ScheduleAbilities();
     }
@@ -315,6 +400,18 @@ public:
         if (Unit* unit = summoner->ToUnit())
             if (Unit* victim = unit->GetVictim())
                 AttackStart(victim);
+    }
+
+    void OnSpellCast(SpellInfo const* spell) override
+    {
+        if (spell)
+            _lastCastSpellId = spell->Id;
+    }
+
+    void OnSpellStart(SpellInfo const* spell) override
+    {
+        if (spell)
+            _lastCastSpellId = spell->Id;
     }
 
     void SetData(uint32 type, uint32 data) override
@@ -329,13 +426,18 @@ public:
             _spellDamagePermille = std::max<uint32>(1, data) * GetSpellDamageBaseFactor();
     }
 
-    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
+    void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
     {
         if (damageType == DIRECT_DAMAGE)
             return;
 
-        uint64 scaledDamage = uint64(damage) * _spellDamagePermille / 1000;
-        damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
+        uint32 spellId = damageType == DOT ? GetTunedPeriodicSpellId(victim) : GetCurrentDamageSpellId();
+        if (!spellId)
+            spellId = _lastCastSpellId;
+
+        // 表中数值是T1基线；召唤物的Tier和damageCoefficient由ApplySummonTierStats传入，
+        // 经典副本保留旧的15倍法术基准仅用于未纳入独立表的触发子法术。
+        ScaleRiftSummonSpellDamage(spellId, damage, damageType, _spellDamagePermille, GetSpellDamageBaseFactor());
     }
 
     void UpdateAI(uint32 diff) override
@@ -358,14 +460,55 @@ protected:
     virtual void ExecuteAbility(uint32 /*eventId*/) { }
     virtual uint32 GetSpellDamageBaseFactor() const { return 15; }
 
+    SpellCastResult DoCast(Unit* target, uint32 spellId, bool triggered = false)
+    {
+        return CastIfConfigured(target, spellId, triggered);
+    }
+
+    SpellCastResult DoCastVictim(uint32 spellId, bool triggered = false)
+    {
+        return DoCast(me->GetVictim(), spellId, triggered);
+    }
+
+    SpellCastResult CastIfConfigured(Unit* target, uint32 spellId, bool triggered = false)
+    {
+        return CastRiftTunedSpell(me, target, spellId, triggered, &_lastCastSpellId);
+    }
+
     uint32 TierDelay(uint32 tier1Delay, uint32 tier2Delay, uint32 tier3Delay) const
     {
         return _tier == 1 ? tier1Delay : (_tier == 2 ? tier2Delay : tier3Delay);
     }
 
+protected:
+    uint32 GetCurrentDamageSpellId() const
+    {
+        for (CurrentSpellTypes spellType : { CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL, CURRENT_MELEE_SPELL,
+            CURRENT_AUTOREPEAT_SPELL })
+            if (Spell const* spell = me->GetCurrentSpell(spellType))
+                if (SpellInfo const* spellInfo = spell->GetSpellInfo())
+                    return spellInfo->Id;
+
+        return 0;
+    }
+
+    uint32 GetTunedPeriodicSpellId(Unit* victim) const
+    {
+        if (!victim)
+            return 0;
+
+        for (AuraEffect const* auraEffect : victim->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
+            if (auraEffect && auraEffect->GetCasterGUID() == me->GetGUID())
+                if (GetRiftSpellDamageTuning(auraEffect->GetSpellInfo()->Id))
+                    return auraEffect->GetSpellInfo()->Id;
+
+        return 0;
+    }
+
     EventMap _events;
     uint8 _tier = 1;
     uint32 _spellDamagePermille = 15000;
+    uint32 _lastCastSpellId = 0;
 };
 
 // Level-70 dungeon spells already carry TBC heroic damage values. They must only

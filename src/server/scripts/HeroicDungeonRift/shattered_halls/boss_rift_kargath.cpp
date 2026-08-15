@@ -274,11 +274,7 @@ struct boss_rift_kargath : public BossAIBase
     }
 
 protected:
-    void ConfigureTier() override
-    {
-        // 45倍只在剑刃之舞命中时短暂启用，避免T2顺劈和T3上钩拳继承同一系数。
-        SetRaidSpellDamageMultiplier(1.0f);
-    }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -296,10 +292,8 @@ protected:
                 if (Unit* target = SelectRandomPlayer(60.0f))
                 {
                     CastIfConfigured(target, SpellBladeDanceCharge, true);
-                    // DBC 30739仅约85点基础附加伤害；局部45倍后T1约3.8k，仍保留Tier伤害倍率。
-                    SetRaidSpellDamageMultiplier(45.0f);
+                    // 武器伤害由SpellBladeDanceDamage的独立WeaponDamageMultiplier调谐。
                     CastIfConfigured(target, SpellBladeDanceDamage, true);
-                    SetRaidSpellDamageMultiplier(1.0f);
                 }
 
                 if (--_danceStrikesRemaining)

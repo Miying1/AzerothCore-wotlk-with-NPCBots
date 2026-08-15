@@ -53,7 +53,8 @@ enum Spells : uint32
 
 enum Actions : int32
 {
-    ActionBeginWhitemaneEncounter = 1
+    ActionBeginWhitemaneEncounter = 1,
+    ActionResetWhitemaneEncounter
 };
 
 enum WhitemaneMovementPoints : uint32
@@ -109,6 +110,7 @@ struct npc_rift_whitemane : public ScriptedAI
         _combatTargetGuid.Clear();
         _tier = 1;
         _damagePermille = 1000;
+        _lastCastSpellId = 0;
         _resurrectionStarted = false;
         _phase = WhitemaneDormant;
         me->SetStandState(UNIT_STAND_STATE_STAND);
@@ -116,12 +118,13 @@ struct npc_rift_whitemane : public ScriptedAI
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
     }
 
+
     void SetData(uint32 type, uint32 data) override
     {
         if (type == RiftDataTier)
             _tier = uint8(std::clamp<uint32>(data, 1, MaxTier));
         else if (type == RiftDataDamagePermille)
-            _damagePermille = std::max<uint32>(1, data) * 15;
+            _damagePermille = std::max<uint32>(1, data);
     }
 
     void SetGUID(ObjectGuid const& guid, int32 type) override
@@ -134,13 +137,24 @@ struct npc_rift_whitemane : public ScriptedAI
 
     void DoAction(int32 action) override
     {
+        if (action == ActionResetWhitemaneEncounter)
+        {
+            ResetToDormantState();
+            return;
+        }
+
         if (action != ActionBeginWhitemaneEncounter || _phase != WhitemaneDormant)
             return;
 
         Creature* mograine = ObjectAccessor::GetCreature(*me, _mograineGuid);
         if (!mograine || !mograine->IsAlive())
+        {
+            LOG_ERROR("scripts", "Rift Whitemane {} cannot start: Mograine {} is unavailable.",
+                me->GetGUID().ToString(), _mograineGuid.ToString());
             return;
+        }
 
+        me->SetVisible(true);
         if (GameObject* door = me->FindNearestGameObject(WhitemaneDoorEntry, WhitemaneDoorSearchRange))
             door->SetGoState(GO_STATE_ACTIVE_ALTERNATIVE);
 
@@ -148,6 +162,7 @@ struct npc_rift_whitemane : public ScriptedAI
         _phase = WhitemaneMovingToMograine;
         me->SetReactState(REACT_PASSIVE);
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        me->SetInCombatWithZone();
         me->GetMotionMaster()->MovePoint(PointWhitemaneEntrance, GetApproachPosition(*mograine));
     }
 
@@ -212,11 +227,13 @@ struct npc_rift_whitemane : public ScriptedAI
     void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType,
         SpellSchoolMask /*damageSchoolMask*/) override
     {
-        if (damageType == DIRECT_DAMAGE)
-            return;
+        ScaleRiftSummonSpellDamage(_lastCastSpellId, damage, damageType, _damagePermille, 1);
+    }
 
-        uint64 scaledDamage = uint64(damage) * _damagePermille / 1000;
-        damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
+    void OnSpellCast(SpellInfo const* spell) override
+    {
+        if (spell)
+            _lastCastSpellId = spell->Id;
     }
 
     void KilledUnit(Unit* victim) override
@@ -291,6 +308,27 @@ struct npc_rift_whitemane : public ScriptedAI
     }
 
 private:
+    void ResetToDormantState()
+    {
+        _events.Reset();
+        _resurrectionStarted = false;
+        _phase = WhitemaneDormant;
+        _combatTargetGuid.Clear();
+        me->SetVisible(true);
+        me->CombatStop(true);
+        DoResetThreatList();
+        me->GetMotionMaster()->Clear(false);
+        me->NearTeleportTo(WhitemaneSpawnPosition.GetPositionX(), WhitemaneSpawnPosition.GetPositionY(),
+            WhitemaneSpawnPosition.GetPositionZ(), WhitemaneSpawnPosition.GetOrientation());
+        me->SetStandState(UNIT_STAND_STATE_STAND);
+        me->SetReactState(REACT_PASSIVE);
+        me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        me->SetFullHealth();
+
+        if (GameObject* door = me->FindNearestGameObject(WhitemaneDoorEntry, WhitemaneDoorSearchRange))
+            door->SetGoState(GO_STATE_READY);
+    }
+
     void YellWithSound(std::string_view text, uint32 soundId, WorldObject const* target = nullptr)
     {
         me->Yell(text, LANG_UNIVERSAL, target);
@@ -320,6 +358,16 @@ private:
         return position;
     }
 
+    SpellCastResult DoCast(Unit* target, uint32 spellId, bool triggered = false)
+    {
+        return CastRiftTunedSpell(me, target, spellId, triggered, &_lastCastSpellId);
+    }
+
+    SpellCastResult DoCastVictim(uint32 spellId, bool triggered = false)
+    {
+        return DoCast(me->GetVictim(), spellId, triggered);
+    }
+
     void ResumeCombat()
     {
         me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
@@ -341,6 +389,7 @@ private:
     ObjectGuid _combatTargetGuid;
     uint8 _tier = 1;
     uint32 _damagePermille = 1000;
+    uint32 _lastCastSpellId = 0;
     bool _resurrectionStarted = false;
     WhitemanePhase _phase = WhitemaneDormant;
 };
@@ -355,10 +404,10 @@ struct boss_rift_mograine : public BossAIBase
         me->SetReactState(REACT_AGGRESSIVE);
         me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
         BossAIBase::Reset();
-        _whitemaneGuid.Clear();
         _combatTargetGuid.Clear();
         _fakeDeath = false;
         _resurrected = false;
+        PrepareWhitemane();
     }
 
     void JustEngagedWith(Unit* who) override
@@ -385,9 +434,22 @@ struct boss_rift_mograine : public BossAIBase
         me->AttackStop();
         DoResetThreatList();
         me->SetReactState(REACT_PASSIVE);
+        me->RemoveAurasDueToSpell(SpellRetributionAura);
         me->SetStandState(UNIT_STAND_STATE_DEAD);
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-        SummonWhitemane();
+
+        Creature* whitemane = ObjectAccessor::GetCreature(*me, _whitemaneGuid);
+        if (!whitemane || !whitemane->IsAlive())
+        {
+            LOG_ERROR("scripts", "Rift Mograine {} cannot enter fake death: prepared Whitemane {} is unavailable.",
+                me->GetGUID().ToString(), _whitemaneGuid.ToString());
+            EnterEvadeMode(EVADE_REASON_SEQUENCE_BREAK);
+            return;
+        }
+
+        whitemane->AI()->SetGUID(me->GetGUID(), GuidMograine);
+        whitemane->AI()->SetGUID(_combatTargetGuid, GuidCombatTarget);
+        whitemane->AI()->DoAction(ActionBeginWhitemaneEncounter);
     }
 
     void SpellHit(Unit* caster, SpellInfo const* spell) override
@@ -469,20 +531,27 @@ private:
         events.ScheduleEvent(EventMograineHammerOfJustice, Milliseconds(9000));
     }
 
-    void SummonWhitemane()
+    void PrepareWhitemane()
     {
+        if (_whitemaneGuid)
+            if (Creature* existing = ObjectAccessor::GetCreature(*me, _whitemaneGuid))
+            {
+                existing->AI()->DoAction(ActionResetWhitemaneEncounter);
+                existing->AI()->SetGUID(me->GetGUID(), GuidMograine);
+                return;
+            }
+
         Creature* whitemane = SummonTieredCreature(RiftEntryWhitemane, WhitemaneSpawnPosition, 0.8f, 0.8f,
-            TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10 * IN_MILLISECONDS);
+            TEMPSUMMON_CORPSE_TIMED_DESPAWN, CreatureSummonLifetimeMilliseconds);
         if (!whitemane)
         {
-            me->KillSelf();
+            LOG_ERROR("scripts", "Rift Mograine {} failed to prepare Whitemane at {}.",
+                me->GetGUID().ToString(), WhitemaneSpawnPosition.GetPositionX());
             return;
         }
 
         _whitemaneGuid = whitemane->GetGUID();
         whitemane->AI()->SetGUID(me->GetGUID(), GuidMograine);
-        whitemane->AI()->SetGUID(_combatTargetGuid, GuidCombatTarget);
-        whitemane->AI()->DoAction(ActionBeginWhitemaneEncounter);
     }
 
     ObjectGuid _whitemaneGuid;

@@ -95,8 +95,7 @@ struct npc_rift_walking_bomb : public ScriptedAI
     void SetData(uint32 id, uint32 value) override
     {
         if (id == RiftDataDamagePermille)
-            // 裂隙伤害校准：召唤物爆炸在通用召唤物Tier伤害倍率外补偿15倍。
-            _damagePermille = value * 15;
+            _damagePermille = std::max<uint32>(1, value);
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -124,14 +123,16 @@ struct npc_rift_walking_bomb : public ScriptedAI
             return;
 
         _exploded = true;
-        if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SpellWalkingBombEffect))
+        if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(SpellWalkingBombEffect))
         {
-            int32 basePoint0 = spellInfo->Effects[EFFECT_0].CalcValue(me);
-            if (basePoint0 > 0)
-            {
-                int32 scaledBasePoint0 = int32(int64(basePoint0) * _damagePermille / 1000);
-                me->CastCustomSpell(SpellWalkingBombEffect, SPELLVALUE_BASE_POINT0, scaledBasePoint0, me, true);
-            }
+            CustomSpellValues values;
+            for (uint8 effectIndex = 0; effectIndex < tuning->EffectBasePoints.size(); ++effectIndex)
+                if (int32 basePoint = tuning->EffectBasePoints[effectIndex])
+                    values.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + effectIndex),
+                        int32(int64(basePoint) * _damagePermille / 1000));
+
+            if (!values.empty())
+                me->CastCustomSpell(SpellWalkingBombEffect, values, me, TRIGGERED_FULL_MASK);
             else
                 me->CastSpell(me, SpellWalkingBombEffect, true);
         }

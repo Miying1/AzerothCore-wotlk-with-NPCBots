@@ -42,18 +42,15 @@ enum Spells : uint32
     SpellAwakenVisual = 10254          // 石像苏醒视觉（原版唤醒法术的视觉特效）
 };
 
-class EarthenGuardAI : public ScriptedAI
+class EarthenGuardAI : public RiftSummonAI
 {
 public:
-    explicit EarthenGuardAI(Creature* creature) : ScriptedAI(creature) { }
+    explicit EarthenGuardAI(Creature* creature) : RiftSummonAI(creature) { }
 
     void Reset() override
     {
-        _events.Reset();
-        _tier = 1;
-        _damagePermille = 1000;
+        RiftSummonAI::Reset();
         _awakening = false;
-        ScheduleAbilities();
     }
 
     void IsSummonedBy(WorldObject* /*summoner*/) override
@@ -69,26 +66,12 @@ public:
 
     void SetData(uint32 type, uint32 data) override
     {
-        if (type == RiftDataTier)
+        RiftSummonAI::SetData(type, data);
+        if (type == RiftDataTier && _awakening)
         {
-            _tier = uint8(std::clamp<uint32>(data, 1, MaxTier));
+            // 基类会按Tier重新排技能；石化唤醒尚未结束时只保留苏醒定时器。
             _events.Reset();
-            // 石化唤醒流程尚未结束，仅保留苏醒定时器；技能在苏醒后才开始计时。
-            if (_awakening)
-                _events.ScheduleEvent(EventAwaken, 4s);
-            else
-                ScheduleAbilities();
-        }
-        else if (type == RiftDataDamagePermille)
-            _damagePermille = std::max<uint32>(1, data) * 15;
-    }
-
-    void DamageDealt(Unit* /*victim*/, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override
-    {
-        if (damageType != DIRECT_DAMAGE)
-        {
-            uint64 scaledDamage = uint64(damage) * _damagePermille / 1000;
-            damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
+            _events.ScheduleEvent(EventAwaken, 4s);
         }
     }
 
@@ -144,9 +127,6 @@ protected:
     virtual void ScheduleAbilities() { }
     virtual void ExecuteAbility(uint32 /*eventId*/) { }
 
-    EventMap _events;
-    uint8 _tier = 1;
-    uint32 _damagePermille = 1000;
     bool _awakening = false;
 };
 

@@ -64,8 +64,7 @@ class spell_rift_doan_arcane_missiles : public AuraScript
             return;
 
         PreventDefaultAction();
-        int32 damage = std::max<int32>(1, int32(std::lround(
-            double(ArcaneMissilesTier1DamagePerTick) / 15.0)));
+        int32 damage = ArcaneMissilesTier1DamagePerTick;
         caster->CastCustomSpell(SpellArcaneMissilesDamage, SPELLVALUE_BASE_POINT0, damage, target,
             TRIGGERED_FULL_MASK, nullptr, aurEff);
     }
