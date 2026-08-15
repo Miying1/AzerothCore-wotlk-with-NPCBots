@@ -17,8 +17,8 @@ SET @RIFT_T2_DAMAGE := 1.4000;
 SET @RIFT_T3_HEALTH := 3.0000;
 SET @RIFT_T3_DAMAGE := 2.0000;
 
-SET @RIFT_BOSS_HM_MELEE := 129;
-SET @RIFT_BOSS_HM_CASTER := 115;
+SET @RIFT_BOSS_HM_MELEE := 100;
+SET @RIFT_BOSS_HM_CASTER := 92;
 SET @RIFT_BOSS_DAMAGE_MODIFIER := 35.0000;
 SET @RIFT_SUMMON_DAMAGE_MODIFIER := 12.0000;
 SET @RIFT_BOSS_UNIT_FLAGS_KEEP_MASK := 2113862781;
@@ -128,35 +128,35 @@ CREATE TEMPORARY TABLE `_rift_summon_map` (
 );
 
 INSERT INTO `_rift_summon_map` (`source_entry`,`new_entry`,`boss_source_entry`,`script_name`,`name_suffix`) VALUES
-(17695,@RIFT_SUMMON_ENTRY_BASE + 34,16808,'npc_rift_shattered_hand_assassin','裂隙破碎之手刺客'),
-(17621,@RIFT_SUMMON_ENTRY_BASE + 35,16808,'npc_rift_shattered_hand_heathen','裂隙希顿护卫'),
-(17623,@RIFT_SUMMON_ENTRY_BASE + 36,16808,'npc_rift_shattered_hand_reaver','裂隙劫夺者护卫'),
-(17622,@RIFT_SUMMON_ENTRY_BASE + 37,16808,'npc_rift_shattered_hand_sharpshooter','裂隙神射手护卫'),
-(17662,@RIFT_SUMMON_ENTRY_BASE + 38,17380,'npc_rift_broggok_poison_cloud','裂隙布洛克毒云'),
-(17540,@RIFT_SUMMON_ENTRY_BASE + 39,17308,'npc_rift_fiendish_hound','裂隙残忍的军犬'),
-(17954,@RIFT_SUMMON_ENTRY_BASE + 40,17798,'npc_rift_naga_distiller','裂隙纳迦蒸馏器'),
-(17827,@RIFT_SUMMON_ENTRY_BASE + 41,17826,'npc_rift_claw','裂隙裂爪'),
-(22299,@RIFT_SUMMON_ENTRY_BASE + 42,17882,'npc_rift_spore_strider','裂隙孢子行者'),
-(20208,@RIFT_SUMMON_ENTRY_BASE + 43,17941,'npc_rift_mennu_healing_ward','裂隙门努治疗图腾'),
-(18176,@RIFT_SUMMON_ENTRY_BASE + 44,17941,'npc_rift_mennu_earthgrab_totem','裂隙腐蚀地缚图腾'),
-(18177,@RIFT_SUMMON_ENTRY_BASE + 45,17941,'npc_rift_mennu_stoneskin_totem','裂隙腐蚀石肤图腾'),
-(18179,@RIFT_SUMMON_ENTRY_BASE + 46,17941,'npc_rift_mennu_nova_totem','裂隙堕落新星图腾'),
-(19919,@RIFT_SUMMON_ENTRY_BASE + 47,17980,'npc_rift_thorn_lasher','裂隙荆棘鞭笞者'),
-(19920,@RIFT_SUMMON_ENTRY_BASE + 48,17980,'npc_rift_thorn_flayer','裂隙荆棘撕掠者'),
-(19949,@RIFT_SUMMON_ENTRY_BASE + 49,17977,'npc_rift_warp_sapling','裂隙树苗'),
-(21062,@RIFT_SUMMON_ENTRY_BASE + 50,19220,'npc_rift_nether_wraith','裂隙虚空怨灵'),
-(18431,@RIFT_SUMMON_ENTRY_BASE + 51,18344,'npc_rift_ethereal_beacon','裂隙以太信标'),
-(18430,@RIFT_SUMMON_ENTRY_BASE + 52,18344,'npc_rift_ethereal_apprentice','裂隙以太学徒'),
-(18374,@RIFT_SUMMON_ENTRY_BASE + 53,18371,'npc_rift_focus_fire','裂隙专注之火'),
-(18441,@RIFT_SUMMON_ENTRY_BASE + 54,18373,'npc_rift_stolen_soul','裂隙偷取的灵魂'),
-(18478,@RIFT_SUMMON_ENTRY_BASE + 55,18373,'npc_rift_martyred_avatar','裂隙马丁瑞德的化身'),
-(24674,@RIFT_SUMMON_ENTRY_BASE + 56,24664,'npc_rift_kaelthas_phoenix','裂隙凤凰'),
-(24708,@RIFT_SUMMON_ENTRY_BASE + 57,24664,'npc_rift_kaelthas_arcane_sphere','裂隙秘法之球'),
-(17536,@RIFT_SUMMON_ENTRY_BASE + 58,17537,'npc_rift_nazan','裂隙纳杉');
+(17695,@RIFT_SUMMON_ENTRY_BASE + 34,16808,'npc_rift_shattered_hand_assassin','破碎之手刺客'),
+(17621,@RIFT_SUMMON_ENTRY_BASE + 35,16808,'npc_rift_shattered_hand_heathen','希顿护卫'),
+(17623,@RIFT_SUMMON_ENTRY_BASE + 36,16808,'npc_rift_shattered_hand_reaver','劫夺者护卫'),
+(17622,@RIFT_SUMMON_ENTRY_BASE + 37,16808,'npc_rift_shattered_hand_sharpshooter','神射手护卫'),
+(17662,@RIFT_SUMMON_ENTRY_BASE + 38,17380,'npc_rift_broggok_poison_cloud','布洛克毒云'),
+(17540,@RIFT_SUMMON_ENTRY_BASE + 39,17308,'npc_rift_fiendish_hound','残忍的军犬'),
+(17954,@RIFT_SUMMON_ENTRY_BASE + 40,17798,'npc_rift_naga_distiller','纳迦蒸馏器'),
+(17827,@RIFT_SUMMON_ENTRY_BASE + 41,17826,'npc_rift_claw','裂爪'),
+(22299,@RIFT_SUMMON_ENTRY_BASE + 42,17882,'npc_rift_spore_strider','孢子行者'),
+(20208,@RIFT_SUMMON_ENTRY_BASE + 43,17941,'npc_rift_mennu_healing_ward','门努治疗图腾'),
+(18176,@RIFT_SUMMON_ENTRY_BASE + 44,17941,'npc_rift_mennu_earthgrab_totem','腐蚀地缚图腾'),
+(18177,@RIFT_SUMMON_ENTRY_BASE + 45,17941,'npc_rift_mennu_stoneskin_totem','腐蚀石肤图腾'),
+(18179,@RIFT_SUMMON_ENTRY_BASE + 46,17941,'npc_rift_mennu_nova_totem','堕落新星图腾'),
+(19919,@RIFT_SUMMON_ENTRY_BASE + 47,17980,'npc_rift_thorn_lasher','荆棘鞭笞者'),
+(19920,@RIFT_SUMMON_ENTRY_BASE + 48,17980,'npc_rift_thorn_flayer','荆棘撕掠者'),
+(19949,@RIFT_SUMMON_ENTRY_BASE + 49,17977,'npc_rift_warp_sapling','树苗'),
+(21062,@RIFT_SUMMON_ENTRY_BASE + 50,19220,'npc_rift_nether_wraith','虚空怨灵'),
+(18431,@RIFT_SUMMON_ENTRY_BASE + 51,18344,'npc_rift_ethereal_beacon','以太信标'),
+(18430,@RIFT_SUMMON_ENTRY_BASE + 52,18344,'npc_rift_ethereal_apprentice','以太学徒'),
+(18374,@RIFT_SUMMON_ENTRY_BASE + 53,18371,'npc_rift_focus_fire','专注之火'),
+(18441,@RIFT_SUMMON_ENTRY_BASE + 54,18373,'npc_rift_stolen_soul','偷取的灵魂'),
+(18478,@RIFT_SUMMON_ENTRY_BASE + 55,18373,'npc_rift_martyred_avatar','马丁瑞德的化身'),
+(24674,@RIFT_SUMMON_ENTRY_BASE + 56,24664,'npc_rift_kaelthas_phoenix','凤凰'),
+(24708,@RIFT_SUMMON_ENTRY_BASE + 57,24664,'npc_rift_kaelthas_arcane_sphere','秘法之球'),
+(17536,@RIFT_SUMMON_ENTRY_BASE + 58,17537,'npc_rift_nazan','纳杉');
 
 DROP TEMPORARY TABLE IF EXISTS `_rift_template_map`;
 CREATE TEMPORARY TABLE `_rift_template_map` AS
-SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('Rift T', `tier`) AS `name_suffix`, 1 AS `is_boss`, 0 AS `boss_source_entry`
+SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('T', `tier`) AS `name_suffix`, 1 AS `is_boss`, 0 AS `boss_source_entry`
 FROM `_rift_boss_map`
 UNION ALL
 SELECT `source_entry`, `new_entry`, `script_name`, `name_suffix`, 0, `boss_source_entry`
@@ -186,7 +186,7 @@ INSERT INTO `creature_template` (
   `flags_extra`, `ScriptName`, `VerifiedBuild`
 )
 SELECT
-  m.new_entry,0,0,0,0,0,CONCAT(ct.name,' [',m.name_suffix,']'),ct.subname,ct.IconName,0,
+  m.new_entry,0,0,0,0,0,IF(m.is_boss=1,CONCAT(ct.name,' [',m.name_suffix,']'),ct.name),ct.subname,ct.IconName,0,
   IF(m.is_boss=1,83,82),IF(m.is_boss=1,83,82),2,ct.faction,0,ct.speed_walk,ct.speed_run,ct.speed_swim,ct.speed_flight,ct.detection_range,
   IF(m.is_boss=1,1,ct.rank),ct.dmgschool,
   IF(m.is_boss=1,@RIFT_BOSS_DAMAGE_MODIFIER,@RIFT_SUMMON_DAMAGE_MODIFIER),
@@ -225,7 +225,7 @@ FROM `creature_template_resistance` src JOIN `_rift_template_map` m ON m.source_
 -- 主Boss保留常驻战斗光环，但清除 bytes1 低字节中的睡眠、死亡等站姿，确保生成时为站立状态。
 INSERT INTO `creature_template_addon`
 SELECT m.new_entry,0,src.mount,IF(m.is_boss=1,(src.bytes1 & 4294967040),src.bytes1),
-       src.bytes2,src.emote,src.visibilityDistanceType,src.auras
+       src.bytes2,src.emote,src.visibilityDistanceType,IF(m.is_boss=1,src.auras,NULL)
 FROM `creature_template_addon` src JOIN `_rift_template_map` m ON m.source_entry=src.entry;
 
 INSERT INTO `creature_equip_template`

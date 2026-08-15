@@ -11,6 +11,7 @@
 #include "AllMapScript.h"
 #include "Map.h"
 #include "Player.h"
+#include "PlayerScript.h"
 #include "ScriptMgr.h"
 #include "WorldScript.h"
 
@@ -58,10 +59,22 @@ public:
     }
 };
 
+class rift_player_script : public PlayerScript
+{
+public:
+    rift_player_script() : PlayerScript("rift_player_script") { }
+
+    void OnPlayerResurrect(Player* player, float /*restore_percent*/, bool& /*applySickness*/) override
+    {
+        RunManager::Instance().OnPlayerResurrect(player);
+    }
+};
+
 void AddSC_rift_hooks()
 {
     new rift_world_script();
     new rift_map_script();
+    new rift_player_script();
 }
 
 } // namespace HeroicDungeonRift

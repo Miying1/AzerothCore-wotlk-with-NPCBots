@@ -278,6 +278,7 @@ struct RunComponent
     uint32 EntryId = 0;
     uint32 MapId = 0;
     uint32 InstanceId = 0;
+    uint8 InstanceDifficulty = 0; // 裂隙实例实际难度（与MapMgr::CreateMap创建的实例难度一致）
     Position BossSpawn;
     Position PlayerEntry;
     WorldLocation SharedReturnLocation;
@@ -318,6 +319,7 @@ public:
     bool ExitRun(Player* player, GameObject* portal, std::string& error);
     void OnPlayerEnterMap(Map* map, Player* player);
     void OnPlayerLeaveMap(Map* map, Player* player);
+    void OnPlayerResurrect(Player* player);
     void OnMapUpdate(Map* map, uint32 diff);
     void OnDestroyInstance(Map* map);
     void Clear();

@@ -29,8 +29,8 @@ SET @RIFT_T3_DAMAGE := 2.0000;
 -- 主Boss 血量按职业分档（HealthModifier 固定值，血量=basehp2(83)×HealthModifier）：
 --   战士/圣骑士（unit_class 1/2）：HealthModifier=129 → 血量≈180万；
 --   法系（unit_class 8）       ：HealthModifier=115 → 血量≈128万（47个源Boss中仅秘法师杜安为 class 8）。
-SET @RIFT_BOSS_HM_MELEE := 129;
-SET @RIFT_BOSS_HM_CASTER := 115;
+SET @RIFT_BOSS_HM_MELEE := 100;
+SET @RIFT_BOSS_HM_CASTER := 93;
 
 -- creature_template基础近战伤害系数；与运行时Tier伤害倍率分开配置。
 SET @RIFT_BOSS_DAMAGE_MODIFIER := 35.0000;
@@ -281,44 +281,44 @@ CREATE TEMPORARY TABLE `_rift_summon_map` (
 );
 
 INSERT INTO `_rift_summon_map` (`source_entry`,`new_entry`,`boss_source_entry`,`script_name`,`name_suffix`) VALUES
-(3977,@RIFT_SUMMON_ENTRY_BASE + 0,3976,'npc_rift_whitemane','裂隙怀特迈恩'),
-(7915,@RIFT_SUMMON_ENTRY_BASE + 1,7800,'npc_rift_walking_bomb','裂隙步行炸弹'),
-(8585,@RIFT_SUMMON_ENTRY_BASE + 2,7358,'npc_rift_frost_spectre','裂隙冰霜亡魂'),
-(6575,@RIFT_SUMMON_ENTRY_BASE + 3,3975,'npc_rift_scarlet_trainee','裂隙血色预备兵'),
-(6066,@RIFT_SUMMON_ENTRY_BASE + 4,5710,'npc_rift_earthgrab_totem','裂隙地缚图腾'),
-(7076,@RIFT_SUMMON_ENTRY_BASE + 5,2748,'npc_rift_earthen_guardian','裂隙地灵守护者'),
-(10120,@RIFT_SUMMON_ENTRY_BASE + 6,2748,'npc_rift_vault_warder','裂隙宝库守卫'),
-(7077,@RIFT_SUMMON_ENTRY_BASE + 7,2748,'npc_rift_earthen_hallshaper','裂隙地灵塑石者'),
-(7309,@RIFT_SUMMON_ENTRY_BASE + 8,2748,'npc_rift_earthen_custodian','裂隙地灵看守者'),
-(4825,@RIFT_SUMMON_ENTRY_BASE + 9,4829,'npc_rift_akumai_snapjaw','裂隙阿库麦尔钳嘴龟'),
-(4978,@RIFT_SUMMON_ENTRY_BASE + 10,4829,'npc_rift_akumai_servant','裂隙阿库麦尔仆从'),
-(7797,@RIFT_SUMMON_ENTRY_BASE + 11,7267,'npc_rift_ruuzlu','裂隙卢兹鲁'),
-(14324,@RIFT_SUMMON_ENTRY_BASE + 12,11501,'npc_rift_chorsh','裂隙观察者克鲁什'),
-(8929,@RIFT_SUMMON_ENTRY_BASE + 13,9019,'npc_rift_moira','裂隙茉艾拉公主'),
-(11598,@RIFT_SUMMON_ENTRY_BASE + 14,1853,'npc_rift_risen_guardian','裂隙复生的守卫'),
-(9178,@RIFT_SUMMON_ENTRY_BASE + 15,9156,'npc_rift_burning_spirit','裂隙燃烧之灵'),
-(9216,@RIFT_SUMMON_ENTRY_BASE + 16,9568,'npc_rift_spirestone_warlord','裂隙尖石军阀'),
-(9268,@RIFT_SUMMON_ENTRY_BASE + 17,9568,'npc_rift_smolderthorn_berserker','裂隙燃棘狂战士'),
-(4627,@RIFT_SUMMON_ENTRY_BASE + 18,4275,'npc_rift_arugal_voidwalker','裂隙阿鲁高的虚空行者'),
-(8996,@RIFT_SUMMON_ENTRY_BASE + 19,4275,'npc_rift_voidwalker_minion','裂隙虚空行者仆从'),
-(10375,@RIFT_SUMMON_ENTRY_BASE + 20,10596,'npc_rift_spire_spiderling','裂隙尖塔小蜘蛛'),
-(11197,@RIFT_SUMMON_ENTRY_BASE + 21,10440,'npc_rift_mindless_skeleton','裂隙无脑骷髅'),
-(11460,@RIFT_SUMMON_ENTRY_BASE + 22,11492,'npc_rift_alzzin_minion','裂隙奥兹恩仆从'),
-(9436,@RIFT_SUMMON_ENTRY_BASE + 23,9016,'npc_rift_baelgar_spawn','裂隙贝尔加幼体'),
-(9034,@RIFT_SUMMON_ENTRY_BASE + 24,9039,'npc_rift_seven_haterel','裂隙七贤·仇恨者'),
-(9035,@RIFT_SUMMON_ENTRY_BASE + 25,9039,'npc_rift_seven_angerrel','裂隙七贤·愤怒者'),
-(9036,@RIFT_SUMMON_ENTRY_BASE + 26,9039,'npc_rift_seven_vilerel','裂隙七贤·邪恶者'),
-(9037,@RIFT_SUMMON_ENTRY_BASE + 27,9039,'npc_rift_seven_gloomrel','裂隙七贤·忧郁者'),
-(9038,@RIFT_SUMMON_ENTRY_BASE + 28,9039,'npc_rift_seven_seethrel','裂隙七贤·沸腾者'),
-(9040,@RIFT_SUMMON_ENTRY_BASE + 29,9039,'npc_rift_seven_doperel','裂隙七贤·愚昧者'),
-(8900,@RIFT_SUMMON_ENTRY_BASE + 30,8983,'npc_rift_argelmach_arcanasmith','裂隙末日熔炉奥术铁匠'),
-(8906,@RIFT_SUMMON_ENTRY_BASE + 31,8983,'npc_rift_argelmach_golem','裂隙怒削魔像'),
-(8907,@RIFT_SUMMON_ENTRY_BASE + 32,8983,'npc_rift_argelmach_wrath_hammer','裂隙怒火之锤构造体'),
-(8920,@RIFT_SUMMON_ENTRY_BASE + 33,8983,'npc_rift_argelmach_technician','裂隙武器技师');
+(3977,@RIFT_SUMMON_ENTRY_BASE + 0,3976,'npc_rift_whitemane','怀特迈恩'),
+(7915,@RIFT_SUMMON_ENTRY_BASE + 1,7800,'npc_rift_walking_bomb','步行炸弹'),
+(8585,@RIFT_SUMMON_ENTRY_BASE + 2,7358,'npc_rift_frost_spectre','冰霜亡魂'),
+(6575,@RIFT_SUMMON_ENTRY_BASE + 3,3975,'npc_rift_scarlet_trainee','血色预备兵'),
+(6066,@RIFT_SUMMON_ENTRY_BASE + 4,5710,'npc_rift_earthgrab_totem','地缚图腾'),
+(7076,@RIFT_SUMMON_ENTRY_BASE + 5,2748,'npc_rift_earthen_guardian','地灵守护者'),
+(10120,@RIFT_SUMMON_ENTRY_BASE + 6,2748,'npc_rift_vault_warder','宝库守卫'),
+(7077,@RIFT_SUMMON_ENTRY_BASE + 7,2748,'npc_rift_earthen_hallshaper','地灵塑石者'),
+(7309,@RIFT_SUMMON_ENTRY_BASE + 8,2748,'npc_rift_earthen_custodian','地灵看守者'),
+(4825,@RIFT_SUMMON_ENTRY_BASE + 9,4829,'npc_rift_akumai_snapjaw','阿库麦尔钳嘴龟'),
+(4978,@RIFT_SUMMON_ENTRY_BASE + 10,4829,'npc_rift_akumai_servant','阿库麦尔仆从'),
+(7797,@RIFT_SUMMON_ENTRY_BASE + 11,7267,'npc_rift_ruuzlu','卢兹鲁'),
+(14324,@RIFT_SUMMON_ENTRY_BASE + 12,11501,'npc_rift_chorsh','观察者克鲁什'),
+(8929,@RIFT_SUMMON_ENTRY_BASE + 13,9019,'npc_rift_moira','茉艾拉公主'),
+(11598,@RIFT_SUMMON_ENTRY_BASE + 14,1853,'npc_rift_risen_guardian','复生的守卫'),
+(9178,@RIFT_SUMMON_ENTRY_BASE + 15,9156,'npc_rift_burning_spirit','燃烧之灵'),
+(9216,@RIFT_SUMMON_ENTRY_BASE + 16,9568,'npc_rift_spirestone_warlord','尖石军阀'),
+(9268,@RIFT_SUMMON_ENTRY_BASE + 17,9568,'npc_rift_smolderthorn_berserker','燃棘狂战士'),
+(4627,@RIFT_SUMMON_ENTRY_BASE + 18,4275,'npc_rift_arugal_voidwalker','阿鲁高的虚空行者'),
+(8996,@RIFT_SUMMON_ENTRY_BASE + 19,4275,'npc_rift_voidwalker_minion','虚空行者仆从'),
+(10375,@RIFT_SUMMON_ENTRY_BASE + 20,10596,'npc_rift_spire_spiderling','尖塔小蜘蛛'),
+(11197,@RIFT_SUMMON_ENTRY_BASE + 21,10440,'npc_rift_mindless_skeleton','无脑骷髅'),
+(11460,@RIFT_SUMMON_ENTRY_BASE + 22,11492,'npc_rift_alzzin_minion','奥兹恩仆从'),
+(9436,@RIFT_SUMMON_ENTRY_BASE + 23,9016,'npc_rift_baelgar_spawn','贝尔加幼体'),
+(9034,@RIFT_SUMMON_ENTRY_BASE + 24,9039,'npc_rift_seven_haterel','七贤·仇恨者'),
+(9035,@RIFT_SUMMON_ENTRY_BASE + 25,9039,'npc_rift_seven_angerrel','七贤·愤怒者'),
+(9036,@RIFT_SUMMON_ENTRY_BASE + 26,9039,'npc_rift_seven_vilerel','七贤·邪恶者'),
+(9037,@RIFT_SUMMON_ENTRY_BASE + 27,9039,'npc_rift_seven_gloomrel','七贤·忧郁者'),
+(9038,@RIFT_SUMMON_ENTRY_BASE + 28,9039,'npc_rift_seven_seethrel','七贤·沸腾者'),
+(9040,@RIFT_SUMMON_ENTRY_BASE + 29,9039,'npc_rift_seven_doperel','七贤·愚昧者'),
+(8900,@RIFT_SUMMON_ENTRY_BASE + 30,8983,'npc_rift_argelmach_arcanasmith','末日熔炉奥术铁匠'),
+(8906,@RIFT_SUMMON_ENTRY_BASE + 31,8983,'npc_rift_argelmach_golem','怒削魔像'),
+(8907,@RIFT_SUMMON_ENTRY_BASE + 32,8983,'npc_rift_argelmach_wrath_hammer','怒火之锤构造体'),
+(8920,@RIFT_SUMMON_ENTRY_BASE + 33,8983,'npc_rift_argelmach_technician','武器技师');
 
 DROP TEMPORARY TABLE IF EXISTS `_rift_template_map`;
 CREATE TEMPORARY TABLE `_rift_template_map` AS
-SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('Rift T', `tier`) AS `name_suffix`, 1 AS `is_boss`, 0 AS `boss_source_entry`
+SELECT `source_entry`, `new_entry`, `script_name`, CONCAT('T', `tier`) AS `name_suffix`, 1 AS `is_boss`, 0 AS `boss_source_entry`
 FROM `_rift_boss_map`
 UNION ALL
 SELECT `source_entry`, `new_entry`, `script_name`, `name_suffix`, 0, `boss_source_entry`
@@ -348,7 +348,7 @@ INSERT INTO `creature_template` (
   `flags_extra`, `ScriptName`, `VerifiedBuild`
 )
 SELECT
-  m.new_entry,0,0,0,0,0,CONCAT(ct.name,' [',m.name_suffix,']'),ct.subname,ct.IconName,0,
+  m.new_entry,0,0,0,0,0,IF(m.is_boss=1,CONCAT(ct.name,' [',m.name_suffix,']'),ct.name),ct.subname,ct.IconName,0,
   IF(m.is_boss=1,83,82),IF(m.is_boss=1,83,82),2,ct.faction,0,ct.speed_walk,ct.speed_run,ct.speed_swim,ct.speed_flight,ct.detection_range,
   IF(m.is_boss=1,1,ct.rank),ct.dmgschool,
   IF(m.is_boss=1,@RIFT_BOSS_DAMAGE_MODIFIER,@RIFT_SUMMON_DAMAGE_MODIFIER),
@@ -387,7 +387,7 @@ FROM `creature_template_resistance` src JOIN `_rift_template_map` m ON m.source_
 -- 主Boss保留常驻战斗光环，但清除 bytes1 低字节中的睡眠、死亡等站姿，确保生成时为站立状态。
 INSERT INTO `creature_template_addon`
 SELECT m.new_entry,0,src.mount,IF(m.is_boss=1,(src.bytes1 & 4294967040),src.bytes1),
-       src.bytes2,src.emote,src.visibilityDistanceType,src.auras
+       src.bytes2,src.emote,src.visibilityDistanceType,IF(m.is_boss=1,src.auras,NULL)
 FROM `creature_template_addon` src JOIN `_rift_template_map` m ON m.source_entry=src.entry;
 
 INSERT INTO `creature_equip_template`

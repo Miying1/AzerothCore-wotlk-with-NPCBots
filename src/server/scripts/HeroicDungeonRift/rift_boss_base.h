@@ -12,7 +12,9 @@
 #include "rift_defines.h"
 
 #include "ScriptedCreature.h"
+#include "Spell.h"
 #include "SpellInfo.h"
+#include "StringFormat.h"
 #include "ThreatManager.h"
 
 #include <algorithm>
@@ -75,7 +77,10 @@ public:
         if (_tierConfig)
         {
             double multiplier = _tierConfig->DamageMultiplier;
-            if (damageType != DIRECT_DAMAGE)
+            // 经典内容的法术伤害修正仅作用于纯法术/DoT；武器伤害类技能（近战/远程武器伤害）
+            // 与平砍同源、其伤害已隐含武器伤害缩放，不应再叠加该修正，否则会被放大到异常值。
+            bool isWeaponDamageAbility = (damageType == SPELL_DIRECT_DAMAGE) && IsCurrentSpellWeaponDamageBased();
+            if (damageType != DIRECT_DAMAGE && !isWeaponDamageAbility)
                 multiplier *= _raidSpellDamageMultiplier;
             damage = uint32(std::min<double>(double(damage) * multiplier, std::numeric_limits<uint32>::max()));
         }
@@ -177,7 +182,7 @@ protected:
 
     Creature* SummonTieredCreature(uint32 entry, Position const& position, float healthCoefficient = 1.0f,
         float damageCoefficient = 1.0f, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN,
-        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS)
+        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS, bool preserveStonedState = false)
     {
         if (!entry || !_tierConfig)
             return nullptr;
@@ -186,13 +191,16 @@ protected:
         if (!summon)
             return nullptr;
 
-        ApplySummonTierStats(summon, healthCoefficient, damageCoefficient);
+        ApplySummonTierStats(summon, healthCoefficient, damageCoefficient, preserveStonedState);
         _riftSummons.push_back(summon->GetGUID());
-        summon->SetInCombatWithZone();
+        // 走石化唤醒流程的召唤物（如奥达曼石像守卫）在苏醒后才进入战斗，此处不提前拉入战斗。
+        if (!preserveStonedState)
+            summon->SetInCombatWithZone();
         return summon;
     }
 
-    void ApplySummonTierStats(Creature* summon, float healthCoefficient = 1.0f, float damageCoefficient = 1.0f)
+    void ApplySummonTierStats(Creature* summon, float healthCoefficient = 1.0f, float damageCoefficient = 1.0f,
+        bool preserveStonedState = false)
     {
         if (!summon || !_tierConfig)
             return;
@@ -214,8 +222,26 @@ protected:
             summon->UpdateDamagePhysical(attackType);
         }
 
+        // 召唤物是Boss战斗增援，必须立即处于可被攻击、可主动进攻的状态。
+        // 部分源模板（如奥达曼的石像守卫）在 creature_template_addon 里自带石化光环(10255)，
+        // 该光环会把单位置为被动(REACT_PASSIVE)并免疫一切伤害，而裂隙召唤物不走源模板的SmartAI来解除石化，
+        // 这里显式清除石化并恢复可攻击状态（与 BossAIBase::Reset 的处理保持一致）。
+        // 若调用方要求保留石化状态（奥达曼石像守卫复刻原版唤醒动画），则跳过此清理，由守卫AI自行苏醒。
+        if (!preserveStonedState)
+        {
+            summon->RemoveAurasDueToSpell(10255);
+            summon->SetStandState(UNIT_STAND_STATE_STAND);
+            summon->SetReactState(REACT_AGGRESSIVE);
+            summon->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_ATTACKABLE_1 | UNIT_FLAG_IMMUNE_TO_PC |
+                UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE_2 | UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE);
+            summon->RemoveUnitFlag2(UNIT_FLAG2_FEIGN_DEATH | UNIT_FLAG2_HIDE_BODY);
+        }
+
         summon->AI()->SetData(RiftDataTier, _tier);
         summon->AI()->SetData(RiftDataDamagePermille, uint32(finalDamageMultiplier * 1000.0f));
+
+        // 召唤物名称与所属Boss保持一致，仅追加Tier后缀（如"源名 [T1]"），由运行时根据当前Tier动态生成。
+        summon->SetName(Acore::StringFormat("{} [T{}]", summon->GetName(), uint32(_tier)));
     }
 
     void DespawnRiftSummons()
@@ -241,6 +267,15 @@ protected:
     {
         if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())
             _interruptImmuneSpells.push_back(spellId);
+    }
+
+    // 判断当前正在结算的技能是否为武器伤害类技能（近战/远程武器伤害）。
+    bool IsCurrentSpellWeaponDamageBased() const
+    {
+        if (Spell const* spell = me->GetCurrentSpell(CURRENT_GENERIC_SPELL))
+            if (SpellInfo const* spellInfo = spell->GetSpellInfo())
+                return spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MELEE || spellInfo->DmgClass == SPELL_DAMAGE_CLASS_RANGED;
+        return false;
     }
 
     void RemoveInterruptImmunity(SpellInfo const* spell)

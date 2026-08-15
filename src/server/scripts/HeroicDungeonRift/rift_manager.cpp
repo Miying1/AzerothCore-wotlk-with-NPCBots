@@ -367,17 +367,19 @@ bool RunManager::StartRun(Player* initiator, TierConfig const& tierConfig, std::
         return false;
     }
 
+    // 裂隙实例难度必须与 MapMgr::CreateMap 实际创建的实例难度保持一致。
+    // CreateMap 内部（MapInstanced::CreateInstanceForPlayer 的 else 分支）在无既有绑定路由时，
+    // 按“队长所在小队的副本难度（无小队则取个人难度）”创建新实例；
+    // 这里提前用同一规则算出实际难度，避免英雄小队下实例为英雄难度却按普通难度校验/绑定，
+    // 触发“新裂隙实例缺少InstanceSave，无法建立整队路由”的误报。
     Difficulty difficulty = DUNGEON_DIFFICULTY_NORMAL;
-    for (Player* member : members)
-    {
-        InstancePlayerBind* bind = sInstanceSaveMgr->PlayerGetBoundInstance(member->GetGUID(), bossConfig->MapId, difficulty);
-        if (bind && bind->perm)
-        {
-            error = "有队员已永久绑定目标副本，无法为本场创建独立裂隙实例。";
-            return false;
-        }
-    }
+    if (Group* leaderGroup = leader->GetGroup())
+        difficulty = leaderGroup->GetDungeonDifficulty();
+    else
+        difficulty = leader->GetDungeonDifficulty();
 
+    // 允许“已存在永久副本CD”的队员进入：直接永久解绑（不保留、不恢复原CD），
+    // 让 CreateMap 走“新建独立实例”分支。
     for (Player* member : members)
     {
         if (sInstanceSaveMgr->PlayerGetBoundInstance(member->GetGUID(), bossConfig->MapId, difficulty))
@@ -407,6 +409,7 @@ bool RunManager::StartRun(Player* initiator, TierConfig const& tierConfig, std::
     run->EntryId = tierConfig.EntryId;
     run->MapId = bossConfig->MapId;
     run->InstanceId = targetMap->GetInstanceId();
+    run->InstanceDifficulty = uint8(difficulty);
     run->BossSpawn = tierConfig.BossSpawn;
     run->PlayerEntry = tierConfig.PlayerEntry;
     run->SharedReturnLocation = WorldLocation(initiator->GetMapId(), initiator->GetPositionX(), initiator->GetPositionY(), initiator->GetPositionZ(), initiator->GetOrientation());
@@ -615,6 +618,29 @@ void RunManager::OnPlayerLeaveMap(Map* map, Player* player)
     }
 }
 
+void RunManager::OnPlayerResurrect(Player* player)
+{
+    if (!player)
+        return;
+
+    // 只处理仍与本场裂隙运行关联的玩家。
+    std::shared_ptr<RunComponent> run = FindByPlayer(player->GetGUID());
+    if (!run)
+        return;
+
+    // 跑尸回到本裂隙实例内复活，保留运行关联，玩家可继续战斗。
+    if (player->GetMapId() == run->MapId && player->GetInstanceId() == run->InstanceId)
+        return;
+
+    // 灵魂医者/墓地复活（复活后不在本裂隙实例内），视为彻底离开，解除关联避免残留导致无法再次进入。
+    MemberState* member = FindMember(*run, player->GetGUID());
+    if (member && !member->Exited)
+        member->Exited = true;
+
+    _playerRuns.erase(player->GetGUID());
+    _pendingPlayers.erase(player->GetGUID());
+}
+
 void RunManager::OnMapUpdate(Map* map, uint32 diff)
 {
     if (!map || !map->IsDungeon())
@@ -758,11 +784,13 @@ void RunManager::CleanupRun(RunKey const& key, bool unbindPlayers)
         _pendingPlayers.erase(member.PlayerGuid);
         if (unbindPlayers)
         {
-            InstancePlayerBind* bind = sInstanceSaveMgr->PlayerGetBoundInstance(member.PlayerGuid, run->MapId, DUNGEON_DIFFICULTY_NORMAL);
+            Difficulty difficulty = Difficulty(run->InstanceDifficulty);
+
+            InstancePlayerBind* bind = sInstanceSaveMgr->PlayerGetBoundInstance(member.PlayerGuid, run->MapId, difficulty);
             if (bind && bind->save && bind->save->GetInstanceId() == run->InstanceId && !bind->perm)
             {
                 Player* player = ObjectAccessor::FindConnectedPlayer(member.PlayerGuid);
-                sInstanceSaveMgr->PlayerUnbindInstance(member.PlayerGuid, run->MapId, DUNGEON_DIFFICULTY_NORMAL, true, player);
+                sInstanceSaveMgr->PlayerUnbindInstance(member.PlayerGuid, run->MapId, difficulty, true, player);
             }
         }
     }
