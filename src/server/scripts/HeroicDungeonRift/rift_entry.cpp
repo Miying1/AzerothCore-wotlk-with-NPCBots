@@ -37,12 +37,15 @@ public:
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "进入 T1", GOSSIP_SENDER_MAIN, GossipEnterTier1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "进入 T2", GOSSIP_SENDER_MAIN, GossipEnterTier2);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "进入 T3", GOSSIP_SENDER_MAIN, GossipEnterTier3);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T1", GOSSIP_SENDER_MAIN, GossipSpecifyTier1,
-            "请输入 boss_id", 0, true);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T2", GOSSIP_SENDER_MAIN, GossipSpecifyTier2,
-            "请输入 boss_id", 0, true);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T3", GOSSIP_SENDER_MAIN, GossipSpecifyTier3,
-            "请输入 boss_id", 0, true);
+        if (player->IsGameMaster())
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T1", GOSSIP_SENDER_MAIN, GossipSpecifyTier1,
+                "请输入 boss_id", 0, true);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T2", GOSSIP_SENDER_MAIN, GossipSpecifyTier2,
+                "请输入 boss_id", 0, true);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "指定T3", GOSSIP_SENDER_MAIN, GossipSpecifyTier3,
+                "请输入 boss_id", 0, true);
+        }
         SendGossipMenuFor(player, player->GetGossipTextId(creature), creature->GetGUID());
         return true;
     }

@@ -10,6 +10,7 @@
 
 #include "Chat.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "Group.h"
 #include "InstanceSaveMgr.h"
@@ -225,11 +226,11 @@ bool RunManager::ValidateAndCollectMembers(Player* initiator, std::vector<Player
             return false;
         }
 
-        if (group->isRaidGroup() || group->isBGGroup() || group->isBFGroup() || group->isLFGGroup())
-        {
-            error = "五人英雄裂隙只支持普通小队。";
-            return false;
-        }
+        // if (group->isRaidGroup() || group->isBGGroup() || group->isBFGroup() || group->isLFGGroup())
+        // {
+        //     error = "五人英雄裂隙只支持普通小队。";
+        //     return false;
+        // }
 
         if (group->GetMembersCount() > MaxCombatSlots)
         {
@@ -378,12 +379,39 @@ bool RunManager::StartRun(Player* initiator, TierConfig const& tierConfig, std::
     else
         difficulty = leader->GetDungeonDifficulty();
 
-    // 允许“已存在永久副本CD”的队员进入：直接永久解绑（不保留、不恢复原CD），
-    // 让 CreateMap 走“新建独立实例”分支。
+    // 关键修复：按地图实际支持的难度降级。裂隙使用的多为低级 5 人副本（如死亡矿井），
+    // 没有英雄难度（MapDifficulty 表无英雄记录）。若小队为英雄模式，CreateInstance 内部会用
+    // GetDownscaledMapDifficultyData 把实例难度降级为普通，导致 instanceSave 的难度（普通）与这里的
+    // 队伍难度（英雄）不一致，触发“新裂隙实例缺少InstanceSave”校验失败。这里用同一函数提前降级保持一致。
+    if (!GetDownscaledMapDifficultyData(bossConfig->MapId, difficulty))
+    {
+        error = "目标副本没有可用的副本难度。";
+        return false;
+    }
+
+    // 允许“已存在副本CD”的队员进入：直接永久解绑（不保留、不恢复原CD），让 CreateMap 走“新建独立实例”分支。
+    // 注意：CreateMap 内部（MapInstanced::CreateInstanceForPlayer）用“队长个人难度”查目的地实例路由，
+    // 而个人难度可能与小队副本难度不一致（英雄小队下队长个人难度往往仍为普通）。
+    // 因此必须把普通、英雄两种难度下的既有绑定全部解绑，否则 CreateMap 会复用一个难度不符的旧实例，
+    // 导致后续“实例难度与裂隙难度不一致”校验失败。
     for (Player* member : members)
     {
-        if (sInstanceSaveMgr->PlayerGetBoundInstance(member->GetGUID(), bossConfig->MapId, difficulty))
-            sInstanceSaveMgr->PlayerUnbindInstance(member->GetGUID(), bossConfig->MapId, difficulty, true, member);
+        for (Difficulty unbindDifficulty : { DUNGEON_DIFFICULTY_NORMAL, DUNGEON_DIFFICULTY_HEROIC })
+        {
+            if (sInstanceSaveMgr->PlayerGetBoundInstance(member->GetGUID(), bossConfig->MapId, unbindDifficulty))
+                sInstanceSaveMgr->PlayerUnbindInstance(member->GetGUID(), bossConfig->MapId, unbindDifficulty, true, member);
+        }
+    }
+
+    // 关键修复：所有成员（含队长）的个人难度必须与裂隙难度一致，否则进入时会各自新建实例、无法汇合。
+    // MapInstanced::CreateInstanceForPlayer 用“个人难度”查实例路由（PlayerGetDestinationInstanceId），
+    // 而绑定/实例保存使用的是“队伍难度”槽位。英雄小队下若成员个人难度仍是普通，TeleportTo 时查不到
+    // 队长在英雄槽位上的绑定，会各自 CreateInstance 生成不同 InstanceId，导致 run->InstanceId 校验失败。
+    // 注意：这里只兜底同步内存中的个人难度，不做保存/恢复（队伍难度本就应为该值，退出后保持一致）。
+    for (Player* member : members)
+    {
+        if (member->GetDungeonDifficulty() != difficulty)
+            member->SetDungeonDifficulty(difficulty);
     }
 
     Map* targetMap = sMapMgr->CreateMap(bossConfig->MapId, leader);
