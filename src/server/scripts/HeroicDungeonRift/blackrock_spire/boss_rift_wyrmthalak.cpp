@@ -39,6 +39,12 @@ struct boss_rift_wyrmthalak : public BossAIBase
 {
     explicit boss_rift_wyrmthalak(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _reinforcementsSummoned = false;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventShout, 4000ms);

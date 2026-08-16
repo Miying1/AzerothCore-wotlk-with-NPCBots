@@ -62,6 +62,8 @@ struct boss_rift_ikiss : public BossAIBase
 
     void Reset() override
     {
+        me->RemoveAurasDueToSpell(SpellManaShield);
+        me->RemoveAurasDueToSpell(SpellArcaneBubble);
         BossAIBase::Reset();
         _nextExplosionPct = 80;
         _manaShielded = false;

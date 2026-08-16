@@ -227,7 +227,6 @@ struct npc_rift_seven_seethrel : public RiftSummonAI
     void JustEngagedWith(Unit* /*who*/) override
     {
         DoCast(me, SpellFrostArmor, true);
-        ScheduleAbilities();
     }
 
     void ScheduleAbilities() override
@@ -311,6 +310,12 @@ struct npc_rift_seven_doperel : public RiftSummonAI
 struct boss_rift_the_seven : public BossAIBase
 {
     explicit boss_rift_the_seven(Creature* creature) : BossAIBase(creature) { }
+
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _voidwalkersSummoned = false;
+    }
 
     void JustEngagedWith(Unit* /*who*/) override
     {

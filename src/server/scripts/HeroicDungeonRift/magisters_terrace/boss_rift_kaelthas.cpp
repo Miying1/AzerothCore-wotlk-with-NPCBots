@@ -157,7 +157,7 @@ struct boss_rift_kaelthas : public BossAIBase
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = events.ExecuteEvent())
+        if (uint32 eventId = events.ExecuteEvent())
             ExecuteRiftEvent(eventId);
 
         if (!_gravityLapseActive && UpdateVictim())

@@ -78,9 +78,9 @@ struct DefaultTargetSelector : public Acore::unary_function<Unit*, bool>
 
         if (m_playerOnly && (!target->IsPlayer()))
             //npcbot: allow to target bots
-            //if (!(target->IsNPCBot()))
-            //end npcbot
-            return false;
+            if (!(target->IsNPCBot()))
+                //end npcbot
+                return false;
 
         if (m_dist > 0.0f && !me->IsWithinCombatRange(target, m_dist))
             return false;
@@ -125,7 +125,7 @@ private:
 struct NonTankTargetSelector : public Acore::unary_function<Unit*, bool>
 {
 public:
-    NonTankTargetSelector(Creature* source, bool playerOnly = true) : _source(source), _playerOnly(playerOnly) { }
+    NonTankTargetSelector(Creature* source, bool playerOnly = true) : _source(source), _playerOnly(playerOnly) {}
     bool operator()(Unit const* target) const;
 
 private:
@@ -142,7 +142,7 @@ struct PowerUsersSelector : public Acore::unary_function<Unit*, bool>
     bool const _playerOnly;
     bool const _withTank;
 
-    PowerUsersSelector(Unit const* unit, Powers power, float dist, bool playerOnly, bool withTank = true) : _me(unit), _power(power), _dist(dist), _playerOnly(playerOnly), _withTank(withTank) { }
+    PowerUsersSelector(Unit const* unit, Powers power, float dist, bool playerOnly, bool withTank = true) : _me(unit), _power(power), _dist(dist), _playerOnly(playerOnly), _withTank(withTank) {}
 
     bool operator()(Unit const* target) const
     {
@@ -351,12 +351,12 @@ public:
      *
      * @todo Never invoked right now. Preparation for Combat Threat refactor
      */
-    virtual void JustEnteredCombat(Unit* /*who*/) { }
+    virtual void JustEnteredCombat(Unit* /*who*/) {}
 
     /**
      * @brief Called when the unit leaves combat
      */
-    virtual void JustExitedCombat() { }
+    virtual void JustExitedCombat() {}
 
     /**
      * @brief Called when evade timer expires (target unreachable for too long)
@@ -414,7 +414,7 @@ public:
     static void FillAISpellInfo();
 
     /// @brief Called when a summon reaches a waypoint or point movement finished.
-    virtual void SummonMovementInform(Creature* /*creature*/, uint32 /*motionType*/, uint32 /*point*/) { }
+    virtual void SummonMovementInform(Creature* /*creature*/, uint32 /*motionType*/, uint32 /*point*/) {}
 
     virtual void sGossipHello(Player* /*player*/) {}
     virtual void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) {}
@@ -446,7 +446,7 @@ class SimpleCharmedAI : public PlayerAI
 {
 public:
     void UpdateAI(uint32 diff) override;
-    SimpleCharmedAI(Player* player): PlayerAI(player) {}
+    SimpleCharmedAI(Player* player) : PlayerAI(player) {}
 };
 
 #endif

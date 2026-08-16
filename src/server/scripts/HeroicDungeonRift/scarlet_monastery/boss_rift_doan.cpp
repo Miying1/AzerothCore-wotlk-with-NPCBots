@@ -81,6 +81,13 @@ struct boss_rift_doan : public BossAIBase
 {
     explicit boss_rift_doan(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        me->RemoveAurasDueToSpell(SpellArcaneBubble);
+        BossAIBase::Reset();
+        _bubbleTriggered = false;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         me->Yell(DoanAggroText, LANG_UNIVERSAL);

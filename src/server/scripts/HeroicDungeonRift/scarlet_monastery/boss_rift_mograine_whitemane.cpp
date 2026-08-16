@@ -118,7 +118,6 @@ struct npc_rift_whitemane : public ScriptedAI
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
     }
 
-
     void SetData(uint32 type, uint32 data) override
     {
         if (type == RiftDataTier)
@@ -257,7 +256,7 @@ struct npc_rift_whitemane : public ScriptedAI
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
         {
             if (eventId == EventWhitemaneResurrectMograine)
             {
@@ -265,41 +264,37 @@ struct npc_rift_whitemane : public ScriptedAI
                     DoCast(mograine, SpellScarletResurrection);
                 else
                     me->KillSelf();
-                continue;
             }
-
-            if (eventId == EventWhitemaneResurrectionYell)
+            else if (eventId == EventWhitemaneResurrectionYell)
             {
                 if (_phase == WhitemaneResurrecting || _phase == WhitemaneCombatPhaseTwo)
                     YellWithSound(WhitemaneResurrectText, SoundWhitemaneResurrect);
-                continue;
             }
-
-            if (!UpdateVictim())
-                continue;
-
-            switch (eventId)
+            else if (UpdateVictim())
             {
-                case EventWhitemaneSmite:
-                    DoCastVictim(SpellSmite);
-                    _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(6000));
-                    break;
-                case EventWhitemaneShield:
-                    DoCast(me, SpellPowerWordShield);
-                    _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(18000));
-                    break;
-                case EventWhitemaneHeal:
-                    if (me->HealthBelowPct(80))
-                        DoCast(me, SpellHeal);
-                    _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(12000));
-                    break;
-                case EventWhitemaneDominateMind:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
-                        DoCast(target, SpellDominateMind);
-                    _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(24000));
-                    break;
-                default:
-                    break;
+                switch (eventId)
+                {
+                    case EventWhitemaneSmite:
+                        DoCastVictim(SpellSmite);
+                        _events.ScheduleEvent(EventWhitemaneSmite, Milliseconds(6000));
+                        break;
+                    case EventWhitemaneShield:
+                        DoCast(me, SpellPowerWordShield);
+                        _events.ScheduleEvent(EventWhitemaneShield, Milliseconds(18000));
+                        break;
+                    case EventWhitemaneHeal:
+                        if (me->HealthBelowPct(80))
+                            DoCast(me, SpellHeal);
+                        _events.ScheduleEvent(EventWhitemaneHeal, Milliseconds(12000));
+                        break;
+                    case EventWhitemaneDominateMind:
+                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                            DoCast(target, SpellDominateMind);
+                        _events.ScheduleEvent(EventWhitemaneDominateMind, Milliseconds(24000));
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
@@ -494,6 +489,12 @@ struct boss_rift_mograine : public BossAIBase
                 whitemane->KillSelf();
         BossAIBase::JustDied(nullptr);
         _whitemaneGuid.Clear();
+    }
+
+    void SummonedCreatureDespawn(Creature* summon) override
+    {
+        if (summon && summon->GetGUID() == _whitemaneGuid)
+            _whitemaneGuid.Clear();
     }
 
     void ConfigureTier() override { }

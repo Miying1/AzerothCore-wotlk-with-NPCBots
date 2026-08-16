@@ -47,12 +47,18 @@ struct boss_rift_flamelash : public BossAIBase
 {
     explicit boss_rift_flamelash(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _burningSpirits.clear();
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         me->Yell(FlamelashAggroText, LANG_UNIVERSAL);
 
         events.ScheduleEvent(EventFireBlast, 4000ms);
-        events.ScheduleEvent(EventSummonBurningSpirits, _tier == 1 ? 10s : (_tier == 2 ? 8s : 6s));
+        events.ScheduleEvent(EventSummonBurningSpirits, 10s);
         if (_tier >= 3)
             events.ScheduleEvent(EventTier3Skill, 16s);
     }
@@ -67,12 +73,12 @@ struct boss_rift_flamelash : public BossAIBase
                 CastIfConfigured(me->GetVictim(), SpellFireBlast);
                 events.ScheduleEvent(EventFireBlast, 7000ms);
                 break;
-            case EventSummonBurningSpirits: // 原版/T1基础；T2/T3提高召唤频率与并存数量
+            case EventSummonBurningSpirits: // 原版/T1基础；全Tier保持原版频率，仅提高并存数量
                 PruneBurningSpirits();
                 for (uint32 i = _burningSpirits.size(); i < _tier + BurningSpiritSummonCount - 1; ++i)
                     if (Creature* spirit = SummonTieredCreature(RiftEntryBurningSpirit, me->GetRandomNearPosition(8.0f), 0.5f, 0.7f))
                         _burningSpirits.push_back(spirit->GetGUID());
-                events.ScheduleEvent(EventSummonBurningSpirits, _tier == 1 ? 13s : (_tier == 2 ? 11s : 9s));
+                events.ScheduleEvent(EventSummonBurningSpirits, 13s);
                 break;
             case EventTier3Skill: // T3新增：烈焰风暴，点名随机目标；混合BP0直伤/BP1周期，瞬发
                 CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellFlamestrike,

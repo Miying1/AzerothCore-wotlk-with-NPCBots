@@ -52,13 +52,6 @@ struct npc_rift_moira : public RiftSummonAI // 裂隙茉艾拉公主
 {
     explicit npc_rift_moira(Creature* creature) : RiftSummonAI(creature) { }
 
-    void JustEngagedWith(Unit* /*who*/) override
-    {
-        _events.ScheduleEvent(EventMoiraHeal, 8000ms);
-        _events.ScheduleEvent(EventMoiraRenew, 6000ms);
-        _events.ScheduleEvent(EventMoiraMindBlast, 12000ms);
-    }
-
     void ScheduleAbilities() override
     {
         _events.ScheduleEvent(EventMoiraHeal, 8000ms);

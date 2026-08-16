@@ -39,6 +39,12 @@ struct boss_rift_alzzin : public BossAIBase
 {
     explicit boss_rift_alzzin(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _minionsSummoned = false;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventThorns, Milliseconds(8000));

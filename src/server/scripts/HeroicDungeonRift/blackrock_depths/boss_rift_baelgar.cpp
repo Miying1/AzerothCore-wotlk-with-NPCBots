@@ -33,6 +33,12 @@ struct boss_rift_baelgar : public BossAIBase
 {
     explicit boss_rift_baelgar(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _nextSpawnThreshold = 80;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventMagmaSplash, 9000ms);

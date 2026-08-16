@@ -42,6 +42,12 @@ struct boss_rift_immolthar : public BossAIBase
 {
     explicit boss_rift_immolthar(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _frenzied = false;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventInfectedBite, Milliseconds(7000));

@@ -520,6 +520,21 @@ void RunManager::RemoveOriginalBoss(Map* map, uint32 bossId) const
     for (Creature* creature : originals)
         creature->DespawnOrUnsummon(0ms, Hours(2));
 
+    // 巴纳扎尔原版先生成达索汉的人形态，再在战斗中变身；裂隙直接生成恶魔形态，需一并移除人形态。
+    if (bossId == BossIdBalnazzar)
+    {
+        originals.clear();
+        for (auto const& pair : map->GetCreatureBySpawnIdStore())
+        {
+            Creature* creature = pair.second;
+            if (creature && creature->GetEntry() == SourceEntryDathrohan)
+                originals.push_back(creature);
+        }
+
+        for (Creature* creature : originals)
+            creature->DespawnOrUnsummon(0ms, Hours(2));
+    }
+
     if (bossId == BossIdMograineWhitemane)
     {
         originals.clear();

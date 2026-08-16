@@ -117,6 +117,8 @@ struct boss_rift_laj : public BossAIBase
 
     void Reset() override
     {
+        for (TransformData const& transform : LajTransforms)
+            me->RemoveAurasDueToSpell(transform.SpellId);
         _transformIndex = 0;
         BossAIBase::Reset();
         if (_tier)

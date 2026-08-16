@@ -54,15 +54,6 @@ struct npc_rift_chorsh : public RiftSummonAI // 原版同伴观察者克鲁什
 {
     explicit npc_rift_chorsh(Creature* creature) : RiftSummonAI(creature) { }
 
-    void JustEngagedWith(Unit* /*who*/) override
-    {
-        _events.ScheduleEvent(EventLightningBolt, Milliseconds(2500));
-        _events.ScheduleEvent(EventChainLightning, Milliseconds(10000));
-        _events.ScheduleEvent(EventMindBlast, Milliseconds(7000));
-        _events.ScheduleEvent(EventPsychicScream, Milliseconds(16000));
-        _events.ScheduleEvent(EventHeal, Milliseconds(9000));
-    }
-
     void ScheduleAbilities() override
     {
         _events.ScheduleEvent(EventLightningBolt, Milliseconds(2500));

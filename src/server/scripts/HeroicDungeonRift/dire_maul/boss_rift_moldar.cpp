@@ -38,6 +38,12 @@ struct boss_rift_moldar : public BossAIBase
 {
     explicit boss_rift_moldar(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _frenzied = false;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         events.ScheduleEvent(EventStrike, Milliseconds(5000));
