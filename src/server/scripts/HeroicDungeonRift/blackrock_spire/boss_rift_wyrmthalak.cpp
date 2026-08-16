@@ -63,8 +63,8 @@ struct boss_rift_wyrmthalak : public BossAIBase
 
         _reinforcementsSummoned = true;
         me->Yell(WyrmthalakHelpText, LANG_UNIVERSAL);
-        SummonTieredCreature(RiftEntrySpirestoneWarlord, me->GetRandomNearPosition(6.0f), 0.7f, 0.8f);
-        SummonTieredCreature(RiftEntrySmolderthornBerserker, me->GetRandomNearPosition(6.0f), 0.7f, 0.8f);
+        SummonTieredCreature(RiftEntrySpirestoneWarlord, me->GetRandomNearPosition(6.0f), 0.8f, 0.8f);
+        SummonTieredCreature(RiftEntrySmolderthornBerserker, me->GetRandomNearPosition(6.0f), 0.8f, 0.8f);
     }
 
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }

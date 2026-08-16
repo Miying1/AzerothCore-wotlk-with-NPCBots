@@ -338,7 +338,7 @@ protected:
 
     Creature* SummonTieredCreature(uint32 entry, Position const& position, float healthCoefficient = 1.0f,
         float damageCoefficient = 1.0f, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN,
-        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS, bool preserveStonedState = false)
+        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS, bool preservePassiveState = false)
     {
         if (!entry || !_tierConfig)
             return nullptr;
@@ -347,16 +347,16 @@ protected:
         if (!summon)
             return nullptr;
 
-        ApplySummonTierStats(summon, healthCoefficient, damageCoefficient, preserveStonedState);
+        ApplySummonTierStats(summon, healthCoefficient, damageCoefficient, damageCoefficient, preservePassiveState);
         _riftSummons.push_back(summon->GetGUID());
-        // 走石化唤醒流程的召唤物（如奥达曼石像守卫）在苏醒后才进入战斗，此处不提前拉入战斗。
-        if (!preserveStonedState)
+        // 保留状态的召唤物（如奥达曼石像守卫和七贤待激活成员）在自身AI唤醒后才进入战斗。
+        if (!preservePassiveState)
             summon->SetInCombatWithZone();
         return summon;
     }
 
-    void ApplySummonTierStats(Creature* summon, float healthCoefficient = 1.0f, float damageCoefficient = 1.0f,
-        bool preserveStonedState = false)
+    void ApplySummonTierStats(Creature* summon, float healthCoefficient = 1.0f, float meleeDamageCoefficient = 1.0f,
+        float spellDamageCoefficient = 1.0f, bool preservePassiveState = false)
     {
         if (!summon || !_tierConfig)
             return;
@@ -368,22 +368,23 @@ protected:
         summon->SetMaxHealth(uint32(scaledHealth));
         summon->SetFullHealth();
 
-        float finalDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, damageCoefficient);
+        float finalMeleeDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, meleeDamageCoefficient);
+        float finalSpellDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, spellDamageCoefficient);
         for (WeaponAttackType attackType : { BASE_ATTACK, OFF_ATTACK, RANGED_ATTACK })
         {
             float minDamage = summon->GetWeaponDamageRange(attackType, MINDAMAGE);
             float maxDamage = summon->GetWeaponDamageRange(attackType, MAXDAMAGE);
-            summon->SetBaseWeaponDamage(attackType, MINDAMAGE, minDamage * finalDamageMultiplier);
-            summon->SetBaseWeaponDamage(attackType, MAXDAMAGE, maxDamage * finalDamageMultiplier);
+            summon->SetBaseWeaponDamage(attackType, MINDAMAGE, minDamage * finalMeleeDamageMultiplier);
+            summon->SetBaseWeaponDamage(attackType, MAXDAMAGE, maxDamage * finalMeleeDamageMultiplier);
             summon->UpdateDamagePhysical(attackType);
         }
 
-        // 召唤物是Boss战斗增援，必须立即处于可被攻击、可主动进攻的状态。
+        // 普通召唤物是Boss战斗增援，必须立即处于可被攻击、可主动进攻的状态；保留被动状态的召唤物例外。
         // 部分源模板（如奥达曼的石像守卫）在 creature_template_addon 里自带石化光环(10255)，
         // 该光环会把单位置为被动(REACT_PASSIVE)并免疫一切伤害，而裂隙召唤物不走源模板的SmartAI来解除石化，
         // 这里显式清除石化并恢复可攻击状态（与 BossAIBase::Reset 的处理保持一致）。
-        // 若调用方要求保留石化状态（奥达曼石像守卫复刻原版唤醒动画），则跳过此清理，由守卫AI自行苏醒。
-        if (!preserveStonedState)
+        // 若调用方要求保留被动状态（石像唤醒、七贤轮换激活），则跳过清理，由对应AI自行切换状态。
+        if (!preservePassiveState)
         {
             summon->RemoveAurasDueToSpell(10255);
             summon->SetStandState(UNIT_STAND_STATE_STAND);
@@ -394,7 +395,7 @@ protected:
         }
 
         summon->AI()->SetData(RiftDataTier, _tier);
-        summon->AI()->SetData(RiftDataDamagePermille, uint32(finalDamageMultiplier * 1000.0f));
+        summon->AI()->SetData(RiftDataDamagePermille, uint32(finalSpellDamageMultiplier * 1000.0f));
 
         // 召唤物名称与所属Boss保持一致，仅追加Tier后缀（如"源名 [T1]"），由运行时根据当前Tier动态生成。
         summon->SetName(Acore::StringFormat("{}", summon->GetName()));

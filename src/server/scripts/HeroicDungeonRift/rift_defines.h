@@ -138,7 +138,13 @@ constexpr uint32 SourceEntryIncendius = 9017;
 constexpr uint32 SourceEntryBaelGar = 9016;
 constexpr uint32 SourceEntryArgelmach = 8983;
 constexpr uint32 SourceEntryFlamelash = 9156;
-constexpr uint32 SourceEntryTheSeven = 9039; // 七贤主Boss取末日之链(Doom'rel 9039)，其余6名成员为裂隙专用同伴
+constexpr uint32 SourceEntrySevenHateRel = 9034;
+constexpr uint32 SourceEntrySevenAngerRel = 9035;
+constexpr uint32 SourceEntrySevenVileRel = 9036;
+constexpr uint32 SourceEntrySevenGloomRel = 9037;
+constexpr uint32 SourceEntrySevenSeethRel = 9038;
+constexpr uint32 SourceEntryTheSeven = 9039; // 七贤最终成员末日之链 Doom'rel
+constexpr uint32 SourceEntrySevenDopeRel = 9040;
 constexpr uint32 SourceEntryThaurissan = 9019;
 constexpr uint32 SourceEntrySmolderweb = 10596;
 constexpr uint32 SourceEntryWyrmthalak = 9568;
@@ -216,6 +222,7 @@ constexpr uint32 RiftEntryWeaponTechnician = 102033; // 阿格曼奇·武器技�
 
 constexpr uint32 RiftDataTier = 1;
 constexpr uint32 RiftDataDamagePermille = 2;
+constexpr uint32 RiftDataActivate = 3;
 
 enum GossipActions : uint32
 {

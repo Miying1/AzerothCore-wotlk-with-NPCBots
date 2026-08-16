@@ -278,7 +278,7 @@ private:
 
         me->Yell(SoulTexts[urand(0, 1)], LANG_UNIVERSAL, target);
         CastIfConfigured(target, SpellStolenSoul);
-        if (Creature* soul = SummonTieredCreature(RiftEntryStolenSoul, me->GetRandomNearPosition(2.0f), 0.55f, 0.65f,
+        if (Creature* soul = SummonTieredCreature(RiftEntryStolenSoul, me->GetRandomNearPosition(2.0f), 0.75f, 0.75f,
             TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 10 * IN_MILLISECONDS))
         {
             soul->CastSpell(soul, SpellStolenSoulVisual, false);

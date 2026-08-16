@@ -181,7 +181,7 @@ private:
         if (!target)
             return;
 
-        if (Creature* focus = SummonTieredCreature(RiftEntryFocusFire, target->GetPosition(), 0.2f, 0.4f,
+        if (Creature* focus = SummonTieredCreature(RiftEntryFocusFire, target->GetPosition(), 0.6f, 0.5f,
             TEMPSUMMON_TIMED_DESPAWN, 7 * IN_MILLISECONDS))
         {
             _focusGuid = focus->GetGUID();

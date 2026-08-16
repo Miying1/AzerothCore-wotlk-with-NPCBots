@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 
 namespace HeroicDungeonRift
@@ -509,45 +510,33 @@ void RunManager::RemoveOriginalBoss(Map* map, uint32 bossId) const
     if (!map || !sourceEntry)
         return;
 
-    std::vector<Creature*> originals;
-    for (auto const& pair : map->GetCreatureBySpawnIdStore())
+    auto removeEntries = [map](std::initializer_list<uint32> entries)
     {
-        Creature* creature = pair.second;
-        if (creature && creature->GetEntry() == sourceEntry)
-            originals.push_back(creature);
-    }
+        std::vector<Creature*> originals;
+        for (auto const& pair : map->GetCreatureBySpawnIdStore())
+        {
+            Creature* creature = pair.second;
+            if (creature && std::find(entries.begin(), entries.end(), creature->GetEntry()) != entries.end())
+                originals.push_back(creature);
+        }
 
-    for (Creature* creature : originals)
-        creature->DespawnOrUnsummon(0ms, Hours(2));
+        for (Creature* creature : originals)
+            creature->DespawnOrUnsummon(0ms, Hours(2));
+    };
+
+    removeEntries({ sourceEntry });
+
+    // 七贤是一个由7个独立Boss组成的完整遭遇；裂隙版本会逐个生成替代实体，原版7个成员必须全部移除。
+    if (bossId == BossIdTheSeven)
+        removeEntries({ SourceEntrySevenAngerRel, SourceEntrySevenDopeRel, SourceEntrySevenHateRel,
+            SourceEntrySevenVileRel, SourceEntrySevenSeethRel, SourceEntrySevenGloomRel, SourceEntryTheSeven });
 
     // 巴纳扎尔原版先生成达索汉的人形态，再在战斗中变身；裂隙直接生成恶魔形态，需一并移除人形态。
     if (bossId == BossIdBalnazzar)
-    {
-        originals.clear();
-        for (auto const& pair : map->GetCreatureBySpawnIdStore())
-        {
-            Creature* creature = pair.second;
-            if (creature && creature->GetEntry() == SourceEntryDathrohan)
-                originals.push_back(creature);
-        }
-
-        for (Creature* creature : originals)
-            creature->DespawnOrUnsummon(0ms, Hours(2));
-    }
+        removeEntries({ SourceEntryDathrohan });
 
     if (bossId == BossIdMograineWhitemane)
-    {
-        originals.clear();
-        for (auto const& pair : map->GetCreatureBySpawnIdStore())
-        {
-            Creature* creature = pair.second;
-            if (creature && creature->GetEntry() == SourceEntryWhitemane)
-                originals.push_back(creature);
-        }
-
-        for (Creature* creature : originals)
-            creature->DespawnOrUnsummon(0ms, Hours(2));
-    }
+        removeEntries({ SourceEntryWhitemane });
 }
 
 bool RunManager::InitializeRunObjects(Map* map, std::shared_ptr<RunComponent> const& run)

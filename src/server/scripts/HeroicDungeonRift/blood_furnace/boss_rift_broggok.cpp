@@ -97,7 +97,7 @@ protected:
                 break;
             case EventPoisonCloud:
                 // 原法术召唤的 17662 改为裂隙专用 Entry，并经统一召唤缩放。
-                SummonTieredCreature(RiftEntryBroggokPoisonCloud, me->GetPosition(), 0.1f, 1.0f,
+                SummonTieredCreature(RiftEntryBroggokPoisonCloud, me->GetPosition(), 0.5f, 1.0f,
                     TEMPSUMMON_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
                 events.ScheduleEvent(EventPoisonCloud, 20s);
                 break;

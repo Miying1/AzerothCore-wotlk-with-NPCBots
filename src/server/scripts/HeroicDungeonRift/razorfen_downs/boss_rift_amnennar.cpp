@@ -116,7 +116,7 @@ private:
         for (uint32 i = 0; i < count; ++i)
         {
             Position position = me->GetRandomNearPosition(6.0f);
-            if (Creature* summon = SummonTieredCreature(RiftEntryFrostSpectre, position, 0.45f, 0.65f))
+            if (Creature* summon = SummonTieredCreature(RiftEntryFrostSpectre, position, 0.9f, 0.75f))
                 if (Unit* victim = me->GetVictim())
                     summon->AI()->AttackStart(victim);
         }

@@ -54,8 +54,8 @@ struct boss_rift_baelgar : public BossAIBase
         if (!me->HealthBelowPctDamaged(_nextSpawnThreshold, damage))
             return;
 
-        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.5f, 0.7f);
-        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.5f, 0.7f);
+        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.7f, 0.7f);
+        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.7f, 0.7f);
         _nextSpawnThreshold -= 20;
     }
 
