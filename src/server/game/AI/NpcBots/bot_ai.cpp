@@ -19141,8 +19141,6 @@ bool bot_ai::FinishTeleport(bool reset)
             TeleportHomeStart(!BotCfg::HideBotSpawns());
 
         _evadeMode = false;
-        // 清空传送进行中标志，避免 free bot 传送流程结束后残留导致 AI 冻结
-        SetIsDuringTeleport(false);
         return false;
     }
 
