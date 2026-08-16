@@ -628,6 +628,8 @@ void BotMgr::_teleportBot(Creature* bot, Map* newMap, float x, float y, float z,
             if (!bot->IsWandererBot() && !botai->CanAppearInWorld())
             {
                 botai->AbortTeleport();
+                // 清空传送进行中标志，避免隐藏等待分支残留导致 bot 卡死
+                botai->SetIsDuringTeleport(false);
                 TeleportFinishEvent* delayedTeleportEvent = new TeleportFinishEvent(botai, reset);
                 botai->GetEvents()->AddEvent(delayedTeleportEvent, botai->GetEvents()->CalculateTime(urand(5000, 8000)));
                 botai->SetTeleportFinishEvent(delayedTeleportEvent);

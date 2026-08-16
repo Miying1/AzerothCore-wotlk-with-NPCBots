@@ -11160,6 +11160,52 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                         ch.PSendSysMessage("Waypoint data hasn't been created yet");
                     break;
                 }
+                case 8: //dump key state (打印关键状态快照)
+                {
+                    close = false;
+                    ChatHandler ch(player->GetSession());
+                    std::ostringstream report;
+
+                    report << "=== " << me->GetName() << " (entry: " << me->GetEntry()
+                        << ", guidlow: " << me->GetGUID().GetCounter()
+                        << ", spec: " << uint32(_spec) << ") key state ===";
+
+                    // 核心关键状态（排查 bot 卡死/不跟随最重要的字段）
+                    report << "\nCORE: canUpdate=" << (canUpdate ? 1 : 0)
+                        << ", IsInWorld=" << (me->IsInWorld() ? 1 : 0)
+                        << ", IsInGrid=" << (me->IsInGrid() ? 1 : 0)
+                        << ", IsDuringTeleport=" << (IsDuringTeleport() ? 1 : 0)
+                        << ", _atHome=" << (_atHome ? 1 : 0);
+
+                    // 传送状态分解
+                    report << "\nteleport: teleHomeEvent=" << (teleHomeEvent ? 1 : 0)
+                        << ", teleFinishEvent=" << (teleFinishEvent ? 1 : 0)
+                        << ", _duringTeleport=" << (_duringTeleport ? 1 : 0);
+
+                    // 归属状态
+                    report << "\nownership: IAmFree=" << (IAmFree() ? 1 : 0)
+                        << ", ownerLow=" << _botData->owner
+                        << ", master=";
+                    if (master)
+                        report << master->GetGUID().ToString();
+                    else
+                        report << "none";
+
+                    // AI 其他运行状态
+                    report << "\nai: spawned=" << (spawned ? 1 : 0)
+                        << ", _evadeMode=" << (_evadeMode ? 1 : 0)
+                        << ", CanAppearInWorld=" << (CanAppearInWorld() ? 1 : 0);
+
+                    // 其他标志
+                    report << "\nflags: IsWanderer=" << (IsWanderer() ? 1 : 0)
+                        << ", IsSummon=" << (me->IsSummon() ? 1 : 0)
+                        << ", IsTempBot=" << (IsTempBot() ? 1 : 0)
+                        << ", IsSharedBot=" << (IsSharedBot() ? 1 : 0);
+
+                    ch.SendSysMessage(report.view());
+                    BOT_LOG_INFO("npcbots", "GM {} dumped key state of bot {} (entry {}): {}", player->GetName(), me->GetName(), me->GetEntry(), report.str());
+                    break;
+                }
                 case 9: //reload config
                 {
                     close = false;
@@ -11201,6 +11247,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<List Spells>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 5);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<List Owners>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 6);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Waypoint Data>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 7);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Dump Key State>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 8);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<List Items>", GOSSIP_SENDER_EQUIPMENT_LIST, GOSSIP_ACTION_INFO_DEF + 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Reload Config>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 9);
 
@@ -19094,6 +19141,8 @@ bool bot_ai::FinishTeleport(bool reset)
             TeleportHomeStart(!BotCfg::HideBotSpawns());
 
         _evadeMode = false;
+        // 清空传送进行中标志，避免 free bot 传送流程结束后残留导致 AI 冻结
+        SetIsDuringTeleport(false);
         return false;
     }
 
@@ -19190,6 +19239,9 @@ void bot_ai::AbortTeleport()
             teleFinishEvent->ScheduleAbort();
         teleFinishEvent = nullptr;
     }
+
+    // 清空传送进行中标志，避免残留导致 AI 主循环永久短路（僵尸态）
+    _duringTeleport = false;
 }
 
 void bot_ai::GetHomePosition(uint16& mapid, Position* pos) const

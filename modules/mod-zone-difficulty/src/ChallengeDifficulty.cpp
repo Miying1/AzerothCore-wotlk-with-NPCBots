@@ -259,8 +259,12 @@ bool ChallengeDifficulty::OpenChallenge(uint32 inst_id, uint32 level, Player* pl
     cdata.residue_time = 0;
     cdata.kill_boss = 0; 
     if (BaseEnhanceMapData.find(player->GetMapId()) != BaseEnhanceMapData.end()) {
-        cdata.enhance_damage = cdata.enhance_damage+ BaseEnhanceMapData[player->GetMapId()].base_damage_pct;
-        cdata.enhance_hp = cdata.enhance_hp +BaseEnhanceMapData[player->GetMapId()].base_hp_pct;
+        // base_damage_pct / base_hp_pct 可能为负数，必须用有符号类型累加，
+        // 避免 uint32 与负数相加发生无符号溢出，从而写入超出列范围的超大值
+        int32 damage = static_cast<int32>(cdata.enhance_damage) + BaseEnhanceMapData[player->GetMapId()].base_damage_pct;
+        int32 hp = static_cast<int32>(cdata.enhance_hp) + BaseEnhanceMapData[player->GetMapId()].base_hp_pct;
+        cdata.enhance_damage = damage > 0 ? static_cast<uint32>(damage) : 0;
+        cdata.enhance_hp = hp > 0 ? static_cast<uint32>(hp) : 0;
         cdata.residue_time = BaseEnhanceMapData[player->GetMapId()].time_limit;
     }
     cdata.apply_spell = { 0, 0, 0 };
