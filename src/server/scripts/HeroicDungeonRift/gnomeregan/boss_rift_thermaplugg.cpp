@@ -150,6 +150,7 @@ struct npc_rift_walking_bomb : public ScriptedAI
     }
 
 private:
+    uint8 _tier = 1; // 当前裂隙层数，由SetData(RiftDataTier)写入
     uint32 _damagePermille = 1000;
     bool _exploded = false;
     ObjectGuid _targetGuid;
