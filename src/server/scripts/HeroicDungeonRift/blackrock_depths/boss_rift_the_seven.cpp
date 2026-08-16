@@ -583,7 +583,7 @@ private:
             RiftEntrySevenGloomRel, RiftEntrySevenVileRel, RiftEntrySevenHateRel })
         {
             if (Creature* member = SummonTieredCreature(entry, me->GetRandomNearPosition(5.0f),
-                MemberHealthCoefficient, SevenBossMeleeDamageCoefficient, 1.0f,
+                MemberHealthCoefficient, SevenBossMeleeDamageCoefficient,
                 TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10 * IN_MILLISECONDS, true))
                 _memberGuids.push_back(member->GetGUID());
         }
