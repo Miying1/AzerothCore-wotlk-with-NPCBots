@@ -487,7 +487,7 @@ INSERT INTO `creature_template` (
   `lootid`,`pickpocketloot`,`skinloot`,`PetSpellDataId`,`VehicleId`,`mingold`,`maxgold`,`AIName`,`MovementType`,
   `HoverHeight`,`HealthModifier`,`ManaModifier`,`ArmorModifier`,`ExperienceModifier`,`RacialLeader`,`movementId`,`RegenHealth`,
   `CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`)
-SELECT @RIFT_ENTRY_NPC_ENTRY,0,0,0,0,0,'英雄裂隙引导者','选择裂隙难度',src.IconName,0,
+SELECT @RIFT_ENTRY_NPC_ENTRY,0,0,0,0,0,'英雄裂隙引导者','功能测试',src.IconName,0,
   src.minlevel,src.maxlevel,src.exp,src.faction,1,src.speed_walk,src.speed_run,src.speed_swim,src.speed_flight,
   src.detection_range,0,src.dmgschool,1,src.BaseAttackTime,src.RangeAttackTime,src.BaseVariance,src.RangeVariance,
   src.unit_class,src.unit_flags,src.unit_flags2,0,src.family,src.type,src.type_flags,0,0,0,0,0,0,0,'',0,
