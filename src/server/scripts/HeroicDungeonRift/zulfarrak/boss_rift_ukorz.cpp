@@ -50,8 +50,6 @@ struct npc_rift_ruuzlu : public RiftSummonAI // 裂隙卢兹鲁
     void JustEngagedWith(Unit* /*who*/) override
     {
         DoCast(me, SpellBerserkerStance, true);
-        _events.ScheduleEvent(EventRuuzluCleave, 7s);
-        _events.ScheduleEvent(EventRuuzluExecute, 10s);
     }
 
     void ScheduleAbilities() override

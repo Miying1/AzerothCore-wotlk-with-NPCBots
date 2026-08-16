@@ -80,7 +80,7 @@ public:
         _events.Update(diff);
 
         // 苏醒流程：石化期间单位处于被动+免疫，不进入战斗，仅等待苏醒定时器到期。
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
         {
             if (eventId == EventAwaken)
             {

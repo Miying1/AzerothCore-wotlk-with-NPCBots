@@ -151,6 +151,7 @@ constexpr uint32 SourceEntryGordok = 11501;
 constexpr uint32 SourceEntryRasFrostwhisper = 10508;
 constexpr uint32 SourceEntryRavenian = 10507;
 constexpr uint32 SourceEntryGandling = 1853;
+constexpr uint32 SourceEntryDathrohan = 10812; // 巴纳扎尔原版的人形态Boss
 constexpr uint32 SourceEntryBalnazzar = 10813;
 constexpr uint32 SourceEntryAnastari = 10436;
 constexpr uint32 SourceEntryRivendare = 10440;

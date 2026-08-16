@@ -7,6 +7,8 @@
 #include "Creature.h"
 #include "ScriptMgr.h"
 
+#include <vector>
+
 namespace HeroicDungeonRift
 {
 namespace
@@ -101,6 +103,13 @@ struct boss_rift_muselek : public BossAIBase
 {
     explicit boss_rift_muselek(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        ClearMarkedTargets();
+        BossAIBase::Reset();
+        _markedTarget.Clear();
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         me->Yell(MuselekAggroText, LANG_UNIVERSAL);
@@ -127,6 +136,7 @@ struct boss_rift_muselek : public BossAIBase
     void JustDied(Unit* killer) override
     {
         me->Yell(MuselekDeathText, LANG_UNIVERSAL);
+        ClearMarkedTargets();
         BossAIBase::JustDied(killer);
     }
 
@@ -165,6 +175,7 @@ struct boss_rift_muselek : public BossAIBase
                 if (Unit* target = ObjectAccessor::GetUnit(*me, _markedTarget))
                 {
                     CastIfConfigured(target, SpellHuntersMark, true);
+                    _markedTargets.push_back(target->GetGUID());
                     CastIfConfigured(target, SpellAimedShot);
                 }
                 break;
@@ -185,7 +196,16 @@ struct boss_rift_muselek : public BossAIBase
     }
 
 private:
+    void ClearMarkedTargets()
+    {
+        for (ObjectGuid const& guid : _markedTargets)
+            if (Unit* target = ObjectAccessor::GetUnit(*me, guid))
+                target->RemoveAurasDueToSpell(SpellHuntersMark, me->GetGUID());
+        _markedTargets.clear();
+    }
+
     ObjectGuid _markedTarget;
+    std::vector<ObjectGuid> _markedTargets;
 };
 
 void AddSC_boss_rift_muselek()

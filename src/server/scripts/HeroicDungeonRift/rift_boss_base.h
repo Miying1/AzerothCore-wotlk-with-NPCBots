@@ -143,8 +143,9 @@ inline void ScaleRiftSummonSpellDamage(uint32 spellId, uint32& damage, DamageEff
     // spellDamagePermille包含Tier配置倍率、召唤物伤害系数以及60级内容沿用的历史法术基准系数。
     // 无论AI回调能否识别触发型子法术，都必须先移除该基准系数，否则T1技能会退回旧的15倍修正并被严重放大。
     double multiplier = double(spellDamagePermille) / (1000.0 * spellDamageBaseFactor);
-    if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
-        multiplier *= tuning->WeaponDamageMultiplier;
+    if (damageType == SPELL_DIRECT_DAMAGE)
+        if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
+            multiplier *= tuning->WeaponDamageMultiplier;
 
     uint64 scaledDamage = uint64(double(damage) * multiplier);
     damage = uint32(std::min<uint64>(scaledDamage, std::numeric_limits<uint32>::max()));
@@ -206,8 +207,9 @@ public:
             uint32 spellId = GetDamageSpellId(victim, damageType);
             if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
             {
-                // 固定伤害/DoT在施法时已写入T1基线；武器技能则保留独立武器倍率。
-                if (tuning->WeaponDamageMultiplier > 1.0f)
+                // 固定伤害/DoT在施法时已写入T1基线；武器倍率只作用于直接技能伤害，
+                // 不得再次放大同一混合法术附带的周期伤害。
+                if (damageType == SPELL_DIRECT_DAMAGE && tuning->WeaponDamageMultiplier > 1.0f)
                     multiplier *= tuning->WeaponDamageMultiplier;
             }
         }
@@ -237,7 +239,9 @@ public:
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = events.ExecuteEvent())
+        // 每帧最多处理一个事件，避免同一时刻到期的技能被连续释放，
+        // 也避免前一个正常施法进入读条后，后续事件仍被取出并在失败后丢失。
+        if (uint32 eventId = events.ExecuteEvent())
             ExecuteRiftEvent(eventId);
 
         DoMeleeAttackIfReady();
@@ -309,9 +313,9 @@ protected:
         return true;
     }
 
-    Unit* SelectRandomPlayer(float range = 100.0f, bool alive = true)
+    Unit* SelectRandomPlayer(float range = 100.0f, bool playerOnly = false, bool withTank = true)
     {
-        return SelectTarget(SelectTargetMethod::Random, 0, range, alive);
+        return SelectTarget(SelectTargetMethod::Random, 0, range, playerOnly, withTank);
     }
 
     // 优先选中正在读条的真实玩家（供冲锋带打断类技能使用）；无读条目标时回退为随机玩家。
@@ -321,7 +325,7 @@ protected:
         for (ThreatReference const* ref : me->GetThreatMgr().GetUnsortedThreatList())
         {
             Unit* unit = ref->GetVictim();
-            if (unit && unit->IsAlive() && unit->IsPlayer() && unit->HasUnitState(UNIT_STATE_CASTING) &&
+            if (unit && unit->IsAlive() && unit->IsNPlayer() && unit->HasUnitState(UNIT_STATE_CASTING) &&
                 me->IsWithinDistInMap(unit, range))
                 casters.push_back(unit);
         }
@@ -393,7 +397,7 @@ protected:
         summon->AI()->SetData(RiftDataDamagePermille, uint32(finalDamageMultiplier * 1000.0f));
 
         // 召唤物名称与所属Boss保持一致，仅追加Tier后缀（如"源名 [T1]"），由运行时根据当前Tier动态生成。
-        summon->SetName(Acore::StringFormat("{} [T{}]", summon->GetName(), uint32(_tier)));
+        summon->SetName(Acore::StringFormat("{}", summon->GetName()));
     }
 
     void DespawnRiftSummons()
@@ -535,7 +539,8 @@ public:
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = _events.ExecuteEvent())
+        // 与Boss保持一致：同一帧只处理一个到期事件，剩余事件留到后续帧执行。
+        if (uint32 eventId = _events.ExecuteEvent())
             ExecuteAbility(eventId);
 
         DoMeleeAttackIfReady();

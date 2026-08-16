@@ -108,7 +108,7 @@ struct boss_rift_nethekurse : public BossAIBase
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = events.ExecuteEvent())
+        if (uint32 eventId = events.ExecuteEvent())
             ExecuteRiftEvent(eventId);
 
         // 原版进入黑暗旋转阶段后停止普通攻击，但继续施放既有法术。

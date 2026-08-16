@@ -50,6 +50,12 @@ struct boss_rift_soccothrates : public BossAIBase
 {
     explicit boss_rift_soccothrates(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _felfireCount = 0;
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         me->Yell(SoccothratesAggroText, LANG_UNIVERSAL);

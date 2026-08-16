@@ -104,6 +104,12 @@ struct npc_rift_shattered_hand_heathen : public RiftLevel70SummonAI
 {
     explicit npc_rift_shattered_hand_heathen(Creature* creature) : RiftLevel70SummonAI(creature) { }
 
+    void Reset() override
+    {
+        _enraged = false;
+        RiftLevel70SummonAI::Reset();
+    }
+
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/,
         SpellSchoolMask /*damageSchoolMask*/) override
     {
@@ -136,6 +142,12 @@ private:
 struct npc_rift_shattered_hand_reaver : public RiftLevel70SummonAI
 {
     explicit npc_rift_shattered_hand_reaver(Creature* creature) : RiftLevel70SummonAI(creature) { }
+
+    void Reset() override
+    {
+        _enraged = false;
+        RiftLevel70SummonAI::Reset();
+    }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/,
         SpellSchoolMask /*damageSchoolMask*/) override
@@ -266,7 +278,7 @@ struct boss_rift_kargath : public BossAIBase
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = events.ExecuteEvent())
+        if (uint32 eventId = events.ExecuteEvent())
             ExecuteRiftEvent(eventId);
 
         if (!_bladeDancing)

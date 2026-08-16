@@ -75,7 +75,15 @@ struct npc_rift_stolen_soul : public RiftLevel70SummonAI
 {
     explicit npc_rift_stolen_soul(Creature* creature) : RiftLevel70SummonAI(creature) { }
 
+    void Reset() override
+    {
+        RemoveStolenSoulAura();
+        RiftLevel70SummonAI::Reset();
+    }
+
     void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { _targetGuid = guid; }
+
+    ObjectGuid GetGUID(int32 /*id*/ = 0) const override { return _targetGuid; }
 
     void DoAction(int32 playerClass) override
     {
@@ -115,11 +123,17 @@ struct npc_rift_stolen_soul : public RiftLevel70SummonAI
 
     void JustDied(Unit* /*killer*/) override
     {
-        if (Unit* target = ObjectAccessor::GetUnit(*me, _targetGuid))
-            target->RemoveAurasDueToSpell(SpellStolenSoul);
+        RemoveStolenSoulAura();
     }
 
 private:
+    void RemoveStolenSoulAura()
+    {
+        if (Unit* target = ObjectAccessor::GetUnit(*me, _targetGuid))
+            if (TempSummon* summon = me->ToTempSummon())
+                target->RemoveAurasDueToSpell(SpellStolenSoul, summon->GetSummonerGUID());
+    }
+
     ObjectGuid _targetGuid;
     uint8 _playerClass = CLASS_WARRIOR;
 };
@@ -207,6 +221,15 @@ struct boss_rift_maladaar : public BossAIBase
     {
         me->Yell(DeathText, LANG_UNIVERSAL);
         BossAIBase::JustDied(killer);
+    }
+
+    void SummonedCreatureDespawn(Creature* summon) override
+    {
+        if (!summon || summon->GetEntry() != RiftEntryStolenSoul)
+            return;
+
+        if (Unit* target = ObjectAccessor::GetUnit(*me, summon->AI()->GetGUID()))
+            target->RemoveAurasDueToSpell(SpellStolenSoul, me->GetGUID());
     }
 
     void ConfigureTier() override

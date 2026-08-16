@@ -83,7 +83,7 @@ struct npc_rift_mennu_healing_ward : public RiftLevel70SummonAI // 裂隙门努�
     void UpdateAI(uint32 diff) override
     {
         _events.Update(diff);
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
             ExecuteAbility(eventId);
     }
 };
@@ -115,7 +115,7 @@ struct npc_rift_mennu_earthgrab_totem : public RiftLevel70SummonAI // 裂隙地�
     void UpdateAI(uint32 diff) override
     {
         _events.Update(diff);
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
             ExecuteAbility(eventId);
     }
 };
@@ -149,7 +149,7 @@ struct npc_rift_mennu_stoneskin_totem : public RiftLevel70SummonAI // 裂隙石�
     void UpdateAI(uint32 diff) override
     {
         _events.Update(diff);
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
             ExecuteAbility(eventId);
     }
 };
@@ -182,7 +182,7 @@ struct npc_rift_mennu_nova_totem : public RiftLevel70SummonAI // 裂隙新星图
     void UpdateAI(uint32 diff) override
     {
         _events.Update(diff);
-        while (uint32 eventId = _events.ExecuteEvent())
+        if (uint32 eventId = _events.ExecuteEvent())
             ExecuteAbility(eventId);
     }
 };

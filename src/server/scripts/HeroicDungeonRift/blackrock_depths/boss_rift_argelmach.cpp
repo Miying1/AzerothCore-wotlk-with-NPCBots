@@ -104,6 +104,12 @@ struct npc_rift_argelmach_golem : public RiftSummonAI
 {
     explicit npc_rift_argelmach_golem(Creature* creature) : RiftSummonAI(creature) { }
 
+    void Reset() override
+    {
+        _frenzied = false;
+        RiftSummonAI::Reset();
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         DoCast(me, SpellFlurry, true);
