@@ -15503,7 +15503,10 @@ void bot_ai::FindMaster()
     //totally free
     if (!_botData->owner)
         return;
-    if (me->IsInWorld() && (!_atHome || _evadeMode))
+    // 仅当 bot 处于真正无法绑定的硬状态（战斗中 / 死亡 / 传送中）时才跳过重绑主人。
+    // 不能用 _atHome 作为守卫：自由 bot 的 _atHome 可能因战斗、重置或 Evade 自由分支的提前 return 而卡在 false，
+    // 导致主人上线后 FindMaster 永远 return，bot 无法重绑、表现为不跟随主人（死锁）。
+    if (me->IsInWorld() &&  IsDuringTeleport())
         return;
     if (!BotCfg::IsClassEnabled(_botclass))
         return;
