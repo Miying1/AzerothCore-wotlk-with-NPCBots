@@ -1363,8 +1363,8 @@ void BotMgr::UpdatePhaseForBots()
         if (!bot || !bot->IsInWorld())
             continue; 
         bot->SetPhaseMask(_owner->GetPhaseMask(), bot->IsInWorld());
-         if (Creature* pet =bot->GetBotsPet())
-            pet->SetPhaseMask(_owner->GetPhaseMask(), bot->GetBotsPet()->IsInWorld());
+        if (Unit* pet = bot->GetBotsPet())
+            pet->SetPhaseMask(_owner->GetPhaseMask(), pet->IsInWorld());
     }
 }
 
@@ -1375,7 +1375,7 @@ void BotMgr::UpdatePvPForBots()
          if (!bot || !bot->IsInWorld())
             continue;
         bot->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
-        if (Creature* pet =bot->GetBotsPet())
+        if (Unit* pet =bot->GetBotsPet())
             pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
     }
 }

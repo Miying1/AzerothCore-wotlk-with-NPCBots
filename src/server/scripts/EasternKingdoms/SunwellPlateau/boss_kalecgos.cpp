@@ -320,9 +320,8 @@ struct boss_kalec : public ScriptedAI
 
 struct boss_sathrovarr : public ScriptedAI
 {
-    boss_sathrovarr(Creature* creature) : ScriptedAI(creature)
+    boss_sathrovarr(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript()), _soloMode(false)
     {
-        _instance = creature->GetInstanceScript();
         SetInvincibility(true);
     }
 
@@ -333,12 +332,20 @@ struct boss_sathrovarr : public ScriptedAI
 
     void Reset() override
     {
+        _soloMode = false;
         DoCastSelf(SPELL_DEMONIC_VISUAL, true);
         DoCastSelf(SPELL_SPECTRAL_INVISIBILITY, true);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
+        uint32 playerCount = 0;
+        for (auto const& reference : me->GetMap()->GetPlayers())
+            if (Player const* player = reference.GetSource())
+                if (!player->IsGameMaster())
+                    ++playerCount;
+        _soloMode = playerCount == 1;
+
         Talk(SAY_SATH_AGGRO);
 
         ScheduleTimedEvent(7s, [&] {
@@ -374,7 +381,12 @@ struct boss_sathrovarr : public ScriptedAI
             if (me->HealthBelowPct(1))
             {
                 if (Creature* kalecgos = _instance->GetCreature(DATA_KALECGOS))
+                {
                     kalecgos->AI()->DoAction(ACTION_SATH_BANISH);
+                    // 单人无法同时留人在两个领域压低双方血量；击败萨索瓦尔后同步完成上层放逐。
+                    if (_soloMode)
+                        kalecgos->AI()->DoAction(ACTION_BANISH);
+                }
                 DoAction(ACTION_BANISH);
             }
             else
@@ -413,6 +425,7 @@ struct boss_sathrovarr : public ScriptedAI
 
 private:
     InstanceScript* _instance;
+    bool _soloMode;
 };
 
 class SpectralBlastCheck
@@ -439,16 +452,29 @@ class spell_kalecgos_spectral_blast_dummy : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        size_t total = targets.size();
-        targets.remove_if(SpectralBlastCheck(GetCaster()->GetVictim()));
-        // Solo fallback: if filtering removed everyone (solo player is the tank),
-        // re-add the victim so the player can enter the Spectral Realm.
-        if (targets.empty() && total > 0)
+        Player* soloPlayer = nullptr;
+        for (auto const& reference : GetCaster()->GetMap()->GetPlayers())
         {
-            if (Unit* victim = GetCaster()->GetVictim())
-                if (!victim->HasAura(SPELL_SPECTRAL_EXHAUSTION) && victim->GetPositionZ() >= 50.0f)
-                    targets.push_back(victim);
+            if (Player* player = reference.GetSource(); player && !player->IsGameMaster())
+            {
+                if (soloPlayer)
+                {
+                    soloPlayer = nullptr;
+                    break;
+                }
+                soloPlayer = player;
+            }
         }
+
+        // 单人时玩家通常也是当前坦克；直接选择唯一真人，避免 NPCBot 抢到光谱冲击而使玩家无法下层。
+        if (soloPlayer && !soloPlayer->HasAura(SPELL_SPECTRAL_EXHAUSTION) && soloPlayer->GetPositionZ() >= 50.0f)
+        {
+            targets.clear();
+            targets.push_back(soloPlayer);
+            return;
+        }
+
+        targets.remove_if(SpectralBlastCheck(GetCaster()->GetVictim()));
         Acore::Containers::RandomResize(targets, 1);
     }
 

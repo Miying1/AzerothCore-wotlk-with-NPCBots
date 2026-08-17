@@ -384,7 +384,9 @@ struct npc_zuljin_vortex : public ScriptedAI
 
     void ChangeToNewPlayer()
     {
-        DoResetThreatList();
+        if (me->CanHaveThreatList() && !me->GetThreatMgr().IsThreatListEmpty(true))
+            DoResetThreatList();
+
         if (WorldObject* summoner = GetSummoner())
             if (Creature* zuljin = summoner->ToCreature())
                 if (Unit* target = zuljin->AI()->SelectTarget(SelectTargetMethod::Random, 0, 80.0f, true))

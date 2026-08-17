@@ -159,19 +159,36 @@ public:
 
             PerformanceReady = false;
 
+            me->SetReactState(REACT_PASSIVE);
             m_uiEventId = instance->GetData(DATA_OPERA_PERFORMANCE);
         }
 
-        void StartEvent()
+        bool StartEvent()
         {
+            if (HasEscortState(STATE_ESCORT_ESCORTING))
+                return false;
+
+            // 巴内斯只负责开场，不应因附近战斗或异常仇恨导致护送启动被静默拒绝。
+            me->CombatStop(true);
+            me->SetWalk(true);
+            Start(false);
+
+            if (!HasEscortState(STATE_ESCORT_ESCORTING))
+            {
+                LOG_ERROR(
+                    "scripts.ai",
+                    "Barnes Opera Event - failed to start escort path for encounter {}",
+                    m_uiEventId);
+                return false;
+            }
+
             instance->SetBossState(DATA_OPERA_PERFORMANCE, IN_PROGRESS);
 
-            //resets count for this event, in case earlier failed
+            // 失败后重开绿野仙踪时重置死亡计数。
             if (m_uiEventId == EVENT_OZ)
                 instance->SetData(DATA_OPERA_OZ_DEATHCOUNT, IN_PROGRESS);
 
-            me->SetWalk(true);
-            Start(false);
+            return true;
         }
 
         void JustEngagedWith(Unit* /*who*/) override { }
@@ -308,8 +325,13 @@ public:
                 SendGossipMenuFor(player, BARNES_TEXT_IS_READY2, creature->GetGUID());
                 break;
             case GOSSIP_ACTION_INFO_DEF+2:
-                CloseGossipMenuFor(player);
-                pBarnesAI->StartEvent();
+                if (pBarnesAI->StartEvent())
+                    CloseGossipMenuFor(player);
+                else
+                {
+                    AddGossipItemFor(player, OZ_GOSSIP1_MID, OZ_GOSSIP1_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                    SendGossipMenuFor(player, BARNES_TEXT_IS_READY, creature->GetGUID());
+                }
                 break;
             case GOSSIP_ACTION_INFO_DEF+3:
                 CloseGossipMenuFor(player);
@@ -332,8 +354,8 @@ public:
     {
         if (InstanceScript* instance = creature->GetInstanceScript())
         {
-            // Check for death of Moroes and if opera event is not done already
-            if (instance->GetBossState(DATA_MOROES) == DONE &&  instance->GetBossState(DATA_OPERA_PERFORMANCE) != DONE)
+            // 原版前置：击败莫罗斯后才允许开启剧院，并且已完成的剧目不能重复启动。
+            if (instance->GetBossState(DATA_MOROES) == DONE && instance->GetBossState(DATA_OPERA_PERFORMANCE) != DONE)
             {
                 AddGossipItemFor(player, OZ_GOSSIP1_MID, OZ_GOSSIP1_OID, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
