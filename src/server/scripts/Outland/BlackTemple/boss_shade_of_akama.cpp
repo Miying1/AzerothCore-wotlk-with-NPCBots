@@ -113,16 +113,25 @@ struct boss_shade_of_akama : public BossAI
         BossAI::Reset();
     }
 
+    void StopChannelers()
+    {
+        for (ObjectGuid const& channelerGuid : channelers)
+            if (Creature* channeler = ObjectAccessor::GetCreature(*me, channelerGuid))
+            {
+                channeler->RemoveAurasDueToSpell(SPELL_SHADE_SOUL_CHANNEL);
+                channeler->InterruptNonMeleeSpells(true);
+                channeler->CombatStop(true);
+                channeler->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+            }
+    }
+
     void EnterEvadeMode(EvadeReason why) override
     {
         for (ObjectGuid const& generatorGuid : generators)
             if (Creature* generator = ObjectAccessor::GetCreature(*me, generatorGuid))
                 generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
 
-        for (ObjectGuid const& channelerGuid : channelers)
-            if (Creature* channeler = ObjectAccessor::GetCreature(*me, channelerGuid))
-                channeler->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-
+        StopChannelers();
         BossAI::EnterEvadeMode(why);
     }
 
@@ -147,9 +156,10 @@ struct boss_shade_of_akama : public BossAI
 
             std::list<Creature*> channelerList;
             std::list<Creature*> generatorList;
-            me->GetCreatureListWithEntryInGrid(channelerList, NPC_ASHTONGUE_CHANNELER, 40.0f);
+            me->GetCreatureListWithEntryInGrid(channelerList, NPC_ASHTONGUE_CHANNELER, 100.0f);
             me->GetCreatureListWithEntryInGrid(generatorList, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
 
+            channelers.reserve(channelerList.size());
             for (Creature* channeler : channelerList)
             {
                 channelers.push_back(channeler->GetGUID());
