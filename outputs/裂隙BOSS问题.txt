@@ -1,0 +1,17 @@
+Bot黄忠(70102), owner: 8328, master guid: GUID Full: 0xf1300111d600002c Type: Creature Entry: 70102 Low: 44, command states: 0, await states: 0 
+unit flags: 
+UNIT FLAG PLAYER_CONTROLLED 
+UNIT_FLAG_SWIMMING 
+unit states: 
+movement flags: 
+Problems:
+master->GetGUID() == me->GetGUID() 
+_botData->owner !- master->GetGUID().GetRawValue() 
+owner is found (logged out) but not in world! 
+
+===黄忠(entry: 70102, guidlow: 44, spec: 8) key state === 
+CORE: canUpdate=1, IsInWorld=1, IsInGrid=1, IsDuringTeleport=0,_atHome-1 
+teleport: teleHomeEvent=0, teleFinishEvent=0,_duringTeleport=0 
+ownership: IAmFree=1, ownerLow-8328, master-GUID Full: Oxf1300111d600002c Type: Creature Entry: 70102 Low: 44 
+ai: spawned=1,_evadeMode=0, CanAppearlnWorld=1 
+flags: IsWanderer=0, IsSummon=0, IsTempBot=0, IsSharedBot=0
