@@ -396,10 +396,8 @@ void Minion::InitStats(uint32 duration)
     SetReactState(REACT_PASSIVE);
 
     //npcbot
-    //do not add bot totem to player's controlled list
-    //client indicator will be OwnerGUID
-    if (m_Properties && m_Properties->Slot && m_Properties->Slot >= SUMMON_SLOT_TOTEM_FIRE && m_Properties->Slot < MAX_TOTEM_SLOT &&
-        GetCreatorGUID() && GetCreatorGUID().IsCreature() && GetOwner() && GetOwner()->GetTypeId() == TYPEID_PLAYER &&
+    // 不要将机器人图腾加入玩家的受控单位列表，客户端指示器使用 OwnerGUID
+    if (HasUnitTypeMask(UNIT_MASK_TOTEM) && GetCreatorGUID().IsCreature() && GetOwner() && GetOwner()->IsPlayer() &&
         GetOwner()->ToPlayer()->HaveBot() && GetOwner()->ToPlayer()->GetBotMgr()->GetBot(GetCreatorGUID()))
         return;
     //end npcbot

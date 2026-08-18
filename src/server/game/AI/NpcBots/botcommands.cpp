@@ -718,7 +718,7 @@ public:
             { "recall",     npcbotRecallCommandTable                                                                                },
             { "kill",       HandleNpcBotKillCommand,                rbac::RBAC_PERM_COMMAND_NPCBOT_KILL,               Console::No  },
             { "suicide",    HandleNpcBotKillCommand,                rbac::RBAC_PERM_COMMAND_NPCBOT_KILL,               Console::No  },
-            { "fix",        HandleNpcBotFixCommand,                 rbac::RBAC_PERM_COMMAND_NPCBOT_REVIVE,             Console::No  },
+            { "fix",        HandleNpcBotFixCommand,                 rbac::RBAC_PERM_COMMAND_NPCBOT_REVIVE,             Console::Yes },
             { "go",         HandleNpcBotGoCommand,                  rbac::RBAC_PERM_COMMAND_NPCBOT_MOVE,               Console::No  },
             { "gs",         HandleNpcBotGearScoreCommand,           rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "sendto",     npcbotSendToCommandTable                                                                                },
@@ -2719,12 +2719,12 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         Player* owner = !bot->IsFreeBot() ? bot->GetBotOwner() : nullptr;
         Player* tickler = handler->GetPlayer();
 
-        if (!tickler->IsGameMaster())
-        {
-            handler->SendSysMessage("必须在GM模式下使用此命令!");
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
+        // if (!tickler->IsGameMaster())
+        // {
+        //     handler->SendSysMessage("必须在GM模式下使用此命令!");
+        //     handler->SetSentErrorMessage(true);
+        //     return false;
+        // }
 
             handler->PSendSysMessage("正在尝试修复机器人 {} ({}) 属于 {} ({})", bot->GetName(), bot_id,
                 owner ? owner->GetName().c_str() : "未知", owner ? owner->GetGUID().GetCounter() : bot_data->owner);
@@ -3115,7 +3115,12 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             handler->SetSentErrorMessage(true);
             return false;
         }
-
+        if (owner->GetMap()->IsDungeon() && owner->GetBotMgr()->IsPartyInCombat(false))
+        {
+            handler->SendNotification("你不能在副本战斗中这样做");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
         owner->GetBotMgr()->RecallAllBots(true);
         return true;
     }
