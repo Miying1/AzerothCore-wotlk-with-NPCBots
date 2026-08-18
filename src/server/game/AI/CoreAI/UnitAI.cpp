@@ -119,6 +119,26 @@ void UnitAI::SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectTa
     SelectTargetList(targetList, num, targetType, position, DefaultTargetSelector(me, dist, playerOnly, withTank, aura));
 }
 
+Unit* UnitAI::SelectPlayerTarget(SelectTargetMethod targetType, uint32 position, float dist, bool withTank, int32 aura)
+{
+    DefaultTargetSelector selector(me, dist, true, withTank, aura);
+    return SelectTarget(targetType, position, [&selector](Unit const* target)
+    {
+        // 仅选择真实玩家，排除 NPCBot
+        return selector(target) && target->IsPlayer() && !target->IsNPCBot();
+    });
+}
+
+void UnitAI::SelectPlayerTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 position, float dist, bool withTank, int32 aura)
+{
+    DefaultTargetSelector selector(me, dist, true, withTank, aura);
+    SelectTargetList(targetList, num, targetType, position, [&selector](Unit const* target)
+    {
+        // 仅选择真实玩家，排除 NPCBot
+        return selector(target) && target->IsPlayer() && !target->IsNPCBot();
+    });
+}
+
 float UnitAI::DoGetSpellMaxRange(uint32 spellId, bool positive)
 {
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
@@ -301,6 +321,16 @@ SpellCastResult UnitAI::DoCastAOE(uint32 spellId, bool triggered)
 SpellCastResult UnitAI::DoCastRandomTarget(uint32 spellId, uint32 threatTablePosition, float dist, bool playerOnly, bool triggered, bool withTank, int32 aura)
 {
     if (Unit* target = SelectTarget(SelectTargetMethod::Random, threatTablePosition, dist, playerOnly, withTank, aura))
+    {
+        return DoCast(target, spellId, triggered);
+    }
+
+    return SPELL_FAILED_BAD_TARGETS;
+}
+
+SpellCastResult UnitAI::DoCastRandomPlayerTarget(uint32 spellId, uint32 threatTablePosition, float dist, bool triggered, bool withTank, int32 aura)
+{
+    if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, threatTablePosition, dist, withTank, aura))
     {
         return DoCast(target, spellId, triggered);
     }

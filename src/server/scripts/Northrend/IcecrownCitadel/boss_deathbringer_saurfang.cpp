@@ -355,7 +355,7 @@ public:
 
         void JustSummoned(Creature* summon) override
         {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false))
+            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 0.0f,  false))
                 summon->AI()->AttackStart(target);
 
             //if (IsHeroic())

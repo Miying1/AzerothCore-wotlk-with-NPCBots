@@ -89,7 +89,7 @@ enum JaraxxusEvents
     EVENT_SPELL_SPINNING_PAIN_SPIKE,
     EVENT_SPELL_MISTRESS_KISS,
 };
-
+//双子
 class boss_jaraxxus : public CreatureScript
 {
 public:
@@ -231,7 +231,7 @@ public:
                     events.Repeat(25s, 45s);
                     break;
                 case EVENT_SPELL_LEGION_FLAME:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, true))
+                    if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 0.0f, true))
                     {
                         Talk(EMOTE_LEGION_FLAME, target);
                         me->CastSpell(target, SPELL_LEGION_FLAME, false);

@@ -295,7 +295,7 @@ struct boss_hexlord_malacrass : public BossAI
             {
                 if (Creature* siphonTrigger = me->SummonCreature(NPC_TEMP_TRIGGER, me->GetPosition(), TEMPSUMMON_TIMED_DESPAWN, 30000))
                 {
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 70, true))
+                    if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 70))
                     {
                         siphonTrigger->SetDisplayId(11686);
                         siphonTrigger->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
@@ -325,7 +325,7 @@ struct boss_hexlord_malacrass : public BossAI
                 break;
             case ABILITY_TARGET_ENEMY:
             default:
-                target = SelectTarget(SelectTargetMethod::Random, 0, 100, true);
+                target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100);
                 break;
             case ABILITY_TARGET_HEAL:
                 target = DoSelectLowestHpFriendly(50, 0);

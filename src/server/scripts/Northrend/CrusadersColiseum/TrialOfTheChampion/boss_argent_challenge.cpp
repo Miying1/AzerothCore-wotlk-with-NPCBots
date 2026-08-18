@@ -169,7 +169,7 @@ public:
                     events.Repeat(16s);
                     break;
                 case EVENT_SPELL_HAMMER_RIGHTEOUS:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 55.0f, true))
+                    if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 55.0f))
                     {
                         Talk(SAY_EADRIC_EMOTE_HAMMER_RIGHTEOUS, target);
                         Talk(SAY_EADRIC_HAMMER_RIGHTEOUS);

@@ -35,7 +35,7 @@ enum eSharedSpells
     SPELL_ANTI_AOE                              = 68595,
     SPELL_PVP_TRINKET                           = 65547,
 };
-
+//对阵敌对阵营勇士小
 struct boss_faction_championsAI : public ScriptedAI
 {
     boss_faction_championsAI(Creature* pCreature, uint32 aitype) : ScriptedAI(pCreature)

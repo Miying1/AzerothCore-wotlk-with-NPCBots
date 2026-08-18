@@ -278,6 +278,14 @@ public:
      */
     void SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 position = 0, float dist = 0.0f, bool playerOnly = false, bool withTank = true, int32 aura = 0);
 
+    // 从仇恨列表中按 <targetType> 顺序选择目标，仅限真实玩家（不包含 NPCBot）。
+    // 其余过滤条件（position/dist/withTank/aura）与 SelectTarget 一致。
+    Unit* SelectPlayerTarget(SelectTargetMethod targetType, uint32 position = 0, float dist = 0.0f, bool withTank = true, int32 aura = 0);
+
+    // 从仇恨列表中按 <targetType> 顺序选择（最多）<num> 个目标，仅限真实玩家（不包含 NPCBot）。
+    // 结果存入 <targetList>（会先清空）。其余过滤条件（position/dist/withTank/aura）与 SelectTargetList 一致。
+    void SelectPlayerTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 position = 0, float dist = 0.0f, bool withTank = true, int32 aura = 0);
+
     // Select the best (up to) <num> targets (in <targetType> order) satisfying <predicate> from the threat list and stores them in <targetList> (which is cleared first).
     // If <offset> is nonzero, the first <offset> entries in <targetType> order (or SelectTargetMethod::MaxThreat
     // order, if <targetType> is SelectTargetMethod::Random) are skipped.
@@ -400,6 +408,8 @@ public:
     SpellCastResult DoCastAOE(uint32 spellId, bool triggered = false);
     // aura: forwarded to SelectTarget - if 0: ignored, if > 0: the target shall have the aura, if < 0: the target shall NOT have the aura
     SpellCastResult DoCastRandomTarget(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false, bool withTank = true, int32 aura = 0);
+    // 与 DoCastRandomTarget 一致，但仅选择真实玩家（不包含 NPCBot）
+    SpellCastResult DoCastRandomPlayerTarget(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool triggered = false, bool withTank = true, int32 aura = 0);
 
     /// @brief Cast spell on the top threat target, which may not be the current victim.
     SpellCastResult DoCastMaxThreat(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false);

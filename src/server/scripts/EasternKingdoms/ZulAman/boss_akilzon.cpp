@@ -99,7 +99,7 @@ struct boss_akilzon : public BossAI
 
         ScheduleTimedEvent(20s, 30s, [&] {
             if (scheduler.GetNextGroupOccurrence(GROUP_ELECTRICAL_STORM) > 5s)
-                DoCastRandomTarget(SPELL_GUST_OF_WIND, 0, 0.0f, true, false, false);
+                DoCastRandomPlayerTarget(SPELL_GUST_OF_WIND, 0, 0.0f, false, false);
         }, 20s, 30s);
 
         ScheduleTimedEvent(10s, 20s, [&] {

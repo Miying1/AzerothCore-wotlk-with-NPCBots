@@ -968,7 +968,7 @@ public:
             if (!((1 << _phase) & PHASE_MASK_NO_VICTIM))
                 if (!UpdateVictim())
                     return;
-            Unit* player = SelectTarget(SelectTargetMethod::MaxThreat,0,75,true);
+            Unit* player = SelectPlayerTarget(SelectTargetMethod::MaxThreat,0,75,true);
             if(!player && HealthAbovePct(12)){
               EnterEvadeMode(EVADE_REASON_OTHER);
               return;

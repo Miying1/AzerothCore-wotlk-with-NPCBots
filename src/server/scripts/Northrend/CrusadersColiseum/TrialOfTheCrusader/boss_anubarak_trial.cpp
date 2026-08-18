@@ -143,7 +143,7 @@ enum AnubEvents
     EVENT_SPELL_SHADOW_STRIKE,
     EVENT_SUMMON_SCARAB,
 };
-
+//阿努巴拉克
 class boss_anubarak_trial : public CreatureScript
 {
 public:
@@ -769,7 +769,7 @@ public:
             }
             DoZoneInCombat();
             DoResetThreatList();
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 250.0f, true))
+            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 250.0f))
             {
                 if (!next)
                 {
