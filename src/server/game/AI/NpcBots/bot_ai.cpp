@@ -17892,7 +17892,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     if (_updateTimerEx2 <= diff)
     {
-        _updateTimerEx2 = urand(2000, 4000);
+        _updateTimerEx2 = urand(2000, 3000);
 
         //Rent Collecting
         uint32 rent_cost = BotCfg::GetNpcBotCostRent(master->GetLevel(), GetBotClass());
@@ -17922,10 +17922,11 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             if (mymap)
             {
                 std::list<Player*> plist;
-                Bcore::AllWorldObjectsInExactRange pcheck(me, 15.0f, false);
+                Bcore::AllWorldObjectsInExactRange pcheck(me, 50.0f, false);
                 Bcore::PlayerListSearcher<decltype(pcheck)> searcher(me, plist, pcheck);
-                Cell::VisitObjects(me, searcher, 20.f);
-                _canAppearInWorld = std::ranges::any_of(plist, [](Player const* pl) { return pl->GetSession()->GetSecurity() > SEC_PLAYER; });
+                Cell::VisitObjects(me, searcher, 60.f);
+                // 50码范围内有任意玩家时，允许机器人出现在世界中
+                _canAppearInWorld = !plist.empty();
                 if (!CanAppearInWorld() && !IsDuringTeleport())
                     BotMgr::TeleportBot(me, mymap, me, true);
             }
