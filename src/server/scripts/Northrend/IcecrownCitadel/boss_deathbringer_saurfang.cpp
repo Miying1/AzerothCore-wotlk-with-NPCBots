@@ -339,7 +339,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->IsPlayer())
+            if (victim->IsNPlayer())
                 Talk(SAY_KILL);
         }
 
@@ -465,7 +465,7 @@ public:
             switch (action)
             {
                 case ACTION_MARK_OF_THE_FALLEN_CHAMPION:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
+                    if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 0.0f, false, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
                     {
                         ++_fallenChampionCastCount;
                         me->CastSpell(target, SPELL_MARK_OF_THE_FALLEN_CHAMPION, false);

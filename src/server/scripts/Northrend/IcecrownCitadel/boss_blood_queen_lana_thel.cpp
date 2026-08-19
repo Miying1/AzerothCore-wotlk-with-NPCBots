@@ -151,7 +151,7 @@ public:
 private:
     Creature const* _source;
 };
-
+//鲜血女王兰娜瑟尔
 class boss_blood_queen_lana_thel : public CreatureScript
 {
 public:
@@ -289,7 +289,7 @@ public:
 
         void KilledUnit(Unit* victim) override
         {
-            if (victim->IsPlayer())
+            if (victim->IsNPlayer())
                 Talk(SAY_KILL);
         }
 
