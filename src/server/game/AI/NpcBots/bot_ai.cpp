@@ -17922,9 +17922,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             if (mymap)
             {
                 std::list<Player*> plist;
-                Bcore::AllWorldObjectsInExactRange pcheck(me, 50.0f, false);
+                Bcore::AllWorldObjectsInExactRange pcheck(me, 95.0f, false);
                 Bcore::PlayerListSearcher<decltype(pcheck)> searcher(me, plist, pcheck);
-                Cell::VisitObjects(me, searcher, 60.f);
+                Cell::VisitObjects(me, searcher, 100.f);
                 // 50码范围内有任意玩家时，允许机器人出现在世界中
                 _canAppearInWorld = !plist.empty();
                 if (!CanAppearInWorld() && !IsDuringTeleport())
