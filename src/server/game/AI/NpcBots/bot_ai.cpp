@@ -288,13 +288,13 @@ bool bot_ai::SetBotOwner(Player* newowner)
     //have master already
     if (master->GetGUID() != me->GetGUID())
     {
-        BOT_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): bot {} (id: {}) has master {} while trying to set to {}...",
+        BOT_LOG_ERROR("npcbots", "bot_ai::SetBotOwner(): bot {} (id: {}) has master {} while trying to set to {}...",
             me->GetName().c_str(), me->GetEntry(), master->GetName().c_str(), newowner->GetName().c_str());
         return false;
     }
     if (!IAmFree())
     {
-        BOT_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): minion bot {} (id: {}) IS NOT FREE (has master {}) while trying to set to {}",
+        BOT_LOG_ERROR("npcbots", "bot_ai::SetBotOwner(): minion bot {} (id: {}) IS NOT FREE (has master {}) while trying to set to {}",
             me->GetName().c_str(), me->GetEntry(), master->GetName().c_str(), newowner->GetName().c_str());
         return false;
     }
@@ -303,7 +303,7 @@ bool bot_ai::SetBotOwner(Player* newowner)
     if (addRes & BOT_ADD_FATAL)
     {
         // 诊断日志：重绑时 AddBot 返回致命错误，30 秒后重试
-        BOT_LOG_WARN("npcbots.master", "SetBotOwner(): bot {} (entry {}, owner {}) rebind to {} FAILED, AddBot result {} (retry in 30s)",
+        BOT_LOG_WARN("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) rebind to {} FAILED, AddBot result {} (retry in 30s)",
             me->GetName(), me->GetEntry(), _botData->owner, newowner->GetName(), static_cast<uint32>(addRes));
         _checkMasterTimer += 30000;
         return false;
@@ -15540,21 +15540,18 @@ void bot_ai::FindMaster()
         // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
         if (!ownerOnline)
         {
-            // 诊断日志：主人不在线，bot 仍在传送回家
-            BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: owner offline and still during teleport",
-                me->GetName(), me->GetEntry(), _botData->owner);
             return;
         }
 
         // 主人已在线：取消回家传送并继续重绑，否则会死锁
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) owner online, abort teleport to allow rebind",
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) owner online, abort teleport to allow rebind",
             me->GetName(), me->GetEntry(), _botData->owner);
         AbortTeleport();
     }
     if (!BotCfg::IsClassEnabled(_botclass))
     {
         // 诊断日志：bot 职业被配置禁用
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: bot class {} disabled",
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: bot class {} disabled",
             me->GetName(), me->GetEntry(), _botData->owner, uint32(_botclass));
         return;
     }
@@ -15571,7 +15568,7 @@ void bot_ai::FindMaster()
     if (HasBotCommandState(BOT_COMMAND_UNBIND))
     {
         // 诊断日志：bot 处于 UNBIND 状态，需 .npcbot rebind 命令才能恢复
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: has BOT_COMMAND_UNBIND state",
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: has BOT_COMMAND_UNBIND state",
             me->GetName(), me->GetEntry(), _botData->owner);
         return;
     }
@@ -15585,10 +15582,6 @@ void bot_ai::FindMaster()
                 //prevent bot being screwed up because of wrong flags
                 if (player->IsGameMaster() || player->GetSession()->isLogingOut() || player->GetSession()->PlayerLogout())
                 {
-                    // 诊断日志：主人是 GM 或正在登出，跳过重绑
-                    BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: isGM={} isLoggingOut={} playerLogout={}",
-                        me->GetName(), me->GetEntry(), _botData->owner, player->GetName(),
-                        player->IsGameMaster(), player->GetSession()->isLogingOut(), player->GetSession()->PlayerLogout());
                     return;
                 }
 
@@ -15596,7 +15589,7 @@ void bot_ai::FindMaster()
                 if (player->GetBotMgr() && !BotCfg::IsMapAllowedForBots(player->GetMap()))
                 {
                     // 诊断日志：主人所在地图不允许 bot，跳过重绑
-                    BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: map {} not allowed for bots",
+                    BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: map {} not allowed for bots",
                         me->GetName(), me->GetEntry(), _botData->owner, player->GetName(), player->GetMapId());
                     return;
                 }
