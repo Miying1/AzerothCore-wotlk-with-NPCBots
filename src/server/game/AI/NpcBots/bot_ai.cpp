@@ -17875,7 +17875,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (_saveDisabledSpells && _saveDisabledSpellsTimer <= diff)
     {
         _saveDisabledSpells = false;
-        _saveDisabledSpellsTimer = 5000;
+        _saveDisabledSpellsTimer = 20000;
 
         if (!IsTempBot() && !me->IsSummon())
             BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_DISABLED_SPELLS, &_botData->disabled_spells);
@@ -17884,7 +17884,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (_saveMiscValues && _saveMiscValuesTimer <= diff)
     {
         _saveMiscValues = false;
-        _saveMiscValuesTimer = 5000;
+        _saveMiscValuesTimer = 10000;
 
         if (!IsTempBot() && !me->IsSummon())
             BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_MISCVALUES, &_botData->miscvalues);
@@ -17998,9 +17998,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     if (!me->IsInWorld())
     {
-        if (IAmFree())
-            BOT_LOG_ERROR("scripts", "bot_ai::GlobalUpdate is called for free bot not in world: {} ({}) class {} level {}",
-                me->GetName().c_str(), me->GetEntry(), uint32(_botclass), uint32(me->GetLevel()));
+        // if (IAmFree())
+        //     BOT_LOG_ERROR("scripts", "bot_ai::GlobalUpdate is called for free bot not in world: {} ({}) class {} level {}",
+        //         me->GetName().c_str(), me->GetEntry(), uint32(_botclass), uint32(me->GetLevel()));
         return false;
     }
 
