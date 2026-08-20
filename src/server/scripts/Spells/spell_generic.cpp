@@ -5334,9 +5334,9 @@ class spell_gen_consumption : public SpellScript
         {
             value = urand(3000, 3200);
         }
-        else if (map->GetId() == 532) // Karazhan
+        else if (map->GetId() == 532) // Karazhan（80 级 10 人升级：虚空领域伤害由 70 级旧值提升至 ICC 10N 量级）
         {
-            value = urand(1110, 1310);
+            value = urand(4000, 5000);
         }
         if (value)
         {
