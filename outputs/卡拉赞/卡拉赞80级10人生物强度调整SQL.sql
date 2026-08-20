@@ -29,7 +29,6 @@ UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthMod
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=220, `DamageModifier`=72 WHERE `entry`=17543; -- 稻草人 Strawman
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=220, `DamageModifier`=72 WHERE `entry`=17547; -- 铁皮人 Tinhead
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=385, `DamageModifier`=83 WHERE `entry`=18168; -- 老巫婆 The Crone
-UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=55, `DamageModifier`=44 WHERE `entry`=17548; -- 托托 Tito（召唤物）
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=385, `DamageModifier`=88 WHERE `entry`=17521; -- 大灰狼 The Big Bad Wolf
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=275, `DamageModifier`=72 WHERE `entry`=17533; -- 罗密欧 Romulo
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=275, `DamageModifier`=66 WHERE `entry`=17534; -- 朱丽叶 Julianne
@@ -39,6 +38,7 @@ UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17267; -- 恶魔小鬼 Fiendish Imp
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17261; -- 不安的骷髅 Restless Skeleton
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17167; -- 召唤元素 Conjured Elemental
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=7.5 WHERE `entry`=17548; -- 托托 Tito（桃乐丝宠物）
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=10 WHERE `entry`=17007; -- 莫罗斯宾客（1/6）
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=10 WHERE `entry`=19872; -- 莫罗斯宾客（2/6）
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=10 WHERE `entry`=19873; -- 莫罗斯宾客（3/6）

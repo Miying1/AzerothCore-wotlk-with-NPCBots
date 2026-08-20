@@ -1,17 +1,40 @@
--- 卡拉赞（地图 532）升级为 80 级 10 人：Boss/召唤物/特殊精英怪技能伤害缩放
+-- 卡拉赞（地图 532）升级为 80 级 10 人：Boss/召唤物/精英怪技能伤害缩放
 -- 依据《卡拉赞80级10人技能伤害C++调整实现方案》§4/§5
--- 将通用缩放脚本 spell_karazhan_direct_scale（同时承载 SpellScript 直接伤害 + AuraScript DOT 缩放）绑定到 43 个法术
+-- 将通用缩放脚本 spell_karazhan_direct_scale（同时承载 SpellScript 直接伤害 + AuraScript DOT 缩放）绑定到 75 个法术
 -- 幂等：DELETE 按 ScriptName 定向，重复执行无副作用；不影响其它脚本（如 spell_nightbane_fireball_barrage）
 -- 无污染：C++ 侧已加地图守卫（GetMapId()==532），非卡拉赞施法者（如裂隙复用的 29901 酸性之牙）不受影响
 
 DELETE FROM `spell_script_names` WHERE `ScriptName` = 'spell_karazhan_direct_scale';
 INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
+(18812,'spell_karazhan_direct_scale'),
+(24212,'spell_karazhan_direct_scale'),
+(29293,'spell_karazhan_direct_scale'),
+(29298,'spell_karazhan_direct_scale'),
+(29300,'spell_karazhan_direct_scale'),
+(29317,'spell_karazhan_direct_scale'),
+(29386,'spell_karazhan_direct_scale'),
 (29425,'spell_karazhan_direct_scale'),
+(29477,'spell_karazhan_direct_scale'),
+(29487,'spell_karazhan_direct_scale'),
+(29491,'spell_karazhan_direct_scale'),
+(29492,'spell_karazhan_direct_scale'),
 (29522,'spell_karazhan_direct_scale'),
+(29563,'spell_karazhan_direct_scale'),
+(29570,'spell_karazhan_direct_scale'),
+(29575,'spell_karazhan_direct_scale'),
+(29576,'spell_karazhan_direct_scale'),
+(29578,'spell_karazhan_direct_scale'),
+(29586,'spell_karazhan_direct_scale'),
+(29609,'spell_karazhan_direct_scale'),
+(29618,'spell_karazhan_direct_scale'),
 (29666,'spell_karazhan_direct_scale'),
 (29670,'spell_karazhan_direct_scale'),
 (29673,'spell_karazhan_direct_scale'),
+(29675,'spell_karazhan_direct_scale'),
+(29676,'spell_karazhan_direct_scale'),
 (29677,'spell_karazhan_direct_scale'),
+(29680,'spell_karazhan_direct_scale'),
+(29684,'spell_karazhan_direct_scale'),
 (29711,'spell_karazhan_direct_scale'),
 (29712,'spell_karazhan_direct_scale'),
 (29717,'spell_karazhan_direct_scale'),
@@ -20,9 +43,15 @@ INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
 (29901,'spell_karazhan_direct_scale'),
 (29904,'spell_karazhan_direct_scale'),
 (29906,'spell_karazhan_direct_scale'),
+(29919,'spell_karazhan_direct_scale'),
+(29922,'spell_karazhan_direct_scale'),
+(29925,'spell_karazhan_direct_scale'),
+(29928,'spell_karazhan_direct_scale'),
+(29930,'spell_karazhan_direct_scale'),
 (29935,'spell_karazhan_direct_scale'),
 (29939,'spell_karazhan_direct_scale'),
 (29949,'spell_karazhan_direct_scale'),
+(29951,'spell_karazhan_direct_scale'),
 (29953,'spell_karazhan_direct_scale'),
 (29954,'spell_karazhan_direct_scale'),
 (29956,'spell_karazhan_direct_scale'),
@@ -33,8 +62,10 @@ INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
 (30055,'spell_karazhan_direct_scale'),
 (30128,'spell_karazhan_direct_scale'),
 (30129,'spell_karazhan_direct_scale'),
+(30180,'spell_karazhan_direct_scale'),
 (30210,'spell_karazhan_direct_scale'),
 (30282,'spell_karazhan_direct_scale'),
+(30358,'spell_karazhan_direct_scale'),
 (30383,'spell_karazhan_direct_scale'),
 (30815,'spell_karazhan_direct_scale'),
 (30852,'spell_karazhan_direct_scale'),
@@ -47,5 +78,6 @@ INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
 (32445,'spell_karazhan_direct_scale'),
 (37057,'spell_karazhan_direct_scale'),
 (37066,'spell_karazhan_direct_scale'),
+(37078,'spell_karazhan_direct_scale'),
 (37161,'spell_karazhan_direct_scale'),
 (38524,'spell_karazhan_direct_scale');
