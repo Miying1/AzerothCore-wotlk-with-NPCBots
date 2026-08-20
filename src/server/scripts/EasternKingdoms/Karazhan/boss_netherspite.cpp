@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "botmgr.h"
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -66,7 +67,6 @@ const uint32 PortalVisual[3] = {30487, 30490, 30491};
 const uint32 PortalBeam[3] =   {30465, 30464, 30463};
 const uint32 PlayerBuff[3] =   {30421, 30422, 30423};
 const uint32 NetherBuff[3] =   {30466, 30467, 30468};
-const uint32 PlayerDebuff[3] = {38637, 38638, 38639};
 
 struct boss_netherspite : public BossAI
 {
@@ -143,9 +143,22 @@ struct boss_netherspite : public BossAI
                         Player* p = i->GetSource();
                         if (p && p->IsAlive() // alive
                             && (!target || target->GetDistance2d(portal) > p->GetDistance2d(portal)) // closer than current best
-                            && !p->HasAura(PlayerDebuff[j]) // not exhausted
                             && IsBetween(me, p, portal)) // on the beam
                             target = p;
+
+                        // npcbot: 同样遍历该玩家拥有的 NPCbot，选择更合适的目标
+                        if (p && p->HaveBot())
+                        {
+                            BotMap const* bmap = p->GetBotMgr()->GetBotMap();
+                            for (BotMap::const_iterator citr = bmap->begin(); citr != bmap->end(); ++citr)
+                            {
+                                Creature* bot = citr->second;
+                                if (bot && bot->IsAlive()
+                                    && (!target || target->GetDistance2d(portal) > bot->GetDistance2d(portal))
+                                    && IsBetween(me, bot, portal))
+                                    target = bot;
+                            }
+                        }
                     }
                 }
                 // buff the target

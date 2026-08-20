@@ -16240,16 +16240,21 @@ bool bot_ai::SummonGameobject(uint32 entry, uint32 spell_id, int32 life_time, ui
 
 void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
 {
-    if (creature)
-    {
-        if (bot_pet_ai* petai = creature->GetBotPetAI())
-        {
-            petai->KillEvents(true);
-            petai->canUpdate = false;
-        }
+    if (!creature)
+        return;
 
-        ASSERT_NOTNULL(creature->ToTempSummon())->UnSummon();
+    // 对象可能已不是 TempSummon（悬空指针被内存分配器复用为普通 NPC），此时直接放弃解散，避免断言崩溃
+    TempSummon* summon = creature->ToTempSummon();
+    if (!summon)
+        return;
+
+    if (bot_pet_ai* petai = summon->GetBotPetAI())
+    {
+        petai->KillEvents(true);
+        petai->canUpdate = false;
     }
+
+    summon->UnSummon();
 }
 void bot_ai::UnsummonPet(bool save)
 {
