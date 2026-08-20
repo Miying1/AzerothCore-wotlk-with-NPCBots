@@ -288,13 +288,13 @@ bool bot_ai::SetBotOwner(Player* newowner)
     //have master already
     if (master->GetGUID() != me->GetGUID())
     {
-        BOT_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): bot {} (id: {}) has master {} while trying to set to {}...",
+        BOT_LOG_ERROR("npcbots", "bot_ai::SetBotOwner(): bot {} (id: {}) has master {} while trying to set to {}...",
             me->GetName().c_str(), me->GetEntry(), master->GetName().c_str(), newowner->GetName().c_str());
         return false;
     }
     if (!IAmFree())
     {
-        BOT_LOG_ERROR("entities.player", "bot_ai::SetBotOwner(): minion bot {} (id: {}) IS NOT FREE (has master {}) while trying to set to {}",
+        BOT_LOG_ERROR("npcbots", "bot_ai::SetBotOwner(): minion bot {} (id: {}) IS NOT FREE (has master {}) while trying to set to {}",
             me->GetName().c_str(), me->GetEntry(), master->GetName().c_str(), newowner->GetName().c_str());
         return false;
     }
@@ -303,7 +303,7 @@ bool bot_ai::SetBotOwner(Player* newowner)
     if (addRes & BOT_ADD_FATAL)
     {
         // 诊断日志：重绑时 AddBot 返回致命错误，30 秒后重试
-        BOT_LOG_WARN("npcbots.master", "SetBotOwner(): bot {} (entry {}, owner {}) rebind to {} FAILED, AddBot result {} (retry in 30s)",
+        BOT_LOG_WARN("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) rebind to {} FAILED, AddBot result {} (retry in 30s)",
             me->GetName(), me->GetEntry(), _botData->owner, newowner->GetName(), static_cast<uint32>(addRes));
         _checkMasterTimer += 30000;
         return false;
@@ -498,6 +498,10 @@ void bot_ai::ResetBotAI(uint8 resetType)
     }
     else
     {
+        // 清除可能残留的传送状态（teleHomeEvent / teleFinishEvent）。
+        // 否则 GlobalUpdate 中 FindMaster 之后的 `if (IsDuringTeleport()) return false;` 会短路 Evade，
+        // 导致下线后自由 bot 停在原地、_atHome 永远为 false（僵尸态），下次上线也无法重绑主人。
+        AbortTeleport();
         _atHome = false;
         spawned = false;
         ResetContestedPvP();
@@ -11187,8 +11191,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
                     // 传送状态分解
                     report << "\nteleport: teleHomeEvent=" << (teleHomeEvent ? 1 : 0)
-                        << ", teleFinishEvent=" << (teleFinishEvent ? 1 : 0)
-                        << ", _duringTeleport=" << (_duringTeleport ? 1 : 0);
+                        << ", teleFinishEvent=" << (teleFinishEvent ? 1 : 0);
 
                     // 归属状态
                     report << "\nownership: IAmFree=" << (IAmFree() ? 1 : 0)
@@ -15511,20 +15514,44 @@ void bot_ai::FindMaster()
     //totally free
     if (!_botData->owner)
         return;
-    // 仅当 bot 处于真正无法绑定的硬状态（战斗中 / 死亡 / 传送中）时才跳过重绑主人。
+    // 仅当 bot 处于真正无法绑定的硬状态时才跳过重绑主人。
     // 不能用 _atHome 作为守卫：自由 bot 的 _atHome 可能因战斗、重置或 Evade 自由分支的提前 return 而卡在 false，
     // 导致主人上线后 FindMaster 永远 return，bot 无法重绑、表现为不跟随主人（死锁）。
+    // 同理，回家传送（TeleportHomeEvent）也不能无条件挡住重绑：_atHome=false 会触发 Evade 的回家分支创建
+    // TeleportHomeEvent，使 IsDuringTeleport() 长期为 true；若此处无条件 return 会形成"主人上线也无法重绑"的死锁。
     if (me->IsInWorld() && IsDuringTeleport())
     {
-        // 诊断日志：bot 卡在传送状态，无法重绑主人
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: still during teleport",
+        // 检查主人（owner / shared_owner）是否已在线
+        bool ownerOnline = false;
+        for (auto const& container : { {_botData->owner}, _botData->shared_owners })
+        {
+            for (uint32 guid_low : container)
+            {
+                if (ObjectAccessor::FindPlayerByLowGUID(guid_low))
+                {
+                    ownerOnline = true;
+                    break;
+                }
+            }
+            if (ownerOnline)
+                break;
+        }
+
+        // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
+        if (!ownerOnline)
+        {
+            return;
+        }
+
+        // 主人已在线：取消回家传送并继续重绑，否则会死锁
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) owner online, abort teleport to allow rebind",
             me->GetName(), me->GetEntry(), _botData->owner);
-        return;
+        AbortTeleport();
     }
     if (!BotCfg::IsClassEnabled(_botclass))
     {
         // 诊断日志：bot 职业被配置禁用
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: bot class {} disabled",
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: bot class {} disabled",
             me->GetName(), me->GetEntry(), _botData->owner, uint32(_botclass));
         return;
     }
@@ -15541,7 +15568,7 @@ void bot_ai::FindMaster()
     if (HasBotCommandState(BOT_COMMAND_UNBIND))
     {
         // 诊断日志：bot 处于 UNBIND 状态，需 .npcbot rebind 命令才能恢复
-        BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: has BOT_COMMAND_UNBIND state",
+        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind: has BOT_COMMAND_UNBIND state",
             me->GetName(), me->GetEntry(), _botData->owner);
         return;
     }
@@ -15555,10 +15582,6 @@ void bot_ai::FindMaster()
                 //prevent bot being screwed up because of wrong flags
                 if (player->IsGameMaster() || player->GetSession()->isLogingOut() || player->GetSession()->PlayerLogout())
                 {
-                    // 诊断日志：主人是 GM 或正在登出，跳过重绑
-                    BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: isGM={} isLoggingOut={} playerLogout={}",
-                        me->GetName(), me->GetEntry(), _botData->owner, player->GetName(),
-                        player->IsGameMaster(), player->GetSession()->isLogingOut(), player->GetSession()->PlayerLogout());
                     return;
                 }
 
@@ -15566,7 +15589,7 @@ void bot_ai::FindMaster()
                 if (player->GetBotMgr() && !BotCfg::IsMapAllowedForBots(player->GetMap()))
                 {
                     // 诊断日志：主人所在地图不允许 bot，跳过重绑
-                    BOT_LOG_INFO("npcbots.master", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: map {} not allowed for bots",
+                    BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) skip rebind to {}: map {} not allowed for bots",
                         me->GetName(), me->GetEntry(), _botData->owner, player->GetName(), player->GetMapId());
                     return;
                 }
@@ -17852,7 +17875,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (_saveDisabledSpells && _saveDisabledSpellsTimer <= diff)
     {
         _saveDisabledSpells = false;
-        _saveDisabledSpellsTimer = 5000;
+        _saveDisabledSpellsTimer = 20000;
 
         if (!IsTempBot() && !me->IsSummon())
             BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_DISABLED_SPELLS, &_botData->disabled_spells);
@@ -17861,7 +17884,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     if (_saveMiscValues && _saveMiscValuesTimer <= diff)
     {
         _saveMiscValues = false;
-        _saveMiscValuesTimer = 5000;
+        _saveMiscValuesTimer = 10000;
 
         if (!IsTempBot() && !me->IsSummon())
             BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_MISCVALUES, &_botData->miscvalues);
@@ -17869,7 +17892,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     if (_updateTimerEx2 <= diff)
     {
-        _updateTimerEx2 = urand(2000, 4000);
+        _updateTimerEx2 = urand(2000, 3000);
 
         //Rent Collecting
         uint32 rent_cost = BotCfg::GetNpcBotCostRent(master->GetLevel(), GetBotClass());
@@ -17899,10 +17922,11 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             if (mymap)
             {
                 std::list<Player*> plist;
-                Bcore::AllWorldObjectsInExactRange pcheck(me, 15.0f, false);
+                Bcore::AllWorldObjectsInExactRange pcheck(me, 95.0f, false);
                 Bcore::PlayerListSearcher<decltype(pcheck)> searcher(me, plist, pcheck);
-                Cell::VisitObjects(me, searcher, 20.f);
-                _canAppearInWorld = std::ranges::any_of(plist, [](Player const* pl) { return pl->GetSession()->GetSecurity() > SEC_PLAYER; });
+                Cell::VisitObjects(me, searcher, 100.f);
+                // 50码范围内有任意玩家时，允许机器人出现在世界中
+                _canAppearInWorld = !plist.empty();
                 if (!CanAppearInWorld() && !IsDuringTeleport())
                     BotMgr::TeleportBot(me, mymap, me, true);
             }
@@ -17975,9 +17999,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     if (!me->IsInWorld())
     {
-        if (IAmFree())
-            BOT_LOG_ERROR("scripts", "bot_ai::GlobalUpdate is called for free bot not in world: {} ({}) class {} level {}",
-                me->GetName().c_str(), me->GetEntry(), uint32(_botclass), uint32(me->GetLevel()));
+        // if (IAmFree())
+        //     BOT_LOG_ERROR("scripts", "bot_ai::GlobalUpdate is called for free bot not in world: {} ({}) class {} level {}",
+        //         me->GetName().c_str(), me->GetEntry(), uint32(_botclass), uint32(me->GetLevel()));
         return false;
     }
 
@@ -19151,6 +19175,10 @@ void bot_ai::TeleportHome(bool reset)
 
     spawned = false;
     _evadeCount = 0;
+    // 回家传送已经发起，标记 bot 到家。
+    // 否则传送完成后若仍处于 IsDuringTeleport()（如 HideBotSpawns 隐藏等待），GlobalUpdate 会短路 Evade，
+    // 导致 _atHome 永远卡在 false，玩家下次上线后 bot 表现为不跟随/不重绑。
+    _atHome = true;
 }
 //FinishTeleport(uint32, float, float, float, float) ONLY CALLED THROUGH EVENTPROCESSOR
 bool bot_ai::FinishTeleport(bool reset)
@@ -19177,6 +19205,9 @@ bool bot_ai::FinishTeleport(bool reset)
         else
             TeleportHomeStart(!BotCfg::HideBotSpawns());
 
+        // 自由 bot 传送完成（主人消失回家 / HideBotSpawns 隐藏等待）：标记到家。
+        // 避免传送状态残留导致 Evade 被短路后 _atHome 永远为 false。
+        _atHome = true;
         _evadeMode = false;
         return false;
     }
@@ -19252,8 +19283,6 @@ bool bot_ai::FinishTeleport(bool reset)
         //map hooks
         if (InstanceScript* iscr = master->GetInstanceScript())
             iscr->OnNPCBotEnter(me);
-
-        SetIsDuringTeleport(false);
     });
 
     return true;
@@ -19274,9 +19303,6 @@ void bot_ai::AbortTeleport()
             teleFinishEvent->ScheduleAbort();
         teleFinishEvent = nullptr;
     }
-
-    // 清空传送进行中标志，避免残留导致 AI 主循环永久短路（僵尸态）
-    _duringTeleport = false;
 }
 
 void bot_ai::GetHomePosition(uint16& mapid, Position* pos) const

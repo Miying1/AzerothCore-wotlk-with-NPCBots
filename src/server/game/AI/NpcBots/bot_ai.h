@@ -233,10 +233,9 @@ public:
     void TeleportHome(bool reset);
     bool FinishTeleport(bool reset);
 
-    bool IsDuringTeleport() const { return teleFinishEvent || teleHomeEvent || _duringTeleport; }
+    bool IsDuringTeleport() const { return teleFinishEvent || teleHomeEvent; }
     void SetTeleportFinishEvent(TeleportFinishEvent* tfevent) { ASSERT(!teleFinishEvent); teleFinishEvent = tfevent; }
     void AbortTeleport();
-    void SetIsDuringTeleport(bool value) { _duringTeleport = value; }
 
     uint8 GetPlayerClass() const;
     uint8 GetPlayerRace() const;
@@ -756,7 +755,6 @@ private:
     bool firstspawn{true};
     bool _evadeMode{};
     bool _atHome{true};
-    bool _duringTeleport{};
     bool _canAppearInWorld{};
 
     //save flags
