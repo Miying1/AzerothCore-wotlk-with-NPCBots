@@ -233,7 +233,7 @@ struct boss_nightbane : public BossAI
         scheduler.Schedule(2s, GROUP_AIR, [this](TaskContext /*context*/)
         {
             DoResetThreatList();
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f))
+            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100.0f))
             {
                 _skeletonSpawnPos = target->GetPosition();
                 me->SetFacingTo(_skeletonSpawnPos.GetOrientation());

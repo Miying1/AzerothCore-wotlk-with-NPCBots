@@ -753,7 +753,7 @@ struct boss_bigbadwolf : public ScriptedAI
 
         _scheduler.Schedule(30s, [this](TaskContext context)
         {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
+            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100))
             {
                 Talk(SAY_WOLF_HOOD);
                 DoCast(target, SPELL_LITTLE_RED_RIDING_HOOD, true);
@@ -978,7 +978,7 @@ struct boss_julianne : public ScriptedAI
             context.Repeat(15s, 45s);
         }).Schedule(5s, GROUP_COMBAT, [this](TaskContext context)
         {
-            DoCastRandomTarget(SPELL_POWERFUL_ATTRACTION);
+            DoCastRandomPlayerTarget(SPELL_POWERFUL_ATTRACTION);
             context.Repeat(5s, 30s);
         }).Schedule(25s, GROUP_COMBAT, [this](TaskContext context)
         {

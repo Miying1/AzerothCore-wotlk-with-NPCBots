@@ -408,7 +408,12 @@ class spell_flamewreath : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        uint8 maxSize = 3;
+        uint8 maxSize = 2;
+
+        targets.remove_if([](WorldObject const* target)
+        {
+            return !target->IsPlayer();
+        });
 
         if (targets.size() > maxSize)
         {

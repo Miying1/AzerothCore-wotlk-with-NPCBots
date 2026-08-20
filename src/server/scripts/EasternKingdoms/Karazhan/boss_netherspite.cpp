@@ -149,7 +149,7 @@ struct boss_netherspite : public BossAI
                     }
                 }
                 // buff the target
-                if (target->IsPlayer())
+                if (target->IsNPlayer())
                 {
                     target->AddAura(PlayerBuff[j], target);
                 }

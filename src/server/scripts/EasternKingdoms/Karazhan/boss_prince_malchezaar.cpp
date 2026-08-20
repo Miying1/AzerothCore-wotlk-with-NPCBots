@@ -333,7 +333,7 @@ struct npc_malchezaar_axe : public ScriptedAI
         DoZoneInCombat();
         scheduler.Schedule(7500ms, [this](TaskContext context)
         {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100.0f))
             {
                 if (me->GetVictim())
                 {
