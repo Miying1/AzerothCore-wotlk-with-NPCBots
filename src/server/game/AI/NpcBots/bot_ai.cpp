@@ -3359,15 +3359,21 @@ void bot_ai::ReceiveEmote(Player* player, uint32 emote)
                     RemoveBotCommandState(BOT_COMMAND_UNBIND);
                 }
                 bool invalid_master = false;
-                if (master->GetGUID() == me->GetGUID())
+                // 自由 bot（owner 离线）的 master 指向自身（reinterpret_cast<Player*>(me)），这是正常状态，
+                // 不应误判为 invalid_master。
+                if (!IAmFree())
                 {
-                    report << "\n  master->GetGUID() == me->GetGUID()";
-                    invalid_master = true;
-                }
-                if (master->GetGUID() == me->GetGUID())
-                {
-                    report << "\n  _botData->owner != master->GetGUID().GetRawValue()";
-                    invalid_master = true;
+                    if (master->GetGUID() == me->GetGUID())
+                    {
+                        report << "\n  master->GetGUID() == me->GetGUID()";
+                        invalid_master = true;
+                    }
+                    // 已雇佣 bot 的 owner 与 master 不一致才是异常
+                    if (_botData->owner != master->GetGUID().GetRawValue())
+                    {
+                        report << "\n  _botData->owner != master->GetGUID().GetRawValue()";
+                        invalid_master = true;
+                    }
                 }
                 if (invalid_master)
                 {
@@ -16240,16 +16246,21 @@ bool bot_ai::SummonGameobject(uint32 entry, uint32 spell_id, int32 life_time, ui
 
 void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
 {
-    if (creature)
-    {
-        if (bot_pet_ai* petai = creature->GetBotPetAI())
-        {
-            petai->KillEvents(true);
-            petai->canUpdate = false;
-        }
+    if (!creature)
+        return;
 
-        ASSERT_NOTNULL(creature->ToTempSummon())->UnSummon();
+    // 对象可能已不是 TempSummon（悬空指针被内存分配器复用为普通 NPC），此时直接放弃解散，避免断言崩溃
+    TempSummon* summon = creature->ToTempSummon();
+    if (!summon)
+        return;
+
+    if (bot_pet_ai* petai = summon->GetBotPetAI())
+    {
+        petai->KillEvents(true);
+        petai->canUpdate = false;
     }
+
+    summon->UnSummon();
 }
 void bot_ai::UnsummonPet(bool save)
 {
@@ -17999,9 +18010,12 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     if (!me->IsInWorld())
     {
-        // if (IAmFree())
-        //     BOT_LOG_ERROR("scripts", "bot_ai::GlobalUpdate is called for free bot not in world: {} ({}) class {} level {}",
-        //         me->GetName().c_str(), me->GetEntry(), uint32(_botclass), uint32(me->GetLevel()));
+        // 自由 bot 不在世界且不在传送中（IsDuringTeleport 已在前面短路）属于异常僵尸态：
+        // 本函数在此短路会导致 Evade 无法执行，bot 无法回家、_atHome 永远卡在 false。
+        // 主动发起回家传送以打破死锁（TeleportHome 会把 _atHome 置 true，避免每帧重复触发）。
+        if (IAmFree() && !IsWanderer() && !_atHome)
+            TeleportHomeStart(true);
+
         return false;
     }
 
