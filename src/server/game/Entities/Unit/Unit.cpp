@@ -11119,19 +11119,17 @@ void Unit::SetImmuneToPC(bool apply, bool keepCombat)
         if (!keepCombat)
         {
             std::vector<CombatReference*> toEnd;
+            // 收集需要结束战斗的引用（含 NPCBot 与 bot 宠物）
+            // 注意：必须保证每个 CombatReference 只被加入一次，否则重复调用
+            // EndCombat() 会对已释放对象二次访问，造成 use-after-free 崩溃
             for (auto const& pair : m_combatManager.GetPvECombatRefs())
-                if (pair.second->GetOther(this)->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
+            {
+                Unit* other = pair.second->GetOther(this);
+                if (other->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) || other->IsNPCBotOrPet())
                     toEnd.push_back(pair.second);
+            }
             for (auto const& pair : m_combatManager.GetPvPCombatRefs())
                 toEnd.push_back(pair.second);
-            //npcbot
-            for (auto const& pair : m_combatManager.GetPvECombatRefs())
-                if (pair.second->GetOther(this)->IsNPCBotOrPet())
-                    toEnd.push_back(pair.second);
-            for (auto const& pair : m_combatManager.GetPvPCombatRefs())
-                if (pair.second->GetOther(this)->IsNPCBotOrPet())
-                    toEnd.push_back(pair.second);
-            //end npcbot
             for (CombatReference* ref : toEnd)
                 ref->EndCombat();
         }
