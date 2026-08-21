@@ -36,6 +36,9 @@ struct SellerPool
     int32  ItemSubclass = -1; // -1=不限
     uint32 MinItemLevel = 0;
     uint32 MaxItemLevel = 0;
+    uint32 MinRequiredLevel = 0;
+    uint32 MaxRequiredLevel = 0;
+    uint32 BagFamily = 0;       // 位掩码；0=不限，非0时命中任意对应位
     uint32 MinQuality = 0;
     uint32 MaxQuality = 0;
 

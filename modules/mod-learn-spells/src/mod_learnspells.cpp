@@ -409,6 +409,10 @@ private:
         uint8 upToLevel = player->GetLevel();
         uint32 family = GetSpellFamily(player);
 
+        // 所有玩家升级到 2 级（含）之后，统一学习法术 90019
+        if (upToLevel >= 2 && !player->HasSpell(90019))
+            player->learnSpell(90019);
+
         for (int level = fromLevel; level <= upToLevel; level++)
         {
             ApplyAdditionalSpells(level, family, player);

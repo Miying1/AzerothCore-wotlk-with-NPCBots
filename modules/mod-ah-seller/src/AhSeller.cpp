@@ -52,6 +52,12 @@ static bool MatchTypePool(SellerPool const& pool, ItemTemplate const& proto)
         return false;
     if (pool.MaxItemLevel && proto.ItemLevel > pool.MaxItemLevel)
         return false;
+    if (pool.MinRequiredLevel && proto.RequiredLevel < pool.MinRequiredLevel)
+        return false;
+    if (pool.MaxRequiredLevel && proto.RequiredLevel > pool.MaxRequiredLevel)
+        return false;
+    if (pool.BagFamily && (proto.BagFamily & pool.BagFamily) == 0)
+        return false;
     if (pool.MinQuality && proto.Quality < pool.MinQuality)
         return false;
     if (pool.MaxQuality && proto.Quality > pool.MaxQuality)
@@ -66,7 +72,7 @@ void AhSellerLoadPools()
     // 读取池子定义
     QueryResult poolResult = WorldDatabase.Query(
         "SELECT id, pool_type, enabled, item_class, item_subclass, "
-        "min_item_level, max_item_level, min_quality, max_quality, "
+        "min_item_level, max_item_level, min_required_level, max_required_level, bag_family, min_quality, max_quality, "
         "buyout_price_gold, bid_price_gold, price_up_pct, price_down_pct, price_step_pct, "
         "max_count, restock_interval, restock_count, duration_hours, stack_count "
         "FROM ah_seller_pool ORDER BY id");
@@ -87,20 +93,23 @@ void AhSellerLoadPools()
         pool.Enabled         = f[2].Get<uint8>() != 0;
         pool.ItemClass       = f[3].Get<int32>();
         pool.ItemSubclass    = f[4].Get<int32>();
-        pool.MinItemLevel    = f[5].Get<uint32>();
-        pool.MaxItemLevel    = f[6].Get<uint32>();
-        pool.MinQuality      = f[7].Get<uint32>();
-        pool.MaxQuality      = f[8].Get<uint32>();
-        pool.BuyoutPrice     = GoldToCopper(f[9].Get<double>());
-        pool.BidPrice        = GoldToCopper(f[10].Get<double>());
-        pool.PriceUpPct      = f[11].Get<double>();
-        pool.PriceDownPct    = f[12].Get<double>();
-        pool.PriceStepPct    = f[13].Get<double>();
-        pool.MaxCount        = f[14].Get<uint32>();
-        pool.RestockInterval = f[15].Get<uint32>();
-        pool.RestockCount    = f[16].Get<uint32>();
-        pool.DurationHours   = f[17].Get<uint32>();
-        pool.StackCount      = f[18].Get<uint32>();
+        pool.MinItemLevel      = f[5].Get<uint32>();
+        pool.MaxItemLevel      = f[6].Get<uint32>();
+        pool.MinRequiredLevel  = f[7].Get<uint32>();
+        pool.MaxRequiredLevel  = f[8].Get<uint32>();
+        pool.BagFamily         = f[9].Get<uint32>();
+        pool.MinQuality        = f[10].Get<uint32>();
+        pool.MaxQuality        = f[11].Get<uint32>();
+        pool.BuyoutPrice       = GoldToCopper(f[12].Get<double>());
+        pool.BidPrice          = GoldToCopper(f[13].Get<double>());
+        pool.PriceUpPct        = f[14].Get<double>();
+        pool.PriceDownPct      = f[15].Get<double>();
+        pool.PriceStepPct      = f[16].Get<double>();
+        pool.MaxCount          = f[17].Get<uint32>();
+        pool.RestockInterval   = f[18].Get<uint32>();
+        pool.RestockCount      = f[19].Get<uint32>();
+        pool.DurationHours     = f[20].Get<uint32>();
+        pool.StackCount        = f[21].Get<uint32>();
 
         if (pool.DurationHours == 0)
             pool.DurationHours = 12;   // 默认 12 小时

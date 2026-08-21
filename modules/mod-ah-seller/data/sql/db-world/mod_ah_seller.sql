@@ -18,6 +18,9 @@ CREATE TABLE `ah_seller_pool` (
   `item_subclass`     INT          NOT NULL DEFAULT '-1'  COMMENT '物品子类(ItemSubClass)，-1=不限',
   `min_item_level`    INT          NOT NULL DEFAULT '0'   COMMENT '物品等级下限，0=不限',
   `max_item_level`    INT          NOT NULL DEFAULT '0'   COMMENT '物品等级上限，0=不限',
+  `min_required_level` INT         NOT NULL DEFAULT '0'   COMMENT '物品需求等级下限，0=不限',
+  `max_required_level` INT         NOT NULL DEFAULT '0'   COMMENT '物品需求等级上限，0=不限',
+  `bag_family`        INT UNSIGNED NOT NULL DEFAULT '0'   COMMENT 'BagFamily位掩码，0=不限；非0=命中任意对应位',
   `min_quality`       TINYINT      NOT NULL DEFAULT '0'   COMMENT '品质下限(0灰..6黄)，0=不限',
   `max_quality`       TINYINT      NOT NULL DEFAULT '0'   COMMENT '品质上限，0=不限',
   -- 定价（金币/每件）
@@ -57,9 +60,9 @@ CREATE TABLE `ah_seller_pool_items` (
 
 -- ① 类型池：80级蓝/紫宝石，统一一口价 25 金，最多 50 堆，每 10 分钟补 5 件，挂 12 小时，浮动±20%
 -- INSERT INTO ah_seller_pool
---   (pool_type, item_class, min_item_level, max_item_level, min_quality, max_quality,
+--   (pool_type, item_class, item_subclass, min_item_level, max_item_level, min_required_level, max_required_level, bag_family, min_quality, max_quality,
 --    buyout_price_gold, price_up_pct, price_down_pct, max_count, restock_interval, restock_count, duration_hours, comment)
--- VALUES (1, 3, 80, 80, 3, 4, 25.00, 20.00, 20.00, 50, 600, 5, 12, '80级蓝紫宝石');
+-- VALUES (1, 3, -1, 80, 80, 0, 0, 0, 3, 4, 25.00, 20.00, 20.00, 50, 600, 5, 12, '80级蓝紫宝石');
 
 -- ② 类型池：附魔卷轴（class=0 消耗品, subclass=6 物品强化），统一一口价 15 金，最多 100 堆，堆叠 20
 -- INSERT INTO ah_seller_pool
@@ -83,6 +86,11 @@ CREATE TABLE `ah_seller_pool_items` (
 -- SELECT class, subclass, quality, itemlevel, requiredlevel, COUNT(*) AS cnt
 -- FROM item_template WHERE class = 3
 -- GROUP BY class, subclass, quality, itemlevel, requiredlevel ORDER BY itemlevel DESC;
+-- 类型池按 RequiredLevel 筛选示例：
+--   min_required_level = 70，max_required_level = 80 表示物品需求等级 70~80。
+-- BagFamily 筛选示例：
+--   bag_family = 32 表示只匹配 BagFamily 位掩码包含 32 的物品；0 表示不限。
+--   多个类别可按位或组合，例如 32 | 64 = 96。
 
 -- 附魔卷轴的 class/subclass 分布
 -- SELECT class, subclass, itemlevel, requiredlevel, COUNT(*) AS cnt

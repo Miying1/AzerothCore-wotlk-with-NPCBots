@@ -7,7 +7,7 @@
 
 | 需求 | 实现 |
 |------|------|
-| ① 按规则指定某类型物品，统一金额 | **类型池** `pool_type=1`：按 class/subclass/等级/品质筛一类，全池统一 `buyout_price_gold` |
+| ① 按规则指定某类型物品，统一金额 | **类型池** `pool_type=1`：按 class/subclass/ItemLevel/RequiredLevel/BagFamily/品质筛一类，全池统一 `buyout_price_gold` |
 | ② 按 entry 指定一组物品，单独金额 | **Entry 池** `pool_type=2`：物品在 `ah_seller_pool_items`，每个 entry 单独价 |
 | 每池最多挂架数量 | `max_count`（堆数），补货时 `当前存量 < max_count` 才补 |
 | 池内随机上架 | 从池子命中 entry 列表 `urand` 随机选一件 |
@@ -32,12 +32,14 @@
 | `pool_type` | 1 | 1=类型池 2=Entry 池 |
 | `enabled` | 1 | 启用开关 |
 | `item_class` / `item_subclass` | -1 | 类型池筛选（-1=不限） |
-| `min/max_item_level` | 0 | 物品等级范围 |
+| `min/max_item_level` | 0 | 物品等级范围（ItemLevel） |
+| `min/max_required_level` | 0 | 物品需求等级范围（RequiredLevel） |
+| `bag_family` | 0 | BagFamily 位掩码；0=不限，非0=匹配任意对应位 |
 | `min/max_quality` | 0 | 品质范围（0灰..6黄） |
 | `buyout_price_gold` | 0.00 | 统一一口价（金币/每件）；0=用 SellPrice |
 | `bid_price_gold` | 0.00 | 起拍价；0=一口价×80% |
 | `price_up_pct` / `price_down_pct` | 0.00 | 上下浮上限；0=不浮动 |
-| `price_step_pct` | 5.00 | 每次成交/过期调整步进 |
+| `price_step_pct` | 3.00 | 每次成交/过期调整步进 |
 | `max_count` | 0 | 最多挂架堆数；0=不限制 |
 | `restock_interval` | 600 | 补货间隔（秒） |
 | `restock_count` | 1 | 单次补货量 |
@@ -82,6 +84,8 @@ Entry 池：物品单独价  >  池子统一价  >  物品 SellPrice
 （最终为 0 → 跳过该物品）
 ```
 
+**类型池筛选**：`item_class`、`item_subclass`、`min/max_item_level`、`min/max_required_level`、`bag_family`、`min/max_quality` 均为独立条件；对应上下限为 0 时表示不限。`bag_family=0` 表示不限；非 0 时使用位掩码匹配，物品的 `BagFamily` 只要包含任意一个配置位即命中。
+
 **浮动**：`heat[itemId]` 成交+1、过期-1；定价 = 基础价 × (1 + clamp(heat×step, -down, +up))。仅当池子 `up_pct/down_pct` 非 0 才参与。
 
 **堆叠**：`stackCount = min(stack_count, item.MaxStackCount)`，`stack_count=0` 时 1 件/堆。
@@ -94,6 +98,17 @@ Entry 池：物品单独价  >  池子统一价  >  物品 SellPrice
 2. 复制 `mod_ah_seller.conf.dist` 为 `mod_ah_seller.conf`，填 `Account`/`GUID`（bot 角色，需真实存在），`Enable=1`。
 3. 重新 cmake + 编译 worldserver。
 4. 观察日志 `AhSeller: 已加载 N 个池子`，AH 中按池子补货。
+
+类型池示例：
+
+```sql
+INSERT INTO ah_seller_pool
+  (pool_type, item_class, item_subclass, min_item_level, max_item_level,
+   min_required_level, max_required_level, bag_family, min_quality, max_quality,
+   buyout_price_gold, max_count, restock_interval, restock_count, duration_hours, comment)
+VALUES
+  (1, 3, -1, 80, 80, 70, 80, 0, 3, 4, 25.00, 50, 600, 5, 12, '80级、需求等级70~80的蓝紫宝石');
+```
 
 ---
 
