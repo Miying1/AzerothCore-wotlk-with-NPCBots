@@ -197,36 +197,44 @@ public:
         return res_flag;
     }
 
-    void GetItemList(Player* player, int sender, std::set<uint32>* itemList,bool all=false) {
-        uint8 item_count = 0;
-        //s2.1.2: other bags
-        for (uint8 i = INVENTORY_SLOT_BAG_START; i != INVENTORY_SLOT_BAG_END; ++i)
+    void GetItemList(Player* player, int sender, std::set<uint32>* itemList, bool all = false)
+    {
+        uint8 itemCount = 0;
+        auto addItem = [&](Item const* item)
         {
-            if (Bag const* pBag = player->GetBagByPos(i))
-            {
-                for (uint32 j = 0; j != pBag->GetBagSize(); ++j)
-                {
-                    if (item_count >= 25) return;
-                    if (Item const* pItem = player->GetItemByPos(i, j))
-                    {
-                        uint32 itemtype = pItem->GetTemplate()->InventoryType;
-                        if (pItem->GetTemplate()->Class != 4
-                            || pItem->GetTemplate()->Quality != 4
-                            || pItem->GetTemplate()->ItemLevel < 200
-                            || (itemtype != 12 && itemtype != 2))
-                            continue;
-                        int itemid = pItem->GetGUID().GetCounter();
-                        if (!all && !tnEchants->VerifyItemIsTn(itemid)) continue;
+            if (!item || itemCount >= 25)
+                return;
 
-                        std::ostringstream name;
-                        _AddItemLink(player, pItem, name, true);
-                        name << " [" << pItem->GetTemplate()->ItemLevel << "]";
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, name.str().c_str(), sender, itemid);
-                        itemList->insert(itemid);
-                        item_count++;
-                    }
-                }
-            }
+            ItemTemplate const* itemTemplate = item->GetTemplate();
+            uint32 inventoryType = itemTemplate->InventoryType;
+            if (itemTemplate->Class != ITEM_CLASS_ARMOR
+                || itemTemplate->Quality != ITEM_QUALITY_EPIC
+                || itemTemplate->ItemLevel < 200
+                || (inventoryType != INVTYPE_FINGER && inventoryType != INVTYPE_NECK))
+                return;
+
+            uint32 itemGuid = item->GetGUID().GetCounter();
+            if (!all && !tnEchants->VerifyItemIsTn(itemGuid))
+                return;
+
+            std::ostringstream name;
+            _AddItemLink(player, item, name, true);
+            name << " [" << itemTemplate->ItemLevel << "]";
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, name.str().c_str(), sender, itemGuid);
+            itemList->insert(itemGuid);
+            ++itemCount;
+        };
+
+        // 主背包
+        for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot != INVENTORY_SLOT_ITEM_END && itemCount < 25; ++slot)
+            addItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+
+        // 额外背包
+        for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot != INVENTORY_SLOT_BAG_END && itemCount < 25; ++bagSlot)
+        {
+            if (Bag const* bag = player->GetBagByPos(bagSlot))
+                for (uint32 slot = 0; slot != bag->GetBagSize() && itemCount < 25; ++slot)
+                    addItem(player->GetItemByPos(bagSlot, slot));
         }
     }
     bool VerifyReqItem(Player* player, int hasreqItem) {

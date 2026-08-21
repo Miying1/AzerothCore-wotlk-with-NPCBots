@@ -108,7 +108,7 @@ struct boss_akilzon : public BossAI
 
         scheduler.Schedule(1min, GROUP_ELECTRICAL_STORM, [this](TaskContext context)
         {
-            Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 50, true);
+            Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 50);
             if (!target)
             {
                 EnterEvadeMode();

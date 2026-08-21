@@ -1,0 +1,29 @@
+[worldserver]
+
+###############################################################################
+# 拍卖行卖家池模块（mod-ah-seller）
+#
+#   AhSeller.Enable
+#       总开关
+#       默认 0（禁用）
+#
+#   AhSeller.Account
+#       bot 所在账号 ID（acore_auth.account.id）
+#
+#   AhSeller.GUID
+#       bot 角色 GUID（acore_characters.characters.guid）
+#
+#   AhSeller.Debug
+#       调试输出
+#       默认 0（禁用）
+#
+#   注意：
+#   - 所有池子统一挂中立拍卖行（不分阵营）。
+#   - 池子定义、物品、价格、浮动、补货策略全部在数据库表
+#     ah_seller_pool / ah_seller_pool_items 中配置，不在本文件。
+###############################################################################
+
+AhSeller.Enable = 0
+AhSeller.Account = 0
+AhSeller.GUID = 0
+AhSeller.Debug = 0
