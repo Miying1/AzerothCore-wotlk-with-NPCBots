@@ -340,10 +340,6 @@ void InstanceSaveMgr::LoadResetTimes()
         if (!mapDiff->resetTime)
             continue;
         uint32 resetTime = mapDiff->resetTime;
-        if (mapid == 409 || mapid == 469)
-            resetTime = 345600;
-        else if (mapid == 534 || mapid == 548 || mapid == 550 || mapid == 564 || mapid == 544 || mapid == 565)
-            resetTime = 345600;
         // the reset_delay must be at least one day
         uint32 period = uint32(((resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
         if (period < DAY)
