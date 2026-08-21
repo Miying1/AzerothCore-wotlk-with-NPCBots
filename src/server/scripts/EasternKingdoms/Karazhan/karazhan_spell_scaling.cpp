@@ -172,11 +172,7 @@ class spell_karazhan_periodic_scale : public AuraScript
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(spell_karazhan_periodic_scale::HandleApply, EFFECT_0,
-            SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
-        OnEffectApply += AuraEffectApplyFn(spell_karazhan_periodic_scale::HandleApply, EFFECT_1,
-            SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
-        OnEffectApply += AuraEffectApplyFn(spell_karazhan_periodic_scale::HandleApply, EFFECT_2,
+        OnEffectApply += AuraEffectApplyFn(spell_karazhan_periodic_scale::HandleApply, EFFECT_ALL,
             SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAL);
     }
 

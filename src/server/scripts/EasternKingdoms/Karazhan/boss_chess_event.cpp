@@ -34,7 +34,8 @@ enum EchoOfMedivhGossipOptions
 {
     MEDIVH_GOSSIP_START_PVE = 1,
     MEDIVH_GOSSIP_RESTART,
-    MEDIVH_GOSSIP_START_PVP
+    MEDIVH_GOSSIP_START_PVP,
+    MEDIVH_GOSSIP_SKIP_CHESS
 };
 
 enum KarazhanChessSpells
@@ -1369,6 +1370,9 @@ struct npc_echo_of_medivh : public ScriptedAI
                 break;
         }
 
+        // 自定义选项：跳过象棋，直接打开通往王子的门
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "开门!没空陪你下棋,你个老6", GOSSIP_SENDER_MAIN, MEDIVH_GOSSIP_SKIP_CHESS);
+
         SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
     }
 
@@ -1409,6 +1413,14 @@ struct npc_echo_of_medivh : public ScriptedAI
                 SetupBoard();
                 _instance->SetData(DATA_CHESS_EVENT, SPECIAL);
                 Talk(TALK_EVENT_BEGIN);
+                break;
+            case MEDIVH_GOSSIP_SKIP_CHESS:
+                // 跳过象棋：清理棋盘状态并打开通往王子的门
+                _instance->SetData(DATA_CHESS_REINIT_PIECES, 0);
+                _deadCount.fill(0);
+                _instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_GAME_IN_SESSION);
+                _instance->SetData(DATA_CHESS_GAME_PHASE, CHESS_PHASE_PVE_FINISHED);
+                _instance->SetData(DATA_CHESS_EVENT, DONE);
                 break;
             default:
                 break;
