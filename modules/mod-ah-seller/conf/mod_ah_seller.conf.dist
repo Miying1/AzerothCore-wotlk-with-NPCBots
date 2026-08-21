@@ -20,10 +20,10 @@
 #   注意：
 #   - 所有池子统一挂中立拍卖行（不分阵营）。
 #   - 池子定义、物品、价格、浮动、补货策略全部在数据库表
-#     ah_seller_pool / ah_seller_pool_items 中配置，不在本文件。
+#     mod_ah_seller_pool / mod_ah_seller_pool_items 中配置，不在本文件。
 ###############################################################################
 
-AhSeller.Enable = 0
+AhSeller.Enable = 1
 AhSeller.Account = 0
 AhSeller.GUID = 0
 AhSeller.Debug = 0

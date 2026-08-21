@@ -52,6 +52,13 @@
 #include "World.h"
 
 #include <limits>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <execinfo.h>
+#include <cstdlib>
+#endif
 /*
 NpcBot System by Trickerer (https://github.com/trickerer/Trinity-Bots; onlysuffering@gmail.com)
 Version 5.2.77a
@@ -159,10 +166,32 @@ static void ApplyBotPercentModFloatVar(float &var, float val, bool apply)
     var *= (apply ? ((100.f + val) / 100.f) : (100.f / (100.f + val)));
 }
 
+// 打印当前调用堆栈（调试用），message 附加到打印第一行
+static void PrintCallStack(std::string_view message)
+{
+#ifdef _WIN32
+    void* frames[64];
+    USHORT count = CaptureStackBackTrace(0, 64, frames, nullptr);
+    LOG_INFO("npcbots", "=== Call stack: {} ({} frames) ===", message, count);
+    for (USHORT i = 0; i < count; ++i)
+        LOG_INFO("npcbots", "  frame {}: {}", i, frames[i]);
+#else
+    void* frames[64];
+    int count = backtrace(frames, 64);
+    char** symbols = backtrace_symbols(frames, count);
+    LOG_INFO("npcbots", "=== Call stack: {} ({} frames) ===", message, count);
+    for (int i = 0; i < count; ++i)
+        LOG_INFO("npcbots", "  frame {}: {}", i, symbols[i]);
+    free(symbols);
+#endif
+}
+
 bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     _botData(const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(IsTempBot() ? creature->ToTempSummon()->GetSummonerGUID().GetEntry() : creature->GetEntry()))),
     _botExtras(BotDataMgr::SelectNpcBotExtras(creature->GetEntry()))
 {
+ 
+
     _checkMasterTimer = me->IsSummon() ? 0 : urand(5000, 15000);
     _updateTimerLong = urand(15000, 25000);
     _updateTimerEx1 = urand(12000, 15000);
@@ -15518,13 +15547,12 @@ void bot_ai::InitEquips()
 void bot_ai::FindMaster()
 {
     //totally free
-    if (!_botData->owner)
+    if (!_botData->owner || !IAmFree())
         return;
-    // 仅当 bot 处于真正无法绑定的硬状态时才跳过重绑主人。
-    // 不能用 _atHome 作为守卫：自由 bot 的 _atHome 可能因战斗、重置或 Evade 自由分支的提前 return 而卡在 false，
-    // 导致主人上线后 FindMaster 永远 return，bot 无法重绑、表现为不跟随主人（死锁）。
-    // 同理，回家传送（TeleportHomeEvent）也不能无条件挡住重绑：_atHome=false 会触发 Evade 的回家分支创建
-    // TeleportHomeEvent，使 IsDuringTeleport() 长期为 true；若此处无条件 return 会形成"主人上线也无法重绑"的死锁。
+    //delay
+    if (_checkMasterTimer > lastdiff)
+        return;
+    _checkMasterTimer = urand(1000, 3000);
     if (me->IsInWorld() && IsDuringTeleport())
     {
         // 检查主人（owner / shared_owner）是否已在线
@@ -15533,26 +15561,26 @@ void bot_ai::FindMaster()
         {
             for (uint32 guid_low : container)
             {
-                if (ObjectAccessor::FindPlayerByLowGUID(guid_low))
+                if (Player* player = ObjectAccessor::FindPlayerByLowGUID(guid_low))
                 {
                     ownerOnline = true;
-                    break;
+                    AbortTeleport();
+                    if (!SetBotOwner(player)) {
+                        BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
+                            me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
+                    }
+                    PrintCallStack("Player add 1111");
+                    return;
                 }
-            }
-            if (ownerOnline)
-                break;
+            } 
         }
 
         // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
         if (!ownerOnline)
         {
             return;
-        }
-
-        // 主人已在线：取消回家传送并继续重绑，否则会死锁
-        BOT_LOG_INFO("npcbots", "FindMaster(): bot {} (entry {}, owner {}) owner online, abort teleport to allow rebind",
-            me->GetName(), me->GetEntry(), _botData->owner);
-        AbortTeleport();
+        } 
+       
     }
     if (!BotCfg::IsClassEnabled(_botclass))
     {
@@ -15561,16 +15589,10 @@ void bot_ai::FindMaster()
             me->GetName(), me->GetEntry(), _botData->owner, uint32(_botclass));
         return;
     }
-
-    //delay
-    if (_checkMasterTimer > lastdiff)
-        return;
-
-    _checkMasterTimer = urand(1000, 3000);
-
+      
     //already have master
-    if (!IAmFree())
-        return;
+    //if (!IAmFree())
+    //    return;
     if (HasBotCommandState(BOT_COMMAND_UNBIND))
     {
         // 诊断日志：bot 处于 UNBIND 状态，需 .npcbot rebind 命令才能恢复
@@ -15599,7 +15621,7 @@ void bot_ai::FindMaster()
                         me->GetName(), me->GetEntry(), _botData->owner, player->GetName(), player->GetMapId());
                     return;
                 }
-
+                 PrintCallStack("Player add 2222");
                 if (SetBotOwner(player))
                     return;
             }

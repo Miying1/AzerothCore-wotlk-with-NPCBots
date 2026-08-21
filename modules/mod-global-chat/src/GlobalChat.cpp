@@ -236,7 +236,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cff0000ff|TInterface\\pvpframe\\pvp-currency-alliance:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }
@@ -244,7 +243,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cffff0000|TInterface\\pvpframe\\pvp-currency-horde:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }
@@ -256,7 +254,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cff0000ff|TInterface\\pvpframe\\pvp-currency-alliance:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }
@@ -264,7 +261,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cffff0000|TInterface\\pvpframe\\pvp-currency-horde:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }
@@ -279,7 +275,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cff0000ff|TInterface\\pvpframe\\pvp-currency-alliance:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }
@@ -287,7 +282,6 @@ public:
             {
                 msg += "|cffABD473[世] ";
                 msg += "|TINTERFACE/CHATFRAME/UI-CHATICON-BLIZZ:15|t";
-                msg += "|cffff0000|TInterface\\pvpframe\\pvp-currency-horde:17|t|r ";
                 msg += GetNameLink(player);
                 msg += " |cfffaeb00";
             }

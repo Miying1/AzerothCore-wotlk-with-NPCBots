@@ -8,7 +8,7 @@
 | 需求 | 实现 |
 |------|------|
 | ① 按规则指定某类型物品，统一金额 | **类型池** `pool_type=1`：按 class/subclass/ItemLevel/RequiredLevel/BagFamily/品质筛一类，全池统一 `buyout_price_gold` |
-| ② 按 entry 指定一组物品，单独金额 | **Entry 池** `pool_type=2`：物品在 `ah_seller_pool_items`，每个 entry 单独价 |
+| ② 按 entry 指定一组物品，单独金额 | **Entry 池** `pool_type=2`：物品在 `mod_ah_seller_pool_items`，每个 entry 单独价 |
 | 每池最多挂架数量 | `max_count`（堆数），补货时 `当前存量 < max_count` 才补 |
 | 池内随机上架 | 从池子命中 entry 列表 `urand` 随机选一件 |
 | 补货间隔 | `restock_interval`（秒） |
@@ -24,7 +24,7 @@
 
 ## 二、数据模型（acore_world）
 
-### `ah_seller_pool`（池子）
+### `mod_ah_seller_pool`（池子）
 
 | 字段 | 默认 | 说明 |
 |------|:---:|------|
@@ -46,7 +46,7 @@
 | `duration_hours` | 12 | 上架时长 |
 | `stack_count` | 0 | 每堆数量；0=1件/堆 |
 
-### `ah_seller_pool_items`（Entry 池物品）
+### `mod_ah_seller_pool_items`（Entry 池物品）
 
 | 字段 | 说明 |
 |------|------|
@@ -102,7 +102,7 @@ Entry 池：物品单独价  >  池子统一价  >  物品 SellPrice
 类型池示例：
 
 ```sql
-INSERT INTO ah_seller_pool
+INSERT INTO mod_ah_seller_pool
   (pool_type, item_class, item_subclass, min_item_level, max_item_level,
    min_required_level, max_required_level, bag_family, min_quality, max_quality,
    buyout_price_gold, max_count, restock_interval, restock_count, duration_hours, comment)

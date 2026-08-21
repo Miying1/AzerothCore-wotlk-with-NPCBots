@@ -75,11 +75,11 @@ void AhSellerLoadPools()
         "min_item_level, max_item_level, min_required_level, max_required_level, bag_family, min_quality, max_quality, "
         "buyout_price_gold, bid_price_gold, price_up_pct, price_down_pct, price_step_pct, "
         "max_count, restock_interval, restock_count, duration_hours, stack_count "
-        "FROM ah_seller_pool ORDER BY id");
+        "FROM mod_ah_seller_pool ORDER BY id");
 
     if (!poolResult)
     {
-        LOG_WARN("module", "AhSeller: 未找到 ah_seller_pool 表或表为空，模块不生效");
+        LOG_WARN("module", "AhSeller: 未找到 mod_ah_seller_pool 表或表为空，模块不生效");
         return;
     }
 
@@ -119,7 +119,7 @@ void AhSellerLoadPools()
 
     // 读取 Entry 池物品（单独价）
     QueryResult itemResult = WorldDatabase.Query(
-        "SELECT pool_id, item_id, buyout_price_gold, bid_price_gold FROM ah_seller_pool_items");
+        "SELECT pool_id, item_id, buyout_price_gold, bid_price_gold FROM mod_ah_seller_pool_items");
 
     if (itemResult)
     {
@@ -387,7 +387,11 @@ void AhSellerRestockTick()
         if (pool.MaxCount > 0)
         {
             uint32 free = (pool.CurrentCount < pool.MaxCount) ? (pool.MaxCount - pool.CurrentCount) : 0;
-            canSell = std::min(canSell, free);
+            // 首次补货（尚未补过货）直接补满到 max_count；之后每次按 restock_count 递增
+            if (pool.LastRestock == 0)
+                canSell = free;
+            else
+                canSell = std::min(canSell, free);
         }
 
         if (canSell == 0)

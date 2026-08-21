@@ -2,10 +2,10 @@
 -- 池ID：808
 -- 价格按物品等级分档写入 Entry 覆盖价，避免所有高低等级装备同价。
 
-DELETE FROM `ah_seller_pool_items` WHERE `pool_id` = 808;
-DELETE FROM `ah_seller_pool` WHERE `id` = 808;
+DELETE FROM `mod_ah_seller_pool_items` WHERE `pool_id` = 808;
+DELETE FROM `mod_ah_seller_pool` WHERE `id` = 808;
 
-INSERT INTO `ah_seller_pool`
+INSERT INTO `mod_ah_seller_pool`
   (`id`, `pool_type`, `enabled`, `buyout_price_gold`, `bid_price_gold`,
    `price_up_pct`, `price_down_pct`, `price_step_pct`, `max_count`,
    `restock_interval`, `restock_count`, `duration_hours`, `stack_count`, `comment`)
@@ -13,7 +13,7 @@ VALUES
   (808, 2, 1, 0.00, 0.00, 15.00, 15.00, 3.00, 40, 900, 2, 12, 1,
    '80级 ItemLevel>=213 且装备绑定的武器/护甲；Entry价格按装等分档');
 
-INSERT INTO `ah_seller_pool_items`
+INSERT INTO `mod_ah_seller_pool_items`
   (`pool_id`, `item_id`, `buyout_price_gold`, `bid_price_gold`)
 SELECT
   808,

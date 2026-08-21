@@ -182,7 +182,13 @@ private:
 
 void AddSC_karazhan_spell_scaling()
 {
-    // 一个 loader 同时承载 SpellScript（直接伤害）与 AuraScript（DOT）。
-    // 脚本名默认取第一个类名：spell_karazhan_direct_scale。
-    RegisterSpellAndAuraScriptPair(spell_karazhan_direct_scale, spell_karazhan_periodic_scale);
+    // direct 直接伤害缩放：仅加载 SpellScript（OnHit），绑定到 direct > 0 的法术。
+    RegisterSpellScript(spell_karazhan_direct_scale);
+
+    // periodic DOT 缩放：仅加载 AuraScript（OnEffectApply），绑定到 periodic > 0 的法术。
+    // 必须与 direct 脚本分开注册：若把 AuraScript 也挂到纯直伤法术上，加载时其
+    // OnEffectApply(EFFECT_ALL, SPELL_AURA_PERIODIC_DAMAGE) 会因 DBC 无对应效果而校验失败，
+    // 打印 "did not match dbc effect data" 警告。RegisterSpellScript 对 AuraScript 子类
+    // 会自动识别并只加载 AuraScript 侧（脚本名取类名 spell_karazhan_periodic_scale）。
+    RegisterSpellScript(spell_karazhan_periodic_scale);
 }

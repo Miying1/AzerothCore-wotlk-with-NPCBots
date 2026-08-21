@@ -2,18 +2,18 @@
 -- 前置：先导入 modules/mod-ah-seller/data/sql/db-world/mod_ah_seller.sql
 -- 池ID：801；固定中立拍卖行由模块处理
 
-DELETE FROM `ah_seller_pool_items` WHERE `pool_id` = 801;
-DELETE FROM `ah_seller_pool` WHERE `id` = 801;
+DELETE FROM `mod_ah_seller_pool_items` WHERE `pool_id` = 801;
+DELETE FROM `mod_ah_seller_pool` WHERE `id` = 801;
 
-INSERT INTO `ah_seller_pool`
+INSERT INTO `mod_ah_seller_pool`
   (`id`, `pool_type`, `enabled`, `buyout_price_gold`, `bid_price_gold`,
    `price_up_pct`, `price_down_pct`, `price_step_pct`, `max_count`,
    `restock_interval`, `restock_count`, `duration_hours`, `stack_count`, `comment`)
 VALUES
-  (801, 2, 1, 0, 0, 10.00, 10.00, 1.00, 3, 3600, 1, 12, 1,
+  (801, 2, 1, 0, 0, 10.00, 10.00, 2.00, 3, 36000, 1, 12, 1,
    '80级稀有坐骑：稀有掉落/成就/节日/声望坐骑');
 
-INSERT INTO `ah_seller_pool_items`
+INSERT INTO `mod_ah_seller_pool_items`
   (`pool_id`, `item_id`, `buyout_price_gold`, `bid_price_gold`)
 VALUES
   (801, 30480, 2300, 0.00), -- 炽热战马的缰绳
@@ -32,9 +32,10 @@ VALUES
   (801, 49282, 2000, 0.00), -- 大型战斗熊
   (801, 49284, 30000, 0.00), -- 迅捷幽灵虎的缰绳
   (801, 49636, 5000, 0.00), -- 奥妮克希亚座龙的缰绳
-  (801, 50818, 66666, 0.00), -- 无敌的缰绳
+  (801, 50818, 56666, 0.00), -- 无敌的缰绳
   (801, 51954, 4000, 0.00), -- 浴血霜育巨龙的缰绳
   (801, 51955, 6666, 0.00), -- 冰缚霜育巨龙的缰绳
   (801, 52200, 7777, 0.00), -- 赤红死亡战马的缰绳
   (801, 54069, 2222, 0.00), -- 炽热角鹰兽
-  (801, 54811, 44444, 0.00), -- 星骓 
+  (801, 54811, 44444, 0.00), -- 星骓
+  (801, 37719, 3300, 0.00) -- 迅捷斑马

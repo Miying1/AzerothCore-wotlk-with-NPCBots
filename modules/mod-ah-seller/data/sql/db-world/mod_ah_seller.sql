@@ -8,8 +8,8 @@
 --   · 不分阵营，统一挂中立拍卖行
 -- =============================================================
 
-DROP TABLE IF EXISTS `ah_seller_pool`;
-CREATE TABLE `ah_seller_pool` (
+DROP TABLE IF EXISTS `mod_ah_seller_pool`;
+CREATE TABLE `mod_ah_seller_pool` (
   `id`                INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `pool_type`         TINYINT      NOT NULL DEFAULT '1'   COMMENT '1=类型池 2=Entry池',
   `enabled`           TINYINT      NOT NULL DEFAULT '1'   COMMENT '1=启用 0=停用',
@@ -41,10 +41,10 @@ CREATE TABLE `ah_seller_pool` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 存量数据兜底：将仍在使用默认 5% 步进的池子统一调整为 3%
-UPDATE `ah_seller_pool` SET `price_step_pct` = 3.00 WHERE `price_step_pct` = 5.00;
+UPDATE `mod_ah_seller_pool` SET `price_step_pct` = 3.00 WHERE `price_step_pct` = 5.00;
 
-DROP TABLE IF EXISTS `ah_seller_pool_items`;
-CREATE TABLE `ah_seller_pool_items` (
+DROP TABLE IF EXISTS `mod_ah_seller_pool_items`;
+CREATE TABLE `mod_ah_seller_pool_items` (
   `id`                INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `pool_id`           INT UNSIGNED NOT NULL,
   `item_id`           INT UNSIGNED NOT NULL             COMMENT '物品entry',
@@ -59,21 +59,21 @@ CREATE TABLE `ah_seller_pool_items` (
 -- =============================================================
 
 -- ① 类型池：80级蓝/紫宝石，统一一口价 25 金，最多 50 堆，每 10 分钟补 5 件，挂 12 小时，浮动±20%
--- INSERT INTO ah_seller_pool
+-- INSERT INTO mod_ah_seller_pool
 --   (pool_type, item_class, item_subclass, min_item_level, max_item_level, min_required_level, max_required_level, bag_family, min_quality, max_quality,
 --    buyout_price_gold, price_up_pct, price_down_pct, max_count, restock_interval, restock_count, duration_hours, comment)
 -- VALUES (1, 3, -1, 80, 80, 0, 0, 0, 3, 4, 25.00, 20.00, 20.00, 50, 600, 5, 12, '80级蓝紫宝石');
 
 -- ② 类型池：附魔卷轴（class=0 消耗品, subclass=6 物品强化），统一一口价 15 金，最多 100 堆，堆叠 20
--- INSERT INTO ah_seller_pool
+-- INSERT INTO mod_ah_seller_pool
 --   (pool_type, item_class, item_subclass, buyout_price_gold, max_count, restock_interval, restock_count, stack_count, comment)
 -- VALUES (1, 0, 6, 15.00, 100, 600, 10, 20, '附魔卷轴');
 
 -- ③ Entry 池：指定 3 件物品，各配不同价
--- INSERT INTO ah_seller_pool (pool_type, max_count, restock_interval, restock_count, comment)
+-- INSERT INTO mod_ah_seller_pool (pool_type, max_count, restock_interval, restock_count, comment)
 -- VALUES (2, 30, 300, 3, '自定义装备组');
 --
--- INSERT INTO ah_seller_pool_items (pool_id, item_id, buyout_price_gold) VALUES
+-- INSERT INTO mod_ah_seller_pool_items (pool_id, item_id, buyout_price_gold) VALUES
 -- (3, 93003, 10.00),
 -- (3, 100001, 50.00),
 -- (3, 100002, 80.00);
