@@ -5272,6 +5272,7 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
     //Icecrown Citadel
     else if (unit->GetMapId() == 631)
     {
+        // Professor Putricide — 成长的软泥坑
         std::list<Creature*> cList;
         Bcore::AllCreaturesOfEntryInRange check2(unit, CREATURE_ICC_OOZE_PUDDLE, 50.f);
         Bcore::CreatureListSearcher searcher2(unit, cList, check2);
@@ -5281,6 +5282,30 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
         {
             float radius = c->GetObjectScale() * 2.5f + DEFAULT_COMBAT_REACH * 3.f; //grows
             spots.emplace_back(*c, radius);
+        }
+
+        // Rotface — 软泥洪水（Ooze Flood）绿水
+        // 伤害链：腐面施放 69782 等命中高处管道 stalker（NPC_PUDDLE_STALKER）后，
+        // stalker 施放 69783（周期触发）→ 触发 69788（周期触发）→ 每 1 秒触发 69789（25 码范围伤害 + 减速）
+        static const uint32 SPELL_OOZE_FLOOD_TRIGGER = 69783;  // 绿水触发光环（5 秒）
+        static const uint32 SPELL_OOZE_FLOOD_PERIODIC = 69788; // 绿水主体光环（20 秒）
+        static const uint32 SPELL_OOZE_FLOOD_DAMAGE = 69789;   // 实际范围伤害，半径 25 码
+        std::list<Creature*> floodList;
+        auto ooze_flood_check = [](Creature const* c) {
+            return c && c->IsAlive() && c->GetEntry() == CREATURE_ICC_OOZE_FLOOD_STALKER &&
+                (c->HasAura(SPELL_OOZE_FLOOD_PERIODIC) || c->HasAura(SPELL_OOZE_FLOOD_TRIGGER));
+        };
+        Bcore::CreatureListSearcher floodSearcher(unit, floodList, ooze_flood_check);
+        Cell::VisitObjects(unit, floodSearcher, 60.f);
+
+        if (!floodList.empty())
+        {
+            float floodRadius = sSpellMgr->AssertSpellInfo(SPELL_OOZE_FLOOD_DAMAGE)->Effects[0].CalcRadius();
+            if (floodRadius <= 0.0f)
+                floodRadius = 25.0f;
+            float radius = floodRadius + DEFAULT_COMBAT_REACH * 2.0f;
+            for (Creature const* c : floodList)
+                spots.emplace_back(*c, radius);
         }
     }
 

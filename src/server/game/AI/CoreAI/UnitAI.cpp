@@ -122,11 +122,14 @@ void UnitAI::SelectTargetList(std::list<Unit*>& targetList, uint32 num, SelectTa
 Unit* UnitAI::SelectPlayerTarget(SelectTargetMethod targetType, uint32 position, float dist, bool withTank, int32 aura)
 {
     DefaultTargetSelector selector(me, dist, true, withTank, aura);
-    return SelectTarget(targetType, position, [&selector](Unit const* target)
+    Unit* target =SelectTarget(targetType, position, [&selector](Unit const* target)
     {
         // 仅选择真实玩家，排除 NPCBot
         return selector(target) && target->IsPlayer() && !target->IsNPCBot();
     });
+    if(!target)
+        return SelectTarget(targetType, position, selector);
+    return target;
 }
 
 void UnitAI::SelectPlayerTargetList(std::list<Unit*>& targetList, uint32 num, SelectTargetMethod targetType, uint32 position, float dist, bool withTank, int32 aura)
@@ -137,6 +140,8 @@ void UnitAI::SelectPlayerTargetList(std::list<Unit*>& targetList, uint32 num, Se
         // 仅选择真实玩家，排除 NPCBot
         return selector(target) && target->IsPlayer() && !target->IsNPCBot();
     });
+     if(targetList.empty())
+        SelectTargetList(targetList, num, targetType, position,selector); 
 }
 
 float UnitAI::DoGetSpellMaxRange(uint32 spellId, bool positive)

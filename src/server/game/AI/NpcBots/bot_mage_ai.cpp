@@ -1015,6 +1015,12 @@ public:
                 //Combustion: 50% additional crit damage bonus for Fire spells
                 if ((SPELL_SCHOOL_MASK_FIRE & spellInfo->GetSchoolMask()) && me->HasAura(COMBUSTION_1))
                     pctbonus += 0.334f;
+                //Hot Streak: 任意火系直接伤害法术暴击即触发瞬发炎爆（绕过 DBC 的"连续两次暴击"计数）
+                if ((GetSpec() == BOT_SPEC_MAGE_FIRE) && lvl >= 50 &&
+                    (SPELL_SCHOOL_MASK_FIRE & spellInfo->GetSchoolMask()) &&
+                    baseId != IGNITE_TRIGGERED && baseId != LIVING_BOMB_DAMAGE_1 &&
+                    !me->HasAura(HOT_STREAK_BUFF))
+                    me->AddAura(HOT_STREAK_BUFF, me);
             }
 
             //Spell Impact: 6% bonus damage for Arcne Explosion, Arcane Blast, Scorch, Fireball, Ice Lance and Cone of Cold

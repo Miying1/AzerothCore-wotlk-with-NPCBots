@@ -117,6 +117,7 @@ enum BotCommonValues
     CREATURE_UK_SHADOW_AXE_H            = 31835,
     CREATURE_EOE_STATIC_FIELD           = 30592,
     CREATURE_ICC_OOZE_PUDDLE            = 37690,
+    CREATURE_ICC_OOZE_FLOOD_STALKER     = 37013,
     GAMEOBJECT_HOT_COAL                 = 178164,
     GAMEOBJECT_SAND_TRAP                = 180647,
     GAMEOBJECT_LIQUID_FIRE_1            = 180125,
