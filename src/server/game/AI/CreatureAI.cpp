@@ -25,6 +25,9 @@
 #include "Log.h"
 #include "MapReference.h"
 #include "Player.h"
+//npcbot
+#include "botmgr.h"
+//end npcbot
 #include "ScriptMgr.h"
 #include "TemporarySummon.h"
 #include "World.h"
@@ -158,6 +161,18 @@ void CreatureAI::DoZoneInCombat(Creature* creature /*= nullptr*/, float maxRange
 
             for (Unit* pet : player->m_Controlled)
                 creature->EngageWithTarget(pet);
+
+            //npcbot - 将玩家的 NPCBot 也一起加入战斗
+            if (player->HaveBot())
+            {
+                for (auto const& [_, bot] : *player->GetBotMgr()->GetBotMap())
+                {
+                    if (bot && bot->IsInWorld() && bot->FindMap() == creature->FindMap() &&
+                        creature->IsWithinDistInMap(bot, maxRangeToNearestTarget))
+                        creature->EngageWithTarget(bot);
+                }
+            }
+            //end npcbot
 
             if (Unit* vehicle = player->GetVehicleBase())
                 creature->EngageWithTarget(vehicle);

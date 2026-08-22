@@ -224,7 +224,8 @@ public:
                     break;
                 case 9:
                     PrepareEncounter();
-                    instance->DoUseDoorOrButton(instance->GetGuidData(DATA_GO_CURTAINS));
+                     // 这里改为显式拉开幕布，确保刷出 BOSS 时巨幕消失。
+                    instance->HandleGameObject(instance->GetGuidData(DATA_GO_CURTAINS), true);
                     break;
             }
         }

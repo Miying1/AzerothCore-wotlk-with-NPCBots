@@ -15588,8 +15588,8 @@ void bot_ai::FindMaster()
     if (_checkMasterTimer > lastdiff)
         return;
     _checkMasterTimer = urand(1000, 3000);
-    if (me->IsInWorld())
-    {
+    // if (me->IsInWorld())
+    // {
         // 检查主人（owner / shared_owner）是否已在线
         bool ownerOnline = false;
        
@@ -15605,7 +15605,8 @@ void bot_ai::FindMaster()
                 BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
                     me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
             }
-            PrintCallStack("Player add 1111");
+            BOT_LOG_INFO("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) 11111，绑定成功",
+            me->GetName(), me->GetEntry(), _botData->owner);
             return;
         } 
         // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
@@ -15614,7 +15615,7 @@ void bot_ai::FindMaster()
             return;
         } 
        
-    }
+    // }
     if (!BotCfg::IsClassEnabled(_botclass))
     {
         // 诊断日志：bot 职业被配置禁用
@@ -15654,9 +15655,12 @@ void bot_ai::FindMaster()
                         me->GetName(), me->GetEntry(), _botData->owner, player->GetName(), player->GetMapId());
                     return;
                 }
-                 PrintCallStack("Player add 2222");
-                if (SetBotOwner(player))
+                  BOT_LOG_INFO("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) 22222，绑定",
+            me->GetName(), me->GetEntry(), _botData->owner);
+                if (SetBotOwner(player)){
+                   
                     return;
+                }
             }
         }
     }

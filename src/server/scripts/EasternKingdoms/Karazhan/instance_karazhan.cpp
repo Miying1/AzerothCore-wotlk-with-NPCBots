@@ -114,6 +114,7 @@ public:
                     break;
                 case NPC_BARNES:
                     _barnesGUID = creature->GetGUID();
+                    _barnesSpawnId = creature->GetSpawnId();
                     if (GetBossState(DATA_OPERA_PERFORMANCE) != DONE && !creature->IsAlive())
                     {
                         creature->Respawn(true);
@@ -323,7 +324,16 @@ public:
                         HandleGameObject(m_uiStageDoorLeftGUID, true);
                         HandleGameObject(m_uiStageDoorRightGUID, false);
                         HandleGameObject(m_uiCurtainGUID, false);
+
                         DoRespawnCreature(_barnesGUID, true);
+
+                        // 修复：dynamic respawn mode 下，巴内斯护送结束脱战后会被从地图卸载，
+                        // DoRespawnCreature 依赖的 GetCreature 会返回空指针而失效，导致开门 NPC 不再出现。
+                        // 兜底：通过 spawnId 重新加载巴内斯。
+                        if (_barnesSpawnId && !instance->GetCreature(_barnesGUID))
+                        {
+                            instance->ProcessCreatureRespawn(_barnesSpawnId);
+                        }
                     }
                     break;
                 default:
@@ -500,6 +510,7 @@ public:
         ObjectGuid DustCoveredChest;
         ObjectGuid m_uiRelayGUID;
         ObjectGuid _barnesGUID;
+        ObjectGuid::LowType _barnesSpawnId = 0;                       // 巴内斯（开门 NPC）的数据库 spawnId，用于脱战后重新加载
         ObjectGuid _echoOfMedivhGUID;
 
         GuidVector _operaDecorations[EVENT_RAJ];
