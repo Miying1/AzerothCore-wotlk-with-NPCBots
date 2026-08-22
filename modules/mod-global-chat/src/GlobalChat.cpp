@@ -340,9 +340,13 @@ public:
 
     void OnPlayerLogin(Player* player) override
     {
+        if (!GC_Config.Enabled)
+            return;
+        uint64 guid = player->GetGUID().GetCounter();
+        GlobalChat[guid].chat = 1;
         // Announce Module
-        if (GC_Config.Enabled && GC_Config.Announce)
-            ChatHandler(player->GetSession()).SendSysMessage("|cff4CFF00Azerothcore 世界聊天|r 使用 .chat 命令进行世界聊天");
+        if (GC_Config.Announce)
+            ChatHandler(player->GetSession()).SendSysMessage("|cff4CFF00 世界聊天|r 使用 .chat 命令进行世界聊天");
     }
 };
 

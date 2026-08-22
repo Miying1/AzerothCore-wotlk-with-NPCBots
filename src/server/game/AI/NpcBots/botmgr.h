@@ -4,6 +4,7 @@
 #include "botcommon.h"
 #include "DBCEnums.h"
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -289,7 +290,7 @@ private:
     NpcBotMgrData* _data;
 
     bool _quickrecall;
-    bool _update_lock;
+    std::atomic<bool> _update_lock{false}; // 保护 _bots 遍历不被跨线程（如 logout）并发修改
 
     AoeSpotsVec _aoespots;
 

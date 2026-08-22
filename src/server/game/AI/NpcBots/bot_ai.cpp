@@ -55,6 +55,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <dbghelp.h>
+#pragma comment(lib, "DbgHelp.lib")
 #else
 #include <execinfo.h>
 #include <cstdlib>
@@ -172,9 +174,42 @@ static void PrintCallStack(std::string_view message)
 #ifdef _WIN32
     void* frames[64];
     USHORT count = CaptureStackBackTrace(0, 64, frames, nullptr);
+
+    // 符号处理器仅初始化一次（需 exe 同目录下有 .pdb 才能解析出函数名与行号）
+    static HANDLE const symbolProcess = []() {
+        HANDLE const process = GetCurrentProcess();
+        SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+        SymInitialize(process, nullptr, TRUE);
+        return process;
+    }();
+
     LOG_INFO("npcbots", "=== Call stack: {} ({} frames) ===", message, count);
     for (USHORT i = 0; i < count; ++i)
-        LOG_INFO("npcbots", "  frame {}: {}", i, frames[i]);
+    {
+        alignas(SYMBOL_INFO) char symbolBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+        SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(symbolBuffer);
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = MAX_SYM_NAME;
+
+        DWORD64 const address = reinterpret_cast<DWORD64>(frames[i]);
+        DWORD64 displacement = 0;
+
+        std::string_view name = "<unknown>";
+        if (SymFromAddr(symbolProcess, address, &displacement, symbol))
+            name = symbol->Name;
+
+        IMAGEHLP_LINE64 lineInfo{};
+        lineInfo.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+        DWORD lineNumber = 0;
+        std::string_view file = "";
+        if (SymGetLineFromAddr64(symbolProcess, address, &lineNumber, &lineInfo))
+            file = lineInfo.FileName;
+
+        if (lineNumber)
+            LOG_INFO("npcbots", "  frame {}: {} + 0x{:x} ({}:{})", i, name, displacement, file, lineNumber);
+        else
+            LOG_INFO("npcbots", "  frame {}: {} + 0x{:x}", i, name, displacement);
+    }
 #else
     void* frames[64];
     int count = backtrace(frames, 64);
@@ -15553,28 +15588,26 @@ void bot_ai::FindMaster()
     if (_checkMasterTimer > lastdiff)
         return;
     _checkMasterTimer = urand(1000, 3000);
-    if (me->IsInWorld() && IsDuringTeleport())
+    if (me->IsInWorld())
     {
         // 检查主人（owner / shared_owner）是否已在线
         bool ownerOnline = false;
-        for (auto const& container : { {_botData->owner}, _botData->shared_owners })
+       
+        if (Player* player = ObjectAccessor::FindPlayerByLowGUID(_botData->owner))
         {
-            for (uint32 guid_low : container)
+            if (player->GetSession()->isLogingOut() || player->GetSession()->PlayerLogout())
             {
-                if (Player* player = ObjectAccessor::FindPlayerByLowGUID(guid_low))
-                {
-                    ownerOnline = true;
-                    AbortTeleport();
-                    if (!SetBotOwner(player)) {
-                        BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
-                            me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
-                    }
-                    PrintCallStack("Player add 1111");
-                    return;
-                }
-            } 
-        }
-
+                return;
+            }
+            ownerOnline = true;
+            AbortTeleport();
+            if (!SetBotOwner(player)) {
+                BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
+                    me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
+            }
+            PrintCallStack("Player add 1111");
+            return;
+        } 
         // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
         if (!ownerOnline)
         {

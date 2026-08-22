@@ -1354,25 +1354,57 @@ void BotMgr::SetBotsShouldUpdateStats()
 
 void BotMgr::UpdatePhaseForBots()
 {
-    for (auto const& [_, bot] : _bots)
+    Map* map = _owner->FindMap();
+    if (!map)
+        return;
+
+    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase 造成迭代器失效
+    _update_lock = true;
+    for (auto const& [guid, bot] : _bots)
     {
-        if (!bot || !bot->IsInWorld())
-            continue; 
-        bot->SetPhaseMask(_owner->GetPhaseMask(), bot->IsInWorld());
-        if (Unit* pet = bot->GetBotsPet())
+        // 通过对象存储重新解析生物，避免使用可能已被移除/销毁的悬挂指针
+        Creature* creature = map->GetCreature(guid);
+        if (!creature || creature != bot)
+            continue;
+        creature->SetPhaseMask(_owner->GetPhaseMask(), creature->IsInWorld());
+        if (Unit* pet = creature->GetBotsPet())
             pet->SetPhaseMask(_owner->GetPhaseMask(), pet->IsInWorld());
+    }
+    _update_lock = false;
+
+    // 处理遍历期间被延迟的移除请求
+    while (!_delayedRemoveList.empty())
+    {
+        decltype(_delayedRemoveList)::iterator itr = _delayedRemoveList.begin();
+        RemoveBot(itr->first, itr->second);
     }
 }
 
 void BotMgr::UpdatePvPForBots()
 {
-    for (auto const& [_, bot] : _bots)
+    Map* map = _owner->FindMap();
+    if (!map)
+        return;
+
+    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase 造成迭代器失效
+    _update_lock = true;
+    for (auto const& [guid, bot] : _bots)
     {
-         if (!bot || !bot->IsInWorld())
+        // 通过对象存储重新解析生物，避免使用可能已被移除/销毁的悬挂指针
+        Creature* creature = map->GetCreature(guid);
+        if (!creature || creature != bot)
             continue;
-        bot->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
-        if (Unit* pet =bot->GetBotsPet())
+        creature->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
+        if (Unit* pet = creature->GetBotsPet())
             pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
+    }
+    _update_lock = false;
+
+    // 处理遍历期间被延迟的移除请求
+    while (!_delayedRemoveList.empty())
+    {
+        decltype(_delayedRemoveList)::iterator itr = _delayedRemoveList.begin();
+        RemoveBot(itr->first, itr->second);
     }
 }
 
