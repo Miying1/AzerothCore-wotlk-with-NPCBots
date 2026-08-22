@@ -753,9 +753,7 @@ struct boss_bigbadwolf : public ScriptedAI
 
         _scheduler.Schedule(30s, [this](TaskContext context)
         {
-            Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100)
-            if(!target)
-                target = SelectTarget(SelectTargetMethod::Random, 0, 100)
+            Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100); 
             if (target)
             {
                 Talk(SAY_WOLF_HOOD);
