@@ -1327,7 +1327,7 @@ class spell_hun_targeted_trap : public SpellScript
 {
     PrepareSpellScript(spell_hun_targeted_trap);
 
-    void HandleCast()
+    void HandleEffectHit(SpellEffIndex /*effIndex*/)
     {
         Player* player = GetCaster()->ToPlayer();
         if (!player)
@@ -1338,12 +1338,21 @@ class spell_hun_targeted_trap : public SpellScript
             !player->IsWithinDistInMap(target, 35.0f) || !player->IsWithinLOSInMap(target))
             return;
 
-        GetSpell()->m_targets.SetDst(*target);
+        // 获取陷阱实际放置的目标点（SPELL_EFFECT_SUMMON_OBJECT_SLOT 使用的 per-effect destination）
+        WorldLocation* dest = GetHitDest();
+        if (!dest)
+            return;
+
+        // 将陷阱放置点重定位到选中目标脚下
+        dest->Relocate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), target->GetOrientation());
+
+        // 同步 explicit destination，确保 EffectSummonObject 使用目标点而非默认的施法者脚下
+        SetExplTargetDest(*dest);
     }
 
     void Register() override
     {
-        OnCast += SpellCastFn(spell_hun_targeted_trap::HandleCast);
+        OnEffectHit += SpellEffectFn(spell_hun_targeted_trap::HandleEffectHit);
     }
 };
 
