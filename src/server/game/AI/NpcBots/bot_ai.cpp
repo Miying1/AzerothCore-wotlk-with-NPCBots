@@ -11282,7 +11282,19 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                         << ", IsInWorld=" << (me->IsInWorld() ? 1 : 0)
                         << ", IsInGrid=" << (me->IsInGrid() ? 1 : 0)
                         << ", IsDuringTeleport=" << (IsDuringTeleport() ? 1 : 0)
+                        << ", IsAlive=" << (me->IsAlive() ? 1 : 0)
                         << ", _atHome=" << (_atHome ? 1 : 0);
+
+                    // 地图更新状态（确认 bot 是否实际注册在当前地图的对象更新列表中）
+                    Map* currentMap = me->GetMap();
+                    Map* foundMap = me->FindMap();
+                    report << "\nmap update: isActiveObject=" << (me->isActiveObject() ? 1 : 0)
+                        << ", GetUpdateState=" << uint32(me->GetUpdateState())
+                        << ", GetMap=" << static_cast<void const*>(currentMap)
+                        << ", FindMap=" << static_cast<void const*>(foundMap)
+                        << ", sameMap=" << (currentMap == foundMap ? 1 : 0)
+                        << ", GetMapId=" << me->GetMapId()
+                        << ", GetInstanceId=" << me->GetInstanceId();
 
                     // 传送状态分解
                     report << "\nteleport: teleHomeEvent=" << (teleHomeEvent ? 1 : 0)
@@ -17930,9 +17942,10 @@ void bot_ai::UpdateDeadAI(uint32 diff)
 //opponent unsafe
 bool bot_ai::GlobalUpdate(uint32 diff)
 {
-    if (!BotCfg::IsNpcBotModEnabled() || !BotDataMgr::AllBotsLoaded())
+    if (!BotCfg::IsNpcBotModEnabled() || !BotDataMgr::AllBotsLoaded()){
+        BOT_LOG_ERROR("npcbots", "Bot {} 初始处返回", me->GetEntry());
         return false;
-
+    }
     if (IsWanderer())
     {
         if (Battleground* bg = GetBG())
@@ -17941,6 +17954,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             {
                 if (std::ranges::find_if(bg->GetPlayers(), [](auto const& kv) { return kv.first.IsPlayer(); }) == bg->GetPlayers().cend())
                     bg->RemoveBotAtLeave(me->GetGUID());
+                BOT_LOG_ERROR("npcbots", "Bot {} 战场游荡处返回", me->GetEntry());
                 return false;
             }
         }
@@ -17957,6 +17971,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                     if (_botData->owner == 0)
                     {
                         _checkOwershipTimer = 0;
+                        BOT_LOG_ERROR("npcbots", "Bot {} 检查过期处返回", me->GetEntry());
                         return false;
                     }
                 }
@@ -18005,6 +18020,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             {
                 ChatHandler(master->GetSession()).SendNotification(LocalizedNpcText(master, BOT_TEXT_HIREFAIL_COST).c_str());
                 master->GetBotMgr()->RemoveBot(me->GetGUID(), BOT_REMOVE_UNAFFORD);
+                BOT_LOG_ERROR("npcbots", "Bot {} 在租金处理处返回", me->GetEntry());
                 return false;
             }
             master->ModifyMoney(-int32(rent_money));

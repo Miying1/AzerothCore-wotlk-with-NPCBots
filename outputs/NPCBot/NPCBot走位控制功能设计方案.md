@@ -5,7 +5,7 @@
 本文是 AzerothCore WotLK with NPCBots 的**实施设计**，不是已经提交的代码补丁。目标是在尽量不改变现有战斗 AI 优先级的前提下，增加以下临时走位控制：
 
 1. `mass`：非坦克、非守卫 Bot 集合到主人身边并继续跟随。
-2. `mass ranged`：仅远程和治疗职责 Bot 集合到主人身边并继续跟随。
+2. `mass ranged`：仅远程职责 Bot 集合到主人身边并继续跟随，排除近战 Bot。
 3. `mass <botname>`：指定名称的单个 Bot 集合到主人身边，不区分职责。
 4. `mass mytarget`：当前选中的 Bot 集合到主人身边，不区分职责。
 5. `unmass`：取消集合约束，恢复现有跟随和战斗走位。
@@ -276,9 +276,11 @@ public:
 .npcbot command mass
 .npcbot command mass all [radius]
 .npcbot command mass ranged [radius]
-.npcbot command mass <botname> [radius]
+.npcbot command mass name <botname>
 .npcbot command mass mytarget [radius]
 .npcbot command unmass
+.npcbot command unmass name <botname>
+.npcbot command unmass mytarget
 .npcbot command spread [distance]
 .npcbot command spread off
 ```
@@ -289,7 +291,7 @@ public:
 |---|---|
 | `mass` | 默认启用 `all` 模式，半径默认 4 码 |
 | `mass all` | 所有符合条件的非坦克 Bot 集合 |
-| `mass ranged` | 仅远程或治疗 Bot 集合 |
+| `mass ranged` | 仅远程 Bot 集合，排除近战 Bot |
 | `unmass` | 清除集合模式和全部集合槽位 |
 | `spread` | 启用战斗分散，距离默认 5 码 |
 | `spread 7` | 设定 7 码分散距离 |
@@ -362,7 +364,7 @@ if (mode == BotMassMode::SingleTarget)
 // AllNonTank / RangedAndHeal 模式：
 eligible = eligible && !isTank;
 if (mode == BotMassMode::RangedAndHeal)
-    eligible = eligible && ai.HasRole(BOT_ROLE_RANGED | BOT_ROLE_HEAL);
+    eligible = eligible && ai.HasRole(BOT_ROLE_RANGED);
 ```
 
 是否排除临时 Bot 可以作为实现开关；推荐第一版排除，避免副本临时 Bot 与主人状态切换产生意外耦合。
@@ -672,7 +674,7 @@ CMake 已经递归收集 `src/server/game` 下的源文件。
 
 1. 无 Bot 执行 `mass`、`spread`，确认返回用法和错误；
 2. 执行 `mass`，确认默认等价 `mass all`；
-3. 执行 `mass ranged`，确认近战 DPS 不参与，远程和治疗参与；
+3. 执行 `mass ranged`，确认所有近战 Bot 均不参与，仅远程 Bot 参与；
 4. 执行 `mass 0`、`mass 5`、`spread 1`、`spread 21`，确认参数被拒绝；
 5. 重复执行 `mass`，确认不会反复重排槽位；
 6. `unmass` 后确认普通职责槽位恢复；

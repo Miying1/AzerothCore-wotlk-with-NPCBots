@@ -696,7 +696,7 @@ public:
 
         static ChatCommandTable npcbotCommandTable =
         {
-            //{ "debug",      npcbotDebugCommandTable                                                                                 },
+            { "debug",      npcbotDebugCommandTable                                                                                 },
             //{ "toggle",     npcbotToggleCommandTable                                                                                },
             { "set",        npcbotSetCommandTable                                                                                   },
             { "add",        HandleNpcBotAddCommand,                 rbac::RBAC_PERM_COMMAND_NPCBOT_ADD,                Console::No  },
@@ -4551,7 +4551,8 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         Player* owner = handler->GetSession()->GetPlayer();
         if (!owner->HaveBot())
         {
-            handler->SendSysMessage(".npcbot command mass [all|ranged|botname|mytarget] [1-4]");
+            handler->SendSysMessage(".npcbot command mass [all|ranged|mytarget|name] [1-4]");
+            handler->SendSysMessage(".npcbot command mass name <botname>");
             handler->SendSysMessage("集合机器人到主人附近");
             handler->SetSentErrorMessage(true);
             return false;
@@ -4590,11 +4591,32 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
                 mode = BotMassMode::SingleTarget;
                 singleTargetGuid = bot->GetGUID();
             }
+            else if (*modeArg == "name")
+            {
+                if (!radiusArg)
+                {
+                    handler->SendSysMessage(".npcbot command mass name <botname>");
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+
+                Creature* bot = owner->GetBotMgr()->GetBotByName(*radiusArg);
+                if (!bot)
+                {
+                    handler->PSendSysMessage("未找到名为 '{}' 的机器人", *radiusArg);
+                    handler->SetSentErrorMessage(true);
+                    return false;
+                }
+
+                mode = BotMassMode::SingleTarget;
+                singleTargetGuid = bot->GetGUID();
+                radiusArg.reset();
+            }
             else if (Optional<float> parsedRadius = Acore::StringTo<float>(*modeArg))
             {
                 if (radiusArg)
                 {
-                    handler->SendSysMessage(".npcbot command mass [all|ranged|botname|mytarget] [1-4]");
+                    handler->SendSysMessage(".npcbot command mass [all|ranged|mytarget|name] [1-4]");
                     handler->SetSentErrorMessage(true);
                     return false;
                 }
@@ -4602,18 +4624,10 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             }
             else
             {
-                Creature* bot = owner->GetBotMgr()->GetBotByName(*modeArg);
-                if (bot)
-                {
-                    mode = BotMassMode::SingleTarget;
-                    singleTargetGuid = bot->GetGUID();
-                }
-                else
-                {
-                    handler->PSendSysMessage("未找到名为 '{}' 的机器人", *modeArg);
-                    handler->SetSentErrorMessage(true);
-                    return false;
-                }
+                handler->SendSysMessage(".npcbot command mass [all|ranged|mytarget|name] [1-4]");
+                handler->SendSysMessage(".npcbot command mass name <botname>");
+                handler->SetSentErrorMessage(true);
+                return false;
             }
         }
 
@@ -4657,13 +4671,14 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         {
             uint32 count = control->EnableMass(mode, radius);
             handler->PSendSysMessage("集合：{}，半径 {:.1f} 码，当前 {} 个机器人",
-                mode == BotMassMode::RangedAndHeal ? "远程/治疗" : "所有非坦克", radius, count);
+                mode == BotMassMode::RangedAndHeal ? "远程" : "所有非坦克", radius, count);
         }
 
         return true;
     }
 
-    static bool HandleNpcBotCommandUnmassCommand(ChatHandler* handler, Optional<std::string_view> targetArg)
+    static bool HandleNpcBotCommandUnmassCommand(ChatHandler* handler, Optional<std::string_view> modeArg,
+        Optional<std::string_view> nameArg)
     {
         Player* owner = handler->GetSession()->GetPlayer();
         BotPositionControl* control = owner->GetBotMgr()->GetBotPositionControl();
@@ -4676,7 +4691,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         }
 
         // 无参数 → 关闭所有集合
-        if (!targetArg)
+        if (!modeArg)
         {
             control->DisableMass();
             handler->SendSysMessage("集合关闭，机器人恢复原有走位策略");
@@ -4686,7 +4701,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         ObjectGuid toRemove;
         std::string botName;
 
-        if (*targetArg == "mytarget")
+        if (*modeArg == "mytarget" && !nameArg)
         {
             Unit* target = owner->GetSelectedUnit();
             if (!target || !target->IsCreature())
@@ -4705,17 +4720,24 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             toRemove = bot->GetGUID();
             botName = bot->GetName();
         }
-        else
+        else if (*modeArg == "name" && nameArg)
         {
-            Creature* bot = owner->GetBotMgr()->GetBotByName(*targetArg);
+            Creature* bot = owner->GetBotMgr()->GetBotByName(*nameArg);
             if (!bot)
             {
-                handler->PSendSysMessage("未找到名为 '{}' 的机器人", *targetArg);
+                handler->PSendSysMessage("未找到名为 '{}' 的机器人", *nameArg);
                 handler->SetSentErrorMessage(true);
                 return false;
             }
             toRemove = bot->GetGUID();
             botName = bot->GetName();
+        }
+        else
+        {
+            handler->SendSysMessage(".npcbot command unmass [mytarget]");
+            handler->SendSysMessage(".npcbot command unmass name <botname>");
+            handler->SetSentErrorMessage(true);
+            return false;
         }
 
         control->RemoveMassForBot(toRemove);

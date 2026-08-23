@@ -388,7 +388,7 @@ bool BotPositionControl::IsMassEligible(Creature const& bot, bot_ai const& ai) c
 
     if (ai.HasRole(BOT_ROLE_TANK) || ai.IsTank())
         return false;
-    if (_massMode == BotMassMode::RangedAndHeal && !ai.HasRole(BOT_ROLE_RANGED | BOT_ROLE_HEAL))
+    if (_massMode == BotMassMode::RangedAndHeal && !ai.HasRole(BOT_ROLE_RANGED))
         return false;
 
     return ai.GetBotOwner() == _botMgr.GetOwner();
