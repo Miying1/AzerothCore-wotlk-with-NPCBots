@@ -9,8 +9,8 @@
 using namespace Acore::ChatCommands;
 
 /*
-Coded by Talamortis - For Azerothcore
-Thanks to Rochet for the assistance
+原作者：Talamortis（Azerothcore 项目）
+感谢 Rochet 的协助
 */
 
 struct IndividualXpModule
@@ -20,20 +20,6 @@ struct IndividualXpModule
 };
 
 IndividualXpModule individualXp;
-
-enum IndividualXPAcoreString
-{
-    ACORE_STRING_CREDIT = 100000,
-    ACORE_STRING_MODULE_DISABLED,
-    ACORE_STRING_RATES_DISABLED,
-    ACORE_STRING_COMMAND_VIEW,
-    ACORE_STRING_MAX_RATE,
-    ACORE_STRING_MIN_RATE,
-    ACORE_STRING_COMMAND_SET,
-    ACORE_STRING_COMMAND_DISABLED,
-    ACORE_STRING_COMMAND_ENABLED,
-    ACORE_STRING_COMMAND_DEFAULT
-};
 
 class IndividualXPConf : public WorldScript
 {
@@ -79,23 +65,23 @@ public:
 
         if (individualXp.Enabled)
         {
-            // Announce Module
+            // 公告模块信息
             if (individualXp.AnnounceModule)
             {
-                ChatHandler(player->GetSession()).SendSysMessage(ACORE_STRING_CREDIT);
+                ChatHandler(player->GetSession()).PSendSysMessage("本服务器正在运行 |cff4CFF00IndividualXpRate |r模块。");
             }
 
-            // Announce Rates
+            // 公告经验倍率
             if (individualXp.AnnounceRatesOnLogin)
             {
                 if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
                 {
-                    ChatHandler(player->GetSession()).PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
                 }
                 else
                 {
-                    ChatHandler(player->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW, player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
-                    ChatHandler(player->GetSession()).PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
+                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 你当前的经验倍率为 {}。", player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
+                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 最大倍率限制为 {}。", individualXp.MaxRate);
                 }
             }
         }
@@ -149,7 +135,7 @@ public:
     {
         if (!individualXp.Enabled)
         {
-            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->PSendSysMessage("[XP] Individual XP 模块已被停用。");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -161,13 +147,13 @@ public:
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
-            handler->PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+            handler->PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
             handler->SetSentErrorMessage(true);
             return false;
         }
         else
         {
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_VIEW, player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你当前的经验倍率为 {}。", player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
         }
         return true;
     }
@@ -176,7 +162,7 @@ public:
     {
         if (!individualXp.Enabled)
         {
-            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->PSendSysMessage("[XP] Individual XP 模块已被停用。");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -191,7 +177,7 @@ public:
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
-            handler->PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+            handler->PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -199,20 +185,20 @@ public:
         {
             if (rate > individualXp.MaxRate)
             {
-                handler->PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
+                handler->PSendSysMessage("[XP] 最大倍率限制为 {}。", individualXp.MaxRate);
                 handler->SetSentErrorMessage(true);
                 return false;
             }
 
             if (rate < 0.1f)
             {
-                handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
+                handler->PSendSysMessage("[XP] 最小倍率限制为 1。");
                 handler->SetSentErrorMessage(true);
                 return false;
             }
 
             player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_SET, rate);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你已将经验倍率更新为 {}。", rate);
             return true;
         }
     }
@@ -226,14 +212,14 @@ public:
 
         if (!player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
-            // Turn Disabled On But Don't Change Value...
+            // 关闭经验获取，但不修改当前倍率数值
             player->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DISABLED);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你已关闭经验获取。");
             return true;
         }
         else
         {
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
             return false;
         }
     }
@@ -248,11 +234,11 @@ public:
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
             player->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN);
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_ENABLED);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你已开启经验获取。");
         }
         else
         {
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
         }
 
         return true;
@@ -262,7 +248,7 @@ public:
     {
         if (!individualXp.Enabled)
         {
-            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->PSendSysMessage("[XP] Individual XP 模块已被停用。");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -274,14 +260,14 @@ public:
 
         if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
         {
-            handler->PSendSysMessage(ACORE_STRING_RATES_DISABLED);
+            handler->PSendSysMessage("[XP] 你的经验获取当前已关闭，使用 .xp enable 可重新开启。");
             handler->SetSentErrorMessage(true);
             return false;
         }
         else
         {
             player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = individualXp.DefaultRate;
-            ChatHandler(handler->GetSession()).PSendSysMessage(ACORE_STRING_COMMAND_DEFAULT, individualXp.DefaultRate);
+            ChatHandler(handler->GetSession()).PSendSysMessage("[XP] 你已将经验倍率恢复为默认值 {}。", individualXp.DefaultRate);
             return true;
         }
     }

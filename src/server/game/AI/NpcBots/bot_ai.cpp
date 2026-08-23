@@ -5308,6 +5308,53 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
                 spots.emplace_back(*c, radius);
         }
     }
+    //Trial of the Crusader (十字军的试炼)
+    else if (unit->GetMapId() == 649)
+    {
+        // 酸喉（Acidmaw）—— 粘液池（毒圈），伤害范围会随 tick 缓慢扩大
+        static const uint32 SPELL_SLIME_POOL_EFFECT = 66882; // 毒池周期触发光环
+        static const uint32 SPELL_SLIME_POOL_DAMAGE  = 66881; // 毒池实际伤害子技能
+        std::list<Creature*> slimePoolList;
+        Bcore::AllCreaturesOfEntryInRange slimePoolCheck(unit, CREATURE_TOC_SLIME_POOL, 60.f);
+        Bcore::CreatureListSearcher slimePoolSearcher(unit, slimePoolList, slimePoolCheck);
+        Cell::VisitObjects(unit, slimePoolSearcher, 60.f);
+
+        if (!slimePoolList.empty())
+        {
+            // 毒池扩大是通过 SPELLVALUE_RADIUS_MOD 动态修改子技能 66881 半径实现的
+            //（见 SpellAuraEffects.cpp 中 case 66882），NPC 自身 ObjectScale 不变，
+            // 因此按当前 tick 动态计算实际伤害半径，而非取固定折中值。
+            float baseRadius = sSpellMgr->AssertSpellInfo(SPELL_SLIME_POOL_DAMAGE)->Effects[0].CalcRadius();
+            if (baseRadius <= 0.0f)
+                baseRadius = 30.0f; // 兜底：30 码基础半径 × 2/3 后最大约 20 码
+
+            for (Creature const* c : slimePoolList)
+            {
+                // 半径倍率随 tick 从 0.1 线性增长到 1.0（与引擎公式保持一致）
+                float scale = 0.1f;
+                if (Aura const* aura = c->GetAura(SPELL_SLIME_POOL_EFFECT))
+                    if (AuraEffect const* eff = aura->GetEffect(0))
+                        scale = ((float)eff->GetTickNumber() / 60.0f) * 0.9f + 0.1f;
+
+                // 引擎中 RadiusMod = scale * 2/3，实际半径 = baseRadius * RadiusMod
+                float radius = baseRadius * scale * 2.0f / 3.0f + DEFAULT_COMBAT_REACH * 2.0f;
+                spots.emplace_back(*c, radius);
+            }
+        }
+
+        // 戈莫克（Gormok）—— 火焰炸弹（火圈，会追着玩家移动）
+        std::list<Creature*> fireBombList;
+        Bcore::AllCreaturesOfEntryInRange fireBombCheck(unit, CREATURE_TOC_FIRE_BOMB, 60.f);
+        Bcore::CreatureListSearcher fireBombSearcher(unit, fireBombList, fireBombCheck);
+        Cell::VisitObjects(unit, fireBombSearcher, 60.f);
+
+        if (!fireBombList.empty())
+        {
+            float radius = 8.0f + DEFAULT_COMBAT_REACH * 2.0f;
+            for (Creature const* c : fireBombList)
+                spots.emplace_back(*c, radius);
+        }
+    }
 
     //STUB
     //if (!unit->IsPlayer() || !unit->ToPlayer()->HaveBot())

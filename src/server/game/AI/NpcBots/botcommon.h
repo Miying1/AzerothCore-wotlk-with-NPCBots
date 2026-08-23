@@ -118,6 +118,8 @@ enum BotCommonValues
     CREATURE_EOE_STATIC_FIELD           = 30592,
     CREATURE_ICC_OOZE_PUDDLE            = 37690,
     CREATURE_ICC_OOZE_FLOOD_STALKER     = 37013,
+    CREATURE_TOC_SLIME_POOL             = 35176,
+    CREATURE_TOC_FIRE_BOMB              = 34854,
     GAMEOBJECT_HOT_COAL                 = 178164,
     GAMEOBJECT_SAND_TRAP                = 180647,
     GAMEOBJECT_LIQUID_FIRE_1            = 180125,
