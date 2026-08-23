@@ -447,6 +447,11 @@ public:
         Updating
     };
 
+    [[nodiscard]] UpdateState GetUpdateState() const
+    {
+        return _mapUpdateState;
+    }
+
 protected:
     UpdatableMapObject() : _mapUpdateListOffset(0), _mapUpdateState(NotUpdating) { }
 
@@ -466,11 +471,6 @@ private:
     void SetUpdateState(UpdateState state)
     {
         _mapUpdateState = state;
-    }
-
-    UpdateState GetUpdateState() const
-    {
-        return _mapUpdateState;
     }
 
 private:

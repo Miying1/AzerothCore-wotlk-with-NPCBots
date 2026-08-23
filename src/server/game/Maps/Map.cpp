@@ -619,7 +619,7 @@ void Map::AddObjectToPendingUpdateList(WorldObject* obj)
                     obj->GetName(), obj->GetEntry(), obj->GetGUID().ToString(), static_cast<uint32>(updateState), updateOffset,
                     _updatableObjectList.size(), _pendingAddUpdatableObjectList.contains(obj),
                     static_cast<void const*>(obj->FindMap()), static_cast<void const*>(this), GetId(), GetInstanceId(),
-                    obj->IsInWorld(), obj->IsInGrid(), obj->isActiveObject());
+                    obj->IsInWorld(), obj->ToCreature()->IsInGrid(), obj->isActiveObject());
             }
         }
 
