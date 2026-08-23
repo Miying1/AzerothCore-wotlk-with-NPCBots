@@ -1352,7 +1352,7 @@ class spell_hun_targeted_trap : public SpellScript
 
     void Register() override
     {
-        OnEffectHit += SpellEffectFn(spell_hun_targeted_trap::HandleEffectHit);
+        OnEffectHit += SpellEffectFn(spell_hun_targeted_trap::HandleEffectHit, EFFECT_0, SPELL_EFFECT_ANY);
     }
 };
 
