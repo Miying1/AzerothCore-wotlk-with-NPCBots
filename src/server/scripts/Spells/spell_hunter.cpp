@@ -1318,44 +1318,6 @@ class spell_hun_intimidation : public AuraScript
     }
 };
 
-// -13795 - Immolation Trap (all ranks)
-// -1499  - Freezing Trap (all ranks)
-// 13809  - Frost Trap
-// -13813 - Explosive Trap (all ranks)
-// 34600  - Snake Trap
-class spell_hun_targeted_trap : public SpellScript
-{
-    PrepareSpellScript(spell_hun_targeted_trap);
-
-    void HandleEffectHit(SpellEffIndex /*effIndex*/)
-    {
-        Player* player = GetCaster()->ToPlayer();
-        if (!player)
-            return;
-
-        Unit* target = player->GetSelectedUnit();
-        if (!target || !target->IsAlive() || !player->IsValidAttackTarget(target) ||
-            !player->IsWithinDistInMap(target, 35.0f) || !player->IsWithinLOSInMap(target))
-            return;
-
-        // 获取陷阱实际放置的目标点（SPELL_EFFECT_SUMMON_OBJECT_SLOT 使用的 per-effect destination）
-        WorldLocation* dest = GetHitDest();
-        if (!dest)
-            return;
-
-        // 将陷阱放置点重定位到选中目标脚下
-        dest->Relocate(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), target->GetOrientation());
-
-        // 同步 explicit destination，确保 EffectSummonObject 使用目标点而非默认的施法者脚下
-        SetExplTargetDest(*dest);
-    }
-
-    void Register() override
-    {
-        OnEffectHit += SpellEffectFn(spell_hun_targeted_trap::HandleEffectHit, EFFECT_0, SPELL_EFFECT_ANY);
-    }
-};
-
 // 19574 - Bestial Wrath
 class spell_hun_bestial_wrath : public SpellScript
 {
@@ -1775,7 +1737,6 @@ void AddSC_hunter_spell_scripts()
     RegisterSpellScript(spell_hun_volley_trigger);
     RegisterSpellScript(spell_hun_lock_and_load);
     RegisterSpellScript(spell_hun_intimidation);
-    RegisterSpellScript(spell_hun_targeted_trap);
     RegisterSpellScript(spell_hun_bestial_wrath);
     RegisterSpellScript(spell_hun_target_self_and_pet);
     RegisterSpellScript(spell_hun_explosive_shot);
