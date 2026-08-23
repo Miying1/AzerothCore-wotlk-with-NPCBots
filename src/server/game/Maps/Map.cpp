@@ -595,22 +595,41 @@ void Map::AddObjectToPendingUpdateList(WorldObject* obj)
         return;
 
     UpdatableMapObject::UpdateState const updateState = mapUpdatableObject->GetUpdateState();
+
+    // 普通对象保持核心原有处理，仅对 NPCBot 执行异常检测和恢复
+    if (!obj->IsNPCBot())
+    {
+        if (updateState != UpdatableMapObject::UpdateState::NotUpdating)
+            return;
+
+        _pendingAddUpdatableObjectList.insert(obj);
+        mapUpdatableObject->SetUpdateState(UpdatableMapObject::UpdateState::PendingAdd);
+        return;
+    }
+
     if (updateState != UpdatableMapObject::UpdateState::NotUpdating)
     {
-        // 仅记录状态与当前地图容器不一致的 NPCBot，正常已注册对象不输出，避免刷屏
-        if (obj->IsNPCBot())
+        bool registrationValid = false;
+        std::size_t updateOffset = 0;
+
+        if (updateState == UpdatableMapObject::UpdateState::PendingAdd)
+            registrationValid = _pendingAddUpdatableObjectList.contains(obj);
+        else if (updateState == UpdatableMapObject::UpdateState::Updating)
         {
-            bool registrationValid = false;
-            std::size_t updateOffset = 0;
+            updateOffset = mapUpdatableObject->GetMapUpdateListOffset();
+            registrationValid = updateOffset < _updatableObjectList.size() && _updatableObjectList[updateOffset] == obj;
+        }
 
-            if (updateState == UpdatableMapObject::UpdateState::PendingAdd)
-                registrationValid = _pendingAddUpdatableObjectList.contains(obj);
-            else if (updateState == UpdatableMapObject::UpdateState::Updating)
-            {
-                updateOffset = mapUpdatableObject->GetMapUpdateListOffset();
-                registrationValid = updateOffset < _updatableObjectList.size() && _updatableObjectList[updateOffset] == obj;
-            }
-
+        // PendingAdd 状态但不在当前地图待更新集合中，可安全重置并重新登记
+        if (updateState == UpdatableMapObject::UpdateState::PendingAdd && !registrationValid && obj->FindMap() == this)
+        {
+            BOT_LOG_WARN("npcbots", "Map::AddObjectToPendingUpdateList(): 正在恢复孤立的 NPCBot 待更新状态: "
+                "name={}, entry={}, guid={}, mapId={}, instanceId={}",
+                obj->GetName(), obj->GetEntry(), obj->GetGUID().ToString(), GetId(), GetInstanceId());
+            mapUpdatableObject->SetUpdateState(UpdatableMapObject::UpdateState::NotUpdating);
+        }
+        else
+        {
             if (!registrationValid || obj->FindMap() != this)
             {
                 BOT_LOG_ERROR("npcbots", "Map::AddObjectToPendingUpdateList(): NPCBot 更新注册异常: name={}, entry={}, guid={}, "
@@ -621,13 +640,13 @@ void Map::AddObjectToPendingUpdateList(WorldObject* obj)
                     static_cast<void const*>(obj->FindMap()), static_cast<void const*>(this), GetId(), GetInstanceId(),
                     obj->IsInWorld(), obj->ToCreature()->IsInGrid(), obj->isActiveObject());
             }
-        }
 
-        return;
+            return;
+        }
     }
 
     auto const [_, inserted] = _pendingAddUpdatableObjectList.insert(obj);
-    if (obj->IsNPCBot() && !inserted)
+    if (!inserted)
     {
         BOT_LOG_ERROR("npcbots", "Map::AddObjectToPendingUpdateList(): NPCBot 状态为 NotUpdating，但已存在于待更新列表: "
             "name={}, entry={}, guid={}, objectMap={}, currentMap={}, mapId={}, instanceId={}",
@@ -672,7 +691,13 @@ void Map::RemoveObjectFromMapUpdateList(WorldObject* obj)
 
     UpdatableMapObject* mapUpdatableObject = dynamic_cast<UpdatableMapObject*>(obj);
     if (mapUpdatableObject->GetUpdateState() == UpdatableMapObject::UpdateState::PendingAdd)
+    {
         _pendingAddUpdatableObjectList.erase(obj);
+
+        // NPCBot 实例移出地图后会被复用，必须同步恢复状态，避免下次加入地图时卡在孤立的 PendingAdd
+        if (obj->IsNPCBot())
+            mapUpdatableObject->SetUpdateState(UpdatableMapObject::UpdateState::NotUpdating);
+    }
     else if (mapUpdatableObject->GetUpdateState() == UpdatableMapObject::UpdateState::Updating)
         _RemoveObjectFromUpdateList(obj);
 }
