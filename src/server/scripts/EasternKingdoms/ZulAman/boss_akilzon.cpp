@@ -220,8 +220,11 @@ struct boss_akilzon : public BossAI
                 ;
                 if (Creature* creature = me->SummonCreature(NPC_SOARING_EAGLE, x, y, z, 0, TEMPSUMMON_CORPSE_DESPAWN, 0))
                 {
-                    creature->AddThreat(me->GetVictim(), 1.0f);
-                    creature->AI()->AttackStart(me->GetVictim());
+                    if (Unit* victim = me->GetVictim())
+                    {
+                        creature->AddThreat(victim, 1.0f);
+                        creature->AI()->AttackStart(victim);
+                    }
                     _birdGUIDs[i] = creature->GetGUID();
                 }
             }
