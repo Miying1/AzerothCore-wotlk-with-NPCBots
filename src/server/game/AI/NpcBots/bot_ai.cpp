@@ -15689,7 +15689,6 @@ void bot_ai::FindMaster()
                 BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
                     me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
             }
-            BOT_LOG_INFO("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) 11111，绑定成功",
             me->GetName(), me->GetEntry(), _botData->owner);
             return;
         } 
@@ -18001,7 +18000,6 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             {
                 if (std::ranges::find_if(bg->GetPlayers(), [](auto const& kv) { return kv.first.IsPlayer(); }) == bg->GetPlayers().cend())
                     bg->RemoveBotAtLeave(me->GetGUID());
-                BOT_LOG_ERROR("npcbots", "Bot {} 战场游荡处返回", me->GetEntry());
                 return false;
             }
         }
@@ -18018,7 +18016,6 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                     if (_botData->owner == 0)
                     {
                         _checkOwershipTimer = 0;
-                        BOT_LOG_ERROR("npcbots", "Bot {} 检查过期处返回", me->GetEntry());
                         return false;
                     }
                 }
@@ -18067,7 +18064,6 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             {
                 ChatHandler(master->GetSession()).SendNotification(LocalizedNpcText(master, BOT_TEXT_HIREFAIL_COST).c_str());
                 master->GetBotMgr()->RemoveBot(me->GetGUID(), BOT_REMOVE_UNAFFORD);
-                BOT_LOG_ERROR("npcbots", "Bot {} 在租金处理处返回", me->GetEntry());
                 return false;
             }
             master->ModifyMoney(-int32(rent_money));
