@@ -1544,7 +1544,7 @@ public:
             stephanieDialogueTimer = isStephanieCrowd ? urand(5000, 15000) : 0;
             stephanieDialoguePhase = 0;
 
-            isBrandonCrowd = me->GetDistance(2267.86f, 1144.93f, 138.403f) < 10.0f;
+            isBrandonCrowd = me->GetEntry() == NPC_CITY_MAN3 && me->GetDistance(2267.86f, 1144.93f, 138.403f) < 10.0f;
             ambientTalkTimer = isBrandonCrowd ? urand(5000, 15000) : 0;
 
             isPatriciaCrowd = (me->GetEntry() == NPC_CITY_MAN3 || me->GetEntry() == NPC_CITY_MAN4) && me->GetDistance(2372.0f, 1199.0f, 135.0f) < 20.0f;
