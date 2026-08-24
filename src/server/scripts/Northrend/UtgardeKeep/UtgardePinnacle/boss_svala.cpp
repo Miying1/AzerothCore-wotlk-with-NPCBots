@@ -364,7 +364,10 @@ public:
                                 cr->AI()->AttackStart(target);
 
                         me->GetMotionMaster()->MoveIdle();
-                        DoTeleportPlayer(target, 296.632f, -346.075f, 90.63f, 4.6f);
+                        if (target->IsPlayer())
+                            DoTeleportPlayer(target, 296.632f, -346.075f, 90.63f, 4.6f);
+                        else if (target->IsNPCBot())
+                            target->NearTeleportTo(296.632f, -346.075f, 90.63f, 4.6f, false);
                         me->NearTeleportTo(296.632f, -346.075f, 110.0f, 4.6f, false);
                         me->SetControlled(true, UNIT_STATE_ROOT);
                         me->SetDisableGravity(true);
