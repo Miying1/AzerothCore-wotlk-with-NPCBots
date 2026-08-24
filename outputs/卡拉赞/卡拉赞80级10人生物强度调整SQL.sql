@@ -33,7 +33,7 @@ UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthMod
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=275, `DamageModifier`=72 WHERE `entry`=17533; -- 罗密欧 Romulo
 UPDATE `creature_template` SET `minlevel`=83, `maxlevel`=83, `exp`=2, `HealthModifier`=275, `DamageModifier`=66 WHERE `entry`=17534; -- 朱丽叶 Julianne
 
--- ===== Boss 战斗型召唤物（82 级，沿用 v1.1，不改 exp）=====
+-- ===== Boss 战斗型召唤物（82 级，不改 exp）=====
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=12 WHERE `entry`=17229; -- 基尔雷克 Kil'rek
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17267; -- 恶魔小鬼 Fiendish Imp
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17261; -- 不安的骷髅 Restless Skeleton
@@ -46,6 +46,16 @@ UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=10 WHERE `entry`=19875; -- 莫罗斯宾客（5/6）
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=25, `DamageModifier`=10 WHERE `entry`=19876; -- 莫罗斯宾客（6/6）
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=17646; -- 虚空地狱火 Netherspite Infernal
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=10 WHERE `entry`=17650; -- 玛克扎尔之斧 Prince Malchezaar's Axes（P3 不可选中近战召唤物）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=7.5 WHERE `entry`=17096; -- 星界光芒 Astral Flare（馆长召唤，模板 1/4）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=7.5 WHERE `entry`=19781; -- 星界光芒 Astral Flare（馆长召唤，模板 2/4）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=7.5 WHERE `entry`=19782; -- 星界光芒 Astral Flare（馆长召唤，模板 3/4）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=8, `DamageModifier`=7.5 WHERE `entry`=19783; -- 星界光芒 Astral Flare（馆长召唤，模板 4/4）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=2, `DamageModifier`=7.5 WHERE `entry`=28232; -- 血红幽魂 Sanguine Spirit（泰恩里斯召唤）
+UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=280, `DamageModifier`=4 WHERE `entry`=18254; -- 埃兰之影 Shadow of Aran（12 分钟超时召唤，保留原机制倍率）
+
+-- 纯机制载体不升等级：恶魔锁链17248、恶魔传送门17265、暴风雪载体17161、
+-- 虚空传送门17367-17369、地狱火目标/中继17644-17645、老巫婆旋风18412。
 
 -- ===== 精英怪 A 档（高危，82 级，v1.1 上调 30%，不改 exp）=====
 UPDATE `creature_template` SET `minlevel`=82, `maxlevel`=82, `HealthModifier`=65, `DamageModifier`=23 WHERE `entry`=16596; -- 巨型血肉兽 Greater Fleshbeast

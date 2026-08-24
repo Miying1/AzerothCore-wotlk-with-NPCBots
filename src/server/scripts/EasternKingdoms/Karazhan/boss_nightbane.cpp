@@ -534,7 +534,7 @@ class spell_nightbane_fireball_barrage : public SpellScript
         Unit* caster = GetCaster();
         targets.remove_if([&](WorldObject* target) -> bool
         {
-            return !target->IsPlayer() || caster->IsWithinCombatRange(target->ToUnit(), 40.0f);
+            return !target->IsNPlayer() || caster->IsWithinCombatRange(target->ToUnit(), 40.0f);
         });
     }
 

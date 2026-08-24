@@ -360,6 +360,11 @@ void TempSummon::RemoveFromWorld()
     if (!IsInWorld())
         return;
 
+    // 直接移出地图的 NPCBot 宠物不会经过 UnSummon，需要在对象失效前通知主人清理引用
+    if (m_type != TEMPSUMMON_DESPAWNED && IsNPCBotPet())
+        if (Creature* petowner = GetBotPetAI()->GetPetsOwner())
+            petowner->AI()->SummonedCreatureDespawn(this);
+
     if (m_Properties)
         if (uint32 slot = m_Properties->Slot)
             if (Unit* owner = GetSummonerUnit())
