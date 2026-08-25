@@ -2,6 +2,7 @@
 #define BOTMGR_H
 
 #include "botcommon.h"
+#include "Hazards/NPCBotHazardMgr.h"
 #include "DBCEnums.h"
 
 #include <atomic>
@@ -293,6 +294,7 @@ private:
     std::atomic<bool> _update_lock{false}; // 保护 _bots 遍历不被跨线程（如 logout）并发修改
 
     AoeSpotsVec _aoespots;
+    NPCBotCreatureHazardStateMap _creatureHazardStates;
 
     std::array<std::string_view, TARGET_ICON_NAMES_CACHE_SIZE> _targetIconNamesCache;
 };

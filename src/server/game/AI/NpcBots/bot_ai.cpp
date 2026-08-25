@@ -11,6 +11,7 @@
 #include "botdatamgr.h"
 #include "botlog.h"
 #include "botmgr.h"
+#include "Hazards/NPCBotHazardMgr.h"
 #include "botpositioncontrol.h"
 #include "botgearscore.h"
 #include "botgossip.h"
@@ -5071,7 +5072,8 @@ AoeSpotsVec const& bot_ai::GetAoeSpots() const
     return IAmFree() ? _aoeSpots : master->GetBotMgr()->GetAoeSpots();
 }
 
-void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
+void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots,
+    NPCBotCreatureHazardStateMap& creatureHazardStates)
 {
     spots.clear();
 
@@ -5095,6 +5097,8 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots)
             spots.emplace_back(*dObj, radius);
         }
     }
+
+    sNPCBotHazardMgr->CollectCreatureHazards(unit, spots, creatureHazardStates);
 
     if (unit->IsNPCBot() && unit->ToCreature()->IsFreeBot())
         return;
@@ -18687,7 +18691,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             if (Unit* victim = CanBotAttackOnVehicle() ? me->GetVictim() : mover->GetTarget() ? ObjectAccessor::GetUnit(*mover, mover->GetTarget()) : nullptr)
             {
                 if (IAmFree())
-                    CalculateAoeSpots(me, _aoeSpots);
+                    CalculateAoeSpots(me, _aoeSpots, _creatureHazardStates);
 
                 //BOT_LOG_ERROR("scripts", "GetInPos prepare by %s", me->GetName().c_str());
                 if (!IAmFree() && master->GetBotMgr()->GetBotAttackRangeMode() == BOT_ATTACK_RANGE_EXACT &&

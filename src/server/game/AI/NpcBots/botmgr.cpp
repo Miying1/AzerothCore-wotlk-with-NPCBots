@@ -7,6 +7,7 @@
 #include "botdpstracker.h"
 #include "botlog.h"
 #include "botmgr.h"
+#include "Hazards/NPCBotHazardMgr.h"
 #include "botpositioncontrol.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -70,9 +71,10 @@ void BotMgr::LoadData()
 
 void BotMgr::Initialize()
 {
-    BotCfg::ReloadConfig(); 
+    BotCfg::ReloadConfig();
     BotLogger::Log(NPCBOT_LOG_SYSTEM_START, uint32(0), std::string_view{ GitRevision::GetFileVersionStr() }.substr(0, MAX_BOT_LOG_PARAM_LENGTH));
 
+    sNPCBotHazardMgr->LoadFromDB();
     BotDataMgr::LoadNpcBots();
     BotDataMgr::LoadWanderMap();
     BotDataMgr::GenerateWanderingBots();
@@ -201,7 +203,7 @@ void BotMgr::Update(uint32 diff)
     bool restrictBots = RestrictBots(_bots.begin()->second, false);
 
     if (partyCombat)
-        bot_ai::CalculateAoeSpots(_owner, _aoespots);
+        bot_ai::CalculateAoeSpots(_owner, _aoespots, _creatureHazardStates);
 
     _update_lock = true;
 

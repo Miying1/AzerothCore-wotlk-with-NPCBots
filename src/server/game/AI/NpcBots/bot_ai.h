@@ -2,6 +2,7 @@
 #define BOT_AI_H
 
 #include "botcommon.h"
+#include "Hazards/NPCBotHazardMgr.h"
 
 #include "CreatureAI.h"
 #include "Duration.h"
@@ -344,7 +345,7 @@ public:
     uint8 GetSpec() const;
 
     AoeSpotsVec const& GetAoeSpots() const;
-    static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots);
+    static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots, NPCBotCreatureHazardStateMap& creatureHazardStates);
     AoeSafeSpotsVec CalculateAoeSafeSpots(Unit* target, float maxdist) const;
     bool IsBotPositionWithinAoE(Position const& pos) const { return IsWithinAoERadius(pos); }
 
@@ -701,6 +702,7 @@ private:
     Position homepos{}, movepos{}, attackpos{}, sendlastpos{};
     Position sendpos[MAX_SEND_POINTS]{};
     AoeSpotsVec _aoeSpots;
+    NPCBotCreatureHazardStateMap _creatureHazardStates;
 
     uint32 _botCommandState{};
     uint8 _botAwaitState{};
