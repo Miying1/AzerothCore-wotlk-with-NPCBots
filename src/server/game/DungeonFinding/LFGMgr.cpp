@@ -632,8 +632,16 @@ namespace lfg
         // Do not allow to change dungeon in the middle of a current dungeon
         if (isContinue)
         {
+            uint32 continueDungeon = GetDungeon(gguid);
             dungeons.clear();
-            dungeons.insert(GetDungeon(gguid));
+            if (continueDungeon)
+                dungeons.insert(continueDungeon);
+            else
+            {
+                // 队伍 LFG 数据缺失（残留 LFG 标志但副本数据为 0）：拒绝排队并重置队伍的 LFG 标志
+                joinData.result = LFG_JOIN_DUNGEON_INVALID;
+                grp->ConvertToGroup();
+            }
         }
 
         LfgState state = GetState(gguid);

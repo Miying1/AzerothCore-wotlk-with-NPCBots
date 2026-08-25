@@ -269,6 +269,8 @@ public:
     void ConvertToLFG(bool restricted = true);
     bool CheckLevelForRaid();
     void ConvertToRaid();
+    // 清除队伍的 LFG 标志，将其恢复为普通队伍（用于修复 LFG 状态丢失导致的标志残留）
+    void ConvertToGroup();
 
     void SetBattlegroundGroup(Battleground* bg);
     void SetBattlefieldGroup(Battlefield* bf);

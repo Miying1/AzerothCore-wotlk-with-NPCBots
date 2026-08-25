@@ -362,6 +362,16 @@ void BattlegroundQueue::RemovePlayer(ObjectGuid guid, bool decreaseInvitedCount)
     auto const& itr = m_QueuedPlayers.find(guid);
     if (itr == m_QueuedPlayers.end())
     {
+        // 机器人（Creature GUID）被重复移出队列是正常且幂等的场景：
+        // 移除玩家时会顺带移除其所有机器人（见下方），之后机器人被反召唤时
+        // BotMgr::RemoveBotFromBGQueue 或 BotBattlegroundEnterEvent::AbortMe 会再次调用本函数，
+        // 因此这里降级为 DEBUG 日志，避免刷屏误导。
+        if (guid.IsCreature())
+        {
+            LOG_DEBUG("bg.battleground", "BattlegroundQueue: bot {} is not in the queue (already removed)", guid.ToString());
+            return;
+        }
+
         //This happens if a player logs out while in a bg because WorldSession::LogoutPlayer() notifies the bg twice
         std::string playerName = "Unknown";
 
