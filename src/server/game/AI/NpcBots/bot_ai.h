@@ -18,6 +18,7 @@ NpcBot System by Trickerer (onlysuffering@gmail.com)
 */
 
 class BotPositionControl;
+class bot_mgr_service;
 class TeleportHomeEvent;
 class TeleportFinishEvent;
 class AwaitStateRemovalEvent;
@@ -52,6 +53,8 @@ using AoeSafeSpotsVec = std::vector<Position>;
 
 class bot_ai : public CreatureAI
 {
+    friend class bot_mgr_service;
+
 public:
     virtual ~bot_ai();
 

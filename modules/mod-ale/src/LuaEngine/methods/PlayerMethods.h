@@ -10,12 +10,109 @@
 #include "Chat.h"
 #include "GameTime.h"
 #include "GossipDef.h"
+#include "bot_mgr_service.h"
+
+#include <charconv>
+#include <limits>
 
 /***
  * Inherits all methods from: [Object], [WorldObject], [Unit]
  */
 namespace LuaPlayer
 {
+    namespace NPCBotEquipment
+    {
+        template <typename T>
+        void SetField(lua_State* L, char const* name, T const& value)
+        {
+            ALE::Push(L, value);
+            lua_setfield(L, -2, name);
+        }
+
+        bool ParseGuidLow(std::string_view text, ObjectGuid::LowType& value)
+        {
+            value = 0;
+            if (text.empty())
+                return false;
+
+            uint64 parsed = 0;
+            auto const [end, error] = std::from_chars(text.data(), text.data() + text.size(), parsed);
+            if (error != std::errc{} || end != text.data() + text.size() || !parsed ||
+                parsed > std::numeric_limits<ObjectGuid::LowType>::max())
+            {
+                return false;
+            }
+
+            value = ObjectGuid::LowType(parsed);
+            return true;
+        }
+
+        void PushItemFields(lua_State* L, BotEquipmentSlotSnapshot const& item)
+        {
+            SetField(L, "slot", item.slot);
+            SetField(L, "occupied", item.occupied);
+            SetField(L, "itemGuid", std::to_string(item.itemGuidLow));
+            SetField(L, "entry", item.itemEntry);
+            SetField(L, "link", item.itemLink);
+            SetField(L, "icon", item.icon);
+            SetField(L, "quality", item.quality);
+            SetField(L, "itemLevel", item.itemLevel);
+            SetField(L, "gearScore", item.gearScore);
+            SetField(L, "count", item.count);
+            SetField(L, "durability", item.durability);
+            SetField(L, "maxDurability", item.maxDurability);
+        }
+
+        void PushSnapshot(lua_State* L, BotEquipmentSnapshot const& snapshot)
+        {
+            lua_createtable(L, 0, 4);
+            SetField(L, "botEntry", snapshot.botEntry);
+            SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
+            SetField(L, "revision", snapshot.revision);
+
+            lua_createtable(L, int(snapshot.slots.size()), 0);
+            int const slotsTable = lua_gettop(L);
+            for (BotEquipmentSlotSnapshot const& slot : snapshot.slots)
+            {
+                lua_createtable(L, 0, 12);
+                PushItemFields(L, slot);
+                lua_rawseti(L, slotsTable, slot.slot + 1);
+            }
+            lua_setfield(L, -2, "slots");
+        }
+
+        void PushCandidate(lua_State* L, BotEquipmentCandidate const& item)
+        {
+            lua_createtable(L, 0, 13);
+            SetField(L, "itemGuid", std::to_string(item.itemGuidLow));
+            SetField(L, "entry", item.itemEntry);
+            SetField(L, "link", item.itemLink);
+            SetField(L, "icon", item.icon);
+            SetField(L, "quality", item.quality);
+            SetField(L, "itemLevel", item.itemLevel);
+            SetField(L, "gearScore", item.gearScore);
+            SetField(L, "count", item.count);
+            SetField(L, "durability", item.durability);
+            SetField(L, "maxDurability", item.maxDurability);
+            SetField(L, "bag", item.bag);
+            SetField(L, "bagSlot", item.bagSlot);
+        }
+
+        void PushResultHeader(lua_State* L, BotEquipmentUiResult result)
+        {
+            lua_createtable(L, 0, 8);
+            SetField(L, "ok", result == BotEquipmentUiResult::Ok);
+            SetField(L, "code", std::string(bot_mgr_service::GetResultCode(result)));
+            SetField(L, "message", std::string(bot_mgr_service::GetResultMessage(result)));
+            SetField(L, "refreshRequired", result == BotEquipmentUiResult::StaleEquipment);
+        }
+
+        int PushInvalidGuidResult(lua_State* L)
+        {
+            PushResultHeader(L, BotEquipmentUiResult::InvalidRequest);
+            return 1;
+        }
+    }
     /**
      * Returns `true` if the [Player] can Titan Grip, `false` otherwise.
      *
@@ -5195,6 +5292,158 @@ namespace LuaPlayer
     int GetMostPointsTalentTree(lua_State* L, Player* player)
     {
         ALE::Push(L, player->GetMostPointsTalentTree());
+        return 1;
+    }
+
+    /**
+     * 返回当前玩家可管理 NPCBot 的完整装备快照。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @return table result
+     */
+    int GetNPCBotEquipmentSnapshot(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotEquipmentSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::GetSnapshot(player, botEntry, botGuidLow, snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
+        NPCBotEquipment::PushSnapshot(L, snapshot);
+        lua_setfield(L, -2, "snapshot");
+        return 1;
+    }
+
+    /**
+     * 返回背包中可装备到指定 NPCBot 槽位的物品实例。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @param uint8 botSlot
+     * @return table result
+     */
+    int GetNPCBotEquipCandidates(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        uint8 botSlot = ALE::CHECKVAL<uint8>(L, 4);
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotEquipmentCandidatesResult candidatesResult;
+        BotEquipmentUiResult const result = bot_mgr_service::GetCandidates(
+            player, botEntry, botGuidLow, botSlot, candidatesResult);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::SetField(L, "botSlot", botSlot);
+        NPCBotEquipment::SetField(L, "equipmentRevision", candidatesResult.snapshot.revision);
+        NPCBotEquipment::SetField(L, "truncated", candidatesResult.truncated);
+
+        lua_createtable(L, int(candidatesResult.candidates.size()), 0);
+        int const candidatesTable = lua_gettop(L);
+        int index = 1;
+        for (BotEquipmentCandidate const& candidate : candidatesResult.candidates)
+        {
+            NPCBotEquipment::PushCandidate(L, candidate);
+            lua_rawseti(L, candidatesTable, index++);
+        }
+        lua_setfield(L, -2, "candidates");
+
+        NPCBotEquipment::PushSnapshot(L, candidatesResult.snapshot);
+        lua_setfield(L, -2, "snapshot");
+        return 1;
+    }
+
+    /**
+     * 在一次服务调用内复核并为 NPCBot 装备一个背包物品实例。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @param uint8 botSlot
+     * @param string itemGuidLow
+     * @param uint32 expectedItemEntry
+     * @param string expectedEquipmentRevision
+     * @param bool storeReplacedToBank = false
+     * @return table result
+     */
+    int EquipNPCBotItemFromInventory(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        uint8 botSlot = ALE::CHECKVAL<uint8>(L, 4);
+        std::string itemGuidText = ALE::CHECKVAL<std::string>(L, 5);
+        uint32 expectedItemEntry = ALE::CHECKVAL<uint32>(L, 6);
+        std::string expectedRevision = ALE::CHECKVAL<std::string>(L, 7);
+        bool storeReplacedToBank = ALE::CHECKVAL<bool>(L, 8, false);
+
+        ObjectGuid::LowType botGuidLow = 0;
+        ObjectGuid::LowType itemGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow) ||
+            !NPCBotEquipment::ParseGuidLow(itemGuidText, itemGuidLow))
+        {
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+        }
+
+        BotEquipmentSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::EquipFromInventory(
+            player,
+            botEntry,
+            botGuidLow,
+            botSlot,
+            itemGuidLow,
+            expectedItemEntry,
+            expectedRevision,
+            storeReplacedToBank,
+            snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::SetField(L, "operation", std::string("EQUIP"));
+        NPCBotEquipment::SetField(L, "changedSlot", botSlot);
+        NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
+        NPCBotEquipment::PushSnapshot(L, snapshot);
+        lua_setfield(L, -2, "snapshot");
+        return 1;
+    }
+
+    /**
+     * 在一次服务调用内复核并卸下 NPCBot 的一个装备槽。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @param uint8 botSlot
+     * @param string expectedEquipmentRevision
+     * @param bool storeToBank = false
+     * @return table result
+     */
+    int UnequipNPCBotItem(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        uint8 botSlot = ALE::CHECKVAL<uint8>(L, 4);
+        std::string expectedRevision = ALE::CHECKVAL<std::string>(L, 5);
+        bool storeToBank = ALE::CHECKVAL<bool>(L, 6, false);
+
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotEquipmentSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::Unequip(
+            player, botEntry, botGuidLow, botSlot, expectedRevision, storeToBank, snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::SetField(L, "operation", std::string("UNEQUIP"));
+        NPCBotEquipment::SetField(L, "changedSlot", botSlot);
+        NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
+        NPCBotEquipment::PushSnapshot(L, snapshot);
+        lua_setfield(L, -2, "snapshot");
         return 1;
     }
 };

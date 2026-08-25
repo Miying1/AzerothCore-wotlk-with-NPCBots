@@ -1,0 +1,16 @@
+local source = debug.getinfo(1, "S").source
+local scriptPath = string.sub(source, 1, 1) == "@" and string.sub(source, 2) or source
+local scriptDirectory = string.match(scriptPath, "^(.*)[/\\][^/\\]+$") or "."
+local moduleRoot = scriptDirectory .. "/../lua_modules/AIO"
+
+package.path = table.concat({
+    moduleRoot .. "/?.lua",
+    moduleRoot .. "/Dep_Smallfolk/?.lua",
+    moduleRoot .. "/lualzw-zeros/?.lua",
+    moduleRoot .. "/Dep_crc32lua/?.lua",
+    moduleRoot .. "/Dep_LuaSrcDiet/?.lua",
+    package.path
+}, ";")
+
+AIO = AIO or require("AIO")
+return AIO
