@@ -15693,7 +15693,6 @@ void bot_ai::FindMaster()
                 BOT_LOG_ERROR("npcbots", "FindMaster(): bot {} (entry {}, owner {}, ownername {}) 玩家在线，但绑定失败",
                     me->GetName(), me->GetEntry(), _botData->owner, player->GetName()); 
             }
-            me->GetName(), me->GetEntry(), _botData->owner);
             return;
         } 
         // 主人不在线：保持跳过，让自由 bot 正常完成回家传送
