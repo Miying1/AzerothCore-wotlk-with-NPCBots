@@ -7,6 +7,7 @@
 #include "GameTime.h"
 #include "ItemTemplate.h"
 #include "MapMgr.h"
+#include "ObjectMgr.h"
 #include "Pet.h"
 #include "Player.h"
 #include "PoolMgr.h"
@@ -29,11 +30,27 @@ class mod_zone_difficulty_worldscript : public WorldScript
 public:
     mod_zone_difficulty_worldscript() : WorldScript("mod_zone_difficulty_worldscript") { }
 
-    void OnAfterConfigLoad(bool /*reload*/) override
+    void OnAfterConfigLoad(bool reload) override
     {
+        bool const wasEnabled = sChallengeDiff->IsEnabled;
         sChallengeDiff->IsEnabled = sConfigMgr->GetOption<bool>("ModZoneDifficulty.Enable", false);
         sChallengeDiff->IsSendLoot = sConfigMgr->GetOption<bool>("ModZoneDifficulty.IsSendLoot", true);
-
+        if (reload && !wasEnabled && sChallengeDiff->IsEnabled)
+            sChallengeDiff->LoadIntiData();
+        else if (reload && wasEnabled && !sChallengeDiff->IsEnabled)
+        {
+            sMapMgr->DoForAllMaps([](Map* map)
+            {
+                if (!map || !map->IsDungeon() || !map->ToInstanceMap())
+                    return;
+                if (InstanceScript* instanceScript = map->ToInstanceMap()->GetInstanceScript())
+                {
+                    instanceScript->SetCMode(false);
+                    instanceScript->SetTimeLimitMinute(0);
+                    instanceScript->RefreshChallengeBuff();
+                }
+            });
+        }
     }
 
     void OnStartup() override
@@ -47,33 +64,53 @@ class mod_zone_difficulty_globalscript : public GlobalScript
 public:
     mod_zone_difficulty_globalscript() : GlobalScript("mod_zone_difficulty_globalscript") { }
 
-    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 /*creditEntry*/, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32  dungeonCompleted, bool /*updated*/) override
+    void OnAfterUpdateEncounterState(Map* map, EncounterCreditType /*type*/, uint32 creditEntry, Unit* source, Difficulty /*difficulty_fixed*/, DungeonEncounterList const* /*encounters*/, uint32 /*dungeonCompleted*/, bool updated) override
     {
-
-        if (!source || !source->ToCreature())
+        if (!sChallengeDiff->IsChallengeEnabled() || !map || !updated || !source || !source->ToCreature())
         {
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: source is a nullptr in OnAfterUpdateEncounterState");
             return;
         }
         uint32 instId = map->GetInstanceId();
-        if (map->IsDungeon() && map->IsHeroic() && sChallengeDiff->HasChallengMode(instId))
+        if (map->IsDungeon() && map->IsHeroic() && !map->IsRaid() && sChallengeDiff->HasChallengMode(instId))
         {
             uint32 mapid = map->GetId();
             auto instanceScript = map->ToInstanceMap()->GetInstanceScript();
-            if (sChallengeDiff->ChallengeInstanceData[instId].is_complete) return;
+            auto data = sChallengeDiff->ChallengeInstanceData.find(instId);
+            auto baseData = sChallengeDiff->BaseEnhanceMapData.find(mapid);
+            if (!instanceScript || data == sChallengeDiff->ChallengeInstanceData.end() || baseData == sChallengeDiff->BaseEnhanceMapData.end()
+                || data->second.is_complete)
+                return;
+
+            uint32 encounterKey = 0;
+            if (DungeonEncounterList const* encounterList = sObjectMgr->GetDungeonEncounterList(mapid, map->GetDifficulty()))
+            {
+                for (DungeonEncounter const* encounter : *encounterList)
+                {
+                    if (encounter->creditEntry != creditEntry || !encounter->dbcEntry)
+                        continue;
+                    encounterKey = encounter->dbcEntry->id;
+                    break;
+                }
+            }
+            if (encounterKey == 0)
+                encounterKey = creditEntry != 0 ? creditEntry : source->GetEntry();
+            if (!data->second.completed_encounters.insert(encounterKey).second)
+                return;
+
             sChallengeDiff->AddBossScore(map);
-            sChallengeDiff->ChallengeInstanceData[instId].kill_boss++;
-            CharacterDatabase.Execute("update zone_difficulty_instance_saves set kill_boss={},residue_time={} where InstanceID={} ", sChallengeDiff->ChallengeInstanceData[instId].kill_boss, instanceScript->GetTimeLimitMinute(), instId);
-            // LOG_ERROR("module", "BOSS:{}({}) killcount:{} map:{} .", source->GetName(), source->GetEntry(), sChallengeDiff->ChallengeInstanceData[instId].kill_boss, map->GetMapName());
-            uint32 lastboss = sChallengeDiff->BaseEnhanceMapData[mapid].lastboss;
-            bool iskilledfinsh = sChallengeDiff->ChallengeInstanceData[instId].kill_boss >= sChallengeDiff->BaseEnhanceMapData[mapid].boss_count;
+            ++data->second.kill_boss;
+            data->second.residue_time = instanceScript->GetTimeLimitMinute();
+            uint32 lastboss = baseData->second.lastboss;
+            bool const isKilledFinish = data->second.kill_boss >= baseData->second.boss_count;
             if (lastboss == source->GetEntry())
-                sChallengeDiff->ChallengeInstanceData[instId].last_boss_killed = true;
-            if ((lastboss == 0 && iskilledfinsh)
-                || (sChallengeDiff->ChallengeInstanceData[instId].last_boss_killed && iskilledfinsh)) {
+                data->second.last_boss_killed = true;
+            sChallengeDiff->SaveChallengeData(instId);
+            if ((lastboss == 0 && isKilledFinish)
+                || (data->second.last_boss_killed && isKilledFinish))
+            {
                 sChallengeDiff->SetPlayerChallengeLevel(map);
-                sChallengeDiff->SendChallengLoot(map); //完成 
-                //sChallengeDiff->CloseChallenge(map);
+                sChallengeDiff->SendChallengLoot(map); //完成
             }
 
         }
@@ -166,6 +203,13 @@ public:
     {
         uint32 instanceId = player->GetMap()->GetInstanceId();
 
+        if (!sChallengeDiff->IsChallengeEnabled())
+        {
+            creature->Whisper("挑战模式当前已由服务器配置关闭。", LANG_UNIVERSAL, player);
+            CloseGossipMenuFor(player);
+            return true;
+        }
+
         if (action == 99)
         {
             player->PlayerTalkClass->ClearMenus();
@@ -188,16 +232,15 @@ public:
                 creature->Whisper("冒险者，你的挑战等级还不足以开启这项挑战！", LANG_UNIVERSAL, player);
                 return OnGossipSelect(player, creature, GOSSIP_SENDER_MAIN, 99);
             }
-            // Forbid turning Mythicmode on ...
-            // ...if a single encounter was completed on normal mode
-            if (sChallengeDiff->ChallengeInstanceData.find(instanceId) != sChallengeDiff->ChallengeInstanceData.end())
+            // 任意遭遇已完成后都不允许切换为挑战模式。
+            for (uint32 bossId = 0; bossId < player->GetInstanceScript()->GetEncounterCount(); ++bossId)
             {
-                if (player->GetInstanceScript()->GetBossState(0) == DONE)
-                {
-                    //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Mythicmode is not Possible for instanceId {}", instanceId);
-                    canTurnOn = false;
-                    creature->Whisper("对不起，冒险者，因为你已经完成了一部分，你已经不能在开启挑战了！", LANG_UNIVERSAL, player);
-                }
+                if (player->GetInstanceScript()->GetBossState(bossId) != DONE)
+                    continue;
+
+                canTurnOn = false;
+                creature->Whisper("对不起，冒险者，因为你已经完成了一部分，你已经不能再开启挑战了！", LANG_UNIVERSAL, player);
+                break;
             }
             // ... if there is an encounter in progress
             if (player->GetInstanceScript()->IsEncounterInProgress())
@@ -209,10 +252,16 @@ public:
             if (canTurnOn)
             {
                 //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn on Mythicmode for id {}", instanceId);
-                sChallengeDiff->OpenChallenge(instanceId, sender, player);
-                std::ostringstream str;
-                str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀" + std::to_string(sChallengeDiff->BaseEnhanceMapData[player->GetMap()->GetId()].boss_count) << "个BOSS!";
-                sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
+                if (sChallengeDiff->OpenChallenge(instanceId, sender, player))
+                {
+                    std::ostringstream str;
+                    auto baseData = sChallengeDiff->BaseEnhanceMapData.find(player->GetMap()->GetId());
+                    str << "我已经为你们开启了" << sender << "级挑战, 通关需击杀"
+                        << (baseData != sChallengeDiff->BaseEnhanceMapData.end() ? baseData->second.boss_count : 0) << "个BOSS!";
+                    sChallengeDiff->SendWhisperToRaid(str.str(), creature, player);
+                }
+                else
+                    creature->Whisper("挑战开启失败：当前副本状态、地图或配置不满足要求。", LANG_UNIVERSAL, player);
             }
 
             CloseGossipMenuFor(player);
@@ -221,17 +270,15 @@ public:
         {
             if (player->GetInstanceScript()->IsEncounterInProgress())
             {
-                //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: IsEncounterInProgress");
                 creature->Whisper("现在正有一场战斗进行中，不能结束挑战.", LANG_UNIVERSAL, player);
             }
-            if (sChallengeDiff->HasChallengMode(instanceId))
+            else if (sChallengeDiff->CloseChallenge(player->GetMap()))
             {
-                //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Turn off Mythicmode for id {}", instanceId);
-                sChallengeDiff->CloseChallenge(player->GetMap());
                 sChallengeDiff->SendWhisperToRaid("现在已经变为了正常模式了，再见!", creature, player);
-                //creature->DespawnOrUnsummon(2000);
                 creature->SetVisible(false);
             }
+            else
+                creature->Whisper("挑战关闭失败：当前副本状态不允许关闭。", LANG_UNIVERSAL, player);
             CloseGossipMenuFor(player);
         }
 
@@ -241,6 +288,12 @@ public:
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
+        if (!sChallengeDiff->IsChallengeEnabled())
+        {
+            creature->Whisper("挑战模式当前已由服务器配置关闭。", LANG_UNIVERSAL, player);
+            return true;
+        }
+
         //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnGossipHelloChromie");
         Group* group = player->GetGroup();
         if (group && group->IsLfgRandomInstance() && !player->GetMap()->IsRaid())
@@ -382,7 +435,7 @@ public:
             ch.SendNotification("我还没有目标!");
             return false;
         }
-        if (target->GetTypeId() != TYPEID_PLAYER && !target->IsNPCBot()) {
+        if (!target->IsPlayer() && !target->IsNPCBot()) {
             ch.SendNotification("这是一个无效的目标!");
             return false;
         }

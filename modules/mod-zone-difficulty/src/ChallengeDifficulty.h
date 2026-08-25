@@ -7,6 +7,7 @@
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
 
+#include <set>
 
 enum MyEnum
 {
@@ -18,36 +19,38 @@ enum MyEnum
 //挑战等级
 struct ZoneDifficultyLevel
 {
-    uint32 difflevel;
-    uint32 enhance=0;
+    uint32 difflevel = 0;
+    uint32 enhance = 0;
     uint32 diff_player = 0;
-    uint32 global_spell_num;
-    uint32 boss_score;
-    uint32 award1;
-    uint32 award2;
-    uint32 award3;
+    uint32 global_spell_num = 0;
+    uint32 boss_score = 0;
+    uint32 award1 = 0;
+    uint32 award2 = 0;
+    uint32 award3 = 0;
 
 };
 //实例开启的挑战信息
 struct ZoneChallengeData
 {
-    uint32 level=0;
-    uint32 enhance_damage;
-    uint32 enhance_hp;
-    uint32 kill_boss;
+    uint32 level = 0;
+    uint32 enhance_damage = 0;
+    uint32 enhance_hp = 0;
+    uint32 kill_boss = 0;
     bool last_boss_killed = false;
-    uint32 residue_time;
-    std::array<uint32,3> apply_spell;
-    bool is_complete=false;
+    uint32 residue_time = 0;
+    std::array<uint32, 3> apply_spell = { 0, 0, 0 };
+    bool is_complete = false;
+    std::set<uint32> completed_encounters;
+    std::set<ObjectGuid> participant_guids;
 };
 //全局法术信息
 struct ZoneChallengeSpell
 {
-    uint32 spell_id;
-    uint8 chance; 
-    Milliseconds delay;
-    Milliseconds cooldown;
-    bool triggered_cast; 
+    uint32 spell_id = 0;
+    uint8 chance = 0;
+    Milliseconds delay{ 0 };
+    Milliseconds cooldown{ 0 };
+    bool triggered_cast = false;
 };
 //实例基础提升值
 struct ZoneChallengeBaseEnhance
@@ -61,12 +64,12 @@ struct ZoneChallengeBaseEnhance
 };
 struct ZoneChallengeSpellGroup
 {
-    std::array<uint32, 3> spellIds;
+    std::array<uint32, 3> spellIds = { 0, 0, 0 };
 };
 //每日更新计算器
 struct DayActiveMapData {
     uint32 mdayticker;
-    std::array<uint32, 4> active_mapid; 
+    std::array<uint32, 4> active_mapid;
 };
 
 struct ZoneDifficultyHAI
@@ -90,7 +93,7 @@ class ChallengeDifficulty
 {
 public:
     static ChallengeDifficulty* instance();
-     
+
     void LoadIntiData();
 
     void SendWhisperToRaid(std::string message, Creature* creature, Player* player);
@@ -99,9 +102,13 @@ public:
     //开启挑战
     bool OpenChallenge(uint32 inst_id, uint32 level, Player* player);
     bool CloseChallenge(Map* instance);
+    bool IsChallengeMap(uint32 mapId) const;
+    bool IsChallengeEnabled() const { return IsEnabled; }
+    void TrackParticipant(Map* map, Player* player);
+    void SaveChallengeData(uint32 instanceId);
     //随机获取一个全局法术
     void GetRandomGlobalSpell(uint8 count, std::array<uint32, 3>* apply_spell);
-    void SetPlayerChallengeLevel(Map* map); 
+    void SetPlayerChallengeLevel(Map* map);
     void AddBossScore(Map* map);
     void SendChallengLoot(Map* map);
 
@@ -119,13 +126,13 @@ public:
     bool IsSendLoot{ true };
     DayActiveMapData DayActiveMaps;
     std::map<uint32, uint32> EncountersInProgress;
- 
-    typedef std::map<uint32, ZoneChallengeBaseEnhance > ZoneChallengeBaseEnhanceMap;
+
+    typedef std::map<uint32, ZoneChallengeBaseEnhance> ZoneChallengeBaseEnhanceMap;
     //地图的基础增强
     ZoneChallengeBaseEnhanceMap  BaseEnhanceMapData;
     typedef std::map<uint32, ZoneDifficultyLevel > ZoneDifficultyLevelData;
     //挑战等级集
-    ZoneDifficultyLevelData DiffLevelData; 
+    ZoneDifficultyLevelData DiffLevelData;
     typedef std::map<uint32, ZoneChallengeData> ZoneChallengeDataInstMap;
     //已开启的挑战副本
     ZoneChallengeDataInstMap ChallengeInstanceData;
@@ -134,9 +141,8 @@ public:
     ZoneChallengeSpellMap ZoneChallengeSpellData;
     //法术组合
     std::map<uint32, ZoneChallengeSpellGroup> ZoneChallengeSpellGroupData;
-     
+
     typedef std::map<uint32, std::vector<ZoneDifficultyHAI> > ZoneDifficultyHAIMap;
-    ZoneDifficultyHAIMap MythicmodeAI;
     typedef std::map<uint32, std::map<uint32, std::map<uint32, bool> > > ZoneDifficultyEncounterLogMap;
     ZoneDifficultyEncounterLogMap Logs;
     typedef std::map<uint32, uint32 > ZoneDifficultyPlayerLevelMap;

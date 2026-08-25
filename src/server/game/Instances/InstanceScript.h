@@ -147,11 +147,11 @@ public:
     ~InstanceScript() override {}
 
     Map* instance;
-    std::vector<Creature*> AllChallengeCreature;
-   
+    std::vector<ObjectGuid> AllChallengeCreature;
+
     //On creation, NOT load.
     virtual void Initialize() {}
-   
+
     // On load
     virtual void Load(char const* data);
 
@@ -295,7 +295,7 @@ public:
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
     //设置生物挑战模式
-    void SetChallengeMode(Unit* creature);  
+    void SetChallengeMode(Unit* creature);
     //重新设置所有生物挑战模式
     void CheckChallengeMode();
     //根据挑战模式刷新生物BUFF
@@ -303,6 +303,7 @@ public:
     //添加挑战模式生物
     void AddChallengeCreature(Creature* creature);
     void SetCMode(bool isopen) { isOpenChallenge = isopen; }
+    bool IsCMode() const { return isOpenChallenge; }
     void SetTimeLimitMinute(uint32 timelimit);
     uint32 GetTimeLimitMinute() { return timeLimitMinute; }
 

@@ -34,6 +34,8 @@
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
 
+#include <algorithm>
+
 //npcbot
 #include "botmgr.h"
 #include "../../../../modules/mod-zone-difficulty/src/ChallengeDifficulty.h"
@@ -69,6 +71,9 @@ void InstanceScript::OnPlayerEnter(Player* player)
 {
     if (sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP) && IsTwoFactionInstance())
         player->SetFaction((_teamIdInInstance == TEAM_HORDE) ? 1610 /*FACTION_HORDE*/ : 1 /*FACTION_ALLIANCE*/);
+
+    if (!instance->IsRaid() && sChallengeDiff->HasChallengMode(instance->GetInstanceId()))
+        SetChallengeMode(player);
 }
 
 void InstanceScript::OnPlayerLeave(Player* player)
@@ -87,6 +92,7 @@ void InstanceScript::OnCreatureCreate(Creature* creature)
 {
     AddObject(creature);
     AddMinion(creature);
+    AddChallengeCreature(creature);
 
     if (creature->IsSummon())
         SetSummoner(creature);
@@ -951,20 +957,35 @@ bool InstanceScript::IsTwoFactionInstance() const
 // 地下城挑战模式 - 开始
 void InstanceScript::TimeLimitUpdate(uint32 diff)
 {
+    if (!isOpenChallenge)
+        return;
+
     if (timeLimitMinute)
     {
         if (limitTimer <= diff)
         {
             timeLimitMinute--;
-            limitTimer += 60000;
+            limitTimer = 60000;
             if (timeLimitMinute)
             {
                 DoUpdateWorldState(6000 + instance->GetId(), 1);
                 DoUpdateWorldState(6001, timeLimitMinute);
             }
-            else DoUpdateWorldState(6000 + instance->GetId(), 0);
+            else
+                DoUpdateWorldState(6000 + instance->GetId(), 0);
+
+            auto challenge = sChallengeDiff->ChallengeInstanceData.find(instance->GetInstanceId());
+            if (sChallengeDiff->IsChallengeEnabled() && challenge != sChallengeDiff->ChallengeInstanceData.end())
+            {
+                challenge->second.residue_time = timeLimitMinute;
+                sChallengeDiff->SaveChallengeData(instance->GetInstanceId());
+            }
         }
-        limitTimer -= diff;
+        else
+        {
+            limitTimer -= diff;
+        }
+
     }
 }
 
@@ -992,11 +1013,16 @@ void InstanceScript::SetTimeLimitMinute(uint32 timelimit)
 
 void InstanceScript::AddChallengeCreature(Creature* creature)
 {
-    if (!instance->IsHeroic() || instance->IsRaid()) return;
-    auto ctemp = creature->GetCreatureTemplate();
-    if (ctemp->faction == 35) return;
-    if (creature->IsControlledByPlayer() || creature->IsNPCBotOrPet() || !creature->IsVisible()) return;
-    AllChallengeCreature.push_back(creature);
+    if (!creature || !instance->IsHeroic() || instance->IsRaid())
+        return;
+
+    CreatureTemplate const* ctemp = creature->GetCreatureTemplate();
+    if (!ctemp || ctemp->faction == 35 || creature->IsControlledByPlayer() || creature->IsNPCBotOrPet() || !creature->IsVisible())
+        return;
+
+    ObjectGuid const guid = creature->GetGUID();
+    if (std::find(AllChallengeCreature.begin(), AllChallengeCreature.end(), guid) == AllChallengeCreature.end())
+        AllChallengeCreature.push_back(guid);
     if (isOpenChallenge)
         SetChallengeMode(creature);
 }
@@ -1004,9 +1030,19 @@ void InstanceScript::AddChallengeCreature(Creature* creature)
 void InstanceScript::CheckChallengeMode()
 {
     uint32 curId = instance->GetInstanceId();
-    if (!isOpenChallenge && sChallengeDiff->HasChallengMode(curId))
+    if (!isOpenChallenge && sChallengeDiff->IsChallengeEnabled() && sChallengeDiff->HasChallengMode(curId))
     {
         SetCMode(true);
+        auto data = sChallengeDiff->ChallengeInstanceData.find(curId);
+        if (data != sChallengeDiff->ChallengeInstanceData.end())
+            SetTimeLimitMinute(data->second.residue_time);
+        RefreshChallengeBuff();
+        return;
+    }
+    if (!sChallengeDiff->IsChallengeEnabled() && isOpenChallenge)
+    {
+        SetCMode(false);
+        SetTimeLimitMinute(0);
         RefreshChallengeBuff();
         return;
     }
@@ -1022,8 +1058,14 @@ void InstanceScript::CheckChallengeMode()
 
 void InstanceScript::RefreshChallengeBuff()
 {
-    for (auto creature : AllChallengeCreature)
+    AllChallengeCreature.erase(std::remove_if(AllChallengeCreature.begin(), AllChallengeCreature.end(), [this](ObjectGuid const& guid)
+    {
+        Creature* creature = instance->GetCreature(guid);
+        if (!creature || !creature->IsInWorld())
+            return true;
         SetChallengeMode(creature);
+        return false;
+    }), AllChallengeCreature.end());
     Map::PlayerList const& PlayerList = instance->GetPlayers();
     if (PlayerList.IsEmpty()) return;
     for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
@@ -1033,19 +1075,19 @@ void InstanceScript::RefreshChallengeBuff()
 
 void InstanceScript::OnNPCBotEnter(Creature* bot)
 {
-    if (!instance->IsHeroic() || bot->IsFreeBot()) return;
+    if (!bot || !instance->IsHeroic() || bot->IsFreeBot()) return;
     uint32 curId = instance->GetInstanceId();
     if (sChallengeDiff->HasChallengMode(curId))
     {
-        auto player = bot->GetBotOwner();
-        if (player->GetMapId() == bot->GetMapId())
+        Player* player = bot->GetBotOwner();
+        if (player && player->GetMapId() == bot->GetMapId())
             SetChallengeMode(bot);
     }
 }
 
 void InstanceScript::OnNPCBotLeave(Creature* bot)
 {
-    if (!instance->IsHeroic() || bot->IsFreeBot()) return;
+    if (!bot || !instance->IsHeroic() || bot->IsFreeBot()) return;
     uint32 curId = instance->GetInstanceId();
     if (sChallengeDiff->HasChallengMode(curId))
         sChallengeDiff->RemoveChallengeAureBuff(bot);
