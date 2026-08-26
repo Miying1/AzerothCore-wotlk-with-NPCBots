@@ -238,6 +238,14 @@ bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     if (!IsTempBot())
         BotDataMgr::RegisterBot(me);
 }
+bool bot_ai::GetAllowCombatPositioning() const
+{
+    if (_combatPositioningOverride >= 0)
+        return _combatPositioningOverride != 0;
+
+    return IAmFree() || master->GetBotMgr()->GetBotAllowCombatPositioning();
+}
+
 bot_ai::~bot_ai()
 {
     BOT_LOG_INFO("npcbots", "bot_ai destructor call for {} ({})", me->GetName(), me->GetEntry());
@@ -521,6 +529,7 @@ void bot_ai::InitUnitFlags()
 void bot_ai::ResetBotAI(uint8 resetType)
 {
     _botCommandState = 0;
+    _combatPositioningOverride = -1;
     _botAwaitState = BOT_AWAIT_NONE;
     _reviveTimer = 0;
 
@@ -627,7 +636,7 @@ SpellCastResult bot_ai::CheckBotCast(Unit const* victim, uint32 spellId) const
         return SPELL_FAILED_CASTER_AURASTATE;
 
     //forced to follow but not close enough to master
-    if (!IAmFree() && !master->GetBotMgr()->GetBotAllowCombatPositioning())
+    if (!IAmFree() && !GetAllowCombatPositioning())
     {
         Position mpos;
         _calculatePos(master, mpos);
@@ -5751,7 +5760,7 @@ void bot_ai::GetInPosition(bool force, Unit* newtarget, Position* mypos)
     Unit* mover = me->GetVehicle() ? me->GetVehicleBase() : me;
     if (HasBotCommandState(BOT_COMMAND_STAY))
         return;
-    if (!IAmFree() && !master->GetBotMgr()->GetBotAllowCombatPositioning())
+    if (!IAmFree() && !GetAllowCombatPositioning())
         return;
     if (CCed(mover, true) || (mover == me && JumpingOrFalling()))
         return;
@@ -10861,7 +10870,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         }
         case GOSSIP_SENDER_FORMATION_TOGGLE_COMBAT_POSITIONING:
         {
-            player->GetBotMgr()->SetBotAllowCombatPositioning(!player->GetBotMgr()->GetBotAllowCombatPositioning());
+            SetCombatPositioningOverride(GetAllowCombatPositioning() ? 0 : 1);
 
             //break; //return to menu
         }
@@ -18680,7 +18689,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
         Unit* mover = me->GetVehicle() ? me->GetVehicleBase() : me;
         if (!HasBotCommandState(BOT_COMMAND_MASK_UNCHASE) && !CCed(mover, true) &&
-            (IAmFree() || master->GetBotMgr()->GetBotAllowCombatPositioning()) &&
+            GetAllowCombatPositioning() &&
             (!mover->isMoving() || Rand() < 50) && !IsCasting(mover) && !IsShootingWand(mover))
         {
             if (Unit* victim = CanBotAttackOnVehicle() ? me->GetVictim() : mover->GetTarget() ? ObjectAccessor::GetUnit(*mover, mover->GetTarget()) : nullptr)
@@ -18748,7 +18757,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     //opponent unsafe
     bool updateMassPosition = !IAmFree() && master->IsAlive() &&
         master->GetBotMgr()->GetBotPositionControl()->CanUpdateMassPosition(*me, *this);
-    if ((IsWanderer() || (!IAmFree() && (!_lastTargetGuid || !master->GetBotMgr()->GetBotAllowCombatPositioning())) || updateMassPosition) &&
+    if ((IsWanderer() || (!IAmFree() && (!_lastTargetGuid || !GetAllowCombatPositioning())) || updateMassPosition) &&
         !HasBotCommandState(BOT_COMMAND_STAY) &&
         (!me->GetVehicle() || (!CCed(me->GetVehicleBase(), true) && !me->GetVehicleBase()->GetTarget())))
     {

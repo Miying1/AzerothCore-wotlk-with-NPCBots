@@ -84,7 +84,7 @@ public:
         if (target->GetExactDist(_source) > 175.0f)
             return false;
 
-        if (!target->IsPlayer())
+        if (!target->IsNPlayer())
             return false;
 
         if (target->GetPositionX() > -337.0f)

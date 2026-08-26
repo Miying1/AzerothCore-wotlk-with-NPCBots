@@ -54,48 +54,136 @@ namespace LuaPlayer
             SetField(L, "itemGuid", std::to_string(item.itemGuidLow));
             SetField(L, "entry", item.itemEntry);
             SetField(L, "link", item.itemLink);
-            SetField(L, "icon", item.icon);
             SetField(L, "quality", item.quality);
             SetField(L, "itemLevel", item.itemLevel);
             SetField(L, "gearScore", item.gearScore);
-            SetField(L, "count", item.count);
-            SetField(L, "durability", item.durability);
-            SetField(L, "maxDurability", item.maxDurability);
         }
 
         void PushSnapshot(lua_State* L, BotEquipmentSnapshot const& snapshot)
         {
-            lua_createtable(L, 0, 4);
+            lua_createtable(L, 0, 7);
             SetField(L, "botEntry", snapshot.botEntry);
             SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
+            SetField(L, "canManage", snapshot.canManage);
             SetField(L, "revision", snapshot.revision);
+            SetField(L, "totalGearScore", snapshot.totalGearScore);
+            SetField(L, "partial", false);
 
             lua_createtable(L, int(snapshot.slots.size()), 0);
             int const slotsTable = lua_gettop(L);
             for (BotEquipmentSlotSnapshot const& slot : snapshot.slots)
             {
-                lua_createtable(L, 0, 12);
+                lua_createtable(L, 0, 8);
                 PushItemFields(L, slot);
                 lua_rawseti(L, slotsTable, slot.slot + 1);
             }
             lua_setfield(L, -2, "slots");
         }
 
+        // 装备操作成功时只返回受影响槽位：主手或副手变化时两槽一起返回，其他槽位仅返回自身。
+        void PushSnapshotUpdate(lua_State* L, BotEquipmentSnapshot const& snapshot, uint8 changedSlot)
+        {
+            lua_createtable(L, 0, 7);
+            SetField(L, "botEntry", snapshot.botEntry);
+            SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
+            SetField(L, "canManage", snapshot.canManage);
+            SetField(L, "revision", snapshot.revision);
+            SetField(L, "totalGearScore", snapshot.totalGearScore);
+            SetField(L, "partial", true);
+
+            bool const updatesBothWeaponSlots = changedSlot == BOT_SLOT_MAINHAND || changedSlot == BOT_SLOT_OFFHAND;
+            lua_createtable(L, updatesBothWeaponSlots ? 2 : 1, 0);
+            int const slotsTable = lua_gettop(L);
+            auto pushSlot = [&](uint8 slot)
+            {
+                BotEquipmentSlotSnapshot const& slotSnapshot = snapshot.slots[slot];
+                lua_createtable(L, 0, 8);
+                PushItemFields(L, slotSnapshot);
+                lua_rawseti(L, slotsTable, slot + 1);
+            };
+
+            if (updatesBothWeaponSlots)
+            {
+                pushSlot(BOT_SLOT_MAINHAND);
+                pushSlot(BOT_SLOT_OFFHAND);
+            }
+            else
+            {
+                pushSlot(changedSlot);
+            }
+            lua_setfield(L, -2, "slots");
+        }
+
         void PushCandidate(lua_State* L, BotEquipmentCandidate const& item)
         {
-            lua_createtable(L, 0, 13);
+            lua_createtable(L, 0, 6);
             SetField(L, "itemGuid", std::to_string(item.itemGuidLow));
             SetField(L, "entry", item.itemEntry);
             SetField(L, "link", item.itemLink);
-            SetField(L, "icon", item.icon);
             SetField(L, "quality", item.quality);
             SetField(L, "itemLevel", item.itemLevel);
             SetField(L, "gearScore", item.gearScore);
-            SetField(L, "count", item.count);
-            SetField(L, "durability", item.durability);
-            SetField(L, "maxDurability", item.maxDurability);
-            SetField(L, "bag", item.bag);
-            SetField(L, "bagSlot", item.bagSlot);
+        }
+
+        void PushAttributes(lua_State* L, BotAttributeSnapshot const& snapshot)
+        {
+            lua_createtable(L, 0, 26);
+            SetField(L, "botEntry", snapshot.botEntry);
+            SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
+            SetField(L, "canManage", snapshot.canManage);
+            SetField(L, "spec", snapshot.spec);
+            SetField(L, "category", snapshot.category);
+
+            SetField(L, "maxHealth", snapshot.maxHealth);
+            SetField(L, "armor", snapshot.armor);
+            SetField(L, "defense", snapshot.defense);
+            SetField(L, "dodge", snapshot.dodge);
+            SetField(L, "parry", snapshot.parry);
+            SetField(L, "block", snapshot.block);
+            SetField(L, "blockValue", snapshot.blockValue);
+
+            if (snapshot.category == "MELEE_PHYSICAL" || snapshot.category == "RANGED_PHYSICAL")
+            {
+                SetField(L, "attackPower", snapshot.attackPower);
+                SetField(L, "minDamage", snapshot.minDamage);
+                SetField(L, "maxDamage", snapshot.maxDamage);
+                SetField(L, "damagePerSecond", snapshot.damagePerSecond);
+                SetField(L, "attackSpeed", snapshot.attackSpeed);
+                SetField(L, "hit", snapshot.hit);
+                SetField(L, "crit", snapshot.crit);
+                SetField(L, "haste", snapshot.haste);
+                SetField(L, "armorPenetration", snapshot.armorPenetration);
+                if (snapshot.category == "MELEE_PHYSICAL")
+                    SetField(L, "expertise", snapshot.expertise);
+            }
+            else
+            {
+                SetField(L, "spellPower", snapshot.spellPower);
+                SetField(L, "hit", snapshot.hit);
+                SetField(L, "crit", snapshot.crit);
+                SetField(L, "haste", snapshot.haste);
+                SetField(L, "spellPenetration", snapshot.spellPenetration);
+                SetField(L, "maxMana", snapshot.maxMana);
+                SetField(L, "manaRegenCasting", snapshot.manaRegenCasting);
+                SetField(L, "manaRegenNotCasting", snapshot.manaRegenNotCasting);
+                if (snapshot.category == "HEALING")
+                    SetField(L, "healingPower", snapshot.healingPower);
+            }
+        }
+
+        void PushManagement(lua_State* L, BotManagementSnapshot const& snapshot)
+        {
+            lua_createtable(L, 0, 11);
+            SetField(L, "botEntry", snapshot.botEntry);
+            SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
+            SetField(L, "canManage", snapshot.canManage);
+            SetField(L, "supportedRoles", snapshot.supportedRoles);
+            SetField(L, "roles", snapshot.roles);
+            SetField(L, "healThresholdSupported", snapshot.healThresholdSupported);
+            SetField(L, "healHealthThreshold", snapshot.healHealthThreshold);
+            SetField(L, "engageDelayMs", snapshot.engageDelayMs);
+            SetField(L, "attackAngleMode", snapshot.attackAngleMode);
+            SetField(L, "combatPositioning", snapshot.combatPositioning);
         }
 
         void PushResultHeader(lua_State* L, BotEquipmentUiResult result)
@@ -5296,7 +5384,7 @@ namespace LuaPlayer
     }
 
     /**
-     * 返回当前玩家可管理 NPCBot 的完整装备快照。
+     * 返回当前玩家可见 NPCBot 的完整装备快照及是否拥有管理权限。
      *
      * @param uint32 botEntry
      * @param string botGuidLow
@@ -5317,6 +5405,84 @@ namespace LuaPlayer
         NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
         NPCBotEquipment::PushSnapshot(L, snapshot);
         lua_setfield(L, -2, "snapshot");
+        return 1;
+    }
+
+    /**
+     * 返回当前玩家可见 NPCBot 的天赋与属性页数据及是否拥有管理权限。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @return table result
+     */
+    int GetNPCBotAttributes(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotAttributeSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::GetAttributes(player, botEntry, botGuidLow, snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::PushAttributes(L, snapshot);
+        lua_setfield(L, -2, "attributes");
+        return 1;
+    }
+
+    /**
+     * 返回真正主人可管理的 NPCBot 职责和战斗设置。
+     */
+    int GetNPCBotManagement(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotManagementSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::GetManagement(player, botEntry, botGuidLow, snapshot);
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::PushManagement(L, snapshot);
+        lua_setfield(L, -2, "management");
+        return 1;
+    }
+
+    /**
+     * 更新真正主人的 NPCBot 职责和战斗设置，并返回服务端规范化后的状态。
+     */
+    int UpdateNPCBotManagement(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        uint32 roles = ALE::CHECKVAL<uint32>(L, 4);
+        uint32 healHealthThreshold = ALE::CHECKVAL<uint32>(L, 5);
+        uint32 engageDelayMs = ALE::CHECKVAL<uint32>(L, 6);
+        uint32 attackAngleMode = ALE::CHECKVAL<uint32>(L, 7);
+        bool combatPositioning = ALE::CHECKVAL<bool>(L, 8);
+
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotManagementSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::UpdateManagement(
+            player,
+            botEntry,
+            botGuidLow,
+            roles,
+            healHealthThreshold,
+            engageDelayMs,
+            attackAngleMode,
+            combatPositioning,
+            snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::PushManagement(L, snapshot);
+        lua_setfield(L, -2, "management");
         return 1;
     }
 
@@ -5407,7 +5573,10 @@ namespace LuaPlayer
         NPCBotEquipment::SetField(L, "operation", std::string("EQUIP"));
         NPCBotEquipment::SetField(L, "changedSlot", botSlot);
         NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
-        NPCBotEquipment::PushSnapshot(L, snapshot);
+        if (result == BotEquipmentUiResult::Ok)
+            NPCBotEquipment::PushSnapshotUpdate(L, snapshot, botSlot);
+        else
+            NPCBotEquipment::PushSnapshot(L, snapshot);
         lua_setfield(L, -2, "snapshot");
         return 1;
     }
@@ -5442,7 +5611,10 @@ namespace LuaPlayer
         NPCBotEquipment::SetField(L, "operation", std::string("UNEQUIP"));
         NPCBotEquipment::SetField(L, "changedSlot", botSlot);
         NPCBotEquipment::SetField(L, "equipmentRevision", snapshot.revision);
-        NPCBotEquipment::PushSnapshot(L, snapshot);
+        if (result == BotEquipmentUiResult::Ok)
+            NPCBotEquipment::PushSnapshotUpdate(L, snapshot, botSlot);
+        else
+            NPCBotEquipment::PushSnapshot(L, snapshot);
         lua_setfield(L, -2, "snapshot");
         return 1;
     }

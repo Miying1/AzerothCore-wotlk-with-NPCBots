@@ -3,11 +3,12 @@
 #include "Bag.h"
 #include "Creature.h"
 #include "CreatureData.h"
-#include "DBCStores.h"
 #include "GameTime.h"
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "Player.h"
+#include "SharedDefines.h"
+#include "World.h"
 #include "WorldSession.h"
 #include "bot_ai.h"
 #include "botconfig.h"
@@ -19,7 +20,9 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
+#include <list>
 #include <mutex>
 #include <ranges>
 #include <sstream>
@@ -107,26 +110,42 @@ bool IsRateLimited(Player const* player, RequestKind kind)
     return false;
 }
 
-Creature* FindManagedBot(Player* player, uint32 botEntry, ObjectGuid::LowType botGuidLow)
+Creature* FindVisibleBot(Player* player, uint32 botEntry, ObjectGuid::LowType botGuidLow)
 {
-    if (!player || !botEntry || !botGuidLow || !player->GetBotMgr())
+    if (!player || !botEntry || !botGuidLow)
         return nullptr;
 
-    BotMap const* bots = player->GetBotMgr()->GetBotMap();
-    if (!bots)
-        return nullptr;
-
-    auto const iterator = std::ranges::find_if(*bots, [botEntry, botGuidLow](BotMap::value_type const& entry)
+    // 主人的 BotMap 是最准确的快速路径；其他玩家只能读取当前视野范围内的 NPCBot。
+    if (player->GetBotMgr())
     {
-        Creature const* bot = entry.second;
-        return bot && bot->GetEntry() == botEntry && entry.first.GetCounter() == botGuidLow &&
-            bot->GetGUID().GetCounter() == botGuidLow;
-    });
+        if (BotMap const* bots = player->GetBotMgr()->GetBotMap())
+        {
+            auto const iterator = std::ranges::find_if(*bots, [botEntry, botGuidLow](BotMap::value_type const& entry)
+            {
+                Creature const* bot = entry.second;
+                return bot && bot->GetEntry() == botEntry && entry.first.GetCounter() == botGuidLow &&
+                    bot->GetGUID().GetCounter() == botGuidLow;
+            });
+            if (iterator != bots->end())
+                return iterator->second;
+        }
+    }
 
-    return iterator != bots->end() ? iterator->second : nullptr;
+    std::list<Creature*> visibleBots;
+    player->GetCreatureListWithEntryInGrid(visibleBots, botEntry, player->GetSightRange());
+    auto const iterator = std::ranges::find_if(visibleBots, [player, botGuidLow](Creature const* bot)
+    {
+        return bot && bot->GetGUID().GetCounter() == botGuidLow && player->CanSeeOrDetect(bot);
+    });
+    return iterator != visibleBots.end() ? *iterator : nullptr;
 }
 
-BotEquipmentUiResult ValidateBot(
+bool CanManageBot(Player const* player, bot_ai const* ai)
+{
+    return player && ai && ai->GetBotOwnerGuid() == player->GetGUID().GetCounter() && ai->GetBotOwner() == player;
+}
+
+BotEquipmentUiResult ValidateBotView(
     Player* player,
     uint32 botEntry,
     ObjectGuid::LowType botGuidLow,
@@ -139,7 +158,7 @@ BotEquipmentUiResult ValidateBot(
     if (!IsPlayerAvailable(player) || !botEntry || !botGuidLow)
         return BotEquipmentUiResult::InvalidRequest;
 
-    bot = FindManagedBot(player, botEntry, botGuidLow);
+    bot = FindVisibleBot(player, botEntry, botGuidLow);
     if (!bot || !bot->IsNPCBot() || !bot->IsInWorld() || bot->IsTempBot() || bot->IsSummon())
         return BotEquipmentUiResult::BotNotFound;
 
@@ -147,18 +166,22 @@ BotEquipmentUiResult ValidateBot(
     if (!ai || ai->IsTempBot() || ai->IsWanderer())
         return BotEquipmentUiResult::BotNotFound;
 
-    ObjectGuid::LowType const playerGuidLow = player->GetGUID().GetCounter();
-    if (!ai->HasOwner(playerGuidLow))
-        return BotEquipmentUiResult::NoPermission;
-
-    bool const sharedOwner = ai->GetBotOwnerGuid() != playerGuidLow && ai->HasSharedOwner(playerGuidLow);
-    if (sharedOwner && !BotCfg::IsSharedOwnerOptionEnabled(SharedOwnerOptionMask::SHARED_OWNER_OPTION_MASK_EQUIPMENT))
-        return BotEquipmentUiResult::NoPermission;
-
-    if (ai->GetBotOwner() != player)
-        return BotEquipmentUiResult::NoPermission;
-
     return BotEquipmentUiResult::Ok;
+}
+
+BotEquipmentUiResult ValidateManagementOperation(
+    Player* player,
+    uint32 botEntry,
+    ObjectGuid::LowType botGuidLow,
+    Creature*& bot,
+    bot_ai*& ai)
+{
+    BotEquipmentUiResult const result = ValidateBotView(player, botEntry, botGuidLow, bot, ai);
+    if (result != BotEquipmentUiResult::Ok)
+        return result;
+    if (!CanManageBot(player, ai))
+        return BotEquipmentUiResult::NoPermission;
+    return player->GetBotMgr() ? BotEquipmentUiResult::Ok : BotEquipmentUiResult::InternalError;
 }
 
 BotEquipmentUiResult ValidateOperation(
@@ -172,7 +195,7 @@ BotEquipmentUiResult ValidateOperation(
     if (slot >= BOT_INVENTORY_SIZE)
         return BotEquipmentUiResult::InvalidSlot;
 
-    BotEquipmentUiResult const result = ValidateBot(player, botEntry, botGuidLow, bot, ai);
+    BotEquipmentUiResult const result = ValidateManagementOperation(player, botEntry, botGuidLow, bot, ai);
     if (result != BotEquipmentUiResult::Ok)
         return result;
 
@@ -180,6 +203,32 @@ BotEquipmentUiResult ValidateOperation(
         return BotEquipmentUiResult::BusyInCombat;
 
     return BotEquipmentUiResult::Ok;
+}
+
+uint32 GetSupportedManagementRoles(bot_ai const* ai)
+{
+    // 与现有 NPCBot 职责 Gossip 保持一致：除治疗外的四项主职责均可切换；治疗仅治疗职业可用。
+    uint32 roles = BOT_ROLE_TANK | BOT_ROLE_TANK_OFF | BOT_ROLE_DPS | BOT_ROLE_RANGED;
+    if (BotDataMgr::IsHealingClass(ai->GetBotClass()))
+        roles |= BOT_ROLE_HEAL;
+    return roles;
+}
+
+void BuildManagementSnapshot(Player const* player, Creature const* bot, bot_ai const* ai, BotManagementSnapshot& snapshot)
+{
+    snapshot = {};
+    snapshot.botEntry = bot->GetEntry();
+    snapshot.botGuidLow = bot->GetGUID().GetCounter();
+    snapshot.canManage = CanManageBot(player, ai);
+    snapshot.supportedRoles = GetSupportedManagementRoles(ai);
+    snapshot.roles = ai->GetBotRoles() & BOT_ROLE_MASK_MAIN;
+    snapshot.healThresholdSupported = ai->GetBotClass() != BOT_CLASS_SPHYNX &&
+        BotDataMgr::IsHealingClass(ai->GetBotClass());
+    snapshot.healHealthThreshold = ai->GetHealHpPctThreshold();
+    snapshot.engageDelayMs = std::max(
+        player->GetBotMgr()->GetEngageDelayDPS(), player->GetBotMgr()->GetEngageDelayHeal());
+    snapshot.attackAngleMode = player->GetBotMgr()->GetBotAttackAngleMode();
+    snapshot.combatPositioning = ai->GetAllowCombatPositioning();
 }
 
 bool IsAllowedInventoryPosition(uint8 bag, uint8 slot)
@@ -224,18 +273,6 @@ Item* FindInventoryItem(Player* player, ObjectGuid::LowType itemGuidLow)
     return found;
 }
 
-std::string GetItemIcon(ItemTemplate const* itemTemplate)
-{
-    if (!itemTemplate)
-        return {};
-
-    ItemDisplayInfoEntry const* display = sItemDisplayInfoStore.LookupEntry(itemTemplate->DisplayInfoID);
-    if (!display || !display->inventoryIcon)
-        return {};
-
-    return display->inventoryIcon;
-}
-
 uint32 GetGearScore(bot_ai const* ai, Creature const* bot, ItemTemplate const* itemTemplate, uint8 slot)
 {
     if (!ai || !bot || !itemTemplate)
@@ -254,6 +291,60 @@ uint32 GetGearScore(bot_ai const* ai, Creature const* bot, ItemTemplate const* i
     if (score >= float(std::numeric_limits<uint32>::max()))
         return std::numeric_limits<uint32>::max();
     return uint32(score);
+}
+
+std::string_view GetAttributeCategory(bot_ai const* ai)
+{
+    uint8 const spec = ai->GetSpec();
+    switch (spec)
+    {
+        case BOT_SPEC_PALADIN_HOLY:
+        case BOT_SPEC_PRIEST_DISCIPLINE:
+        case BOT_SPEC_PRIEST_HOLY:
+        case BOT_SPEC_SHAMAN_RESTORATION:
+        case BOT_SPEC_DRUID_RESTORATION:
+            return "HEALING";
+        case BOT_SPEC_HUNTER_BEASTMASTERY:
+        case BOT_SPEC_HUNTER_MARKSMANSHIP:
+        case BOT_SPEC_HUNTER_SURVIVAL:
+            return "RANGED_PHYSICAL";
+        case BOT_SPEC_PRIEST_SHADOW:
+        case BOT_SPEC_SHAMAN_ELEMENTAL:
+        case BOT_SPEC_MAGE_ARCANE:
+        case BOT_SPEC_MAGE_FIRE:
+        case BOT_SPEC_MAGE_FROST:
+        case BOT_SPEC_WARLOCK_AFFLICTION:
+        case BOT_SPEC_WARLOCK_DEMONOLOGY:
+        case BOT_SPEC_WARLOCK_DESTRUCTION:
+        case BOT_SPEC_DRUID_BALANCE:
+            return "RANGED_SPELL";
+        default:
+            break;
+    }
+
+    // 低等级 Bot 可能尚无有效天赋，此时按职责和职业决定主要属性页。
+    if (ai->HasRole(BOT_ROLE_HEAL))
+        return "HEALING";
+    if (ai->GetBotClass() == BOT_CLASS_HUNTER || ai->GetBotClass() == BOT_CLASS_DARK_RANGER)
+        return "RANGED_PHYSICAL";
+    if (ai->HasRole(BOT_ROLE_RANGED) || ai->GetBotClass() == BOT_CLASS_MAGE ||
+        ai->GetBotClass() == BOT_CLASS_WARLOCK || ai->GetBotClass() == BOT_CLASS_ARCHMAGE ||
+        ai->GetBotClass() == BOT_CLASS_NECROMANCER || ai->GetBotClass() == BOT_CLASS_SEA_WITCH)
+    {
+        return "RANGED_SPELL";
+    }
+    return "MELEE_PHYSICAL";
+}
+
+float GetAttackSpeedSeconds(Creature const* bot, WeaponAttackType attackType)
+{
+    // 与 bot_ai 现有属性显示保持一致，读取已经应用攻击速度修正后的字段值。
+    return bot->GetFloatValue(static_cast<uint16>(UNIT_FIELD_BASEATTACKTIME) + attackType) / 1000.0f;
+}
+
+float GetDamagePerSecond(float minimum, float maximum, float attackSpeed)
+{
+    return attackSpeed > 0.0f ? ((minimum + maximum) * 0.5f) / attackSpeed : 0.0f;
 }
 
 }
@@ -278,13 +369,9 @@ void bot_mgr_service::FillItemValues(
     output.itemGuidLow = item->GetGUID().GetCounter();
     output.itemEntry = item->GetEntry();
     output.itemLink = itemLink.str();
-    output.icon = GetItemIcon(itemTemplate);
     output.quality = itemTemplate ? itemTemplate->Quality : 0;
     output.itemLevel = itemTemplate ? itemTemplate->ItemLevel : 0;
     output.gearScore = GetGearScore(ai, bot, itemTemplate, slot);
-    output.count = item->GetCount();
-    output.durability = item->GetUInt32Value(ITEM_FIELD_DURABILITY);
-    output.maxDurability = item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
 }
 
 void bot_mgr_service::FillItemValues(
@@ -304,15 +391,27 @@ void bot_mgr_service::FillItemValues(
     output.itemGuidLow = item->GetGUID().GetCounter();
     output.itemEntry = item->GetEntry();
     output.itemLink = itemLink.str();
-    output.icon = GetItemIcon(itemTemplate);
     output.quality = itemTemplate ? itemTemplate->Quality : 0;
     output.itemLevel = itemTemplate ? itemTemplate->ItemLevel : 0;
     output.gearScore = GetGearScore(ai, bot, itemTemplate, slot);
-    output.count = item->GetCount();
-    output.durability = item->GetUInt32Value(ITEM_FIELD_DURABILITY);
-    output.maxDurability = item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
     output.bag = bag;
     output.bagSlot = bagSlot;
+}
+
+uint32 bot_mgr_service::CalculateTotalGearScore(Creature const* bot, bot_ai const* ai)
+{
+    uint64 total = 0;
+    for (uint8 slot = 0; slot != BOT_INVENTORY_SIZE; ++slot)
+    {
+        Item const* item = ai->GetEquips(slot);
+        if (!item)
+            continue;
+
+        total += GetGearScore(ai, bot, item->GetTemplate(), slot);
+        if (total >= std::numeric_limits<uint32>::max())
+            return std::numeric_limits<uint32>::max();
+    }
+    return uint32(total);
 }
 
 std::string bot_mgr_service::CalculateRevision(bot_ai const* ai)
@@ -353,10 +452,36 @@ void bot_mgr_service::BuildSnapshot(Player const* player, Creature const* bot, b
     snapshot = {};
     snapshot.botEntry = bot->GetEntry();
     snapshot.botGuidLow = bot->GetGUID().GetCounter();
+    snapshot.canManage = CanManageBot(player, ai);
     snapshot.revision = CalculateRevision(ai);
+    snapshot.totalGearScore = CalculateTotalGearScore(bot, ai);
 
     for (uint8 slot = 0; slot != BOT_INVENTORY_SIZE; ++slot)
         FillItemValues(player, bot, ai, ai->GetEquips(slot), slot, snapshot.slots[slot]);
+}
+
+void bot_mgr_service::BuildOperationSnapshot(
+    Player const* player,
+    Creature const* bot,
+    bot_ai const* ai,
+    uint8 changedSlot,
+    BotEquipmentSnapshot& snapshot)
+{
+    snapshot = {};
+    snapshot.botEntry = bot->GetEntry();
+    snapshot.botGuidLow = bot->GetGUID().GetCounter();
+    snapshot.canManage = CanManageBot(player, ai);
+    snapshot.revision = CalculateRevision(ai);
+    snapshot.totalGearScore = CalculateTotalGearScore(bot, ai);
+
+    if (changedSlot == BOT_SLOT_MAINHAND || changedSlot == BOT_SLOT_OFFHAND)
+    {
+        FillItemValues(player, bot, ai, ai->GetEquips(BOT_SLOT_MAINHAND), BOT_SLOT_MAINHAND, snapshot.slots[BOT_SLOT_MAINHAND]);
+        FillItemValues(player, bot, ai, ai->GetEquips(BOT_SLOT_OFFHAND), BOT_SLOT_OFFHAND, snapshot.slots[BOT_SLOT_OFFHAND]);
+        return;
+    }
+
+    FillItemValues(player, bot, ai, ai->GetEquips(changedSlot), changedSlot, snapshot.slots[changedSlot]);
 }
 
 bool bot_mgr_service::IsStandardBotEquipment(EquipmentInfo const* equipmentInfo, Item const* item)
@@ -432,11 +557,161 @@ BotEquipmentUiResult bot_mgr_service::GetSnapshot(
 
     Creature* bot = nullptr;
     bot_ai* ai = nullptr;
-    BotEquipmentUiResult const result = ValidateBot(player, botEntry, botGuidLow, bot, ai);
+    BotEquipmentUiResult const result = ValidateBotView(player, botEntry, botGuidLow, bot, ai);
     if (result != BotEquipmentUiResult::Ok)
         return result;
 
     BuildSnapshot(player, bot, ai, snapshot);
+    return BotEquipmentUiResult::Ok;
+}
+
+BotEquipmentUiResult bot_mgr_service::GetAttributes(
+    Player* player,
+    uint32 botEntry,
+    ObjectGuid::LowType botGuidLow,
+    BotAttributeSnapshot& snapshot)
+{
+    snapshot = {};
+
+    Creature* bot = nullptr;
+    bot_ai* ai = nullptr;
+    BotEquipmentUiResult const result = ValidateBotView(player, botEntry, botGuidLow, bot, ai);
+    if (result != BotEquipmentUiResult::Ok)
+        return result;
+
+    snapshot.botEntry = bot->GetEntry();
+    snapshot.botGuidLow = bot->GetGUID().GetCounter();
+    snapshot.canManage = CanManageBot(player, ai);
+    snapshot.spec = ai->GetSpec();
+    snapshot.category = GetAttributeCategory(ai);
+
+    snapshot.maxHealth = bot->GetMaxHealth();
+    snapshot.armor = uint32(bot->GetArmor());
+    snapshot.defense = uint32(bot->GetDefenseSkillValue());
+    snapshot.dodge = ai->GetBotDodgeChance();
+    snapshot.parry = ai->CanParry() ? ai->GetBotParryChance() : 0.0f;
+    snapshot.block = ai->CanBlock() ? ai->GetBotBlockChance() : 0.0f;
+    snapshot.blockValue = ai->CanBlock() ? ai->GetShieldBlockValue() : 0;
+
+    WeaponAttackType const attackType = snapshot.category == "RANGED_PHYSICAL" ? RANGED_ATTACK : BASE_ATTACK;
+    snapshot.attackPower = int32(bot->GetTotalAttackPowerValue(attackType));
+    if (attackType == RANGED_ATTACK)
+    {
+        snapshot.minDamage = bot->GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE);
+        snapshot.maxDamage = bot->GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE);
+    }
+    else
+    {
+        snapshot.minDamage = bot->GetFloatValue(UNIT_FIELD_MINDAMAGE);
+        snapshot.maxDamage = bot->GetFloatValue(UNIT_FIELD_MAXDAMAGE);
+    }
+    snapshot.attackSpeed = GetAttackSpeedSeconds(bot, attackType);
+    snapshot.damagePerSecond = GetDamagePerSecond(snapshot.minDamage, snapshot.maxDamage, snapshot.attackSpeed);
+    snapshot.hit = -ai->GetBotMissChance();
+    snapshot.crit = ai->GetBotCritChance();
+    snapshot.haste = ai->GetHaste();
+    snapshot.expertise = ai->GetBotExpertise() +
+        uint32(std::max<int32>(0, bot->GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE)));
+    snapshot.armorPenetration = bot->GetCreatureArmorPenetrationCoef();
+
+    snapshot.spellPower = ai->GetBotSpellPower();
+    snapshot.healingPower = std::max<int32>(0, bot->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_MAGIC));
+    snapshot.spellPenetration = ai->GetBotSpellPenetration() + uint32(std::abs(
+        bot->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_MAGIC)));
+    snapshot.maxMana = bot->GetMaxPower(POWER_MANA);
+    if (snapshot.maxMana > 1)
+    {
+        snapshot.manaRegenCasting = bot->GetFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER) *
+            sWorld->getRate(RATE_POWER_MANA) * 5.0f;
+        snapshot.manaRegenNotCasting = bot->GetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER) *
+            sWorld->getRate(RATE_POWER_MANA) * 5.0f;
+    }
+
+    return BotEquipmentUiResult::Ok;
+}
+
+BotEquipmentUiResult bot_mgr_service::GetManagement(
+    Player* player,
+    uint32 botEntry,
+    ObjectGuid::LowType botGuidLow,
+    BotManagementSnapshot& snapshot)
+{
+    snapshot = {};
+
+    Creature* bot = nullptr;
+    bot_ai* ai = nullptr;
+    BotEquipmentUiResult const result = ValidateManagementOperation(player, botEntry, botGuidLow, bot, ai);
+    if (result != BotEquipmentUiResult::Ok)
+        return result;
+
+    BuildManagementSnapshot(player, bot, ai, snapshot);
+    return BotEquipmentUiResult::Ok;
+}
+
+BotEquipmentUiResult bot_mgr_service::UpdateManagement(
+    Player* player,
+    uint32 botEntry,
+    ObjectGuid::LowType botGuidLow,
+    uint32 roles,
+    uint32 healHealthThreshold,
+    uint32 engageDelayMs,
+    uint32 attackAngleMode,
+    bool combatPositioning,
+    BotManagementSnapshot& snapshot)
+{
+    snapshot = {};
+    if ((roles & ~BOT_ROLE_MASK_MAIN) != 0 || healHealthThreshold < 1 || healHealthThreshold > 100 ||
+        engageDelayMs > 10 * IN_MILLISECONDS ||
+        (attackAngleMode != BOT_ATTACK_ANGLE_NORMAL && attackAngleMode != BOT_ATTACK_ANGLE_AVOID_FRONTAL_AOE))
+    {
+        return BotEquipmentUiResult::InvalidRequest;
+    }
+
+    if (IsRateLimited(player, RequestKind::Operation))
+        return BotEquipmentUiResult::RateLimited;
+
+    Creature* bot = nullptr;
+    bot_ai* ai = nullptr;
+    BotEquipmentUiResult const validation = ValidateManagementOperation(player, botEntry, botGuidLow, bot, ai);
+    if (validation != BotEquipmentUiResult::Ok)
+        return validation;
+
+    uint32 const supportedRoles = GetSupportedManagementRoles(ai);
+    if ((roles & ~supportedRoles) != 0)
+        return BotEquipmentUiResult::InvalidRequest;
+    if ((roles & (BOT_ROLE_TANK | BOT_ROLE_DPS | BOT_ROLE_HEAL)) == 0)
+        return BotEquipmentUiResult::InvalidRequest;
+
+    // 副坦克是主坦克的从属职责，与现有 ToggleRole 规则保持一致。
+    if (roles & BOT_ROLE_TANK_OFF)
+        roles |= BOT_ROLE_TANK;
+    if (!(roles & BOT_ROLE_TANK))
+        roles &= ~BOT_ROLE_TANK_OFF;
+
+    auto setRole = [ai, roles](uint32 role)
+    {
+        if (ai->HasRole(role) != ((roles & role) != 0))
+            ai->ToggleRole(role, true);
+    };
+
+    // 先处理主坦克，再单独收敛副坦克，避免 ToggleRole 的联动规则破坏最终状态。
+    setRole(BOT_ROLE_TANK);
+    setRole(BOT_ROLE_TANK_OFF);
+    setRole(BOT_ROLE_DPS);
+    setRole(BOT_ROLE_HEAL);
+    setRole(BOT_ROLE_RANGED);
+
+    if (BotDataMgr::IsHealingClass(ai->GetBotClass()) && ai->GetBotClass() != BOT_CLASS_SPHYNX)
+        ai->SetHealHpPctThreshold(uint8(healHealthThreshold));
+
+    // 管理页只有一个“进战延迟”，同时应用于攻击和治疗，确保纯治疗职责也生效。
+    player->GetBotMgr()->SetEngageDelayDPS(engageDelayMs);
+    player->GetBotMgr()->SetEngageDelayHeal(engageDelayMs);
+    player->GetBotMgr()->SetBotAttackAngleMode(uint8(attackAngleMode));
+    ai->SetCombatPositioningOverride(combatPositioning ? 1 : 0);
+    player->SaveToDB(false, false);
+
+    BuildManagementSnapshot(player, bot, ai, snapshot);
     return BotEquipmentUiResult::Ok;
 }
 
@@ -548,7 +823,10 @@ BotEquipmentUiResult bot_mgr_service::EquipFromInventory(
         return BotEquipmentUiResult::CantEquip;
 
     BotEquipmentUiResult const result = MapEquipResult(ai->_equip(slot, item, player->GetGUID(), storeReplacedToBank));
-    BuildSnapshot(player, bot, ai, snapshot);
+    if (result == BotEquipmentUiResult::Ok)
+        BuildOperationSnapshot(player, bot, ai, slot, snapshot);
+    else
+        BuildSnapshot(player, bot, ai, snapshot);
     return result;
 }
 
@@ -595,7 +873,10 @@ BotEquipmentUiResult bot_mgr_service::Unequip(
     if (result == BotEquipmentUiResult::Ok && ai->GetBotOwner() && ai->GetBotOwner()->IsInWorld())
         ai->GetBotOwner()->SaveToDB(false, false);
 
-    BuildSnapshot(player, bot, ai, snapshot);
+    if (result == BotEquipmentUiResult::Ok)
+        BuildOperationSnapshot(player, bot, ai, slot, snapshot);
+    else
+        BuildSnapshot(player, bot, ai, snapshot);
     return result;
 }
 
@@ -631,7 +912,7 @@ std::string_view bot_mgr_service::GetResultMessage(BotEquipmentUiResult result)
         case BotEquipmentUiResult::InvalidRequest: return "请求参数无效";
         case BotEquipmentUiResult::RateLimited: return "操作过于频繁，请稍后重试";
         case BotEquipmentUiResult::BotNotFound: return "NPCBot 不存在或当前不可管理";
-        case BotEquipmentUiResult::NoPermission: return "无权管理该 NPCBot 的装备";
+        case BotEquipmentUiResult::NoPermission: return "无权管理该 NPCBot";
         case BotEquipmentUiResult::InvalidSlot: return "NPCBot 装备槽无效";
         case BotEquipmentUiResult::BusyInCombat: return "战斗中不能管理 NPCBot 装备";
         case BotEquipmentUiResult::ItemNotFound: return "物品不存在或已离开背包";

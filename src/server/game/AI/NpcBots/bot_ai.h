@@ -140,6 +140,9 @@ public:
     uint32 GetBotClassMask0() const { return 1ul << (_botclass - 1u); }
     uint32 GetBotClassMask1() const { return 1ul << _botclass; }
     uint32 GetLastDiff() const { return lastdiff; }
+    bool GetAllowCombatPositioning() const;
+    int8 GetCombatPositioningOverride() const { return _combatPositioningOverride; }
+    void SetCombatPositioningOverride(int8 overrideValue) { _combatPositioningOverride = overrideValue; }
     virtual void UpdateDeadAI(uint32 diff);
     void ReturnHome() { _atHome = false; }
     void CommonTimers(uint32 diff);
@@ -583,6 +586,8 @@ protected:
     uint8 _botclass{};
     uint8 _spec{};
     uint8 _newspec{};
+    // -1：跟随主人级设置；0：单Bot禁用；1：单Bot启用。仅运行时有效，不持久化。
+    int8 _combatPositioningOverride{-1};
     int8 _primaryIconTank{-1};
     int8 _primaryIconDamage{-1};
 

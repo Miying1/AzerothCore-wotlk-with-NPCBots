@@ -15,11 +15,9 @@ local function IsRevision(value, allowEmpty)
     if type(value) ~= "string" then
         return false
     end
-
     if value == "" then
         return allowEmpty == true
     end
-
     return string.len(value) <= 32 and string.match(value, "^[0-9a-f]+$") ~= nil
 end
 
@@ -59,6 +57,62 @@ function handlers.RequestSnapshot(player, request)
     local result = player:GetNPCBotEquipmentSnapshot(request.botEntry, request.botGuidLow)
     CopyResponseContext(result, request)
     AIO.Handle(player, NAMESPACE, "SnapshotResult", result)
+end
+
+function handlers.RequestAttributes(player, request)
+    if type(request) ~= "table" or not IsRequestId(request.requestId) or
+        not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) then
+        SendInvalidRequest(player, "AttributesResult", type(request) == "table" and request.requestId or 0)
+        return
+    end
+
+    local result = player:GetNPCBotAttributes(request.botEntry, request.botGuidLow)
+    CopyResponseContext(result, request)
+    AIO.Handle(player, NAMESPACE, "AttributesResult", result)
+end
+
+function handlers.RequestManagement(player, request)
+    if type(request) ~= "table" or not IsRequestId(request.requestId) or
+        not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) then
+        SendInvalidRequest(
+            player,
+            "ManagementResult",
+            type(request) == "table" and request.requestId or 0,
+            type(request) == "table" and request.botEntry or nil,
+            type(request) == "table" and request.botGuidLow or nil)
+        return
+    end
+
+    local result = player:GetNPCBotManagement(request.botEntry, request.botGuidLow)
+    CopyResponseContext(result, request)
+    AIO.Handle(player, NAMESPACE, "ManagementResult", result)
+end
+
+function handlers.UpdateManagement(player, request)
+    if type(request) ~= "table" or not IsRequestId(request.requestId) or
+        not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) or
+        not IsInteger(request.roles, 0, 31) or not IsInteger(request.healHealthThreshold, 1, 100) or
+        not IsInteger(request.engageDelayMs, 0, 10000) or
+        not IsInteger(request.attackAngleMode, 1, 2) or type(request.combatPositioning) ~= "boolean" then
+        SendInvalidRequest(
+            player,
+            "ManagementUpdateResult",
+            type(request) == "table" and request.requestId or 0,
+            type(request) == "table" and request.botEntry or nil,
+            type(request) == "table" and request.botGuidLow or nil)
+        return
+    end
+
+    local result = player:UpdateNPCBotManagement(
+        request.botEntry,
+        request.botGuidLow,
+        request.roles,
+        request.healHealthThreshold,
+        request.engageDelayMs,
+        request.attackAngleMode,
+        request.combatPositioning)
+    CopyResponseContext(result, request)
+    AIO.Handle(player, NAMESPACE, "ManagementUpdateResult", result)
 end
 
 function handlers.RequestCandidates(player, request)
