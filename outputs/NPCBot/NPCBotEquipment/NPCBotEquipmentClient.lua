@@ -536,7 +536,7 @@ local function CreateEquipmentFrame()
     frame.rightInset = rightInset
     frame.modelInset = modelInset
 
-    local model = CreateFrame("PlayerModel", nil, frame)
+    local model = CreateFrame("PlayerModel", nil, modelInset)
     model:SetPoint("TOPLEFT", modelInset, "TOPLEFT", 8, -8)
     model:SetPoint("BOTTOMRIGHT", modelInset, "BOTTOMRIGHT", -8, 8)
     model:EnableMouse(false)
@@ -664,7 +664,6 @@ function UI:SetEquipmentContentShown(shown)
     self.frame.leftInset:SetShown(shown)
     self.frame.rightInset:SetShown(shown)
     self.frame.modelInset:SetShown(shown)
-    self.frame.model:SetShown(shown)
     self.frame.modelTop:SetShown(shown)
     self.frame.modelHint:SetShown(shown)
     self.frame.totalGearScore:SetShown(shown)
@@ -1020,7 +1019,7 @@ function UI:RenderCandidates(candidates)
 
     for index, itemData in ipairs(displayItems) do
         local button = self:AcquireCandidateButton(index)
-        local column = math.mod(index - 1, CANDIDATE_COLUMNS)
+        local column = (index - 1) % CANDIDATE_COLUMNS
         local row = math.floor((index - 1) / CANDIDATE_COLUMNS)
         button:ClearAllPoints()
         button:SetPoint("TOPLEFT", panel.content, "TOPLEFT",
@@ -1128,7 +1127,7 @@ function UI:HandleMutationResult(response)
     end
 end
 
-function handlers.SnapshotResult(response)
+function handlers.SnapshotResult(player, response)
     if type(response) ~= "table" or response.requestId ~= UI.snapshotRequestId then
         return
     end
@@ -1145,7 +1144,7 @@ function handlers.SnapshotResult(response)
     UI:ApplyFullSnapshot(response.snapshot)
 end
 
-function handlers.CandidatesResult(response)
+function handlers.CandidatesResult(player, response)
     local panel = UI.candidatePanel
     if type(response) ~= "table" or not panel or not panel:IsShown() then
         return
@@ -1171,11 +1170,11 @@ function handlers.CandidatesResult(response)
     end
 end
 
-function handlers.EquipResult(response)
+function handlers.EquipResult(player, response)
     UI:HandleMutationResult(response)
 end
 
-function handlers.UnequipResult(response)
+function handlers.UnequipResult(player, response)
     UI:HandleMutationResult(response)
 end
 

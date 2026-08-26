@@ -17,7 +17,7 @@ local ROLE_OPTIONS = {
 
 local function HasRole(mask, role)
     mask = tonumber(mask) or 0
-    return math.mod(math.floor(mask / role), 2) == 1
+    return (math.floor(mask / role) % 2) == 1
 end
 
 local function CreateSection(parent, title, y, height)
@@ -384,7 +384,7 @@ function UI:ShowManagementTab()
     self:RequestManagement()
 end
 
-function handlers.ManagementResult(response)
+function handlers.ManagementResult(player, response)
     if type(response) ~= "table" or response.requestId ~= UI.managementRequestId then
         return
     end
@@ -404,7 +404,7 @@ function handlers.ManagementResult(response)
     UI.frame.managementPanel.status:SetTextColor(0.35, 0.85, 0.35)
 end
 
-function handlers.ManagementUpdateResult(response)
+function handlers.ManagementUpdateResult(player, response)
     if type(response) ~= "table" or response.requestId ~= UI.managementUpdateRequestId then
         return
     end

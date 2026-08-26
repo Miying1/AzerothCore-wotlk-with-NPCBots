@@ -191,7 +191,7 @@ function UI:RenderAttributes(attributes)
     renderRows(panel.rightRows, CATEGORY_STATS[attributes.category] or {})
 end
 
-function handlers.AttributesResult(response)
+function handlers.AttributesResult(player, response)
     if type(response) ~= "table" or response.requestId ~= UI.attributesRequestId then return end
     if not UI.currentBot or response.botGuidLow ~= UI.currentBot.guidLow then return end
     UI.attributesLoading = false

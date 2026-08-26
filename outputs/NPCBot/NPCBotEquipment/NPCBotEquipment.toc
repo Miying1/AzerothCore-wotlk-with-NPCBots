@@ -2,7 +2,7 @@
 ## Title: NPCBot Equipment
 ## Notes: NPCBot 装备查看与管理界面
 ## Author: AzerothCore NPCBot
-## Dependencies: AIO
+## Dependencies: AIO_Client
 ## SavedVariables: NPCBotEquipmentCacheDB
 NPCBotEquipmentClient.lua
 NPCBotEquipmentAttributes.lua
