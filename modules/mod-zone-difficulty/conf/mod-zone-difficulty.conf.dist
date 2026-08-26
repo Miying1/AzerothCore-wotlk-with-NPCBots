@@ -23,5 +23,5 @@ ModZoneDifficulty.Enable = 1
 #                     1 - Enabled
 #
 
-ModZoneDifficulty.IsSendLoot = 0
+ModZoneDifficulty.IsSendLoot = 1
    
