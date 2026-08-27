@@ -15,13 +15,28 @@ local ROLE_OPTIONS = {
     { value = 16, label = "远程战斗" }
 }
 
+-- 职责位：1 主坦克、2 副坦克、4 输出、8 治疗、16 远程。
+-- 最终显示仍会与服务端 supportedRoles 取交集，客户端只负责进一步收窄。
+local CLASS_ROLE_MASKS = {
+    WARRIOR = 1 + 2 + 4,
+    PALADIN = 1 + 2 + 4 + 8,
+    HUNTER = 4 + 16,
+    ROGUE = 4,
+    PRIEST = 4 + 8 + 16,
+    DEATHKNIGHT = 1 + 2 + 4,
+    SHAMAN = 4 + 8 + 16,
+    MAGE = 4 + 16,
+    WARLOCK = 4 + 16,
+    DRUID = 1 + 2 + 4 + 8 + 16
+}
+
 local function HasRole(mask, role)
     mask = tonumber(mask) or 0
     return (math.floor(mask / role) % 2) == 1
 end
 
 local function CreateSection(parent, title, y, height)
-    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 488, height)
+    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 416, height)
     local heading = inset:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     heading:SetPoint("TOPLEFT", inset, "TOPLEFT", 16, -12)
     heading:SetText(title)
@@ -63,16 +78,16 @@ end
 
 local function CreateManagementPanel(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -74)
-    panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 78)
+    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -64)
+    panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 48)
     panel:SetFrameLevel(frame:GetFrameLevel() + 3)
     panel:Hide()
 
-    local roles = CreateSection(panel, "职责", 0, 92)
+    local roles = CreateSection(panel, "职责", 0, 82)
     panel.roleChecks = {}
     for index, option in ipairs(ROLE_OPTIONS) do
         local check = CreateCheck(roles, option.label)
-        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 22 + (index - 1) * 92, -44)
+        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 16 + (index - 1) * 84, -38)
         check.roleValue = option.value
         panel.roleChecks[index] = check
         check:SetScript("OnClick", function(self)
@@ -90,10 +105,10 @@ local function CreateManagementPanel(frame)
         end)
     end
 
-    local behavior = CreateSection(panel, "战斗设置", -104, 198)
+    local behavior = CreateSection(panel, "战斗设置", -94, 178)
 
     local healLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    healLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 22, -48)
+    healLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -42)
     healLabel:SetText("治疗生命阈值")
     panel.healThresholdLabel = healLabel
     local healEdit = CreateEditBox(behavior, 72)
@@ -105,7 +120,7 @@ local function CreateManagementPanel(frame)
     panel.healThresholdUnit = healUnit
 
     local delayLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    delayLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 240, -48)
+    delayLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -76)
     delayLabel:SetText("进战延迟")
     local delayEdit = CreateEditBox(behavior, 72)
     delayEdit:SetPoint("LEFT", delayLabel, "RIGHT", 14, 0)
@@ -115,7 +130,7 @@ local function CreateManagementPanel(frame)
     delayUnit:SetText("秒（0-10）")
 
     local angleLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    angleLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 22, -104)
+    angleLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -110)
     angleLabel:SetText("攻击角度")
     local normal = CreateRadio(behavior, "普通")
     normal:SetPoint("LEFT", angleLabel, "RIGHT", 24, 0)
@@ -139,10 +154,10 @@ local function CreateManagementPanel(frame)
     end
 
     local positioningLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 240, -104)
+    positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -144)
     positioningLabel:SetText("战斗走位")
     local positioning = CreateCheck(behavior, "启用")
-    positioning:SetPoint("LEFT", positioningLabel, "RIGHT", 22, 0)
+    positioning:SetPoint("LEFT", positioningLabel, "RIGHT", 18, 0)
     positioning:SetScript("OnClick", function()
         if not panel.rendering then
             UI:SubmitManagementChanges()
@@ -150,13 +165,8 @@ local function CreateManagementPanel(frame)
     end)
     panel.combatPositioningCheck = positioning
 
-    local scopeHint = behavior:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    scopeHint:SetPoint("BOTTOMLEFT", behavior, "BOTTOMLEFT", 22, 18)
-    scopeHint:SetText("职责、治疗阈值与战斗走位作用于当前 NPCBot；进战延迟和攻击角度作用于主人的 NPCBot 队伍。")
-    scopeHint:SetTextColor(0.62, 0.57, 0.48)
-
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("TOP", behavior, "BOTTOM", 0, -24)
+    status:SetPoint("TOP", behavior, "BOTTOM", 0, -8)
     status:SetText("")
     status:SetTextColor(0.72, 0.65, 0.52)
     panel.status = status
@@ -236,15 +246,18 @@ function UI:RenderManagement(management)
     self.managementBotKey = UI.SnapshotCacheKey(management.botEntry, management.botGuidLow)
 
     local supportedRoles = tonumber(management.supportedRoles) or 0
+    local classToken = self.currentBot and self.currentBot.classToken
+    local classRoleMask = CLASS_ROLE_MASKS[classToken]
     local roles = tonumber(management.roles) or 0
     local visibleRoleIndex = 0
     for _, check in ipairs(panel.roleChecks) do
-        check.roleSupported = HasRole(supportedRoles, check.roleValue)
+        local classSupportsRole = not classRoleMask or HasRole(classRoleMask, check.roleValue)
+        check.roleSupported = classSupportsRole and HasRole(supportedRoles, check.roleValue)
         check:SetChecked(check.roleSupported and HasRole(roles, check.roleValue))
         check:SetShown(check.roleSupported)
         if check.roleSupported then
             check:ClearAllPoints()
-            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 22 + visibleRoleIndex * 92, -44)
+            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 16 + visibleRoleIndex * 84, -36)
             visibleRoleIndex = visibleRoleIndex + 1
         end
     end
@@ -377,10 +390,11 @@ function UI:ShowManagementTab()
     end
     self.frame.managementPanel:Show()
 
-    local key = UI.SnapshotCacheKey(self.currentBot.entry, self.currentBot.guidLow)
-    if self.management and self.managementBotKey == key then
-        self:RenderManagement(self.management)
-    end
+    -- 管理数据不缓存；每次切换到管理页都重新向服务端请求最新设置。
+    self.management = nil
+    self.managementBotKey = nil
+    self.managementLoading = false
+    self.managementDeadline = nil
     self:RequestManagement()
 end
 

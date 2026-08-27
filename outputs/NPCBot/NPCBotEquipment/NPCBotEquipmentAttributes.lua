@@ -25,26 +25,26 @@ local DEFENSE_STATS = {
 }
 local CATEGORY_STATS = {
     MELEE_PHYSICAL = {
-        { "攻击强度", "attackPower", "integer" }, { "伤害", "damage", "damage" },
-        { "每秒伤害", "damagePerSecond", "decimal" }, { "攻击速度", "attackSpeed", "seconds" },
+        { "攻强", "attackPower", "integer" }, { "伤害", "damage", "damage" },
+        { "秒伤", "damagePerSecond", "decimal" }, { "攻速", "attackSpeed", "seconds" },
         { "命中", "hit", "percent" }, { "爆击", "crit", "percent" }, { "急速", "haste", "percent" },
         { "精准", "expertise", "integer" }, { "护甲穿透", "armorPenetration", "percent" }
     },
     RANGED_PHYSICAL = {
-        { "远程攻击强度", "attackPower", "integer" }, { "远程伤害", "damage", "damage" },
-        { "每秒伤害", "damagePerSecond", "decimal" }, { "攻击速度", "attackSpeed", "seconds" },
+        { "远程攻强", "attackPower", "integer" }, { "伤害", "damage", "damage" },
+        { "秒伤", "damagePerSecond", "decimal" }, { "攻速", "attackSpeed", "seconds" },
         { "命中", "hit", "percent" }, { "爆击", "crit", "percent" }, { "急速", "haste", "percent" },
         { "护甲穿透", "armorPenetration", "percent" }
     },
     HEALING = {
         { "治疗加成", "healingPower", "integer" }, { "法术强度", "spellPower", "integer" },
-        { "法术爆击", "crit", "percent" }, { "法术急速", "haste", "percent" }, { "最大法力值", "maxMana", "integer" },
+        { "爆击", "crit", "percent" }, { "急速", "haste", "percent" }, { "法力值", "maxMana", "integer" },
         { "施法时回蓝", "manaRegenCasting", "decimal" }, { "非施法回蓝", "manaRegenNotCasting", "decimal" },
         { "法术穿透", "spellPenetration", "integer" }
     },
     RANGED_SPELL = {
-        { "法术强度", "spellPower", "integer" }, { "法术命中", "hit", "percent" }, { "法术爆击", "crit", "percent" },
-        { "法术急速", "haste", "percent" }, { "法术穿透", "spellPenetration", "integer" }, { "最大法力值", "maxMana", "integer" },
+        { "法术强度", "spellPower", "integer" }, { "命中", "hit", "percent" }, { "爆击", "crit", "percent" },
+        { "急速", "haste", "percent" }, { "法术穿透", "spellPenetration", "integer" }, { "法力值", "maxMana", "integer" },
         { "施法时回蓝", "manaRegenCasting", "decimal" }, { "非施法回蓝", "manaRegenNotCasting", "decimal" }
     }
 }
@@ -66,9 +66,9 @@ end
 
 local function CreateStatRow(parent, row)
     local line = CreateFrame("Frame", nil, parent)
-    line:SetHeight(28)
-    line:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, -38 - (row - 1) * 30)
-    line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, -38 - (row - 1) * 30)
+    line:SetHeight(26)
+    line:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -30 - (row - 1) * 26)
+    line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -30 - (row - 1) * 26)
     local background = line:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\Buttons\\WHITE8X8")
     background:SetAllPoints(line)
@@ -86,23 +86,23 @@ end
 
 local function CreateAttributesPanel(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -74)
-    panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 78)
+    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -64)
+    panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 48)
     panel:SetFrameLevel(frame:GetFrameLevel() + 3)
     panel:Hide()
     local createInset = UI.CreateInset
-    local specInset = createInset(panel, "TOPLEFT", panel, "TOPLEFT", 0, 0, 488, 58)
-    local specLabel = specInset:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    specLabel:SetPoint("LEFT", specInset, "LEFT", 18, 0)
-    specLabel:SetText("天赋")
-    specLabel:SetTextColor(0.82, 0.67, 0.34)
+    local specInset = createInset(panel, "TOPLEFT", panel, "TOPLEFT", 0, 0, 416, 48)
     local specValue = specInset:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    specValue:SetPoint("RIGHT", specInset, "RIGHT", -18, 0)
+    specValue:SetPoint("CENTER", specInset, "CENTER", 0, 0)
+    local specFont, specFontSize, specFontFlags = specValue:GetFont()
+    if specFont then
+        specValue:SetFont(specFont, (specFontSize or 12) + 2, specFontFlags)
+    end
     specValue:SetText("正在读取...")
     specValue:SetTextColor(1, 0.82, 0.35)
     panel.specValue = specValue
-    local left = createInset(panel, "TOPLEFT", specInset, "BOTTOMLEFT", 0, -12, 238, 352)
-    local right = createInset(panel, "TOPRIGHT", specInset, "BOTTOMRIGHT", 0, -12, 238, 352)
+    local left = createInset(panel, "TOPLEFT", specInset, "BOTTOMLEFT", 0, -6, 202, 290)
+    local right = createInset(panel, "TOPRIGHT", specInset, "BOTTOMRIGHT", 0, -6, 202, 290)
     local leftTitle = left:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     leftTitle:SetPoint("TOP", left, "TOP", 0, -14)
     leftTitle:SetText("防御属性")
@@ -142,13 +142,12 @@ function UI:ShowAttributesTab()
         self.frame.attributesPanel = CreateAttributesPanel(self.frame)
     end
     self.frame.attributesPanel:Show()
-    if self.attributes and self.attributesBotKey == UI.SnapshotCacheKey(self.currentBot.entry, self.currentBot.guidLow) then
-        self:RenderAttributes(self.attributes)
-        return
-    end
-    if self.attributesLoading then
-        return
-    end
+    -- 属性数据不缓存；每次切换到属性页都重新向服务端请求最新快照。
+    self.attributes = nil
+    self.attributesBotKey = nil
+    self.attributesLoading = false
+    self.attributesDeadline = nil
+    self.frame.attributesPanel.specValue:SetText("正在读取...")
     local requestId = UI.NextRequestId()
     self.attributesRequestId = requestId
     self.attributesLoading = true
@@ -173,7 +172,7 @@ function UI:RenderAttributes(attributes)
     local panel = self.frame.attributesPanel
     local specName = SPEC_NAMES[tonumber(attributes.spec)] or "未知"
     local categoryName = CATEGORY_NAMES[attributes.category] or "主要属性"
-    panel.specValue:SetText(specName .. "  |  " .. categoryName)
+    panel.specValue:SetText(specName)
     panel.rightTitle:SetText(categoryName)
     local renderRows = function(rows, definitions)
         for index, row in ipairs(rows) do

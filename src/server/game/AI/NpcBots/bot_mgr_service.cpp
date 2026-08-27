@@ -1,6 +1,7 @@
 #include "bot_mgr_service.h"
 
 #include "Bag.h"
+#include "CharacterCache.h"
 #include "Creature.h"
 #include "CreatureData.h"
 #include "GameTime.h"
@@ -298,6 +299,20 @@ std::string_view GetAttributeCategory(bot_ai const* ai)
     uint8 const spec = ai->GetSpec();
     switch (spec)
     {
+        case BOT_SPEC_WARRIOR_ARMS:
+        case BOT_SPEC_WARRIOR_FURY:
+        case BOT_SPEC_WARRIOR_PROTECTION:
+        case BOT_SPEC_PALADIN_PROTECTION:
+        case BOT_SPEC_PALADIN_RETRIBUTION:
+        case BOT_SPEC_ROGUE_ASSASINATION:
+        case BOT_SPEC_ROGUE_COMBAT:
+        case BOT_SPEC_ROGUE_SUBTLETY:
+        case BOT_SPEC_DK_BLOOD:
+        case BOT_SPEC_DK_FROST:
+        case BOT_SPEC_DK_UNHOLY:
+        case BOT_SPEC_SHAMAN_ENHANCEMENT:
+        case BOT_SPEC_DRUID_FERAL:
+            return "MELEE_PHYSICAL";
         case BOT_SPEC_PALADIN_HOLY:
         case BOT_SPEC_PRIEST_DISCIPLINE:
         case BOT_SPEC_PRIEST_HOLY:
@@ -322,7 +337,7 @@ std::string_view GetAttributeCategory(bot_ai const* ai)
             break;
     }
 
-    // 低等级 Bot 可能尚无有效天赋，此时按职责和职业决定主要属性页。
+    // 仅当 Bot 尚无有效天赋（spec == BOT_SPEC_DEFAULT）时才按职责和职业兜底决定主要属性页。
     if (ai->HasRole(BOT_ROLE_HEAL))
         return "HEALING";
     if (ai->GetBotClass() == BOT_CLASS_HUNTER || ai->GetBotClass() == BOT_CLASS_DARK_RANGER)
@@ -455,6 +470,10 @@ void bot_mgr_service::BuildSnapshot(Player const* player, Creature const* bot, b
     snapshot.canManage = CanManageBot(player, ai);
     snapshot.revision = CalculateRevision(ai);
     snapshot.totalGearScore = CalculateTotalGearScore(bot, ai);
+
+    if (ai->GetBotOwnerGuid() != 0)
+        sCharacterCache->GetCharacterNameByGuid(
+            ObjectGuid::Create<HighGuid::Player>(ai->GetBotOwnerGuid()), snapshot.ownerName);
 
     for (uint8 slot = 0; slot != BOT_INVENTORY_SIZE; ++slot)
         FillItemValues(player, bot, ai, ai->GetEquips(slot), slot, snapshot.slots[slot]);

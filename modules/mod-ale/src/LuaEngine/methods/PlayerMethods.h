@@ -61,10 +61,11 @@ namespace LuaPlayer
 
         void PushSnapshot(lua_State* L, BotEquipmentSnapshot const& snapshot)
         {
-            lua_createtable(L, 0, 7);
+            lua_createtable(L, 0, 8);
             SetField(L, "botEntry", snapshot.botEntry);
             SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
             SetField(L, "canManage", snapshot.canManage);
+            SetField(L, "ownerName", snapshot.ownerName);
             SetField(L, "revision", snapshot.revision);
             SetField(L, "totalGearScore", snapshot.totalGearScore);
             SetField(L, "partial", false);

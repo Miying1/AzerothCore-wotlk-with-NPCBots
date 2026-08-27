@@ -64,6 +64,7 @@ struct BotEquipmentSnapshot
     uint32 botEntry = 0;
     ObjectGuid::LowType botGuidLow = 0;
     bool canManage = false;
+    std::string ownerName;
     std::string revision;
     uint32 totalGearScore = 0;
     std::array<BotEquipmentSlotSnapshot, BOT_INVENTORY_SIZE> slots{};

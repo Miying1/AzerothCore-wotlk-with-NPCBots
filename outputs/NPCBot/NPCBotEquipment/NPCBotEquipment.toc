@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: NPCBot Equipment
 ## Notes: NPCBot 装备查看与管理界面
-## Author: AzerothCore NPCBot
+## Author: 谜影
 ## Dependencies: AIO_Client
 ## SavedVariables: NPCBotEquipmentCacheDB
 NPCBotEquipmentClient.lua

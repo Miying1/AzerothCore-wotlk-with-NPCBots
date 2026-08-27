@@ -3,18 +3,19 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = "NPCBotEquipment"
 local handlers = AIO.AddHandlers(NAMESPACE, {})
 
-local FRAME_WIDTH = 520
-local FRAME_HEIGHT = 600
+local FRAME_WIDTH = 440
+local FRAME_HEIGHT = 500
 local SNAPSHOT_CACHE_TTL = 3 * 24 * 60 * 60
 local SNAPSHOT_CACHE_MAX = 32
 local SNAPSHOT_CACHE_VERSION = 3
-local SLOT_SIZE = 42
-local SLOT_GAP = 4
-local LEFT_SLOT_X = 24
-local RIGHT_SLOT_X = 454
-local SLOT_TOP = -92
-local WEAPON_SLOT_X = 193
-local WEAPON_SLOT_Y = -474
+local SLOT_SIZE = 38
+local SLOT_GAP = 3
+-- 46px 槽位包围面板在左右 56px 栏内居中，两侧各保留 5px 内边距。
+local LEFT_SLOT_X = 29
+local RIGHT_SLOT_X = 373
+local SLOT_TOP = -76
+local WEAPON_SLOT_X = 180
+local WEAPON_SLOT_Y = -354
 local MODEL_ROTATION_STEP = 0.15
 local MAX_VISIBLE_ROWS = 5
 local CANDIDATE_SIZE = 38
@@ -32,14 +33,14 @@ local QUALITY_COLORS = {
     [7] = { 0.90, 0.80, 0.50 }
 }
 local SLOT_NAMES = {
-    "主手", "副手", "远程", "头部", "肩部", "胸部", "腰部", "腿部", "脚部",
-    "护腕", "手套", "披风", "衬衣", "戒指1", "戒指2", "饰品1", "饰品2", "项链"
+    "主", "副", "远", "头", "肩", "胸", "腰", "腿", "脚",
+    "护", "手", "披", "衬", "戒1", "戒2", "饰1", "饰2", "项"
 }
 -- 采用玩家 PaperDollFrame 的标准纸娃娃布局（中间为模型），数值对应 NPCBot 原始 18 槽。
--- 左侧 7 槽：头、项、肩、披、胸、衬、腕。
+-- 左侧槽位：头、项、肩、披、胸、衬；腕槽单独放在第 8 行，与右侧饰2对齐。
 -- 右侧 8 槽：手、腰、腿、脚、戒1、戒2、饰1、饰2。
--- 底部 3 槽：主手、副手、远程（横向排列于模型下方）。
-local LEFT_DISPLAY_SLOTS = { 3, 17, 4, 11, 5, 12, 9 }
+-- 模型底部 3 槽：主手、副手、远程（横向排列，不显示槽位文字）。
+local LEFT_DISPLAY_SLOTS = { 3, 17, 4, 11, 5, 12 }
 local RIGHT_DISPLAY_SLOTS = { 10, 6, 7, 8, 13, 14, 15, 16 }
 local BOTTOM_DISPLAY_SLOTS = { 0, 1, 2 }
 
@@ -131,6 +132,7 @@ local function CompactSnapshot(snapshot)
         botEntry = snapshot.botEntry,
         botGuidLow = snapshot.botGuidLow,
         canManage = snapshot.canManage == true,
+        ownerName = snapshot.ownerName or "",
         revision = snapshot.revision or "",
         totalGearScore = tonumber(snapshot.totalGearScore) or 0,
         partial = false,
@@ -315,7 +317,7 @@ local function GetUnitDisplayInfo(unit)
             math.floor(classColor.b * 255 + 0.5),
             className)
     end
-    return name, className
+    return name, className, classToken
 end
 
 local function CreateBackdrop(frame)
@@ -332,6 +334,12 @@ local function CreateBackdrop(frame)
 end
 
 local function SetModel(model, unit)
+    -- 仅在单位变化时重新加载模型；同一单位重复调用（如快照刷新）不重置模型，保留用户的旋转角度。
+    local guid = unit and UnitGUID and UnitGUID(unit) or "none"
+    if UI.modelKey == guid then
+        return
+    end
+    UI.modelKey = guid
     if unit and model.SetUnit then
         pcall(model.SetUnit, model, unit)
     end
@@ -365,7 +373,7 @@ local function CreateSlotButton(frame, slot, side, index)
     button:SetWidth(SLOT_SIZE)
     button:SetHeight(SLOT_SIZE)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    button:SetFrameLevel(frame:GetFrameLevel() + 4)
+    button:SetFrameLevel(frame:GetFrameLevel() + 10)
     button.botSlot = slot
 
     if side == "left" then
@@ -377,10 +385,10 @@ local function CreateSlotButton(frame, slot, side, index)
     end
 
     local slotPanel = CreateFrame("Frame", nil, frame)
-    slotPanel:SetWidth(SLOT_SIZE + 12)
-    slotPanel:SetHeight(SLOT_SIZE + 12)
+    slotPanel:SetWidth(SLOT_SIZE + 8)
+    slotPanel:SetHeight(SLOT_SIZE + 8)
     slotPanel:SetPoint("CENTER", button, "CENTER")
-    slotPanel:SetFrameLevel(frame:GetFrameLevel() + 1)
+    slotPanel:SetFrameLevel(frame:GetFrameLevel() + 7)
     slotPanel:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -423,19 +431,16 @@ local function CreateSlotButton(frame, slot, side, index)
     icon:Hide()
     button.icon = icon
 
+    -- 空槽名称统一显示在槽位中央；装备图标出现后由快照刷新逻辑隐藏。
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    if side == "left" then
-        label:SetPoint("LEFT", button, "RIGHT", 9, 0)
-        label:SetJustifyH("LEFT")
-    elseif side == "right" then
-        label:SetPoint("RIGHT", button, "LEFT", -9, 0)
-        label:SetJustifyH("RIGHT")
-    else
-        label:SetPoint("TOP", button, "BOTTOM", 0, -4)
-        label:SetJustifyH("CENTER")
-    end
+    label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    label:SetJustifyH("CENTER")
+    label:SetJustifyV("MIDDLE")
     label:SetText(SLOT_NAMES[slot + 1])
     label:SetTextColor(0.82, 0.72, 0.52)
+    label:SetShadowColor(0, 0, 0, 1)
+    label:SetShadowOffset(1, -1)
+    label:Show()
     button.label = label
 
     local itemLevel = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -482,9 +487,9 @@ end
 
 local function CreateTab(frame, text, index)
     local button = CreateFrame("Button", nil, frame)
-    button:SetWidth(116)
-    button:SetHeight(32)
-    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 83 + (index - 1) * 119, 12)
+    button:SetWidth(104)
+    button:SetHeight(30)
+    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 83 + (index - 1) * 107, 12)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Tab")
@@ -567,24 +572,23 @@ local function CreateEquipmentFrame()
 
     local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
-    subtitle:SetText("NPCBot 装备查看")
+    subtitle:SetText("")
     subtitle:SetTextColor(0.72, 0.65, 0.52)
     frame.subtitle = subtitle
 
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
+    -- 注意：UIPanelDialogTemplate 已内置 $parentCloseButton（右上角关闭按钮），无需再手动创建，避免出现两个关闭按钮。
 
     local titleDivider = frame:CreateTexture(nil, "ARTWORK")
     titleDivider:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
-    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 60, -48)
-    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -60, -48)
+    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 42, -48)
+    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -42, -48)
     titleDivider:SetHeight(2)
     titleDivider:SetVertexColor(0.65, 0.46, 0.22, 0.85)
     frame.titleDivider = titleDivider
 
-    local leftInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 12, -64, 128, 400)
-    local rightInset = CreateInset(frame, "TOPRIGHT", frame, "TOPRIGHT", -12, -64, 128, 400)
-    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 148, -64, 224, 400)
+    local leftInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 20, -54, 56, 348)
+    local rightInset = CreateInset(frame, "TOPRIGHT", frame, "TOPRIGHT", -20, -54, 56, 348)
+    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 84, -54, 272, 328)
     frame.leftInset = leftInset
     frame.rightInset = rightInset
     frame.modelInset = modelInset
@@ -595,20 +599,20 @@ local function CreateEquipmentFrame()
     model:EnableMouse(true)
     frame.model = model
 
-    local leftCaption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    leftCaption:SetPoint("TOP", leftInset, "TOP", 0, -10)
-    leftCaption:SetText("装备")
-    leftCaption:SetTextColor(0.75, 0.58, 0.30)
-    frame.leftCaption = leftCaption
+    -- local leftCaption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    -- leftCaption:SetPoint("TOP", leftInset, "TOP", 0, -10)
+    -- leftCaption:SetText("装备")
+    -- leftCaption:SetTextColor(0.75, 0.58, 0.30)
+    -- frame.leftCaption = leftCaption
 
-    local rightCaption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    rightCaption:SetPoint("TOP", rightInset, "TOP", 0, -10)
-    rightCaption:SetText("装备")
-    rightCaption:SetTextColor(0.75, 0.58, 0.30)
-    frame.rightCaption = rightCaption
+    -- local rightCaption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    -- rightCaption:SetPoint("TOP", rightInset, "TOP", 0, -10)
+    -- rightCaption:SetText("装备")
+    -- rightCaption:SetTextColor(0.75, 0.58, 0.30)
+    -- frame.rightCaption = rightCaption
 
-    local totalGearScore = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    totalGearScore:SetPoint("BOTTOMRIGHT", modelInset, "BOTTOMRIGHT", -10, 8)
+    local totalGearScore = modelInset:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    totalGearScore:SetPoint("TOPRIGHT", modelInset, "TOPRIGHT", -10, -12)
     totalGearScore:SetJustifyH("RIGHT")
     totalGearScore:SetText("GS:0")
     totalGearScore:SetTextColor(1, 0.82, 0)
@@ -618,10 +622,10 @@ local function CreateEquipmentFrame()
 
     local function CreateRotateButton(isLeft)
         local button = CreateFrame("Button", nil, modelInset)
-        button:SetWidth(26)
-        button:SetHeight(26)
+        button:SetWidth(24)
+        button:SetHeight(24)
         button:SetFrameLevel(modelInset:GetFrameLevel() + 2)
-        button:SetPoint("BOTTOM", modelInset, "BOTTOM", isLeft and -46 or 46, 12)
+        button:SetPoint("TOP", modelInset, "TOP", isLeft and -42 or 42, -10)
         button:SetNormalTexture(isLeft and "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
             or "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
         button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
@@ -667,24 +671,34 @@ local function CreateEquipmentFrame()
     for row, slot in ipairs(LEFT_DISPLAY_SLOTS) do
         frame.slots[slot + 1] = CreateSlotButton(frame, slot, "left", row - 1)
     end
+    frame.slots[9 + 1] = CreateSlotButton(frame, 9, "left", 7)
     for row, slot in ipairs(RIGHT_DISPLAY_SLOTS) do
         frame.slots[slot + 1] = CreateSlotButton(frame, slot, "right", row - 1)
     end
     for index, slot in ipairs(BOTTOM_DISPLAY_SLOTS) do
-        frame.slots[slot + 1] = CreateSlotButton(frame, slot, "bottom", index - 1)
+        local button = CreateSlotButton(frame, slot, "bottom", index - 1)
+        button:SetParent(modelInset)
+        button:ClearAllPoints()
+        button:SetPoint("BOTTOM", modelInset, "BOTTOM", (index - 2) * (SLOT_SIZE + SLOT_GAP), 10)
+        button:SetFrameLevel(modelInset:GetFrameLevel() + 10)
+        button.slotPanel:SetParent(modelInset)
+        button.slotPanel:ClearAllPoints()
+        button.slotPanel:SetPoint("CENTER", button, "CENTER")
+        button.slotPanel:SetFrameLevel(modelInset:GetFrameLevel() + 7)
+        frame.slots[slot + 1] = button
     end
 
     frame.status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 24, 54)
-    frame.status:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 54)
+    frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 34)
+    frame.status:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 34)
     frame.status:SetJustifyH("CENTER")
     frame.status:SetText("右键装备槽查看背包候选")
     frame.status:SetTextColor(0.72, 0.65, 0.52)
 
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
-    divider:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 24, 46)
-    divider:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 46)
+    divider:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 16)
+    divider:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 16)
     divider:SetHeight(2)
     divider:SetVertexColor(0.62, 0.43, 0.20, 0.8)
     frame.divider = divider
@@ -694,6 +708,9 @@ local function CreateEquipmentFrame()
         CreateTab(frame, "属性", 2),
         CreateTab(frame, "管理", 3)
     }
+    for _, tab in ipairs(frame.tabs) do
+        tab:SetFrameLevel(frame:GetFrameLevel() + 12)
+    end
 
     frame:SetScript("OnHide", function()
         UI:CloseCandidatePanel()
@@ -776,8 +793,6 @@ function UI:SetEquipmentContentShown(shown)
     self.frame.rightInset:SetShown(shown)
     self.frame.modelInset:SetShown(shown)
     self.frame.totalGearScore:SetShown(shown)
-    self.frame.leftCaption:SetShown(shown)
-    self.frame.rightCaption:SetShown(shown)
     self.frame.rotateLeft:SetShown(shown)
     self.frame.rotateRight:SetShown(shown)
     for _, button in ipairs(self.frame.slots) do
@@ -790,11 +805,11 @@ function UI:UpdatePermissionUi()
     self:EnsureFrames()
     local canManage = self.currentBot and self.currentBot.canManage == true
     local tabCount = canManage and 3 or 2
-    local totalWidth = tabCount * 116 + (tabCount - 1) * 3
+    local totalWidth = tabCount * 104 + (tabCount - 1) * 3
     local firstX = (FRAME_WIDTH - totalWidth) / 2
     for index, tab in ipairs(self.frame.tabs) do
         tab:ClearAllPoints()
-        tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 119, 12)
+        tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 107, -16)
     end
     self.frame.tabs[3]:SetShown(canManage)
     if not canManage and self.activeTab == "管理" then
@@ -841,6 +856,32 @@ function UI:SelectTab(tabName, preserveCandidatePanel)
     end
 end
 
+function UI:ResetEquipmentSlotDisplays()
+    if not self.frame or not self.frame.slots then
+        return
+    end
+
+    for _, button in ipairs(self.frame.slots) do
+        button.icon:Hide()
+        button.label:SetTextColor(0.82, 0.72, 0.52)
+        button.label:Show()
+        button.itemLevel:SetText("")
+    end
+    self.frame.totalGearScore:SetText("GS:0")
+end
+
+function UI:UpdateOwnerSubtitle(snapshot)
+    if not self.frame then
+        return
+    end
+    local ownerName = snapshot and snapshot.ownerName
+    if snapshot and not snapshot.canManage and ownerName and ownerName ~= "" then
+        self.frame.subtitle:SetText("主人：" .. ownerName)
+    else
+        self.frame.subtitle:SetText("")
+    end
+end
+
 function UI:ApplyFullSnapshot(snapshot, preserveCandidatePanel)
     if type(snapshot) ~= "table" or type(snapshot.slots) ~= "table" then
         return
@@ -859,6 +900,7 @@ function UI:ApplyFullSnapshot(snapshot, preserveCandidatePanel)
     local name = self.currentBot and self.currentBot.name or "NPCBot"
     local className = self.currentBot and self.currentBot.className or "NPCBot"
     self.frame.title:SetText(name .. "[" .. className .. "]")
+    self:UpdateOwnerSubtitle(snapshot)
     SetModel(self.frame.model, self.currentUnit)
 
     for slot = 0, 17 do
@@ -868,12 +910,12 @@ function UI:ApplyFullSnapshot(snapshot, preserveCandidatePanel)
             button.icon:SetTexture(GetEntryIcon(slotData.entry))
             button.icon:SetVertexColor(1, 1, 1)
             button.icon:Show()
-            local color = QUALITY_COLORS[slotData.quality] or QUALITY_COLORS[1]
-            button.label:SetTextColor(color[1], color[2], color[3])
+            button.label:Hide()
             button.itemLevel:SetText(slotData.itemLevel and slotData.itemLevel > 0 and slotData.itemLevel or "")
         else
             button.icon:Hide()
             button.label:SetTextColor(0.82, 0.72, 0.52)
+            button.label:Show()
             button.itemLevel:SetText("")
         end
     end
@@ -913,17 +955,19 @@ end
 function UI:Open(botEntry, botGuidLow, unit)
     self:EnsureFrames()
     self:CloseCandidatePanel()
-    local name, className = GetUnitDisplayInfo(unit)
+    local name, className, classToken = GetUnitDisplayInfo(unit)
     self.currentBot = {
         entry = botEntry,
         guidLow = tostring(botGuidLow),
         name = name,
         className = className,
+        classToken = classToken,
         canManage = false,
         equipmentRevision = ""
     }
     self.currentUnit = unit
     self.snapshot = nil
+    self:ResetEquipmentSlotDisplays()
     if self.ResetAttributesModule then
         self:ResetAttributesModule()
     end
@@ -939,7 +983,6 @@ function UI:Open(botEntry, botGuidLow, unit)
 
     local cachedSnapshot = self:GetCachedSnapshot(botEntry, botGuidLow)
     if cachedSnapshot then
-        self.frame.subtitle:SetText("NPCBot 装备查看（客户端缓存）")
         self.frame.status:SetText("已使用客户端缓存；右键槽位时将校验最新状态")
         self:ApplyFullSnapshot(cachedSnapshot, false)
         -- 缓存只用于立即展示；仍向服务端校验最新装备、revision 与当前查看权限。
@@ -1074,7 +1117,7 @@ function UI:AcquireCandidateButton(index)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.itemData.kind == "UNEQUIP" then
             GameTooltip:SetText("卸下", 1, 0.82, 0)
-            GameTooltip:AddLine("卸下当前槽位装备", 1, 1, 1)
+            GameTooltip:AddLine("卸下当前装备", 1, 1, 1)
         elseif self.itemData.link and self.itemData.link ~= "" then
             GameTooltip:SetHyperlink(self.itemData.link)
         end
@@ -1259,7 +1302,6 @@ function handlers.SnapshotResult(player, response)
         UI.frame:Hide()
         return
     end
-    UI.frame.subtitle:SetText("NPCBot 装备查看")
     UI:ApplyFullSnapshot(response.snapshot)
 end
 
@@ -1335,8 +1377,9 @@ end)
 
 local POPUP_VALUE = "NPCBOT_EQUIPMENT"
 if UnitPopupButtons and UnitPopupMenus then
-    UnitPopupButtons[POPUP_VALUE] = { text = "查看 NPCBot 装备", dist = 0 }
-    local popupMenus = { "PARTY", "RAID_PLAYER", "RAID" }
+    UnitPopupButtons[POPUP_VALUE] = { text = "查看装备", dist = 0 }
+    -- TARGET 覆盖不在队伍/团队中的当前目标生物；其余菜单保留队伍和团队入口。
+    local popupMenus = { "TARGET", "PARTY", "RAID_PLAYER", "RAID" }
     for _, menuName in ipairs(popupMenus) do
         local menu = UnitPopupMenus[menuName]
         if menu then
@@ -1348,7 +1391,10 @@ if UnitPopupButtons and UnitPopupMenus then
                 end
             end
             if not found then
-                table.insert(menu, POPUP_VALUE)
+                -- 插入到当前菜单倒数第二项，保留最后一项作为菜单末项。
+                local menuSize = table.getn(menu)
+                local insertIndex = menuSize > 0 and menuSize or 1
+                table.insert(menu, insertIndex, POPUP_VALUE)
             end
         end
     end
@@ -1357,11 +1403,12 @@ if UnitPopupButtons and UnitPopupMenus then
         local menu = dropdownMenu or UIDROPDOWNMENU_INIT_MENU
         local unit = menu and menu.unit
         local entry = ParseCreatureGuid(unit)
+        local canViewEquipment = entry and entry > 70000 and entry < 80000
         for level = 1, UIDROPDOWNMENU_MAXLEVELS do
             for index = 1, UIDROPDOWNMENU_MAXBUTTONS do
                 local button = _G["DropDownList" .. level .. "Button" .. index]
                 if button and button.value == POPUP_VALUE then
-                    if entry then
+                    if canViewEquipment then
                         button:Show()
                     else
                         button:Hide()
