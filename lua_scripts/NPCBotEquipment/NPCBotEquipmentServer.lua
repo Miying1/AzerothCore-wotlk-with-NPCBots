@@ -92,7 +92,7 @@ function handlers.UpdateManagement(player, request)
         not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) or
         not IsInteger(request.roles, 0, 31) or not IsInteger(request.healHealthThreshold, 1, 100) or
         not IsInteger(request.engageDelayMs, 0, 10000) or
-        not IsInteger(request.attackAngleMode, 1, 2) or type(request.combatPositioning) ~= "boolean" then
+        not IsInteger(request.attackAngleMode, 1, 2) or not IsInteger(request.combatPositioning, 0, 2) then
         SendInvalidRequest(
             player,
             "ManagementUpdateResult",

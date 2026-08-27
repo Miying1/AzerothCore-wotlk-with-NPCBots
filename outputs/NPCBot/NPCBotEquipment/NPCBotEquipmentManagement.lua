@@ -8,11 +8,11 @@ local NAMESPACE = UI.namespace or "NPCBotEquipment"
 local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 
 local ROLE_OPTIONS = {
-    { value = 1, label = "主坦克" },
-    { value = 2, label = "副坦克" },
-    { value = 4, label = "伤害输出" },
+    { value = 1, label = "主坦" },
+    { value = 2, label = "副坦" },
+    { value = 4, label = "输出" },
     { value = 8, label = "治疗" },
-    { value = 16, label = "远程战斗" }
+    { value = 16, label = "远程" }
 }
 
 -- 职责位：1 主坦克、2 副坦克、4 输出、8 治疗、16 远程。
@@ -36,7 +36,7 @@ local function HasRole(mask, role)
 end
 
 local function CreateSection(parent, title, y, height)
-    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 416, height)
+    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 358, height)
     local heading = inset:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     heading:SetPoint("TOPLEFT", inset, "TOPLEFT", 16, -12)
     heading:SetText(title)
@@ -66,19 +66,54 @@ local function CreateRadio(parent, label)
     return radio
 end
 
+-- 兼容层：当前运行环境的 EditBox 缺少 Frame 基类方法 Disable/Enable/SetShown，
+-- 这里用存在的方法做等价降级，避免 "attempt to call method ... (a nil value)"。
+local function SafeEditBoxSetShown(edit, shown)
+    if edit.SetShown then
+        edit:SetShown(shown)
+    elseif shown then
+        edit:Show()
+    else
+        edit:Hide()
+    end
+end
+
+local function SafeEditBoxSetEnabled(edit, enabled)
+    if edit.Enable and edit.Disable then
+        if enabled then
+            edit:Enable()
+        else
+            edit:Disable()
+        end
+    end
+    -- 无论是否真正禁用，都用文字颜色区分可用/禁用状态。
+    if edit.SetTextColor then
+        edit:SetTextColor(enabled and 1 or 0.45, enabled and 1 or 0.45, enabled and 1 or 0.45)
+    end
+end
+
 local function CreateEditBox(parent, width)
-    local edit = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
-    edit:SetWidth(width)
-    edit:SetHeight(24)
+    -- 参考 NetherBot 的输入框写法：不用模板，用 SetBackdrop 手动绘制背景边框。
+    local edit = CreateFrame("EditBox", nil, parent)
+    edit:SetSize(width, 24)
+    edit:SetFontObject("GameFontHighlight")
+    edit:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    edit:SetBackdropColor(0, 0, 0, 0.85)
+    edit:SetBackdropBorderColor(0.4, 0.4, 0.6, 1)
+    edit:SetTextInsets(6, 6, 4, 4)
+    edit:SetMultiLine(false)
     edit:SetAutoFocus(false)
-    edit:SetMaxLetters(8)
-    edit:SetJustifyH("CENTER")
     return edit
 end
 
 local function CreateManagementPanel(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -64)
+    panel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -44)
     panel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 48)
     panel:SetFrameLevel(frame:GetFrameLevel() + 3)
     panel:Hide()
@@ -87,7 +122,7 @@ local function CreateManagementPanel(frame)
     panel.roleChecks = {}
     for index, option in ipairs(ROLE_OPTIONS) do
         local check = CreateCheck(roles, option.label)
-        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 16 + (index - 1) * 84, -38)
+        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 16 + (index - 1) * 70, -38)
         check.roleValue = option.value
         panel.roleChecks[index] = check
         check:SetScript("OnClick", function(self)
@@ -104,7 +139,6 @@ local function CreateManagementPanel(frame)
             UI:SubmitManagementChanges()
         end)
     end
-
     local behavior = CreateSection(panel, "战斗设置", -94, 178)
 
     local healLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -122,16 +156,19 @@ local function CreateManagementPanel(frame)
     local delayLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     delayLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -76)
     delayLabel:SetText("进战延迟")
+    panel.engageDelayLabel = delayLabel
     local delayEdit = CreateEditBox(behavior, 72)
     delayEdit:SetPoint("LEFT", delayLabel, "RIGHT", 14, 0)
     panel.engageDelayEdit = delayEdit
     local delayUnit = behavior:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     delayUnit:SetPoint("LEFT", delayEdit, "RIGHT", 8, 0)
     delayUnit:SetText("秒（0-10）")
+    panel.engageDelayUnit = delayUnit
 
     local angleLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     angleLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -110)
     angleLabel:SetText("攻击角度")
+    panel.angleLabel = angleLabel
     local normal = CreateRadio(behavior, "普通")
     normal:SetPoint("LEFT", angleLabel, "RIGHT", 24, 0)
     normal.angleMode = 1
@@ -156,14 +193,26 @@ local function CreateManagementPanel(frame)
     local positioningLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -144)
     positioningLabel:SetText("战斗走位")
-    local positioning = CreateCheck(behavior, "启用")
-    positioning:SetPoint("LEFT", positioningLabel, "RIGHT", 18, 0)
-    positioning:SetScript("OnClick", function()
-        if not panel.rendering then
+    local positioningDisable = CreateRadio(behavior, "禁用")
+    positioningDisable:SetPoint("LEFT", positioningLabel, "RIGHT", 24, 0)
+    positioningDisable.positioningMode = 1
+    local positioningEnable = CreateRadio(behavior, "启用")
+    positioningEnable:SetPoint("LEFT", positioningDisable, "RIGHT", 80, 0)
+    positioningEnable.positioningMode = 2
+    panel.combatPositioningRadios = { positioningDisable, positioningEnable }
+    for _, radio in ipairs(panel.combatPositioningRadios) do
+        radio:SetScript("OnClick", function(self)
+            if panel.rendering then
+                return
+            end
+            panel.rendering = true
+            for _, other in ipairs(panel.combatPositioningRadios) do
+                other:SetChecked(other == self)
+            end
+            panel.rendering = false
             UI:SubmitManagementChanges()
-        end
-    end)
-    panel.combatPositioningCheck = positioning
+        end)
+    end
 
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("TOP", behavior, "BOTTOM", 0, -8)
@@ -220,20 +269,15 @@ function UI:SetManagementControlsEnabled(enabled)
     for _, radio in ipairs(panel.angleRadios) do
         radio:SetEnabled(enabled)
     end
-    panel.combatPositioningCheck:SetEnabled(enabled)
+    for _, radio in ipairs(panel.combatPositioningRadios) do
+        radio:SetEnabled(enabled)
+    end
     if enabled and panel.healThresholdSupported then
-        panel.healThresholdEdit:Enable()
-        panel.healThresholdEdit:SetTextColor(1, 1, 1)
+        SafeEditBoxSetEnabled(panel.healThresholdEdit, true)
     else
-        panel.healThresholdEdit:Disable()
-        panel.healThresholdEdit:SetTextColor(0.45, 0.45, 0.45)
+        SafeEditBoxSetEnabled(panel.healThresholdEdit, false)
     end
-    if enabled then
-        panel.engageDelayEdit:Enable()
-    else
-        panel.engageDelayEdit:Disable()
-    end
-    panel.engageDelayEdit:SetTextColor(enabled and 1 or 0.45, enabled and 1 or 0.45, enabled and 1 or 0.45)
+    SafeEditBoxSetEnabled(panel.engageDelayEdit, enabled)
 end
 
 function UI:RenderManagement(management)
@@ -264,16 +308,27 @@ function UI:RenderManagement(management)
 
     panel.healThresholdSupported = management.healThresholdSupported == true
     panel.healThresholdLabel:SetShown(panel.healThresholdSupported)
-    panel.healThresholdEdit:SetShown(panel.healThresholdSupported)
+    SafeEditBoxSetShown(panel.healThresholdEdit, panel.healThresholdSupported)
     panel.healThresholdUnit:SetShown(panel.healThresholdSupported)
     panel.healThresholdEdit:SetText(tostring(tonumber(management.healHealthThreshold) or 95))
     panel.healThresholdUnit:SetText("%（1-100，整数）")
+    -- 有坦克职责（主坦或副坦）时隐藏进战延迟和攻击角度，坦克无需这两项设置。
+    local hasTankRole = HasRole(roles, 1) or HasRole(roles, 2)
+    panel.engageDelayLabel:SetShown(not hasTankRole)
+    SafeEditBoxSetShown(panel.engageDelayEdit, not hasTankRole)
+    panel.engageDelayUnit:SetShown(not hasTankRole)
     panel.engageDelayEdit:SetText(string.format("%.3g", (tonumber(management.engageDelayMs) or 0) / 1000))
+    panel.angleLabel:SetShown(not hasTankRole)
     for _, radio in ipairs(panel.angleRadios) do
+        radio:SetShown(not hasTankRole)
         radio:SetChecked(radio.angleMode == tonumber(management.attackAngleMode))
     end
-    panel.combatPositioningCheck:SetChecked(management.combatPositioning == true)
-    panel.combatPositioningCheck.label:SetText(management.combatPositioning == true and "启用" or "禁用")
+    -- 服务端返回的 combatPositioning 为数字：-1 = 跟随主人，0 = 禁用，1 = 启用。
+    -- 提交值为 1（禁用）/ 2（启用），据此映射选中哪个单选按钮。
+    local combatPositioningMode = tonumber(management.combatPositioning) == 1 and 2 or 1
+    for _, radio in ipairs(panel.combatPositioningRadios) do
+        radio:SetChecked(radio.positioningMode == combatPositioningMode)
+    end
     panel.rendering = false
     self:SetManagementControlsEnabled(not self.managementPending)
 end
@@ -306,16 +361,31 @@ function UI:BuildManagementRequest()
         threshold = tonumber(self.management and self.management.healHealthThreshold) or 95
     end
 
-    local delaySeconds = tonumber(panel.engageDelayEdit:GetText() or "")
-    if not delaySeconds or delaySeconds < 0 or delaySeconds > 10 then
-        return nil, "进战延迟必须在 0-10 秒之间"
+    local hasTankRole = HasRole(roles, 1) or HasRole(roles, 2)
+    local delayMs = 0
+    if not hasTankRole then
+        local delaySeconds = tonumber(panel.engageDelayEdit:GetText() or "")
+        if not delaySeconds or delaySeconds < 0 or delaySeconds > 10 then
+            return nil, "进战延迟必须在 0-10 秒之间"
+        end
+        delayMs = math.floor(delaySeconds * 1000 + 0.5)
     end
-    local delayMs = math.floor(delaySeconds * 1000 + 0.5)
 
     local angleMode = 1
-    for _, radio in ipairs(panel.angleRadios) do
+    if not hasTankRole then
+        for _, radio in ipairs(panel.angleRadios) do
+            if radio:GetChecked() then
+                angleMode = radio.angleMode
+                break
+            end
+        end
+    end
+
+    -- 战斗走位三态：1 = 禁用，2 = 启用（0 = 跟随主人，客户端 UI 不产生该值）。
+    local combatPositioning = 1
+    for _, radio in ipairs(panel.combatPositioningRadios) do
         if radio:GetChecked() then
-            angleMode = radio.angleMode
+            combatPositioning = radio.positioningMode
             break
         end
     end
@@ -327,7 +397,7 @@ function UI:BuildManagementRequest()
         healHealthThreshold = threshold,
         engageDelayMs = delayMs,
         attackAngleMode = angleMode,
-        combatPositioning = panel.combatPositioningCheck:GetChecked() == true
+        combatPositioning = combatPositioning
     }
 end
 
@@ -344,11 +414,13 @@ function UI:SubmitManagementChanges()
     end
 
     local current = self.management
+    -- 服务端返回的 combatPositioning 为 -1/0/1（启用为 1），提交值为 1/2（启用为 2），据此比较是否变化。
+    local currentCombatPositioning = tonumber(current and current.combatPositioning) == 1 and 2 or 1
     if current and request.roles == tonumber(current.roles) and
         request.healHealthThreshold == tonumber(current.healHealthThreshold) and
         request.engageDelayMs == tonumber(current.engageDelayMs) and
         request.attackAngleMode == tonumber(current.attackAngleMode) and
-        request.combatPositioning == (current.combatPositioning == true) then
+        request.combatPositioning == currentCombatPositioning then
         return
     end
 

@@ -24,24 +24,56 @@ local RESULT_MESSAGES = {
     INTERNAL_ERROR = "Bot 装备服务内部错误"
 }
 
-local FRAME_WIDTH = 440
-local FRAME_HEIGHT = 500
+-- 主窗口宽高（像素）
+-- 宽度 = 左右栏距边框各 3px + 左右栏各 56px + 模型栏 252px + 三栏之间各 4px 间距
+local FRAME_WIDTH = 378
+local FRAME_HEIGHT = 460
+-- 模型区域宽度（像素），左右装备栏与模型栏间距保留 4px
+local MODEL_INSET_WIDTH = 252
+-- 左右装备栏宽度（像素）
+local SIDE_INSET_WIDTH = 56
+-- 左右装备栏距离主窗体边框的间距（像素）
+local SIDE_INSET_MARGIN = 3
+-- 左右装备栏与模型栏之间的间距（像素）
+local SIDE_MODEL_GAP = 4
+-- 快照缓存：有效期（秒，3 天）与最大缓存条目数
 local SNAPSHOT_CACHE_TTL = 3 * 24 * 60 * 60
 local SNAPSHOT_CACHE_MAX = 32
+-- 快照缓存数据结构的版本号，结构变化时递增以触发客户端缓存失效重建
 local SNAPSHOT_CACHE_VERSION = 3
-local SLOT_SIZE = 38
+-- 装备槽图标尺寸（像素，42×42）
+local SLOT_SIZE = 42
+-- 装备槽之间的间距（像素）
 local SLOT_GAP = 3
--- 46px 槽位包围面板在左右 56px 栏内居中，两侧各保留 5px 内边距。
-local LEFT_SLOT_X = 29
-local RIGHT_SLOT_X = 373
-local SLOT_TOP = -76
+-- 装备槽在左右装备栏内水平居中，左右栏距离主窗体顶部一致。
+-- 左右槽位直接相对主窗体 frame 定位（不再包裹左右栏面板）。
+-- 槽位起始位置的垂直偏移（相对主窗体顶部，负值向下）。
+-- 与模型栏顶部边框（modelInset 的 y=-34）保持一致，使左右槽位顶部与模型栏顶边水平对齐。
+local SLOT_TOP = -38
+-- 左右槽位相对主窗体边缘的水平偏移：栏宽 56、槽宽 42，居中后两侧各留 7px，
+-- 再加上栏距主窗体边框 3px，故偏移 = 3 + (56 - 42) / 2 = 10。
+-- local SLOT_SIDE_X = SIDE_INSET_MARGIN + (SIDE_INSET_WIDTH - SLOT_SIZE) / 2
+local SLOT_SIDE_X = 14
+-- 底部武器槽（主手/副手/远程）水平起始 X 与垂直 Y 偏移
 local WEAPON_SLOT_X = 180
-local WEAPON_SLOT_Y = -354
+local WEAPON_SLOT_Y = -374
+-- 单次点击旋转按钮时模型的旋转步长（弧度）
 local MODEL_ROTATION_STEP = 0.15
+-- 长按旋转按钮时的持续旋转速度（弧度/秒）
+local MODEL_ROTATION_HOLD_SPEED = 1.5
+-- 候选装备面板最多同时显示的可见行数
 local MAX_VISIBLE_ROWS = 5
+-- 候选装备图标尺寸（像素）
 local CANDIDATE_SIZE = 38
-local CANDIDATE_GAP = 4
-local CANDIDATE_PADDING = 8
+-- 候选装备图标之间的列间距（水平方向，像素）
+local CANDIDATE_GAP = 3
+-- 候选装备每行的行高增量：行间距比列间距多 6px，使每行占高增加 6px
+local CANDIDATE_ROW_GAP = CANDIDATE_GAP-2
+-- 候选装备面板的内边距（像素）：顶部/左右内边距
+local CANDIDATE_PADDING = 5
+-- 候选装备面板的底部内边距（像素）：比顶部更大，让装备与底部边框留出更多间距
+local CANDIDATE_BOTTOM_PADDING = 14
+-- 候选装备面板每行显示的列数
 local CANDIDATE_COLUMNS = 4
 local QUALITY_COLORS = {
     [0] = { 0.62, 0.62, 0.62 },
@@ -53,6 +85,20 @@ local QUALITY_COLORS = {
     [6] = { 0.90, 0.80, 0.50 },
     [7] = { 0.90, 0.80, 0.50 }
 }
+-- 空槽默认边框颜色（偏灰）
+local EMPTY_SLOT_BORDER = { 0.40, 0.40, 0.40 }
+-- 设置装备槽边框颜色：装备按品质色显示，空槽用灰色。
+-- 边框由 UI-Quickslot2 纹理承担（已 SetDesaturated 去金色），通过 SetVertexColor 设置品质色。
+local function SetSlotBorderColor(button, quality)
+    local color = (quality ~= nil and QUALITY_COLORS[quality]) or EMPTY_SLOT_BORDER
+    if not color then
+        color = EMPTY_SLOT_BORDER
+    end
+    if button.border then
+        button.border:SetVertexColor(color[1], color[2], color[3])
+    end
+    button.currentBorderColor = color
+end
 local SLOT_NAMES = {
     "主", "副", "远", "头", "肩", "胸", "腰", "腿", "脚",
     "护", "手", "披", "衬", "戒1", "戒2", "饰1", "饰2", "项"
@@ -66,24 +112,24 @@ local RIGHT_DISPLAY_SLOTS = { 10, 6, 7, 8, 13, 14, 15, 16 }
 local BOTTOM_DISPLAY_SLOTS = { 0, 1, 2 }
 
 local SLOT_EMPTY_TEXTURES = {
-    [0] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-MainHand",
-    [1] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-SecondaryHand",
-    [2] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Ranged",
-    [3] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Head",
-    [4] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Shoulder",
-    [5] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Chest",
-    [6] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Waist",
-    [7] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Legs",
-    [8] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Feet",
-    [9] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Wrists",
-    [10] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Hands",
-    [11] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Back",
-    [12] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Shirt",
-    [13] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Finger",
-    [14] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Finger",
-    [15] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Trinket",
-    [16] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Trinket",
-    [17] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-Neck"
+    [0] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-MainHand",
+    [1] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-SecondaryHand",
+    [2] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Ranged",
+    [3] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Head",
+    [4] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shoulder",
+    [5] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    [6] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Waist",
+    [7] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Legs",
+    [8] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Feet",
+    [9] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Wrists",
+    [10] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Hands",
+    [11] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Back",
+    [12] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shirt",
+    [13] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    [14] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    [15] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    [16] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    [17] = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Neck"
 }
 
 local function GetEmptySlotTexture(slot)
@@ -396,11 +442,14 @@ local function CreateSlotButton(frame, slot, side, index)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:SetFrameLevel(frame:GetFrameLevel() + 10)
     button.botSlot = slot
+    button.side = side
 
     if side == "left" then
-        button:SetPoint("TOPLEFT", frame, "TOPLEFT", LEFT_SLOT_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
+        -- 左栏：相对主窗体左上角定位，水平居中于左栏区域，垂直从 SLOT_TOP 向下按索引排列。
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", SLOT_SIDE_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
     elseif side == "right" then
-        button:SetPoint("TOPLEFT", frame, "TOPLEFT", RIGHT_SLOT_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
+        -- 右栏：相对主窗体右上角定位，与左栏对称，垂直偏移一致保证左右栏顶部对齐。
+        button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -SLOT_SIDE_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
     else
         button:SetPoint("TOPLEFT", frame, "TOPLEFT", WEAPON_SLOT_X + index * (SLOT_SIZE + SLOT_GAP), WEAPON_SLOT_Y)
     end
@@ -416,16 +465,23 @@ local function CreateSlotButton(frame, slot, side, index)
         tile = true,
         tileSize = 8,
         edgeSize = 8,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+        insets = { left = 1, right = 1, top = 1, bottom = 1 }
     })
     slotPanel:SetBackdropColor(0.02, 0.02, 0.015, 0.88)
     slotPanel:SetBackdropBorderColor(0.34, 0.24, 0.12, 1)
     button.slotPanel = slotPanel
 
+    -- 装备槽边框：使用 UI-Quickslot2 边框纹理。
+    -- 该纹理本身为金色，SetVertexColor 为乘法调制，金色纹理乘品质色仍是金色调；
+    -- 因此先用 SetDesaturated 去饱和（变灰），再乘品质色即可正确显示对应颜色。
     local border = button:CreateTexture(nil, "BACKGROUND")
     border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     border:SetAllPoints(button)
-    border:SetVertexColor(0.82, 0.67, 0.42)
+    -- SetDesaturated 去金色：部分客户端版本可能不支持该方法，先判断存在性避免报错
+    if border.SetDesaturated then
+        border:SetDesaturated(true)
+    end
+    border:SetVertexColor(EMPTY_SLOT_BORDER[1], EMPTY_SLOT_BORDER[2], EMPTY_SLOT_BORDER[3])
     button.border = border
 
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
@@ -470,11 +526,17 @@ local function CreateSlotButton(frame, slot, side, index)
     itemLevel:SetTextColor(1, 0.82, 0)
     itemLevel:SetShadowColor(0, 0, 0, 1)
     itemLevel:SetShadowOffset(1, -1)
+    -- 槽内装等字号比默认槽位字体再小一号
+    local itemLevelFont, itemLevelSize, itemLevelFlags = itemLevel:GetFont()
+    if itemLevelFont then
+        itemLevel:SetFont(itemLevelFont, itemLevelSize - 1, itemLevelFlags)
+    end
     button.itemLevel = itemLevel
 
     button:SetScript("OnEnter", function(self)
         local slotData = UI.snapshot and UI.snapshot.slots and UI.snapshot.slots[self.botSlot + 1]
-        self.slotPanel:SetBackdropBorderColor(0.95, 0.75, 0.28, 1)
+        -- 悬停时边框高亮为金色
+        self.border:SetVertexColor(0.95, 0.75, 0.28)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if slotData and slotData.occupied and slotData.link and slotData.link ~= "" then
             GameTooltip:SetHyperlink(slotData.link)
@@ -488,7 +550,9 @@ local function CreateSlotButton(frame, slot, side, index)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function(self)
-        self.slotPanel:SetBackdropBorderColor(0.34, 0.24, 0.12, 1)
+        -- 恢复为该槽位当前品质对应的边框颜色（或空槽灰色）
+        local color = self.currentBorderColor or EMPTY_SLOT_BORDER
+        self.border:SetVertexColor(color[1], color[2], color[3])
         GameTooltip:Hide()
     end)
     button:SetScript("OnClick", function(self, mouseButton)
@@ -509,15 +573,18 @@ end
 local function CreateTab(frame, text, index)
     local button = CreateFrame("Button", nil, frame)
     button:SetWidth(104)
-    button:SetHeight(30)
-    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 83 + (index - 1) * 107, 12)
+    button:SetHeight(30) 
+    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 83 + (index - 1) * 107, 98)
 
+    -- 底图：经典纸娃娃选项卡纹理
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Tab")
     background:SetTexCoord(0, 0.5, 0, 0.75)
     background:SetAllPoints(button)
+    background:SetVertexColor(0.72, 0.72, 0.72)
     button.background = background
 
+    -- 选中态底图：高亮纹理段
     local active = button:CreateTexture(nil, "ARTWORK")
     active:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Tab")
     active:SetTexCoord(0.5, 1, 0, 0.75)
@@ -525,21 +592,66 @@ local function CreateTab(frame, text, index)
     active:Hide()
     button.active = active
 
+    -- 悬停高亮：叠加金色柔光
+    local hover = button:CreateTexture(nil, "HIGHLIGHT")
+    hover:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    hover:SetBlendMode("ADD")
+    hover:SetAllPoints(button)
+    hover:SetVertexColor(0.55, 0.40, 0.15, 0.75)
+    hover:Hide()
+    button.hover = hover
+
+    -- 选中态顶部亮条：醒目金色，横贯选项卡上沿
+    local activeTop = button:CreateTexture(nil, "OVERLAY")
+    activeTop:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
+    activeTop:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -1)
+    activeTop:SetPoint("TOPRIGHT", button, "TOPRIGHT", -2, -1)
+    activeTop:SetHeight(3)
+    activeTop:SetVertexColor(1, 0.82, 0.35, 1)
+    activeTop:Hide()
+    button.activeTop = activeTop
+
+    -- 选中态底部亮条
+    local activeBottom = button:CreateTexture(nil, "OVERLAY")
+    activeBottom:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
+    activeBottom:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 2, 2)
+    activeBottom:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
+    activeBottom:SetHeight(2)
+    activeBottom:SetVertexColor(1, 0.82, 0.35, 0.9)
+    activeBottom:Hide()
+    button.activeBottom = activeBottom
+
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("CENTER", button, "CENTER", 0, 1)
     label:SetText(text)
-    label:SetTextColor(0.75, 0.58, 0.30)
+    label:SetTextColor(0.62, 0.46, 0.24)
+    label:SetShadowColor(0, 0, 0, 1)
+    label:SetShadowOffset(1, -1)
     button.label = label
     button.tabName = text
+
+    -- 刷新选项卡视觉状态（选中 / 悬停 / 普通）
+    local function RefreshVisual(self)
+        local selected = self.tabName == UI.activeTab
+        self.active:SetShown(selected)
+        self.activeTop:SetShown(selected)
+        self.activeBottom:SetShown(selected)
+        self.background:SetVertexColor(selected and 1 or 0.72, selected and 1 or 0.72, selected and 1 or 0.72)
+        self.hover:Hide()
+        self.label:SetTextColor(selected and 1 or 0.62, selected and 0.86 or 0.46, selected and 0.42 or 0.24)
+    end
+    button.RefreshVisual = RefreshVisual
 
     button:SetScript("OnEnter", function(self)
         if self.tabName ~= UI.activeTab then
             self.label:SetTextColor(1, 0.82, 0.35)
+            self.hover:Show()
         end
     end)
     button:SetScript("OnLeave", function(self)
+        self.hover:Hide()
         if self.tabName ~= UI.activeTab then
-            self.label:SetTextColor(0.75, 0.58, 0.30)
+            self.label:SetTextColor(0.62, 0.46, 0.24)
         end
     end)
     button:SetScript("OnClick", function(self)
@@ -585,7 +697,7 @@ local function CreateEquipmentFrame()
     frame:Hide()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", frame, "TOP", 0, -16)
+    title:SetPoint("TOP", frame, "TOP", 0, -8)
     title:SetJustifyH("CENTER")
     title:SetText("NPCBot")
     title:SetTextColor(1, 0.82, 0.35)
@@ -601,17 +713,15 @@ local function CreateEquipmentFrame()
 
     local titleDivider = frame:CreateTexture(nil, "ARTWORK")
     titleDivider:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
-    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 42, -48)
-    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -42, -48)
+    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 42, -28)
+    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -42, -28)
     titleDivider:SetHeight(2)
     titleDivider:SetVertexColor(0.65, 0.46, 0.22, 0.85)
     frame.titleDivider = titleDivider
 
-    local leftInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 20, -54, 56, 348)
-    local rightInset = CreateInset(frame, "TOPRIGHT", frame, "TOPRIGHT", -20, -54, 56, 348)
-    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 84, -54, 272, 328)
-    frame.leftInset = leftInset
-    frame.rightInset = rightInset
+    -- 仅保留模型栏面板；左右装备栏不再用面板包裹，槽位直接相对主窗体定位。
+    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT",
+        SIDE_INSET_MARGIN + SIDE_INSET_WIDTH + SIDE_MODEL_GAP, -34, MODEL_INSET_WIDTH, 368)
     frame.modelInset = modelInset
 
     local model = CreateFrame("PlayerModel", nil, modelInset)
@@ -652,8 +762,22 @@ local function CreateEquipmentFrame()
         button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
         button:SetPushedTexture(isLeft and "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down"
             or "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down")
-        button:SetScript("OnClick", function()
-            ApplyModelRotation(isLeft and MODEL_ROTATION_STEP or -MODEL_ROTATION_STEP)
+        -- 长按持续旋转：按下时先旋转一步并开启旋转，松开或按钮隐藏时停止。
+        local direction = isLeft and 1 or -1
+        button:SetScript("OnMouseDown", function(self)
+            self.rotating = true
+            ApplyModelRotation(direction * MODEL_ROTATION_STEP)
+        end)
+        button:SetScript("OnMouseUp", function(self)
+            self.rotating = false
+        end)
+        button:SetScript("OnHide", function(self)
+            self.rotating = false
+        end)
+        button:SetScript("OnUpdate", function(self, elapsed)
+            if self.rotating then
+                ApplyModelRotation(direction * MODEL_ROTATION_HOLD_SPEED * elapsed)
+            end
         end)
         return button
     end
@@ -713,7 +837,7 @@ local function CreateEquipmentFrame()
     frame.status:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 34)
     frame.status:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 34)
     frame.status:SetJustifyH("CENTER")
-    frame.status:SetText("右键装备槽查看背包候选")
+    frame.status:SetText("")
     frame.status:SetTextColor(0.72, 0.65, 0.52)
 
     local divider = frame:CreateTexture(nil, "ARTWORK")
@@ -749,9 +873,10 @@ local function CreateCandidatePanel()
     local panel = CreateFrame("Frame", "NPCBotEquipmentCandidatePanel", UIParent)
     panel:SetWidth(CANDIDATE_PADDING * 2 + CANDIDATE_SIZE * CANDIDATE_COLUMNS +
         CANDIDATE_GAP * (CANDIDATE_COLUMNS - 1) + 24)
-    panel:SetHeight(CANDIDATE_PADDING * 2 + CANDIDATE_SIZE)
-    panel:SetFrameStrata("FULLSCREEN_DIALOG")
-    panel:SetFrameLevel(30)
+    panel:SetHeight(CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING + CANDIDATE_SIZE)
+    -- 使用 TOOLTIP 层级（高于主框架的 FULLSCREEN_DIALOG），确保候选列表不被遮挡
+    panel:SetFrameStrata("TOOLTIP")
+    panel:SetFrameLevel(100)
     CreateBackdrop(panel)
     panel:Hide()
 
@@ -767,7 +892,7 @@ local function CreateCandidatePanel()
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetWidth(panel:GetWidth() - 28)
-    content:SetHeight(CANDIDATE_SIZE + CANDIDATE_PADDING * 2)
+    content:SetHeight(CANDIDATE_SIZE + CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING)
     scrollFrame:SetScrollChild(content)
     panel.content = content
 
@@ -836,8 +961,6 @@ function UI:ShouldCloseForResponse(response)
 end
 
 function UI:SetEquipmentContentShown(shown)
-    self.frame.leftInset:SetShown(shown)
-    self.frame.rightInset:SetShown(shown)
     self.frame.modelInset:SetShown(shown)
     self.frame.totalGearScore:SetShown(shown)
     self.frame.rotateLeft:SetShown(shown)
@@ -856,7 +979,7 @@ function UI:UpdatePermissionUi()
     local firstX = (FRAME_WIDTH - totalWidth) / 2
     for index, tab in ipairs(self.frame.tabs) do
         tab:ClearAllPoints()
-        tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 107, -16)
+        tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 107, 15)
     end
     self.frame.tabs[3]:SetShown(canManage)
     if not canManage and self.activeTab == "管理" then
@@ -872,9 +995,9 @@ function UI:SelectTab(tabName, preserveCandidatePanel)
     self.activeTab = tabName
     self:UpdatePermissionUi()
     for _, tab in ipairs(self.frame.tabs) do
-        local selected = tab.tabName == tabName
-        tab.active:SetShown(selected)
-        tab.label:SetTextColor(selected and 1 or 0.75, selected and 0.82 or 0.75, selected and 0.25 or 0.75)
+        if tab.RefreshVisual then
+            tab:RefreshVisual()
+        end
     end
 
     if not preserveCandidatePanel then
@@ -889,7 +1012,7 @@ function UI:SelectTab(tabName, preserveCandidatePanel)
 
     if tabName == "装备" then
         self:SetEquipmentContentShown(true)
-        self.frame.status:SetText(self.currentBot and self.currentBot.canManage and "右键装备槽查看背包候选" or "")
+        self.frame.status:SetText("")
     elseif tabName == "属性" then
         self:SetEquipmentContentShown(false)
         if self.ShowAttributesTab then
@@ -910,9 +1033,11 @@ function UI:ResetEquipmentSlotDisplays()
 
     for _, button in ipairs(self.frame.slots) do
         button.icon:Hide()
+        button.emptyTexture:Show()
         button.label:SetTextColor(0.82, 0.72, 0.52)
         button.label:Show()
         button.itemLevel:SetText("")
+        SetSlotBorderColor(button, nil)
     end
     self.frame.totalGearScore:SetText("GS:0")
 end
@@ -957,13 +1082,22 @@ function UI:ApplyFullSnapshot(snapshot, preserveCandidatePanel)
             button.icon:SetTexture(GetEntryIcon(slotData.entry))
             button.icon:SetVertexColor(1, 1, 1)
             button.icon:Show()
+            button.emptyTexture:Hide()
             button.label:Hide()
             button.itemLevel:SetText(slotData.itemLevel and slotData.itemLevel > 0 and slotData.itemLevel or "")
+            -- 装备等级文本按装备品质色显示
+            local levelColor = QUALITY_COLORS[slotData.quality] or QUALITY_COLORS[1]
+            button.itemLevel:SetTextColor(levelColor[1], levelColor[2], levelColor[3])
+            -- 边框按装备品质色显示
+            SetSlotBorderColor(button, slotData.quality)
         else
             button.icon:Hide()
+            button.emptyTexture:Show()
             button.label:SetTextColor(0.82, 0.72, 0.52)
             button.label:Show()
             button.itemLevel:SetText("")
+            -- 空槽恢复灰色边框
+            SetSlotBorderColor(button, nil)
         end
     end
     self.frame.totalGearScore:SetText("GS:" .. tostring(tonumber(snapshot.totalGearScore) or 0))
@@ -1077,23 +1211,29 @@ end
 function UI:AnchorCandidatePanel(slotButton)
     local panel = self.candidatePanel
     panel:ClearAllPoints()
-    if slotButton:GetLeft() and slotButton:GetLeft() < UIParent:GetLeft() + 300 then
-        panel:SetPoint("TOPLEFT", slotButton, "TOPRIGHT", 8, 0)
-    else
+    -- 按槽位所在栏决定候选框默认展开方向：左栏向左、右栏向右、底部武器栏向下。
+    local side = slotButton.side or "right"
+    if side == "left" then
         panel:SetPoint("TOPRIGHT", slotButton, "TOPLEFT", -8, 0)
+    elseif side == "bottom" then
+        panel:SetPoint("TOPLEFT", slotButton, "BOTTOMLEFT", 0, -8)
+    else
+        panel:SetPoint("TOPLEFT", slotButton, "TOPRIGHT", 8, 0)
     end
     panel:Show()
     if panel.clickCatcher then
         panel.clickCatcher:Show()
     end
 
+    -- 越界兜底：右侧溢出屏幕则翻到槽位左侧。
     if panel:GetRight() and UIParent:GetRight() and panel:GetRight() > UIParent:GetRight() - 8 then
         panel:ClearAllPoints()
         panel:SetPoint("TOPRIGHT", slotButton, "TOPLEFT", -8, 0)
     end
+    -- 越界兜底：底部溢出屏幕则翻到槽位上方。
     if panel:GetBottom() and panel:GetBottom() < 8 then
         panel:ClearAllPoints()
-        panel:SetPoint("BOTTOMLEFT", slotButton, "BOTTOMRIGHT", 8, 0)
+        panel:SetPoint("BOTTOMLEFT", slotButton, "TOPLEFT", 0, 8)
     end
 end
 
@@ -1124,7 +1264,7 @@ function UI:ToggleCandidates(botSlot, slotButton)
     panel.content:Hide()
     panel.status:SetText("正在筛选背包装备...")
     panel.status:Show()
-    panel:SetHeight(CANDIDATE_PADDING * 2 + CANDIDATE_SIZE)
+    panel:SetHeight(CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING + CANDIDATE_SIZE)
 
     local requestId = NextRequestId()
     panel.requestId = requestId
@@ -1229,11 +1369,11 @@ function UI:RenderCandidates(candidates)
     end
 
     local rows = math.max(1, math.ceil(table.getn(displayItems) / CANDIDATE_COLUMNS))
-    local contentHeight = CANDIDATE_PADDING * 2 + rows * CANDIDATE_SIZE +
-        math.max(0, rows - 1) * CANDIDATE_GAP
+    local contentHeight = CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING + rows * CANDIDATE_SIZE +
+        math.max(0, rows - 1) * CANDIDATE_ROW_GAP
     local visibleRows = math.min(rows, MAX_VISIBLE_ROWS)
-    local visibleHeight = CANDIDATE_PADDING * 2 + visibleRows * CANDIDATE_SIZE +
-        math.max(0, visibleRows - 1) * CANDIDATE_GAP
+    local visibleHeight = CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING + visibleRows * CANDIDATE_SIZE +
+        math.max(0, visibleRows - 1) * CANDIDATE_ROW_GAP
     panel.content:SetHeight(contentHeight)
     panel:SetHeight(visibleHeight)
     panel.scrollFrame:SetVerticalScroll(0)
@@ -1245,7 +1385,7 @@ function UI:RenderCandidates(candidates)
         button:ClearAllPoints()
         button:SetPoint("TOPLEFT", panel.content, "TOPLEFT",
             CANDIDATE_PADDING + column * (CANDIDATE_SIZE + CANDIDATE_GAP),
-            -CANDIDATE_PADDING - row * (CANDIDATE_SIZE + CANDIDATE_GAP))
+            -CANDIDATE_PADDING - row * (CANDIDATE_SIZE + CANDIDATE_ROW_GAP))
         button.itemData = itemData
 
         if itemData.kind == "UNEQUIP" then
@@ -1453,38 +1593,45 @@ end)
 local POPUP_VALUE = "NPCBOT_EQUIPMENT"
 if UnitPopupButtons and UnitPopupMenus then
     UnitPopupButtons[POPUP_VALUE] = { text = "查看装备", dist = 0 }
-    -- TARGET 覆盖不在队伍/团队中的当前目标生物；其余菜单保留队伍和团队入口。
-    local popupMenus = { "TARGET", "PARTY", "RAID_PLAYER", "RAID" }
-    for _, menuName in ipairs(popupMenus) do
+    -- 组队/团队状态下右键队伍成员时，菜单走的是 PARTY / RAID_PLAYER 分支，而非 TARGET，
+    -- 因此必须将“查看装备”同时注册到多个菜单，否则组队状态下不会出现该菜单项。
+    -- 按钮统一插入到各菜单的倒数第二个位置（即“取消”之前）。
+    local function RegisterPopupValue(menuName)
         local menu = UnitPopupMenus[menuName]
-        if menu then
-            local found = false
-            for _, value in ipairs(menu) do
-                if value == POPUP_VALUE then
-                    found = true
-                    break
-                end
+        if not menu then
+            return
+        end
+        for _, value in ipairs(menu) do
+            if value == POPUP_VALUE then
+                return -- 已注册过，避免重复
             end
-            if not found then
-                -- 插入到当前菜单倒数第二项，保留最后一项作为菜单末项。
-                local menuSize = table.getn(menu)
-                local insertIndex = menuSize > 0 and menuSize or 1
-                table.insert(menu, insertIndex, POPUP_VALUE)
-            end
+        end
+        if #menu > 0 then
+            table.insert(menu, #menu, POPUP_VALUE) -- 插入到倒数第二个位置
+        else
+            table.insert(menu, POPUP_VALUE)
         end
     end
 
-    hooksecurefunc("UnitPopup_ShowMenu", function(dropdownMenu)
-        local menu = dropdownMenu or UIDROPDOWNMENU_INIT_MENU
-        local unit = menu and menu.unit
+    RegisterPopupValue("TARGET")
+    RegisterPopupValue("PARTY")
+    RegisterPopupValue("RAID_PLAYER")
+    RegisterPopupValue("PLAYER")
+
+    hooksecurefunc("UnitPopup_ShowMenu", function(dropdownMenu, which, unit)
+        -- UnitPopup_ShowMenu(dropdownMenu, which, unit, name, userData)
+        -- 后置钩子执行时，unit 即本次右键菜单对应的单位，直接用第三个参数更可靠
+        unit = unit or (UIDROPDOWNMENU_INIT_MENU and UIDROPDOWNMENU_INIT_MENU.unit)
         local entry = ParseCreatureGuid(unit)
         local canViewEquipment = entry and entry > 70000 and entry < 80000
+        local shown = false -- 多个菜单拼接时只保留一个“查看装备”，其余隐藏去重
         for level = 1, UIDROPDOWNMENU_MAXLEVELS do
             for index = 1, UIDROPDOWNMENU_MAXBUTTONS do
                 local button = _G["DropDownList" .. level .. "Button" .. index]
                 if button and button.value == POPUP_VALUE then
-                    if canViewEquipment then
+                    if canViewEquipment and not shown then
                         button:Show()
+                        shown = true
                     else
                         button:Hide()
                     end

@@ -126,8 +126,10 @@ struct BotManagementSnapshot
     bool healThresholdSupported = false;
     uint8 healHealthThreshold = 95;
     uint32 engageDelayMs = 0;
+    // 攻击角度：主人级全局设置（1 = 普通，2 = 避开正面 AOE）。
     uint8 attackAngleMode = 1;
-    bool combatPositioning = true;
+    // 战斗走位：-1 = 跟随主人级设置；0 = 禁用；1 = 启用（单 Bot 独立，仅运行时有效）。
+    int8 combatPositioning = -1;
 };
 
 class AC_GAME_API bot_mgr_service
@@ -166,7 +168,7 @@ public:
         uint32 healHealthThreshold,
         uint32 engageDelayMs,
         uint32 attackAngleMode,
-        bool combatPositioning,
+        uint32 combatPositioning,
         BotManagementSnapshot& snapshot);
 
     static BotEquipmentUiResult EquipFromInventory(

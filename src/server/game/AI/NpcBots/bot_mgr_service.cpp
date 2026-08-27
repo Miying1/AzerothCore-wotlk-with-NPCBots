@@ -232,8 +232,10 @@ void BuildManagementSnapshot(Player const* player, Creature const* bot, bot_ai c
     snapshot.healHealthThreshold = ai->GetHealHpPctThreshold();
     snapshot.engageDelayMs = std::max(
         player->GetBotMgr()->GetEngageDelayDPS(), player->GetBotMgr()->GetEngageDelayHeal());
+    // 攻击角度保持主人级全局设置。
     snapshot.attackAngleMode = player->GetBotMgr()->GetBotAttackAngleMode();
-    snapshot.combatPositioning = ai->GetAllowCombatPositioning();
+    // 战斗走位为单 Bot 独立设置：-1 = 跟随主人，0 = 禁用，1 = 启用。
+    snapshot.combatPositioning = ai->GetCombatPositioningOverride();
 }
 
 bool IsAllowedInventoryPosition(uint8 bag, uint8 slot)
@@ -679,13 +681,15 @@ BotEquipmentUiResult bot_mgr_service::UpdateManagement(
     uint32 healHealthThreshold,
     uint32 engageDelayMs,
     uint32 attackAngleMode,
-    bool combatPositioning,
+    uint32 combatPositioning,
     BotManagementSnapshot& snapshot)
 {
     snapshot = {};
+    // 攻击角度：主人级全局（1/2）；combatPositioning：0 = 跟随主人，1 = 禁用，2 = 启用（单 Bot）。
     if ((roles & ~BOT_ROLE_MASK_MAIN) != 0 || healHealthThreshold < 1 || healHealthThreshold > 100 ||
         engageDelayMs > 10 * IN_MILLISECONDS ||
-        (attackAngleMode != BOT_ATTACK_ANGLE_NORMAL && attackAngleMode != BOT_ATTACK_ANGLE_AVOID_FRONTAL_AOE))
+        (attackAngleMode != BOT_ATTACK_ANGLE_NORMAL && attackAngleMode != BOT_ATTACK_ANGLE_AVOID_FRONTAL_AOE) ||
+        combatPositioning > 2)
     {
         return BotEquipmentUiResult::InvalidRequest;
     }
@@ -730,8 +734,10 @@ BotEquipmentUiResult bot_mgr_service::UpdateManagement(
     // 管理页只有一个“进战延迟”，同时应用于攻击和治疗，确保纯治疗职责也生效。
     player->GetBotMgr()->SetEngageDelayDPS(engageDelayMs);
     player->GetBotMgr()->SetEngageDelayHeal(engageDelayMs);
+    // 攻击角度保持主人级全局设置。
     player->GetBotMgr()->SetBotAttackAngleMode(uint8(attackAngleMode));
-    ai->SetCombatPositioningOverride(combatPositioning ? 1 : 0);
+    // 战斗走位为单 Bot 独立设置：0 = 跟随主人级设置。
+    ai->SetCombatPositioningOverride(combatPositioning == 0 ? int8(-1) : int8(combatPositioning - 1));
     player->SaveToDB(false, false);
 
     BuildManagementSnapshot(player, bot, ai, snapshot);

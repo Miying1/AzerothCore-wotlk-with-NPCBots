@@ -183,8 +183,8 @@ namespace LuaPlayer
             SetField(L, "healThresholdSupported", snapshot.healThresholdSupported);
             SetField(L, "healHealthThreshold", snapshot.healHealthThreshold);
             SetField(L, "engageDelayMs", snapshot.engageDelayMs);
-            SetField(L, "attackAngleMode", snapshot.attackAngleMode);
-            SetField(L, "combatPositioning", snapshot.combatPositioning);
+            SetField(L, "attackAngleMode", int(snapshot.attackAngleMode));
+            SetField(L, "combatPositioning", int(snapshot.combatPositioning));
         }
 
         void PushResultHeader(lua_State* L, BotEquipmentUiResult result)
@@ -5462,7 +5462,7 @@ namespace LuaPlayer
         uint32 healHealthThreshold = ALE::CHECKVAL<uint32>(L, 5);
         uint32 engageDelayMs = ALE::CHECKVAL<uint32>(L, 6);
         uint32 attackAngleMode = ALE::CHECKVAL<uint32>(L, 7);
-        bool combatPositioning = ALE::CHECKVAL<bool>(L, 8);
+        uint32 combatPositioning = ALE::CHECKVAL<uint32>(L, 8);
 
         ObjectGuid::LowType botGuidLow = 0;
         if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
