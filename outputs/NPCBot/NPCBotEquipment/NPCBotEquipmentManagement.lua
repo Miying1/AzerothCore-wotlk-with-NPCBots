@@ -21,7 +21,7 @@ local function HasRole(mask, role)
 end
 
 local function CreateSection(parent, title, y, height)
-    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 748, height)
+    local inset = UI.CreateInset(parent, "TOPLEFT", parent, "TOPLEFT", 0, y, 488, height)
     local heading = inset:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     heading:SetPoint("TOPLEFT", inset, "TOPLEFT", 16, -12)
     heading:SetText(title)
@@ -72,7 +72,7 @@ local function CreateManagementPanel(frame)
     panel.roleChecks = {}
     for index, option in ipairs(ROLE_OPTIONS) do
         local check = CreateCheck(roles, option.label)
-        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 22 + (index - 1) * 142, -44)
+        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 22 + (index - 1) * 92, -44)
         check.roleValue = option.value
         panel.roleChecks[index] = check
         check:SetScript("OnClick", function(self)
@@ -105,7 +105,7 @@ local function CreateManagementPanel(frame)
     panel.healThresholdUnit = healUnit
 
     local delayLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    delayLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 390, -48)
+    delayLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 240, -48)
     delayLabel:SetText("进战延迟")
     local delayEdit = CreateEditBox(behavior, 72)
     delayEdit:SetPoint("LEFT", delayLabel, "RIGHT", 14, 0)
@@ -139,7 +139,7 @@ local function CreateManagementPanel(frame)
     end
 
     local positioningLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 390, -104)
+    positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 240, -104)
     positioningLabel:SetText("战斗走位")
     local positioning = CreateCheck(behavior, "启用")
     positioning:SetPoint("LEFT", positioningLabel, "RIGHT", 22, 0)
@@ -244,7 +244,7 @@ function UI:RenderManagement(management)
         check:SetShown(check.roleSupported)
         if check.roleSupported then
             check:ClearAllPoints()
-            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 22 + visibleRoleIndex * 142, -44)
+            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 22 + visibleRoleIndex * 92, -44)
             visibleRoleIndex = visibleRoleIndex + 1
         end
     end

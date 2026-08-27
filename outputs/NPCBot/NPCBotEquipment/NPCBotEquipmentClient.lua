@@ -3,16 +3,19 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = "NPCBotEquipment"
 local handlers = AIO.AddHandlers(NAMESPACE, {})
 
-local FRAME_WIDTH = 780
+local FRAME_WIDTH = 520
 local FRAME_HEIGHT = 600
 local SNAPSHOT_CACHE_TTL = 3 * 24 * 60 * 60
 local SNAPSHOT_CACHE_MAX = 32
 local SNAPSHOT_CACHE_VERSION = 3
 local SLOT_SIZE = 42
 local SLOT_GAP = 4
-local SIDE_SLOT_X = 28
-local RIGHT_SLOT_X = 706
-local SLOT_TOP = -88
+local LEFT_SLOT_X = 24
+local RIGHT_SLOT_X = 454
+local SLOT_TOP = -92
+local WEAPON_SLOT_X = 193
+local WEAPON_SLOT_Y = -474
+local MODEL_ROTATION_STEP = 0.15
 local MAX_VISIBLE_ROWS = 5
 local CANDIDATE_SIZE = 38
 local CANDIDATE_GAP = 4
@@ -32,11 +35,13 @@ local SLOT_NAMES = {
     "主手", "副手", "远程", "头部", "肩部", "胸部", "腰部", "腿部", "脚部",
     "护腕", "手套", "披风", "衬衣", "戒指1", "戒指2", "饰品1", "饰品2", "项链"
 }
--- 采用玩家 PaperDollFrame 的常见视觉顺序，数值仍对应 NPCBot 原始 18 槽。
--- 左侧为头部、项链、肩部、衬衣、胸部、腰部、腿部、脚部、护腕。
--- 右侧为手套、戒指、饰品、披风和武器。
-local LEFT_DISPLAY_SLOTS = { 3, 17, 4, 12, 5, 6, 7, 8, 9 }
-local RIGHT_DISPLAY_SLOTS = { 10, 13, 14, 15, 16, 11, 0, 1, 2 }
+-- 采用玩家 PaperDollFrame 的标准纸娃娃布局（中间为模型），数值对应 NPCBot 原始 18 槽。
+-- 左侧 7 槽：头、项、肩、披、胸、衬、腕。
+-- 右侧 8 槽：手、腰、腿、脚、戒1、戒2、饰1、饰2。
+-- 底部 3 槽：主手、副手、远程（横向排列于模型下方）。
+local LEFT_DISPLAY_SLOTS = { 3, 17, 4, 11, 5, 12, 9 }
+local RIGHT_DISPLAY_SLOTS = { 10, 6, 7, 8, 13, 14, 15, 16 }
+local BOTTOM_DISPLAY_SLOTS = { 0, 1, 2 }
 
 local SLOT_EMPTY_TEXTURES = {
     [0] = "Interface\\PaperDollInfoFrame\\UI-PaperDoll-Slot-MainHand",
@@ -274,21 +279,33 @@ local function ParseCreatureGuid(unit)
     return entry, tostring(guidLow)
 end
 
+-- NPCBot 是 creature，客户端 UnitClass 的第一个返回值（本地化职业名）不可靠（可能返回单位名称），
+-- 第二个返回值（英文 class token，如 "WARRIOR"）才是可靠的职业标识，据此映射本地化职业名。
+local CLASS_LOCALIZED_NAMES = {
+    WARRIOR = "战士",
+    PALADIN = "圣骑士",
+    HUNTER = "猎人",
+    ROGUE = "盗贼",
+    PRIEST = "牧师",
+    DEATHKNIGHT = "死亡骑士",
+    SHAMAN = "萨满",
+    MAGE = "法师",
+    WARLOCK = "术士",
+    DRUID = "德鲁伊"
+}
+
 local function GetUnitDisplayInfo(unit)
     local name = unit and UnitName(unit)
-    local className
     local classToken
     if unit and UnitClass then
-        className, classToken = UnitClass(unit)
+        classToken = select(2, UnitClass(unit))
     end
 
     if type(name) ~= "string" or name == "" then
         name = "NPCBot"
     end
-    if type(className) ~= "string" or className == "" then
-        className = "NPCBot"
-    end
 
+    local className = classToken and CLASS_LOCALIZED_NAMES[classToken] or "NPCBot"
     local classColor = classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classToken]
     if classColor then
         className = string.format(
@@ -324,11 +341,26 @@ local function SetModel(model, unit)
     if model.SetPosition then
         model:SetPosition(0, 0, 0)
     end
-    if model.SetFacing then
-        model:SetFacing(0)
+    UI.modelRotation = 0
+    if model.SetRotation then
+        pcall(model.SetRotation, model, 0)
     end
 end
-local function CreateSlotButton(frame, slot, side, row)
+
+local function ApplyModelRotation(delta)
+    local model = UI.frame and UI.frame.model
+    if not model then
+        return
+    end
+    UI.modelRotation = (UI.modelRotation or 0) + delta
+    if model.SetRotation then
+        pcall(model.SetRotation, model, UI.modelRotation)
+    elseif model.SetFacing then
+        pcall(model.SetFacing, model, UI.modelRotation)
+    end
+end
+UI.ApplyModelRotation = ApplyModelRotation
+local function CreateSlotButton(frame, slot, side, index)
     local button = CreateFrame("Button", nil, frame)
     button:SetWidth(SLOT_SIZE)
     button:SetHeight(SLOT_SIZE)
@@ -336,8 +368,13 @@ local function CreateSlotButton(frame, slot, side, row)
     button:SetFrameLevel(frame:GetFrameLevel() + 4)
     button.botSlot = slot
 
-    local x = side == "left" and SIDE_SLOT_X or RIGHT_SLOT_X
-    button:SetPoint("TOPLEFT", frame, "TOPLEFT", x, SLOT_TOP - row * (SLOT_SIZE + SLOT_GAP))
+    if side == "left" then
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", LEFT_SLOT_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
+    elseif side == "right" then
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", RIGHT_SLOT_X, SLOT_TOP - index * (SLOT_SIZE + SLOT_GAP))
+    else
+        button:SetPoint("TOPLEFT", frame, "TOPLEFT", WEAPON_SLOT_X + index * (SLOT_SIZE + SLOT_GAP), WEAPON_SLOT_Y)
+    end
 
     local slotPanel = CreateFrame("Frame", nil, frame)
     slotPanel:SetWidth(SLOT_SIZE + 12)
@@ -373,20 +410,29 @@ local function CreateSlotButton(frame, slot, side, row)
     pushed:SetAllPoints(button)
     button.pushed = pushed
 
+    -- 空槽轮廓纹理（与角色装备栏空槽一致，始终显示在物品图标之下）
+    local emptyTexture = button:CreateTexture(nil, "BORDER")
+    emptyTexture:SetPoint("TOPLEFT", button, "TOPLEFT", 3, -3)
+    emptyTexture:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -3, 3)
+    emptyTexture:SetTexture(GetEmptySlotTexture(slot))
+    button.emptyTexture = emptyTexture
+
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", button, "TOPLEFT", 3, -3)
     icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -3, 3)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-    icon:SetVertexColor(0.24, 0.24, 0.24)
+    icon:Hide()
     button.icon = icon
 
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     if side == "left" then
         label:SetPoint("LEFT", button, "RIGHT", 9, 0)
         label:SetJustifyH("LEFT")
-    else
+    elseif side == "right" then
         label:SetPoint("RIGHT", button, "LEFT", -9, 0)
         label:SetJustifyH("RIGHT")
+    else
+        label:SetPoint("TOP", button, "BOTTOM", 0, -4)
+        label:SetJustifyH("CENTER")
     end
     label:SetText(SLOT_NAMES[slot + 1])
     label:SetTextColor(0.82, 0.72, 0.52)
@@ -424,6 +470,11 @@ local function CreateSlotButton(frame, slot, side, row)
             if UI.currentBot and UI.currentBot.canManage then
                 UI:ToggleCandidates(self.botSlot, self)
             end
+        elseif mouseButton == "LeftButton" then
+            local panel = UI.candidatePanel
+            if panel and panel:IsShown() and panel.botSlot ~= self.botSlot then
+                UI:CloseCandidatePanel()
+            end
         end
     end)
     return button
@@ -433,7 +484,7 @@ local function CreateTab(frame, text, index)
     local button = CreateFrame("Button", nil, frame)
     button:SetWidth(116)
     button:SetHeight(32)
-    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 202 + (index - 1) * 119, 12)
+    button:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 83 + (index - 1) * 119, 12)
 
     local background = button:CreateTexture(nil, "BACKGROUND")
     background:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Tab")
@@ -496,7 +547,8 @@ local function CreateEquipmentFrame()
     frame:SetWidth(FRAME_WIDTH)
     frame:SetHeight(FRAME_HEIGHT)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameStrata("FULLSCREEN_DIALOG")
+    frame:SetFrameLevel(20)
     frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
@@ -507,13 +559,14 @@ local function CreateEquipmentFrame()
     frame:Hide()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", frame, "TOP", 0, -14)
+    title:SetPoint("TOP", frame, "TOP", 0, -16)
+    title:SetJustifyH("CENTER")
     title:SetText("NPCBot")
     title:SetTextColor(1, 0.82, 0.35)
     frame.title = title
 
     local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -4)
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
     subtitle:SetText("NPCBot 装备查看")
     subtitle:SetTextColor(0.72, 0.65, 0.52)
     frame.subtitle = subtitle
@@ -523,35 +576,24 @@ local function CreateEquipmentFrame()
 
     local titleDivider = frame:CreateTexture(nil, "ARTWORK")
     titleDivider:SetTexture("Interface\\Common\\UI-TooltipDivider-Transparent")
-    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 154, -48)
-    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -154, -48)
+    titleDivider:SetPoint("TOPLEFT", frame, "TOPLEFT", 60, -48)
+    titleDivider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -60, -48)
     titleDivider:SetHeight(2)
     titleDivider:SetVertexColor(0.65, 0.46, 0.22, 0.85)
     frame.titleDivider = titleDivider
 
-    local leftInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 16, -74, 176, 432)
-    local rightInset = CreateInset(frame, "TOPRIGHT", frame, "TOPRIGHT", -16, -74, 176, 432)
-    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 201, -74, 378, 432)
+    local leftInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 12, -64, 128, 400)
+    local rightInset = CreateInset(frame, "TOPRIGHT", frame, "TOPRIGHT", -12, -64, 128, 400)
+    local modelInset = CreateInset(frame, "TOPLEFT", frame, "TOPLEFT", 148, -64, 224, 400)
     frame.leftInset = leftInset
     frame.rightInset = rightInset
     frame.modelInset = modelInset
 
     local model = CreateFrame("PlayerModel", nil, modelInset)
-    model:SetPoint("TOPLEFT", modelInset, "TOPLEFT", 8, -8)
-    model:SetPoint("BOTTOMRIGHT", modelInset, "BOTTOMRIGHT", -8, 8)
-    model:EnableMouse(false)
+    model:SetPoint("TOPLEFT", modelInset, "TOPLEFT", 6, -6)
+    model:SetPoint("BOTTOMRIGHT", modelInset, "BOTTOMRIGHT", -6, 6)
+    model:EnableMouse(true)
     frame.model = model
-
-    local modelTop = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    modelTop:SetPoint("TOP", modelInset, "TOP", 0, -10)
-    modelTop:SetText("角色预览")
-    modelTop:SetTextColor(0.75, 0.58, 0.30)
-    frame.modelTop = modelTop
-
-    local modelHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    modelHint:SetPoint("BOTTOM", modelInset, "BOTTOM", 0, 12)
-    modelHint:SetText("NPCBot 当前模型")
-    frame.modelHint = modelHint
 
     local leftCaption = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     leftCaption:SetPoint("TOP", leftInset, "TOP", 0, -10)
@@ -566,13 +608,60 @@ local function CreateEquipmentFrame()
     frame.rightCaption = rightCaption
 
     local totalGearScore = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    totalGearScore:SetPoint("BOTTOM", modelInset, "BOTTOM", 0, 150)
-    totalGearScore:SetJustifyH("CENTER")
+    totalGearScore:SetPoint("BOTTOMRIGHT", modelInset, "BOTTOMRIGHT", -10, 8)
+    totalGearScore:SetJustifyH("RIGHT")
     totalGearScore:SetText("GS:0")
     totalGearScore:SetTextColor(1, 0.82, 0)
     totalGearScore:SetShadowColor(0, 0, 0, 1)
     totalGearScore:SetShadowOffset(1, -1)
     frame.totalGearScore = totalGearScore
+
+    local function CreateRotateButton(isLeft)
+        local button = CreateFrame("Button", nil, modelInset)
+        button:SetWidth(26)
+        button:SetHeight(26)
+        button:SetFrameLevel(modelInset:GetFrameLevel() + 2)
+        button:SetPoint("BOTTOM", modelInset, "BOTTOM", isLeft and -46 or 46, 12)
+        button:SetNormalTexture(isLeft and "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+            or "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+        button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+        button:SetPushedTexture(isLeft and "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down"
+            or "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down")
+        button:SetScript("OnClick", function()
+            ApplyModelRotation(isLeft and MODEL_ROTATION_STEP or -MODEL_ROTATION_STEP)
+        end)
+        return button
+    end
+    frame.rotateLeft = CreateRotateButton(true)
+    frame.rotateRight = CreateRotateButton(false)
+
+    local function OnModelMouseDown(self, mouseButton)
+        if mouseButton == "LeftButton" then
+            UI.rotatingModel = true
+            local scale = UIParent:GetEffectiveScale()
+            local x = GetCursorPosition()
+            UI.rotateStartX = x / scale
+        end
+    end
+    local function OnModelMouseUp()
+        UI.rotatingModel = false
+    end
+    local function OnModelUpdate(self, elapsed)
+        if not UI.rotatingModel then
+            return
+        end
+        local scale = UIParent:GetEffectiveScale()
+        local x = GetCursorPosition()
+        local cursorX = x / scale
+        local deltaX = cursorX - (UI.rotateStartX or cursorX)
+        if deltaX ~= 0 then
+            UI.rotateStartX = cursorX
+            ApplyModelRotation(-deltaX * 0.01)
+        end
+    end
+    model:SetScript("OnMouseDown", OnModelMouseDown)
+    model:SetScript("OnMouseUp", OnModelMouseUp)
+    model:SetScript("OnUpdate", OnModelUpdate)
 
     frame.slots = {}
     for row, slot in ipairs(LEFT_DISPLAY_SLOTS) do
@@ -580,6 +669,9 @@ local function CreateEquipmentFrame()
     end
     for row, slot in ipairs(RIGHT_DISPLAY_SLOTS) do
         frame.slots[slot + 1] = CreateSlotButton(frame, slot, "right", row - 1)
+    end
+    for index, slot in ipairs(BOTTOM_DISPLAY_SLOTS) do
+        frame.slots[slot + 1] = CreateSlotButton(frame, slot, "bottom", index - 1)
     end
 
     frame.status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -606,6 +698,11 @@ local function CreateEquipmentFrame()
     frame:SetScript("OnHide", function()
         UI:CloseCandidatePanel()
     end)
+    frame:HookScript("OnMouseDown", function()
+        if UI.candidatePanel and UI.candidatePanel:IsShown() then
+            UI:CloseCandidatePanel()
+        end
+    end)
     table.insert(UISpecialFrames, frame:GetName())
     return frame
 end
@@ -616,6 +713,7 @@ local function CreateCandidatePanel()
         CANDIDATE_GAP * (CANDIDATE_COLUMNS - 1) + 24)
     panel:SetHeight(CANDIDATE_PADDING * 2 + CANDIDATE_SIZE)
     panel:SetFrameStrata("FULLSCREEN_DIALOG")
+    panel:SetFrameLevel(30)
     CreateBackdrop(panel)
     panel:Hide()
 
@@ -642,6 +740,19 @@ local function CreateCandidatePanel()
         self.anchorButton = nil
         UI.requestDeadline = nil
     end)
+
+    -- 点击外部关闭层：覆盖主框架以外的区域，点击任意其他位置即关闭候选面板
+    local clickCatcher = CreateFrame("Frame", "NPCBotEquipmentClickCatcher", UIParent)
+    clickCatcher:SetFrameStrata("FULLSCREEN_DIALOG")
+    clickCatcher:SetFrameLevel(10)
+    clickCatcher:SetAllPoints(UIParent)
+    clickCatcher:EnableMouse(true)
+    clickCatcher:Hide()
+    clickCatcher:SetScript("OnMouseDown", function()
+        UI:CloseCandidatePanel()
+    end)
+    panel.clickCatcher = clickCatcher
+
     return panel
 end
 
@@ -664,11 +775,11 @@ function UI:SetEquipmentContentShown(shown)
     self.frame.leftInset:SetShown(shown)
     self.frame.rightInset:SetShown(shown)
     self.frame.modelInset:SetShown(shown)
-    self.frame.modelTop:SetShown(shown)
-    self.frame.modelHint:SetShown(shown)
     self.frame.totalGearScore:SetShown(shown)
     self.frame.leftCaption:SetShown(shown)
     self.frame.rightCaption:SetShown(shown)
+    self.frame.rotateLeft:SetShown(shown)
+    self.frame.rotateRight:SetShown(shown)
     for _, button in ipairs(self.frame.slots) do
         button:SetShown(shown)
         button.slotPanel:SetShown(shown)
@@ -678,7 +789,9 @@ end
 function UI:UpdatePermissionUi()
     self:EnsureFrames()
     local canManage = self.currentBot and self.currentBot.canManage == true
-    local firstX = canManage and 202 or 261
+    local tabCount = canManage and 3 or 2
+    local totalWidth = tabCount * 116 + (tabCount - 1) * 3
+    local firstX = (FRAME_WIDTH - totalWidth) / 2
     for index, tab in ipairs(self.frame.tabs) do
         tab:ClearAllPoints()
         tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 119, 12)
@@ -754,12 +867,12 @@ function UI:ApplyFullSnapshot(snapshot, preserveCandidatePanel)
         if slotData and slotData.occupied then
             button.icon:SetTexture(GetEntryIcon(slotData.entry))
             button.icon:SetVertexColor(1, 1, 1)
+            button.icon:Show()
             local color = QUALITY_COLORS[slotData.quality] or QUALITY_COLORS[1]
             button.label:SetTextColor(color[1], color[2], color[3])
             button.itemLevel:SetText(slotData.itemLevel and slotData.itemLevel > 0 and slotData.itemLevel or "")
         else
-            button.icon:SetTexture(GetEmptySlotTexture(slot))
-            button.icon:SetVertexColor(1, 1, 1)
+            button.icon:Hide()
             button.label:SetTextColor(0.82, 0.72, 0.52)
             button.itemLevel:SetText("")
         end
@@ -856,6 +969,9 @@ function UI:CloseCandidatePanel()
     self.equipPending = false
     self.mutationDeadline = nil
     self.candidatePanel:Hide()
+    if self.candidatePanel.clickCatcher then
+        self.candidatePanel.clickCatcher:Hide()
+    end
     for _, button in ipairs(self.candidateButtons) do
         button:Hide()
     end
@@ -870,6 +986,9 @@ function UI:AnchorCandidatePanel(slotButton)
         panel:SetPoint("TOPRIGHT", slotButton, "TOPLEFT", -8, 0)
     end
     panel:Show()
+    if panel.clickCatcher then
+        panel.clickCatcher:Show()
+    end
 
     if panel:GetRight() and UIParent:GetRight() and panel:GetRight() > UIParent:GetRight() - 8 then
         panel:ClearAllPoints()
