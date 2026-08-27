@@ -3,6 +3,27 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = "NPCBotEquipment"
 local handlers = AIO.AddHandlers(NAMESPACE, {})
 
+local RESULT_MESSAGES = {
+    OK = "操作成功",
+    INVALID_REQUEST = "请求参数无效",
+    RATE_LIMITED = "操作频繁，请稍后重试",
+    BOT_NOT_FOUND = "Bot 不在世界中或当前不可管理",
+    DIFFERENT_MAP = "Bot 与你不在同一地图，无法管理装备",
+    BOT_DEAD = "Bot 已死亡，无法管理装备",
+    NO_PERMISSION = "无权管理该 Bot",
+    INVALID_SLOT = "Bot 装备槽无效",
+    BUSY_IN_COMBAT = "战斗中不能管理 Bot 装备",
+    ITEM_NOT_FOUND = "物品不存在或已离开背包",
+    ITEM_MOVED = "物品状态或背包位置已变化",
+    ITEM_MISMATCH = "物品实例与请求不匹配",
+    STALE_EQUIPMENT = "Bot 装备状态已变化，请重新选择",
+    CANT_EQUIP = "该 Bot 无法装备此物品",
+    ITEM_CONFLICT = "物品与当前主副手装备冲突",
+    NO_BAG_SPACE = "背包空间不足",
+    NO_BANK_SPACE = "Bot 装备银行空间不足",
+    INTERNAL_ERROR = "Bot 装备服务内部错误"
+}
+
 local FRAME_WIDTH = 440
 local FRAME_HEIGHT = 500
 local SNAPSHOT_CACHE_TTL = 3 * 24 * 60 * 60
@@ -782,10 +803,36 @@ function UI:EnsureFrames()
     end
 end
 
+function UI:GetResultMessage(response, fallback)
+    return response and RESULT_MESSAGES[response.code] or fallback or "操作失败"
+end
+
 function UI:ShowError(message)
-    self:EnsureFrames()
-    self.frame.status:SetText(message or "操作失败")
-    UIErrorsFrame:AddMessage(message or "操作失败", 1, 0.2, 0.2, 1)
+    DEFAULT_CHAT_FRAME:AddMessage(message or "操作失败", 1, 1, 0)
+end
+
+function UI:ValidateCurrentBotRecord()
+    if not self.currentBot or not self.currentBot.entry or not self.currentBot.guidLow then
+        return false, "NPCBot 装备数据已失效，装备界面已关闭"
+    end
+    return true
+end
+
+function UI:CloseForInvalidBot(message)
+    self:CloseCandidatePanel()
+    if self.frame then
+        self.frame:Hide()
+    end
+    self.currentBot = nil
+    self.currentUnit = nil
+    self.snapshot = nil
+    if message and message ~= "" then
+        self:ShowError(message)
+    end
+end
+
+function UI:ShouldCloseForResponse(response)
+    return response and (response.code == "BOT_NOT_FOUND" or response.code == "DIFFERENT_MAP")
 end
 
 function UI:SetEquipmentContentShown(shown)
@@ -1001,6 +1048,13 @@ function UI:OpenFromUnit(unit)
         self:ShowError("该单位不是可识别的 NPCBot")
         return
     end
+    if entry <= 70000 or entry >= 80000 then
+        self:ShowError("该单位不在允许查看的 NPCBot Entry 范围内")
+        return
+    end
+    if UnitIsDeadOrGhost(unit) then
+        return
+    end
     self:Open(entry, guidLow, unit)
 end
 
@@ -1044,6 +1098,11 @@ function UI:AnchorCandidatePanel(slotButton)
 end
 
 function UI:ToggleCandidates(botSlot, slotButton)
+    local valid, message = self:ValidateCurrentBotRecord()
+    if not valid then
+        self:CloseForInvalidBot(message)
+        return
+    end
     if not self.currentBot or not self.snapshot then
         self:ShowError("装备快照尚未就绪")
         return
@@ -1218,6 +1277,12 @@ function UI:ExecuteCandidate(itemData)
         return
     end
 
+    local valid, message = self:ValidateCurrentBotRecord()
+    if not valid then
+        self:CloseForInvalidBot(message)
+        return
+    end
+
     self.equipPending = true
     self:SetCandidateButtonsEnabled(false)
     local requestId = NextRequestId()
@@ -1277,10 +1342,14 @@ function UI:HandleMutationResult(response)
         return
     end
 
+    if self:ShouldCloseForResponse(response) then
+        self:CloseForInvalidBot(UI:GetResultMessage(response))
+        return
+    end
     if response.snapshot and response.snapshot.slots then
         self:ApplyFullSnapshot(response.snapshot)
     end
-    self:ShowError(response.message)
+    self:ShowError(UI:GetResultMessage(response))
     if response.refreshRequired or response.code == "STALE_EQUIPMENT" or response.code == "ITEM_MOVED" or
         response.code == "ITEM_NOT_FOUND" then
         self:ReloadCurrentSlotCandidates()
@@ -1298,8 +1367,12 @@ function handlers.SnapshotResult(player, response)
     end
 
     if not response.ok then
-        UI:ShowError(response.message)
-        UI.frame:Hide()
+        if UI:ShouldCloseForResponse(response) then
+            UI:CloseForInvalidBot(UI:GetResultMessage(response))
+        else
+            UI:ShowError(UI:GetResultMessage(response))
+            UI.frame:Hide()
+        end
         return
     end
     UI:ApplyFullSnapshot(response.snapshot)
@@ -1317,9 +1390,12 @@ function handlers.CandidatesResult(player, response)
 
     UI.requestDeadline = nil
     if not response.ok then
-        panel.content:Hide()
-        panel.status:SetText(response.message or "候选请求失败")
-        panel.status:Show()
+        if UI:ShouldCloseForResponse(response) then
+            UI:CloseForInvalidBot(UI:GetResultMessage(response))
+        else
+            UI:CloseCandidatePanel()
+            UI:ShowError(UI:GetResultMessage(response) or "候选请求失败")
+        end
         return
     end
 
@@ -1345,9 +1421,8 @@ updateFrame:SetScript("OnUpdate", function()
     if UI.requestDeadline and now >= UI.requestDeadline then
         UI.requestDeadline = nil
         if UI.candidatePanel and UI.candidatePanel:IsShown() then
-            UI.candidatePanel.content:Hide()
-            UI.candidatePanel.status:SetText("请求超时，请重新右键该槽位")
-            UI.candidatePanel.status:Show()
+            UI:CloseCandidatePanel()
+            UI:ShowError("请求超时，请重新右键该槽位")
         end
     end
 
@@ -1443,5 +1518,5 @@ SlashCmdList.NPCBOTGEAR = function(text)
         return
     end
 
-    DEFAULT_CHAT_FRAME:AddMessage("用法：选中 NPCBot 后输入 /nbgear，或 /nbgear <entry> <guidLow>")
+    DEFAULT_CHAT_FRAME:AddMessage("用法：选中 NPCBot 后输入 /nbgear，或 /nbgear <entry> <guidLow>", 1, 1, 0)
 end

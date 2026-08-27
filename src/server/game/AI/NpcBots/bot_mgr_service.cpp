@@ -166,6 +166,8 @@ BotEquipmentUiResult ValidateBotView(
     ai = bot->GetBotAI();
     if (!ai || ai->IsTempBot() || ai->IsWanderer())
         return BotEquipmentUiResult::BotNotFound;
+    if (player->GetMap() != bot->GetMap())
+        return BotEquipmentUiResult::DifferentMap;
 
     return BotEquipmentUiResult::Ok;
 }
@@ -200,6 +202,8 @@ BotEquipmentUiResult ValidateOperation(
     if (result != BotEquipmentUiResult::Ok)
         return result;
 
+    if (!bot->IsAlive())
+        return BotEquipmentUiResult::BotDead;
     if (player->IsInCombat() || bot->IsInCombat())
         return BotEquipmentUiResult::BusyInCombat;
 
@@ -899,50 +903,29 @@ BotEquipmentUiResult bot_mgr_service::Unequip(
     return result;
 }
 
+// 将装备操作结果转换为稳定的协议字符串，供 Lua 客户端识别并显示对应提示。
 std::string_view bot_mgr_service::GetResultCode(BotEquipmentUiResult result)
 {
     switch (result)
     {
-        case BotEquipmentUiResult::Ok: return "OK";
-        case BotEquipmentUiResult::InvalidRequest: return "INVALID_REQUEST";
-        case BotEquipmentUiResult::RateLimited: return "RATE_LIMITED";
-        case BotEquipmentUiResult::BotNotFound: return "BOT_NOT_FOUND";
-        case BotEquipmentUiResult::NoPermission: return "NO_PERMISSION";
-        case BotEquipmentUiResult::InvalidSlot: return "INVALID_SLOT";
-        case BotEquipmentUiResult::BusyInCombat: return "BUSY_IN_COMBAT";
-        case BotEquipmentUiResult::ItemNotFound: return "ITEM_NOT_FOUND";
-        case BotEquipmentUiResult::ItemMoved: return "ITEM_MOVED";
-        case BotEquipmentUiResult::ItemMismatch: return "ITEM_MISMATCH";
-        case BotEquipmentUiResult::StaleEquipment: return "STALE_EQUIPMENT";
-        case BotEquipmentUiResult::CantEquip: return "CANT_EQUIP";
-        case BotEquipmentUiResult::ItemConflict: return "ITEM_CONFLICT";
-        case BotEquipmentUiResult::NoBagSpace: return "NO_BAG_SPACE";
-        case BotEquipmentUiResult::NoBankSpace: return "NO_BANK_SPACE";
-        case BotEquipmentUiResult::InternalError: return "INTERNAL_ERROR";
-        default: return "INTERNAL_ERROR";
-    }
-}
-
-std::string_view bot_mgr_service::GetResultMessage(BotEquipmentUiResult result)
-{
-    switch (result)
-    {
-        case BotEquipmentUiResult::Ok: return "操作成功";
-        case BotEquipmentUiResult::InvalidRequest: return "请求参数无效";
-        case BotEquipmentUiResult::RateLimited: return "操作过于频繁，请稍后重试";
-        case BotEquipmentUiResult::BotNotFound: return "NPCBot 不存在或当前不可管理";
-        case BotEquipmentUiResult::NoPermission: return "无权管理该 NPCBot";
-        case BotEquipmentUiResult::InvalidSlot: return "NPCBot 装备槽无效";
-        case BotEquipmentUiResult::BusyInCombat: return "战斗中不能管理 NPCBot 装备";
-        case BotEquipmentUiResult::ItemNotFound: return "物品不存在或已离开背包";
-        case BotEquipmentUiResult::ItemMoved: return "物品状态或背包位置已变化";
-        case BotEquipmentUiResult::ItemMismatch: return "物品实例与请求不匹配";
-        case BotEquipmentUiResult::StaleEquipment: return "NPCBot 装备状态已变化，请重新选择";
-        case BotEquipmentUiResult::CantEquip: return "该 NPCBot 无法装备此物品";
-        case BotEquipmentUiResult::ItemConflict: return "物品与当前主副手装备冲突";
-        case BotEquipmentUiResult::NoBagSpace: return "背包空间不足";
-        case BotEquipmentUiResult::NoBankSpace: return "NPCBot 装备银行空间不足";
-        case BotEquipmentUiResult::InternalError: return "NPCBot 装备服务内部错误";
-        default: return "NPCBot 装备服务内部错误";
+        case BotEquipmentUiResult::Ok: return "OK";                         // 操作成功
+        case BotEquipmentUiResult::InvalidRequest: return "INVALID_REQUEST"; // 请求参数或格式无效
+        case BotEquipmentUiResult::RateLimited: return "RATE_LIMITED";       // 请求过于频繁
+        case BotEquipmentUiResult::BotNotFound: return "BOT_NOT_FOUND";      // 未找到指定机器人
+        case BotEquipmentUiResult::DifferentMap: return "DIFFERENT_MAP";     // 玩家与机器人不在同一地图
+        case BotEquipmentUiResult::BotDead: return "BOT_DEAD";               // 机器人已死亡
+        case BotEquipmentUiResult::NoPermission: return "NO_PERMISSION";     // 玩家无操作权限
+        case BotEquipmentUiResult::InvalidSlot: return "INVALID_SLOT";       // 装备槽位无效
+        case BotEquipmentUiResult::BusyInCombat: return "BUSY_IN_COMBAT";    // 战斗中禁止操作
+        case BotEquipmentUiResult::ItemNotFound: return "ITEM_NOT_FOUND";    // 未找到指定物品
+        case BotEquipmentUiResult::ItemMoved: return "ITEM_MOVED";           // 物品位置已发生变化
+        case BotEquipmentUiResult::ItemMismatch: return "ITEM_MISMATCH";     // 物品与请求信息不匹配
+        case BotEquipmentUiResult::StaleEquipment: return "STALE_EQUIPMENT"; // 客户端装备快照已过期
+        case BotEquipmentUiResult::CantEquip: return "CANT_EQUIP";           // 机器人无法装备该物品
+        case BotEquipmentUiResult::ItemConflict: return "ITEM_CONFLICT";     // 物品与现有装备冲突
+        case BotEquipmentUiResult::NoBagSpace: return "NO_BAG_SPACE";        // 背包空间不足
+        case BotEquipmentUiResult::NoBankSpace: return "NO_BANK_SPACE";      // 银行空间不足
+        case BotEquipmentUiResult::InternalError: return "INTERNAL_ERROR";   // 服务端内部错误
+        default: return "INTERNAL_ERROR";                                    // 未知枚举值按内部错误处理
     }
 }

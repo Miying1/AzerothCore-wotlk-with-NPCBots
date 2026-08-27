@@ -408,7 +408,7 @@ function handlers.ManagementResult(player, response)
     UI.managementLoading = false
     UI.managementDeadline = nil
     if not response.ok or type(response.management) ~= "table" then
-        UI.frame.managementPanel.status:SetText(response.message or "读取管理设置失败")
+        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "读取管理设置失败"))
         UI.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
         UI:SetManagementControlsEnabled(false)
         return
@@ -428,7 +428,7 @@ function handlers.ManagementUpdateResult(player, response)
     UI.managementPending = false
     UI.managementDeadline = nil
     if not response.ok or type(response.management) ~= "table" then
-        UI.frame.managementPanel.status:SetText(response.message or "保存管理设置失败")
+        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "保存管理设置失败"))
         UI.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
         if UI.management then
             UI:RenderManagement(UI.management)

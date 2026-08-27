@@ -30,7 +30,6 @@ local function SendInvalidRequest(player, handlerName, requestId, botEntry, botG
         requestId = requestId,
         ok = false,
         code = "INVALID_REQUEST",
-        message = "请求参数无效",
         botEntry = botEntry,
         botGuidLow = botGuidLow,
         botSlot = botSlot,

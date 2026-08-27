@@ -21,6 +21,8 @@ enum class BotEquipmentUiResult : uint8
     InvalidRequest,
     RateLimited,
     BotNotFound,
+    DifferentMap,
+    BotDead,
     NoPermission,
     InvalidSlot,
     BusyInCombat,
@@ -188,7 +190,6 @@ public:
         BotEquipmentSnapshot& snapshot);
 
     static std::string_view GetResultCode(BotEquipmentUiResult result);
-    static std::string_view GetResultMessage(BotEquipmentUiResult result);
 
 private:
     static std::string CalculateRevision(bot_ai const* ai);

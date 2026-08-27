@@ -189,10 +189,9 @@ namespace LuaPlayer
 
         void PushResultHeader(lua_State* L, BotEquipmentUiResult result)
         {
-            lua_createtable(L, 0, 8);
+            lua_createtable(L, 0, 7);
             SetField(L, "ok", result == BotEquipmentUiResult::Ok);
             SetField(L, "code", std::string(bot_mgr_service::GetResultCode(result)));
-            SetField(L, "message", std::string(bot_mgr_service::GetResultMessage(result)));
             SetField(L, "refreshRequired", result == BotEquipmentUiResult::StaleEquipment);
         }
 
