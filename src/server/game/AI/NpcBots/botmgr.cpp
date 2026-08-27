@@ -1360,17 +1360,22 @@ void BotMgr::UpdatePhaseForBots()
     if (!map)
         return;
 
-    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase 造成迭代器失效
+    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    // 注意：这里不缓存 _bots 里的 Creature*（它可能已被销毁），而是在锁内通过 guid 重新解析并立即使用，
+    // 以尽量缩短对象被解析到被解引用之间的竞态窗口。
+    uint32 phaseMask = _owner->GetPhaseMask();
+
     _update_lock = true;
     for (auto const& [guid, bot] : _bots)
     {
-        // 通过对象存储重新解析生物，避免使用可能已被移除/销毁的悬挂指针
-        Creature* creature = map->GetCreature(guid);
-        if (!creature || creature != bot)
+        if (!bot)
             continue;
-        creature->SetPhaseMask(_owner->GetPhaseMask(), creature->IsInWorld());
+        Creature* creature = map->GetCreature(guid);
+        if (!creature)
+            continue;
+        creature->SetPhaseMask(phaseMask, creature->IsInWorld());
         if (Unit* pet = creature->GetBotsPet())
-            pet->SetPhaseMask(_owner->GetPhaseMask(), pet->IsInWorld());
+            pet->SetPhaseMask(phaseMask, pet->IsInWorld());
     }
     _update_lock = false;
 
@@ -1388,17 +1393,21 @@ void BotMgr::UpdatePvPForBots()
     if (!map)
         return;
 
-    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase 造成迭代器失效
+    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    // 不缓存 _bots 里的 Creature*，而是在锁内通过 guid 重新解析并立即使用，缩短竞态窗口。
+    uint8 pvpByte = _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1);
+
     _update_lock = true;
     for (auto const& [guid, bot] : _bots)
     {
-        // 通过对象存储重新解析生物，避免使用可能已被移除/销毁的悬挂指针
-        Creature* creature = map->GetCreature(guid);
-        if (!creature || creature != bot)
+        if (!bot)
             continue;
-        creature->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
+        Creature* creature = map->GetCreature(guid);
+        if (!creature)
+            continue;
+        creature->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
         if (Unit* pet = creature->GetBotsPet())
-            pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1));
+            pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
     }
     _update_lock = false;
 
