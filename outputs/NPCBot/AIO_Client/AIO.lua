@@ -1096,7 +1096,6 @@ else
         end
 
         AIO_INITED = true
-        print("Initialized AIO version "..AIO_VERSION..". Type '/aio help' for commands")
     end
 
     -- Forces reload of UI for user on next action
