@@ -17,6 +17,7 @@
 
 #include "botmgr.h"
 #include "CreatureScript.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
@@ -88,8 +89,8 @@ struct boss_netherspite : public BossAI
         // check if target is between (not checking distance from the beam yet)
         if (dist(xn, yn, xh, yh) >= dist(xn, yn, xp, yp) || dist(xp, yp, xh, yh) >= dist(xn, yn, xp, yp))
             return false;
-        // check  distance from the beam
-        return (std::abs((xn - xp) * yh + (yp - yn) * xh - xn * yp + xp * yn) / dist(xn, yn, xp, yp) < 1.5f);
+        // 检查目标到光束直线的垂直距离（连线判定宽度，单位：码）
+        return (std::abs((xn - xp) * yh + (yp - yn) * xh - xn * yp + xp * yn) / dist(xn, yn, xp, yp) < 2.5f);
     }
 
     float dist(float xa, float ya, float xb, float yb) // auxiliary method for distance
@@ -101,6 +102,8 @@ struct boss_netherspite : public BossAI
     {
         BossAI::Reset();
         berserk = false;
+        for (uint8 i = 0; i < 3; ++i)
+            lastNetherBuffApplyTime[i] = 0; // 重置 BOSS 套 BUFF 计时器
         HandleDoors(true);
         DestroyPortals();
     }
@@ -166,9 +169,11 @@ struct boss_netherspite : public BossAI
                 {
                     target->AddAura(PlayerBuff[j], target);
                 }
-                else
+                // BOSS 被连线：按 2 秒间隔给 BOSS 叠加/刷新 BUFF
+                else if (GameTime::GetGameTimeMS().count() - lastNetherBuffApplyTime[j] >= 2000)
                 {
                     target->AddAura(NetherBuff[j], target);
+                    lastNetherBuffApplyTime[j] = GameTime::GetGameTimeMS().count();
                 }
                 // cast visual beam on the chosen target if switched
                 // simple target switching isn't working -> using BeamerGUID to cast (workaround)
@@ -219,7 +224,7 @@ struct boss_netherspite : public BossAI
         }).Schedule(10s, PORTAL_PHASE, [this](TaskContext context)
         {
             UpdatePortals();
-            context.Repeat(1s);
+            context.Repeat(1s); // 光束刷新（目标选择/切换）间隔 1 秒
         }).Schedule(10s, PORTAL_PHASE, [this](TaskContext context)
         {
             DoCastSelf(SPELL_EMPOWERMENT);
@@ -324,6 +329,7 @@ struct boss_netherspite : public BossAI
 
 private:
     bool berserk;
+    uint32 lastNetherBuffApplyTime[3] = {0, 0, 0}; // 各色光束给 BOSS 套 BUFF 的上次时间（毫秒），用于 2 秒间隔节流
     ObjectGuid PortalGUID[3]; // guid's of portals
     ObjectGuid BeamerGUID[3]; // guid's of auxiliary beaming portals
     ObjectGuid BeamTarget[3]; // guid's of portals' current targets
@@ -335,7 +341,7 @@ class spell_nether_portal_perseverence : public AuraScript
 
     void HandleApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
     {
-        const_cast<AuraEffect*>(aurEff)->SetAmount(aurEff->GetAmount() + 30000);
+        const_cast<AuraEffect*>(aurEff)->SetAmount(aurEff->GetAmount() + 5000);
     }
 
     void Register() override
