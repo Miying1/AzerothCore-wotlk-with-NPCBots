@@ -592,6 +592,7 @@ public:
 
         static ChatCommandTable npcbotCommandCommandTable =
         {
+            { "attack",     HandleNpcBotCommandAttackCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "equip",      HandleNpcBotCommandEquipListCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST,          Console::No  },
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
@@ -2106,6 +2107,49 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
                 return false;
         }
 
+        return true;
+    }
+
+    static bool HandleNpcBotCommandAttackCommand(ChatHandler* handler, Optional<std::string> bot_name)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        if (!owner->HaveBot() || !bot_name)
+        {
+            handler->SendSysMessage(".npcbot command attack #bot_name");
+            handler->SendSysMessage("命令指定机器人持续攻击当前选择目标");
+            return true;
+        }
+
+        Unit* target = owner->GetSelectedUnit();
+        if (!target || !target->IsAlive() || !owner->IsValidAttackTarget(target))
+        {
+            handler->SendSysMessage("请选择一个有效的存活敌对目标!");
+            return true;
+        }
+
+        for (char& c : *bot_name)
+            if (c == '_')
+                c = ' ';
+
+        Creature const* bot = owner->GetBotMgr()->GetBotByName(*bot_name);
+        if (!bot || !bot->IsInWorld())
+        {
+            handler->PSendSysMessage("未找到机器人 {}!", *bot_name);
+            return true;
+        }
+        if (!bot->IsAlive())
+        {
+            handler->PSendSysMessage("{} 已死亡!", bot->GetName());
+            return true;
+        }
+        if (!bot->GetBotAI()->CanBotAttack(target))
+        {
+            handler->PSendSysMessage("{} 无法攻击当前目标!", bot->GetName());
+            return true;
+        }
+
+        bot->GetBotAI()->SetForcedAttackTarget(target);
+        handler->PSendSysMessage("{} 将持续攻击 {}。", bot->GetName(), target->GetName());
         return true;
     }
 

@@ -167,6 +167,7 @@ public:
     bool IsInBotParty(ObjectGuid guid) const;
     bool CanBotAttack(Unit const* target, int8 byspell = 0, bool secondary = false) const;
     bool CanBotAttackOnVehicle() const;
+    void SetForcedAttackTarget(Unit const* target);
     void ApplyBotDamageMultiplierMelee(uint32& damage, CalcDamageInfo& damageinfo) const;
     void ApplyBotDamageMultiplierMelee(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType attackType, bool iscrit) const;
     void ApplyBotDamageMultiplierSpell(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType attackType, bool iscrit) const;
@@ -754,6 +755,7 @@ private:
     uint32 _roleMask{};
     uint32 _usableItemSlotsMask{};
     ObjectGuid _lastTargetGuid;
+    mutable ObjectGuid _forcedAttackTargetGuid;
 
     BotVehicleStrats _curVehStrat{};
     uint8 _vehcomboPoints{};

@@ -3977,6 +3977,25 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
     if (mytar && me->HasAuraType(SPELL_AURA_MOD_TAUNT))
         return { mytar, mytar };
 
+    if (!_forcedAttackTargetGuid.IsEmpty())
+    {
+        Unit* forcedTarget = ObjectAccessor::GetUnit(*me, _forcedAttackTargetGuid);
+        if (forcedTarget && forcedTarget->IsAlive() && me->IsInMap(forcedTarget) && CanBotAttack(forcedTarget))
+        {
+            if (me->IsWithinDistInMap(forcedTarget, 5.0f) || me->GetVehicle() || me->CanFly() || me->CanSwim())
+                return { forcedTarget, forcedTarget };
+
+            PathGenerator path(me);
+            bool pathFound = path.CalculatePath(
+                forcedTarget->GetPositionX(), forcedTarget->GetPositionY(), forcedTarget->GetPositionZ());
+            if (pathFound && !(path.GetPathType() & (PATHFIND_NOPATH | PATHFIND_SHORTCUT | PATHFIND_FARFROMPOLY)))
+                return { forcedTarget, forcedTarget };
+        }
+
+        _forcedAttackTargetGuid.Clear();
+    }
+
+
     //Immediate targets
     //orders
     if (!IAmFree() && HasQueuedActions() && HasRole(BOT_ROLE_DPS) && !me->IsInCombat() && me->getAttackers().empty())
@@ -16160,6 +16179,12 @@ bool bot_ai::StartAttack(Unit const* u, bool force)
     SetBotCommandState(BOT_COMMAND_ATTACK);
     OnStartAttack(u);
     return true;
+}
+
+void bot_ai::SetForcedAttackTarget(Unit const* target)
+{
+    _forcedAttackTargetGuid = target->GetGUID();
+    StartAttack(target, true);
 }
 
 void bot_ai::JustEngagedWith(Unit* u)
