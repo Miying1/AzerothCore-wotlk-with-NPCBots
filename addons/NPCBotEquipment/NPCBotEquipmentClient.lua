@@ -7,21 +7,21 @@ local RESULT_MESSAGES = {
     OK = "操作成功",
     INVALID_REQUEST = "请求参数无效",
     RATE_LIMITED = "操作频繁，请稍后重试",
-    BOT_NOT_FOUND = "Bot 不在世界中或当前不可管理",
-    DIFFERENT_MAP = "Bot 与你不在同一地图，无法管理装备",
-    BOT_DEAD = "Bot 已死亡，无法管理装备",
+    BOT_NOT_FOUND = "无效的目标",
+    DIFFERENT_MAP = "目标不在同一地图，无法管理装备",
+    BOT_DEAD = "目标已死亡，无法管理装备",
     NO_PERMISSION = "无权管理该 Bot",
-    INVALID_SLOT = "Bot 装备槽无效",
-    BUSY_IN_COMBAT = "战斗中不能管理 Bot 装备",
+    INVALID_SLOT = "装备槽无效",
+    BUSY_IN_COMBAT = "战斗中不能操作装备",
     ITEM_NOT_FOUND = "物品不存在或已离开背包",
     ITEM_MOVED = "物品状态或背包位置已变化",
     ITEM_MISMATCH = "物品实例与请求不匹配",
-    STALE_EQUIPMENT = "Bot 装备状态已变化，请重新选择",
-    CANT_EQUIP = "该 Bot 无法装备此物品",
+    STALE_EQUIPMENT = "装备状态已变化，请重新选择",
+    CANT_EQUIP = "无法装备此物品",
     ITEM_CONFLICT = "物品与当前主副手装备冲突",
     NO_BAG_SPACE = "背包空间不足",
-    NO_BANK_SPACE = "Bot 装备银行空间不足",
-    INTERNAL_ERROR = "Bot 装备服务内部错误"
+    NO_BANK_SPACE = "装备银行空间不足",
+    INTERNAL_ERROR = "装备服务内部错误"
 }
 
 -- 主窗口宽高（像素）
@@ -655,6 +655,10 @@ local function CreateTab(frame, text, index)
         end
     end)
     button:SetScript("OnClick", function(self)
+        -- 重复点击当前已激活的选项卡时，忽略操作
+        if self.tabName == UI.activeTab then
+            return
+        end
         UI:SelectTab(self.tabName)
     end)
     return button
@@ -1248,6 +1252,13 @@ function UI:ToggleCandidates(botSlot, slotButton)
         return
     end
     if not self.currentBot.canManage then
+        return
+    end
+
+    -- 本地先判断玩家自身是否在战斗中：战斗中禁止打开候选面板，避免发出无谓请求
+    if UnitAffectingCombat and UnitAffectingCombat("player") then
+        self:CloseCandidatePanel()
+        self:ShowError("战斗中不能操作装备")
         return
     end
 

@@ -1,0 +1,7 @@
+## Interface: 30300
+## Title: NetherBot
+## Author: NetherstormX & 玉素奴香 & lmzml
+## Version: NPCBots-V20230629
+## Notes-zhCN: 机器人控制工具
+
+netherbot.lua
