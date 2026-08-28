@@ -2122,8 +2122,7 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
 
         Unit* target = owner->GetSelectedUnit();
         if (!target || !target->IsAlive() || !owner->IsValidAttackTarget(target))
-        {
-            handler->SendSysMessage("请选择一个有效的存活敌对目标!");
+        { 
             return true;
         }
 
@@ -2138,8 +2137,7 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
             return true;
         }
         if (!bot->IsAlive())
-        {
-            handler->PSendSysMessage("{} 已死亡!", bot->GetName());
+        { 
             return true;
         }
         if (!bot->GetBotAI()->CanBotAttack(target))
