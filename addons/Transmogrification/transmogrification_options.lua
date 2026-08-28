@@ -1,8 +1,8 @@
--- Options table for Transmogrification AddOn.
+-- 幻化插件选项表。
 local addonName, addon = ...
 local L = LibStub("AceLocale-3.0"):GetLocale("Transmogrification")
 
--- Function to get the options table.
+-- 获取选项表的函数。
 function GetTransmogrificationOptions()
 	local options = {
 		name = addonName,

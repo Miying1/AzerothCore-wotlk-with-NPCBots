@@ -1,31 +1,31 @@
--- Initialize the Ace3 library.
+-- 初始化 Ace3 库。
 local addonName, addon = ...
 local L = LibStub("AceLocale-3.0"):GetLocale("Transmogrification")
 
--- Establish AIO client protocol.
+-- 建立 AIO 客户端协议。
 local AIO = AIO or require("AIO")
 if AIO.AddAddon() then
 	return
 end
 
--- Establish AIO handler table.
+-- 建立 AIO 处理函数表。
 local TransmogrificationHandler = AIO.AddHandlers("TransmogrificationServer", {})
 
--- Define Transmogrification slot references.
-PLAYER_VISIBLE_ITEM_1_ENTRYID  = 283 -- Head
-PLAYER_VISIBLE_ITEM_3_ENTRYID  = 287 -- Shoulder
-PLAYER_VISIBLE_ITEM_4_ENTRYID  = 289 -- Shirt
-PLAYER_VISIBLE_ITEM_5_ENTRYID  = 291 -- Chest
-PLAYER_VISIBLE_ITEM_6_ENTRYID  = 293 -- Waist
-PLAYER_VISIBLE_ITEM_7_ENTRYID  = 295 -- Legs
-PLAYER_VISIBLE_ITEM_8_ENTRYID  = 297 -- Feet
-PLAYER_VISIBLE_ITEM_9_ENTRYID  = 299 -- Wrist
-PLAYER_VISIBLE_ITEM_10_ENTRYID = 301 -- Hands
-PLAYER_VISIBLE_ITEM_15_ENTRYID = 311 -- Back
-PLAYER_VISIBLE_ITEM_16_ENTRYID = 313 -- Main Hand
-PLAYER_VISIBLE_ITEM_17_ENTRYID = 315 -- Off Hand
-PLAYER_VISIBLE_ITEM_18_ENTRYID = 317 -- Ranged
-PLAYER_VISIBLE_ITEM_19_ENTRYID = 319 -- Tabard
+-- 定义幻化装备栏位引用。
+PLAYER_VISIBLE_ITEM_1_ENTRYID  = 283 -- 头部
+PLAYER_VISIBLE_ITEM_3_ENTRYID  = 287 -- 肩膀
+PLAYER_VISIBLE_ITEM_4_ENTRYID  = 289 -- 衬衫
+PLAYER_VISIBLE_ITEM_5_ENTRYID  = 291 -- 胸甲
+PLAYER_VISIBLE_ITEM_6_ENTRYID  = 293 -- 腰带
+PLAYER_VISIBLE_ITEM_7_ENTRYID  = 295 -- 腿部
+PLAYER_VISIBLE_ITEM_8_ENTRYID  = 297 -- 脚部
+PLAYER_VISIBLE_ITEM_9_ENTRYID  = 299 -- 手腕
+PLAYER_VISIBLE_ITEM_10_ENTRYID = 301 -- 手套
+PLAYER_VISIBLE_ITEM_15_ENTRYID = 311 -- 背部
+PLAYER_VISIBLE_ITEM_16_ENTRYID = 313 -- 主手
+PLAYER_VISIBLE_ITEM_17_ENTRYID = 315 -- 副手
+PLAYER_VISIBLE_ITEM_18_ENTRYID = 317 -- 远程
+PLAYER_VISIBLE_ITEM_19_ENTRYID = 319 -- 战袍
 
 transmogrificationEquipmentSlotMap = {
 	[PLAYER_VISIBLE_ITEM_1_ENTRYID]  = "Head",
@@ -80,27 +80,27 @@ local characterEquipmentSlotNames = {
 
 local equipmentSlotIcons = {
 	"Head",
-	"",			-- Neck
+	"",			-- 颈部
 	"Shoulder",
 	"Shirt",
-	"Chest",	-- Chest
+	"Chest",	-- 胸甲
 	"Waist",
 	"Legs",
 	"Feet",
 	"Wrists",
 	"Hands",
-	"",			-- Finger 1
-	"",			-- Finger 2
-	"",			-- Trinket 1
-	"",			-- Trinket 2
-	"Chest",	-- Robe
+	"",			-- 戒指 1
+	"",			-- 戒指 2
+	"",			-- 饰品 1
+	"",			-- 饰品 2
+	"Chest",	-- 长袍
 	"MainHand",
 	"SecondaryHand",
 	"Ranged",
 	"Tabard"
 }
 
--- Define Transmogrification frame variables.
+-- 定义幻化窗口变量。
 local itemButtons = {}
 local isInputHovered = false
 local isTooltipHooked = false
@@ -115,10 +115,10 @@ for k, v in pairs(originalTransmogrificationIDs) do
 	currentTransmogrificationIDs[k] = v
 end
 
--- Cache global functions for performance.
+-- 缓存全局函数以提升性能。
 local GetItemIcon, SetItemButtonTexture, PlaySound, CreateFrame, GameTooltip = GetItemIcon, SetItemButtonTexture, PlaySound, CreateFrame, GameTooltip
 
--- Define helper functions.
+-- 定义辅助函数。
 function CalculateInverseSlot(slot)
 	local inverseSlot = (slot - 281) / 2
 	return inverseSlot;
@@ -130,28 +130,28 @@ function TableSetHelper(list)
 	return set
 end
 
--- Return equipment slot mapped entry.
+-- 返回装备栏位映射条目。
 function GetEquipmentSlot(displaySlot)
 	local slotMapping = {
-		[PLAYER_VISIBLE_ITEM_1_ENTRYID]  = 1,  -- Head
-		[PLAYER_VISIBLE_ITEM_3_ENTRYID]  = 3,  -- Shoulder
-		[PLAYER_VISIBLE_ITEM_4_ENTRYID]  = 4,  -- Shirt
-		[PLAYER_VISIBLE_ITEM_5_ENTRYID]  = 5,  -- Chest
-		[PLAYER_VISIBLE_ITEM_6_ENTRYID]  = 6,  -- Waist
-		[PLAYER_VISIBLE_ITEM_7_ENTRYID]  = 7,  -- Legs
-		[PLAYER_VISIBLE_ITEM_8_ENTRYID]  = 8,  -- Feet
-		[PLAYER_VISIBLE_ITEM_9_ENTRYID]  = 9,  -- Wrist
-		[PLAYER_VISIBLE_ITEM_10_ENTRYID] = 10, -- Hands
-		[PLAYER_VISIBLE_ITEM_15_ENTRYID] = 15, -- Back
-		[PLAYER_VISIBLE_ITEM_16_ENTRYID] = 16, -- Main Hand
-		[PLAYER_VISIBLE_ITEM_17_ENTRYID] = 17, -- Off Hand
-		[PLAYER_VISIBLE_ITEM_18_ENTRYID] = 18, -- Ranged
-		[PLAYER_VISIBLE_ITEM_19_ENTRYID] = 19, -- Tabard
+		[PLAYER_VISIBLE_ITEM_1_ENTRYID]  = 1,  -- 头部
+		[PLAYER_VISIBLE_ITEM_3_ENTRYID]  = 3,  -- 肩膀
+		[PLAYER_VISIBLE_ITEM_4_ENTRYID]  = 4,  -- 衬衫
+		[PLAYER_VISIBLE_ITEM_5_ENTRYID]  = 5,  -- 胸甲
+		[PLAYER_VISIBLE_ITEM_6_ENTRYID]  = 6,  -- 腰带
+		[PLAYER_VISIBLE_ITEM_7_ENTRYID]  = 7,  -- 腿部
+		[PLAYER_VISIBLE_ITEM_8_ENTRYID]  = 8,  -- 脚部
+		[PLAYER_VISIBLE_ITEM_9_ENTRYID]  = 9,  -- 手腕
+		[PLAYER_VISIBLE_ITEM_10_ENTRYID] = 10, -- 手套
+		[PLAYER_VISIBLE_ITEM_15_ENTRYID] = 15, -- 背部
+		[PLAYER_VISIBLE_ITEM_16_ENTRYID] = 16, -- 主手
+		[PLAYER_VISIBLE_ITEM_17_ENTRYID] = 17, -- 副手
+		[PLAYER_VISIBLE_ITEM_18_ENTRYID] = 18, -- 远程
+		[PLAYER_VISIBLE_ITEM_19_ENTRYID] = 19, -- 战袍
 	}
 	return slotMapping[displaySlot] or CalculateInverseSlot(displaySlot)
 end
 
--- Return item ID for an equipment slot.
+-- 返回装备栏位对应的物品 ID。
 function GetItemIDForEquipmentSlot(slotName)
 	local equipmentSlotName = equipmentSlotIDs[slotName]
 	if equipmentSlotName then
@@ -163,7 +163,7 @@ function GetItemIDForEquipmentSlot(slotName)
 	return nil
 end
 
--- Updates item icon texture when called.
+-- 更新物品图标纹理。
 function SetItemButtonTexture(button, texture)
 	if (not button) then
 		return
@@ -180,11 +180,11 @@ function SetItemButtonTexture(button, texture)
 	end
 end
 
--- Updates equipment slot textures when called.
+-- 更新装备栏位纹理。
 function UpdateSlotTexture(slotName, isTransmogrificationFrame, useTransmogrificationPreview)
 	local slotFrame
 	
-	-- Determines whether we are updating the Transmogrification window or the Character Info window.
+	-- 判断当前更新的是幻化窗口还是角色信息窗口。
 	if isTransmogrificationFrame then
 		slotFrame = _G["TransmogCharacter" .. slotName .. "Slot"]
 	else
@@ -193,85 +193,85 @@ function UpdateSlotTexture(slotName, isTransmogrificationFrame, useTransmogrific
 	
 	if not slotFrame then return end
 	
-	-- Get the equipment icon texture from the button.
+	-- 从按钮获取装备图标纹理。
 	local iconTexture = slotFrame.Icon or slotFrame.icon or _G[slotFrame:GetName().."IconTexture"]
 	if not iconTexture then return end
 	
-	-- Determine which ID table to use.
+	-- 确定使用哪个 ID 表。
 	local transmogrificationTable = useTransmogrificationPreview and previewTransmogrificationIDs or currentTransmogrificationIDs
 	local transmogrificationID = transmogrificationTable[slotName]
 	
-	-- Check to see if there is an item equipped in the slot.
+	-- 检查该栏位是否装备了物品。
 	local slotID = equipmentSlotIDs[slotName]
 	local equipSlot = GetEquipmentSlot(slotID)
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 	
-	-- If no item is equipped in the slot, force clear any transmogrification appearance.
+	-- 如果该栏位未装备物品，则强制清除任何幻化外观。
 	if not hasItem then
-		-- No equipment means no transmogrification should be shown, reset the texture to normal.
+		-- 没有装备意味着不应显示任何幻化，将纹理重置为正常。
 		SetItemButtonTexture(slotFrame, slotFrame.backgroundTextureName or "")
 		iconTexture:SetDesaturated(false)
 		return
 	end
 	
-	-- If there is an item equipped in the slot, proceed with transmogrification.
+	-- 如果该栏位装备了物品，则继续处理幻化。
 	if transmogrificationID ~= nil and transmogrificationID ~= 0 then
-		-- Item has been transmogrified to another appearance, display the transmogrification equipment icon.
+		-- 物品已幻化为其他外观，显示幻化装备图标。
 		SetItemButtonTexture(slotFrame, GetItemIcon(transmogrificationID))
 		iconTexture:SetDesaturated(false)
 	elseif transmogrificationID == 0 then
-		-- Item appearance has been hidden, desaturate the original item icon.
+		-- 物品外观已被隐藏，对原始物品图标进行去饱和处理。
 		local originalTexture = GetInventoryItemTexture("player", equipSlot)
 		if originalTexture then
 			SetItemButtonTexture(slotFrame, originalTexture)
 			iconTexture:SetDesaturated(true)
 		else
-			-- Fallback to the empty slot texture if for some reason the item icon could not be located.
+			-- 如果因某些原因无法找到物品图标，则回退到空栏位纹理。
 			SetItemButtonTexture(slotFrame, slotFrame.backgroundTextureName)
 			iconTexture:SetDesaturated(false)
 		end
 	else
-		-- Item has not been transmogrified, display the original equipment icon.
+		-- 物品未被幻化，显示原始装备图标。
 		local itemTexture = GetInventoryItemTexture("player", equipSlot)
 		if itemTexture then
 			SetItemButtonTexture(slotFrame, itemTexture)
 			iconTexture:SetDesaturated(false)
 		else
-			-- Fallback to the empty slot texture if for some reason the item icon could not be located.
+			-- 如果因某些原因无法找到物品图标，则回退到空栏位纹理。
 			SetItemButtonTexture(slotFrame, slotFrame.backgroundTextureName)
 			iconTexture:SetDesaturated(false)
 		end
 	end
 end
 
--- Updates all equipment icons when called.
+-- 更新所有装备图标。
 function UpdateAllSlotTextures(useTransmogrificationPreview)
 	for slotName, _ in pairs(equipmentSlotIDs) do
-		-- Update item icons in the Character Info window.
+		-- 更新角色信息窗口中的物品图标。
 		UpdateSlotTexture(slotName, false, false)
 		
-		-- Update item icons in the Transmogrification window.
+		-- 更新幻化窗口中的物品图标。
 		UpdateSlotTexture(slotName, true, useTransmogrificationPreview)
 	end
 	
-	-- Update paper doll frame (if visible) to display the new item icons.
+	-- 更新纸娃娃窗口（若可见）以显示新的物品图标。
 	if PaperDollFrame:IsShown() then
 		PaperDollFrame_UpdateStats()
 	end
 end
 
--- Clear transmogrification from the slot when unequipping an item.
+-- 卸下物品时清除该栏位的幻化。
 function TransmogrificationHandler.ClearSlotTransmogrification(player, slot)
-	-- Get the common slot name from the slot entry ID map.
+	-- 从栏位条目 ID 映射表中获取通用栏位名称。
 	local slotName = transmogrificationEquipmentSlotMap[tonumber(slot)]
 
-	-- If the common slot name is found at all, clear it from the client tables.
+	-- 如果找到通用栏位名称，则从客户端表中清除它。
 	if slotName then
 		currentTransmogrificationIDs[slotName] = nil
 		originalTransmogrificationIDs[slotName] = nil
 		previewTransmogrificationIDs[slotName] = nil
 
-		-- Update all equipment icons.
+		-- 更新所有装备图标。
 		UpdateAllSlotTextures(false)
 	end
 end
@@ -282,7 +282,7 @@ function OnClickItemTransmogrificationButton(btn, buttonType)
 	local textureName = GetItemIcon(itemID)
 	local slotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
 
-	-- Determine if there is an item in the equipment slot.
+	-- 判断装备栏位中是否有物品。
 	local equipSlot = GetEquipmentSlot(equipmentSlotIDs[slotName])
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
@@ -290,21 +290,21 @@ function OnClickItemTransmogrificationButton(btn, buttonType)
 		return
 	end
 
-	-- Update the transmogrification preview for this slot.
+	-- 更新该栏位的幻化预览。
 	previewTransmogrificationIDs[slotName] = itemID
 
-	-- Update the player model with the now item transmogrification preview.
+	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 
-	-- Update the item icon in the Transmogrification window.
+	-- 更新幻化窗口中的物品图标。
 	UpdateSlotTexture(slotName, true, true)
 end
 
 function TransmogrificationHandler.SetTransmogItemIDClient(player, slot, id, realItemID)
-	-- Get the equipment slot name.
+	-- 获取装备栏位名称。
 	local part = transmogrificationEquipmentSlotMap[tonumber(slot)]
 	if part then
-		-- If the equipment slot name is found, initialize the applicable transmogrification tables.
+		-- 如果找到装备栏位名称，则初始化相应的幻化表。
 		local currentTransmogID = currentTransmogrificationIDs[part]
 		local originalTransmogID = originalTransmogrificationIDs[part]
 
@@ -321,16 +321,16 @@ function TransmogrificationHandler.SetTransmogItemIDClient(player, slot, id, rea
 		end
 	end
 
-	-- Update all equipment icons.
+	-- 更新所有装备图标。
 	UpdateAllSlotTextures()
 end
 
--- Receives and saves a local list of collected transmogrification appearances, useful for displaying the "New Appearance" tooltip line.
+-- 接收并保存已收集幻化外观的本地列表，用于显示“新外观”提示行。
 function TransmogrificationHandler.ReceiveCollectedAppearances(player, collectedAppearances, uniqueAppearancesCount)
-	-- Clear the collected transmogrification appearances table.
+	-- 清空已收集幻化外观表。
 	wipe(CollectedAppearances)
 
-	-- Save received collected transmogrification appearances to a local table.
+	-- 将接收到的已收集幻化外观保存到本地表。
 	for i, itemID in ipairs(collectedAppearances) do
 		table.insert(CollectedAppearances, itemID)
 	end
@@ -347,13 +347,13 @@ function TransmogrificationHandler.ReceiveCollectedAppearances(player, collected
 	end
 end
 
--- Add new appearances to the local item list when receiving the new appearance system message.
--- We utilize the system message to naturally respect the server options in regards to when a new appearance should be added to the players collection.
--- That being said, this function will break if the system message string does not match the string in `server_transmog.lua`.
+-- 收到新外观系统消息时，将新外观添加到本地物品列表。
+-- 我们利用系统消息来自然遵循服务器关于何时将新外观添加到玩家收藏的选项。
+-- 也就是说，如果系统消息字符串与 server_transmog.lua 中的字符串不一致，此函数将失效。
 TransmogrificationHandler.ReceiveMatchingAppearances = function(player, originalItemID, matchingItems)
-	-- Add all matching items to our local list
+	-- 将所有匹配的物品添加到本地列表
 	for _, itemID in ipairs(matchingItems) do
-		-- Check if already collected
+		-- 检查是否已收集
 		local alreadyCollected = false
 		for _, id in ipairs(CollectedAppearances) do
 			if id == itemID then
@@ -362,7 +362,7 @@ TransmogrificationHandler.ReceiveMatchingAppearances = function(player, original
 			end
 		end
 		
-		-- If not already in the list, add it
+		-- 如果尚未在列表中，则添加
 		if not alreadyCollected then
 			table.insert(CollectedAppearances, itemID)
 		end
@@ -376,14 +376,14 @@ local function AddNewAppearanceToLocalList()
 	chatMonitor:SetScript("OnEvent", function(self, event, msg)
 		if event == "CHAT_MSG_SYSTEM" and string.find(msg, L["has been added to your appearance collection."]) then
 
-			-- Then extract the item from the system message using the link pattern.
+			-- 然后使用链接模式从系统消息中提取物品。
 			local itemLink = string.match(msg, "|Hitem:(%d+):[^|]+|h|c%x+%[[^%]]+%]|r|h|r")
 
 			if itemLink then
 				local itemID = tonumber(itemLink)
 
 				if itemID then
-					-- Determine if the item appearance has already been collected for some reason.
+					-- 判断该物品外观是否因某些原因已被收集。
 					local alreadyCollected = false
 					for _, id in ipairs(CollectedAppearances) do
 						if id == itemID then
@@ -392,7 +392,7 @@ local function AddNewAppearanceToLocalList()
 						end
 					end
 
-					-- If the item appearance has not already been collected (this should always be the case) save it to the local list.
+					-- 如果该物品外观尚未被收集（通常应该是这种情况），则保存到本地列表。
 					if not alreadyCollected then
 						table.insert(CollectedAppearances, itemID)
 					end
@@ -404,30 +404,30 @@ local function AddNewAppearanceToLocalList()
 	end)
 end
 
--- Determine whether the new appearance system message should be displayed to the player.
--- This does not determine whether the item is added to the local list, just if the player should see the system message.
+-- 判断是否应向玩家显示新外观系统消息。
+-- 这不决定物品是否添加到本地列表，只决定玩家是否应看到系统消息。
 local function collectionMessageFilter(self, event, msg)
 	if not Transmogrification.db.global.displayCollectionMessages and
 		msg:find(L["has been added to your appearance collection."]) then
-		return true -- Hide the system message.
+		return true -- 隐藏系统消息。
 	end
-	return false -- Show the system message.
+	return false -- 显示系统消息。
 end
 
 function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 	TransmogrificationModelFrame:SetUnit("player")
 
-	-- Determine which IDs table to use.
+	-- 确定使用哪个 ID 表。
 	local transmogrificationTable = useTransmogrificationPreview and previewTransmogrificationIDs or currentTransmogrificationIDs
 
-	-- Undress the model, we will update appearances further down in the function.
+	-- 卸下模型装备，稍后将在函数下方更新外观。
 	TransmogrificationModelFrame:Undress()
 
-	-- Apply equipment for equipment slots that do not have transmogrifications.
+	-- 为没有幻化的装备栏位应用装备。
 	for slotName, slotID in pairs(equipmentSlotIDs) do
 		local transmogrificationID = transmogrificationTable[slotName]
 
-		-- If no transmogrified appearance or the item has been restored (nil), display the original item.
+		-- 如果没有幻化外观或物品已恢复（nil），则显示原始物品。
 		if transmogrificationID == nil then
 			local itemID = GetItemIDForEquipmentSlot(slotName)
 			if itemID then
@@ -436,14 +436,14 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 		end
 	end
 
-	-- Apply transmogrified appearances for items have been transmogrified.
+	-- 为已幻化的物品应用幻化外观。
 	for slotName, transmogrificationID in pairs(transmogrificationTable) do
 		if transmogrificationID and transmogrificationID ~= 0 then
 			TransmogrificationModelFrame:TryOn(transmogrificationID)
 		end
 	end
 
-	-- Update all equipment icons.
+	-- 更新所有装备图标。
 	UpdateAllSlotTextures(useTransmogrificationPreview)
 end
 
@@ -453,7 +453,7 @@ function OnClickRestoreAllButton(btn)
 		previewTransmogrificationIDs[slotName] = nil
 	end
 	
-	-- Refresh the player model.
+	-- 刷新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 end
 
@@ -463,49 +463,49 @@ function OnClickHideAllButton(btn)
 		previewTransmogrificationIDs[slotName] = 0
 	end
 	
-	-- Refresh the player model.
+	-- 刷新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 end
 
--- Register the equipment change event.
+-- 注册装备变更事件。
 local function RegisterEquipmentChangeEvent()
 	local eventFrame = CreateFrame("Frame")
 	eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 
 	eventFrame:SetScript("OnEvent", function(self, event, slot)
 		if event == "PLAYER_EQUIPMENT_CHANGED" then
-			-- When equipment is changed, notify the server.
+			-- 装备变更时，通知服务器。
 			AIO.Handle("TransmogrificationServer", "OnUnequipItem")
 
-			-- Update all equipment icons.
+			-- 更新所有装备图标。
 			UpdateAllSlotTextures(false)
 
-			-- If the Transmogrification window is open, update it as well.
+			-- 如果幻化窗口已打开，也一并更新。
 			if TransmogrificationFrame:IsShown() then
 				local currentSlotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
 				local currentEquipSlot = GetEquipmentSlot(equipmentSlotIDs[currentSlotName])
 				local hasItem = currentEquipSlot and GetInventoryItemID("player", currentEquipSlot) ~= nil
 
-				-- Display the no equipment warning if there is no item equipped in the selected slot.
+				-- 如果所选栏位未装备物品，则显示无装备警告。
 				if not hasItem then
 					TransmogWarningText:SetText("|cff" .. L["ff4040"] .. L["No item equipped in this slot."])
 					TransmogWarningFrame:Show()
 				else
 					TransmogWarningFrame:Hide()
-					-- Request current data from the server to keep the Transmogrification window up to date.
+					-- 向服务器请求当前数据，以保持幻化窗口最新。
 					if CurrentItemSlot then
 						AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
 					end
 				end
 
-				-- Refresh the player model.
+				-- 刷新玩家模型。
 				LoadTransmogrificationsFromCurrentIDs(true)
 			end
 		end
 	end)
 end
 
--- Define tooltip functions.
+-- 定义提示函数。
 local function OnEnterItemToolTip(btn)
 	local itemID = btn:GetID()
 	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
@@ -596,7 +596,7 @@ end
 function TransmogrificationToolTip(btn)
 	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
 
-	-- Determine if there are transmogrification appearance changes to apply.
+	-- 判断是否有待应用的幻化外观更改。
 	local hasChanges = false
 	for slotName, transmogID in pairs(previewTransmogrificationIDs) do
 		if transmogID ~= currentTransmogrificationIDs[slotName] then
@@ -615,7 +615,7 @@ function TransmogrificationToolTip(btn)
 	GameTooltip:Show()
 end
 
--- Hook into the item tooltip system to (if enabled) display the "New Appearance" tooltip text.
+-- 挂载物品提示系统，以便（启用时）显示“新外观”提示文本。
 local function HookItemTooltip()
 	local settings = Transmogrification:GetSettings()
 	if not settings.displayNewAppearanceTooltip then return end
@@ -640,7 +640,7 @@ local function HookItemTooltip()
 
 		local _, _, _, _, _, _, _, _, itemEquipSlot = GetItemInfo(id)
 
-		-- Skip applying the "New Appearance" tooltip line if the item is non-transmogrifiable or the appearance has already collected.
+		-- 如果物品不可幻化或外观已被收集，则跳过应用“新外观”提示行。
 		if IsEquippableItem(id) and itemEquipSlot and itemEquipSlot ~= "INVTYPE_AMMO" and
 		itemEquipSlot ~= "INVTYPE_NECK" and itemEquipSlot ~= "INVTYPE_FINGER" and
 		itemEquipSlot ~= "INVTYPE_TRINKET" and itemEquipSlot ~= "INVTYPE_BAG" and
@@ -656,7 +656,7 @@ function OnLeaveHideToolTip(btn)
 	GameTooltip:Hide()
 end
 
--- Search Functions
+-- 搜索函数
 function EnterSearchInput()
 	isInputHovered = true
 end
@@ -680,10 +680,10 @@ function SetSearchTab()
 	ItemSearchInput:ClearFocus()
 end
 
--- Define equipment slot names.
+-- 定义装备栏位名称。
 characterEquipmentSlotNames = TableSetHelper(characterEquipmentSlotNames)
 
--- Apply player transmogrifications on login.
+-- 登录时应用玩家幻化。
 local function OnEvent(self, event)
 	AIO.Handle("TransmogrificationServer", "LoadPlayer")
 end
@@ -707,59 +707,59 @@ local function OnEventEnterWorldReloadTransmogIDs(self, event)
 	end
 end
 
--- Register event frame for AddOn functions.
+-- 为插件功能注册事件框架。
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 f:SetScript("OnEvent", OnEvent)
 
--- Register event frame for the new appearance system message filter.
+-- 为新外观系统消息过滤器注册事件框架。
 ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", collectionMessageFilter)
 
--- Define frame functions.
+-- 定义窗口函数。
 function OnClickTransmogButton(self)
 	PlaySound("AchievementMenuOpen", "sfx")
 
-	-- Wipe and initialize the preview transmogrification table. This ensures the preview window is up to date at all times.
+	-- 清空并初始化预览幻化表。这确保预览窗口始终保持最新。
 	wipe(previewTransmogrificationIDs)
 	for slot, transmogID in pairs(currentTransmogrificationIDs) do
 		previewTransmogrificationIDs[slot] = transmogID
 	end
 
-	-- Display the players current appearance in the preview window.
+	-- 在预览窗口中显示玩家当前的外观。
 	TransmogrificationModelFrame:SetUnit("player")
 	CurrentItemSlot = PLAYER_VISIBLE_ITEM_1_ENTRYID
 
-	-- Set UI state variables.
+	-- 设置界面状态变量。
 	characterTransmogTab:SetChecked(true)
 	isInputHovered = false
 	currentPage = 1
 	TransmogPaginationText:SetText(string.format(L["Page %s"], currentPage))
 
-	-- Update all equipment icons.
+	-- 更新所有装备图标。
 	UpdateAllSlotTextures(true)
 
-	-- Initialize the UI state.
+	-- 初始化界面状态。
 	for slot, value in pairs(equipmentSlotIDs) do
 		_G["TransmogCharacter"..slot.."Slot"].toastTexture:SetTexture("Interface\\AddOns\\Transmogrification\\assets\\Transmog-Overlay-Toast")
 		_G["TransmogCharacter"..slot.."Slot"].restoreButton:Hide()
 		_G["TransmogCharacter"..slot.."Slot"].hideButton:Hide()
 	end
 
-	-- Set the active equipment slot.
+	-- 设置当前激活的装备栏位。
 	local slotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
 	_G["TransmogCharacter"..slotName.."Slot"].toastTexture:SetTexture("Interface\\AddOns\\Transmogrification\\assets\\Transmog-Overlay-Selected")
 	_G["TransmogCharacter"..slotName.."Slot"].restoreButton:Show()
 	_G["TransmogCharacter"..slotName.."Slot"].hideButton:Show()
 
-	-- More UI state initialization.
+	-- 更多界面状态初始化。
 	ItemSearchInput:SetText("|cff" .. L["b2b2b2"] .. L["Filter Item Appearance"] .. "|r")
 	ShowCloakCheckBox:SetChecked(ShowingCloak())
 	ShowHelmCheckBox:SetChecked(ShowingHelm())
 
-	-- Directly request items from the server.
+	-- 直接向服务器请求物品。
 	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, 1)
 
-	-- Update the player model with the now item transmogrification preview.
+	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 end
 
@@ -788,15 +788,15 @@ end
 function OnClickApplyAllowTransmogrifications(btn)
 	PlaySound("Distract Impact", "sfx")
 
-	-- Apply transmogrifications on a server level.
+	-- 在服务器层面应用幻化。
 	for slotName, entryID in pairs(equipmentSlotIDs) do
 		local transmogID = previewTransmogrificationIDs[slotName]
 
-		-- Determine if there is an item in the equipment slot.
+		-- 判断装备栏位中是否有物品。
 		local equipSlot = GetEquipmentSlot(entryID)
 		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
-		-- Only apply transmogrifications if there is an item in the equipment slot.
+		-- 仅当装备栏位中有物品时才应用幻化。
 		if hasItem and transmogID ~= currentTransmogrificationIDs[slotName] then
 			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", transmogID, entryID)
 			currentTransmogrificationIDs[slotName] = transmogID
@@ -804,7 +804,7 @@ function OnClickApplyAllowTransmogrifications(btn)
 		end
 	end
 
-	-- Refresh the transmogrification preview with new information from the server.
+	-- 使用服务器返回的新信息刷新幻化预览。
 	LoadTransmogrificationsFromCurrentIDs(false)
 end
 
@@ -813,7 +813,7 @@ function OnClickHideCurrentTransmogSlot(btn)
 	local equipSlot = GetEquipmentSlot(equipmentSlotIDs[slotName])
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
-	-- Display a "warning" dialog if the player has removed the item they are attempting to hide.
+	-- 如果玩家已卸下他们试图隐藏的物品，则显示“警告”对话框。
 	if not hasItem then
 		StaticPopupDialogs["NO_ITEM_TO_HIDE_EQUIPPED_DIALOG"] = {
 			text = L["You must have an item equipped in this slot to hide its appearance."],
@@ -829,13 +829,13 @@ function OnClickHideCurrentTransmogSlot(btn)
 
 	PlaySound("ArcaneMissileImpacts", "sfx")
 
-	-- Set the item to be (temporarily) hidden in the preview window.
+	-- 在预览窗口中（临时）隐藏该物品。
 	previewTransmogrificationIDs[slotName] = 0
 
-	-- Update the player model with the now item transmogrification preview.
+	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 
-	-- Update the item icon in the Transmogrification window.
+	-- 更新幻化窗口中的物品图标。
 	UpdateSlotTexture(slotName, true, true)
 end
 
@@ -845,7 +845,7 @@ function OnClickRestoreCurrentTransmogSlot(btn)
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
 	if not hasItem then
-		-- Display a "warning" dialog if the player has removed the item they are attempting to hide.
+		-- 如果玩家已卸下他们试图恢复的物品，则显示“警告”对话框。
 		StaticPopupDialogs["NO_ITEM_TO_RESTORE_EQUIPPED_DIALOG"] = {
 			text = L["You must have an item equipped in this slot to restore its appearance."],
 			button1 = OKAY,
@@ -860,13 +860,13 @@ function OnClickRestoreCurrentTransmogSlot(btn)
 
 	PlaySound("Glyph_MinorCreate", "sfx")
 
-	-- Set the item to be (temporarily) restored in the preview window.
+	-- 在预览窗口中（临时）恢复该物品。
 	previewTransmogrificationIDs[slotName] = nil
 
-	-- Update the player model with the now item transmogrification preview.
+	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 
-	-- Update the item icon in the Transmogrification window.
+	-- 更新幻化窗口中的物品图标。
 	UpdateSlotTexture(slotName, true, true)
 end
 
@@ -903,7 +903,7 @@ function TransmogModelMouseRotation(modelFrame)
 			modelFrame:SetScript("OnUpdate", function()
 				if modelFrame.isMouseRotating then
 					local currentX = GetCursorPosition()
-					-- Controls mouse rotation speed.
+					-- 控制鼠标旋转速度。
 					local diff = (currentX - modelFrame.lastCursorX) * 0.02
 					modelFrame:SetFacing(modelFrame:GetFacing() + diff)
 					modelFrame.lastCursorX = currentX
@@ -939,7 +939,7 @@ function TransmogModelMouseRotation(modelFrame)
 	modelFrame.rotationArea = rotationArea
 end
 
--- Set the current tab for the Transmogrification window.
+-- 设置幻化窗口的当前标签页。
 function SetTab()
 	if (ItemSearchInput:GetText() ~= "" and ItemSearchInput:GetText() ~= "|cff" .. L["b2b2b2"] .. L["Filter Item Appearance"] .. "|r") then
 		SetSearchTab()
@@ -950,34 +950,34 @@ function SetTab()
 	currentPage = 1
 	TransmogPaginationText:SetText(string.format(L["Page %s"], currentPage))
 
-	-- Check to see if there is an item equipped in the slot.
+	-- 检查该栏位是否装备了物品。
 	local slotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
 	local equipSlot = GetEquipmentSlot(equipmentSlotIDs[slotName])
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
-	-- Refresh the Transmogrification Window.
+	-- 刷新幻化窗口。
 	for slot, value in pairs(equipmentSlotIDs) do
 		_G["TransmogCharacter"..slot.."Slot"].toastTexture:SetTexture("Interface\\AddOns\\Transmogrification\\assets\\Transmog-Overlay-Toast")
 		_G["TransmogCharacter"..slot.."Slot"].restoreButton:Hide()
 		_G["TransmogCharacter"..slot.."Slot"].hideButton:Hide()
 	end
 
-	-- Set the active equipment slot.
+	-- 设置当前激活的装备栏位。
 	_G["TransmogCharacter"..slotName.."Slot"].toastTexture:SetTexture("Interface\\AddOns\\Transmogrification\\assets\\Transmog-Overlay-Selected")
 
-	-- Display the warning message if the player is viewing an empty equipment slot.
+	-- 如果玩家正在查看空装备栏位，则显示警告消息。
 	if not hasItem then
 		TransmogWarningText:SetText("|cff" .. L["ff4040"] .. L["No item equipped in this slot."])
 		TransmogWarningFrame:Show()
 	else
 		TransmogWarningFrame:Hide()
 
-		-- Display the restore/hide buttons if the equipment slot is not empty.
+		-- 如果装备栏位不为空，则显示恢复/隐藏按钮。
 		_G["TransmogCharacter"..slotName.."Slot"].restoreButton:Show()
 		_G["TransmogCharacter"..slotName.."Slot"].hideButton:Show()
 	end
 
-	-- Query the server for applicable item appearances to show.
+	-- 向服务器查询可显示的适用物品外观。
 	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
 end
 
@@ -1102,15 +1102,15 @@ end
 function OnHideTransmogrificationFrame(self)
 	PlaySound("AchievementMenuClose", "sfx")
 
-	-- Discard transmogrification preview changes.
+	-- 丢弃幻化预览更改。
 	wipe(previewTransmogrificationIDs)
 
-	-- Refresh the transmogrification preview with new information from the server.
+	-- 使用服务器返回的新信息刷新幻化预览。
 	LoadTransmogrificationsFromCurrentIDs(false)
 	characterTransmogTab:SetChecked(false)
 end
 
--- Define frame layout.
+-- 定义窗口布局。
 function TransmogItemSlotButton_OnLoad(self)
 	self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	local slotName = self:GetName():gsub("Transmog", "")
@@ -1198,24 +1198,24 @@ end
 function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMorePages)
 	TransmogPaginationText:SetText(string.format(L["Page %s"], page))
 
-	-- Determine if the slot is empty.
+	-- 判断该栏位是否为空。
 	local slotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
 	local equipSlot = GetEquipmentSlot(equipmentSlotIDs[slotName])
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
-	-- Display the warning if the slot is empty.
+	-- 如果栏位为空，则显示警告。
 	if not hasItem then
 		TransmogWarningText:SetText("|cff" .. L["ff4040"] .. L["No item equipped in this slot."])
 		TransmogWarningFrame:Show()
 	else
 		TransmogWarningFrame:Hide()
 
-		-- Display the restore and hide buttons if the slot is not empty.
+		-- 如果栏位不为空，则显示恢复和隐藏按钮。
 		_G["TransmogCharacter"..slotName.."Slot"].restoreButton:Show()
 		_G["TransmogCharacter"..slotName.."Slot"].hideButton:Show()
 	end
 
-	-- Update pagination buttons.
+	-- 更新翻页按钮。
 	if (hasMorePages) then
 		RightButton:Enable()
 	else
@@ -1228,32 +1228,32 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 		LeftButton:Disable()
 	end
 
-	-- Display possible transmogrification appearances.
+	-- 显示可能的幻化外观。
 	if newSlotItemIDs and #newSlotItemIDs > 0 then
 		for i, child in ipairs(itemButtons) do
 			if (i > #newSlotItemIDs or newSlotItemIDs[i] == nil) then
-				-- Hide empty items if we are on the last page of applicable appearances.
+				-- 如果正处于可用外观的最后一页，则隐藏空物品。
 				child:SetID(0)
 				child.itemButton:SetID(0)
 				child.itemButton:Disable()
 				child.itemModel:Hide()
 				SetItemButtonTexture(child.itemButton, "Interface\\paperdoll\\UI-PaperDoll-Slot-" .. equipmentSlotIcons[CalculateInverseSlot(CurrentItemSlot)])
 			else
-				-- Display items if an applicable appearance is found.
+				-- 如果找到适用外观，则显示物品。
 				child:SetID(newSlotItemIDs[i])
 				child.itemButton:SetID(newSlotItemIDs[i])
 				local textureName = GetItemIcon(newSlotItemIDs[i])
 				SetItemButtonTexture(child.itemButton, textureName)
 
-				-- Allow the item to be clicked to change the transmogrification appearance.
+				-- 允许点击物品以更改幻化外观。
 				if hasItem then
 					child.itemButton:Enable()
 					child.itemButton:SetScript("OnClick", OnClickItemTransmogrificationButton)
 				else
-					-- Enable the item button in order to display a tooltip.
+					-- 启用物品按钮以显示提示。
 					child.itemButton:Enable()
 
-					-- Remove the click event because the equipment slot is empty.
+					-- 由于装备栏位为空，移除点击事件。
 					child.itemButton:SetScript("OnClick", function(self)
 						PlaySound("igMainMenuOptionCheckBoxOff", "sfx")
 					end)
@@ -1262,10 +1262,10 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 				child.itemModel:Show()
 				child.itemModel:SetUnit("player")
 				
-				-- Rotate the player model if an applicable slot is being viewed.
-				if (CurrentItemSlot == PLAYER_VISIBLE_ITEM_15_ENTRYID) then -- Cloak
+				-- 如果正在查看适用的栏位，则旋转玩家模型。
+				if (CurrentItemSlot == PLAYER_VISIBLE_ITEM_15_ENTRYID) then -- 披风
 					child.itemModel:SetRotation(10, false)
-				elseif (CurrentItemSlot == PLAYER_VISIBLE_ITEM_16_ENTRYID) then -- Main Hand
+				elseif (CurrentItemSlot == PLAYER_VISIBLE_ITEM_16_ENTRYID) then -- 主手
 					child.itemModel:SetRotation(1, false)
 				else
 					child.itemModel:SetRotation(0, false)
@@ -1278,7 +1278,7 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 				local playerSex = UnitSex("player")
 				local isFemale = (playerSex == 3)
 				
-				-- Change the position and scale of the preview model based on race to ensure they align with the frame.
+				-- 根据种族更改预览模型的位置和缩放，确保它们与窗口对齐。
 				if playerRace == "HUMAN" then
 					if isFemale then
 						child.itemModel:SetPoint("CENTER", 4, -1)
@@ -1351,7 +1351,7 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 						child.itemModel:SetPoint("CENTER", -2, 2)
 						child.itemModel:SetSize(170, 170)
 					end
-				else -- Blood Elf as fallback.
+				else -- 血精灵作为回退。
 					if isFemale then
 						child.itemModel:SetPoint("CENTER", 2, -2)
 						child.itemModel:SetSize(180, 180)
@@ -1363,7 +1363,7 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 			end
 		end
 	else
-		-- Fallback behavior is to clear all applicable slots.
+		-- 回退行为是清空所有适用的栏位。
 		for i, child in ipairs(itemButtons) do
 			child:SetID(0)
 			child.itemButton:SetID(0)
@@ -1381,11 +1381,11 @@ function OnTransmogrificationFrameLoad(self)
 	ShowHelmText:SetText(L["Show Helm"])
 	TransmogPaginationText:SetText(string.format(L["Page %s"], 1))
 
-	-- Hide the warning text by default when loading the Transmogrification frame.
+	-- 加载幻化窗口时默认隐藏警告文本。
 	TransmogWarningFrame:Hide()
 	RegisterEquipmentChangeEvent()
 
-	-- Initialize the previewTransmogrificationIDs table.
+	-- 初始化预览幻化 ID 表。
 	for slot, transmogID in pairs(currentTransmogrificationIDs) do
 		previewTransmogrificationIDs[slot] = transmogID
 	end
@@ -1395,7 +1395,7 @@ function OnTransmogrificationFrameLoad(self)
 
 	InitTabSlots()
 
-	-- Create the tab button on the Character Info window.
+	-- 在角色信息窗口上创建标签按钮。
 	characterTransmogTab = CreateFrame("CheckButton", "CharacterFrameTab6", CharacterFrame, "SpellBookSkillLineTabTemplate")
 	characterTransmogTab:SetSize(32, 32);
 	characterTransmogTab:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", 0, -48)
@@ -1412,10 +1412,10 @@ function OnTransmogrificationFrameLoad(self)
 	PaperDollFrame:SetScript("OnShow", PaperDollFrame_OnShow)
 	InitializeCloakHelmCheckboxes()
 
-	-- Save the position of the Transmogrification frame.
+	-- 保存幻化窗口的位置。
 	AIO.SavePosition(TransmogrificationFrame)
 
-	-- Apply settings when Transmogrification frame is initialized.
+	-- 幻化窗口初始化时应用设置。
 	if Transmogrification and Transmogrification.db then
 		local settings = Transmogrification:GetSettings()
 		TransmogrificationFrame:SetScale(settings.transmogrificationWindowScale)
@@ -1440,6 +1440,6 @@ function OnTransmogrificationFrameLoad(self)
 
 	TransmogModelMouseRotation(TransmogrificationModelFrame)
 
-	-- Update all equipment icons.
+	-- 更新所有装备图标。
 	UpdateAllSlotTextures(false)
 end

@@ -86,6 +86,7 @@ local localeMessages = {
 	LOOT_ITEM_LOCALE = {
 		[0] = " has been added to your appearance collection.", -- enUS/enGB
 		[3] = " wurde deiner Transmog-Sammlung hinzugefügt.", -- deDE
+		[4] = "已被添加到你的外观收藏中。", -- zhCN
 	}
 }
 
