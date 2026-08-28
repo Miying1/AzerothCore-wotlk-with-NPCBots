@@ -198,13 +198,19 @@ public:
         return true;
     };
 
-    static bool HandleGlobalChatCommand(ChatHandler* handler, std::string args)
+    static bool HandleGlobalChatCommand(ChatHandler* handler, Tail args)
     {
         if (!handler->GetSession()->GetPlayer())
             return false;
-        std::string temp = args;
 
-        if (temp.find_first_not_of(' ') == std::string::npos)
+        // 去掉消息首尾的空格
+        std::string_view text = args;
+        while (!text.empty() && (text.front() == ' '))
+            text.remove_prefix(1);
+        while (!text.empty() && (text.back() == ' '))
+            text.remove_suffix(1);
+
+        if (text.empty())
             return false;
 
         std::string msg = "";
@@ -307,7 +313,7 @@ public:
             return false;
         }
 
-        msg += args;
+        msg += text;
         WorldSessionMgr::SessionMap sessions = sWorldSessionMgr->GetAllSessions();
         for (WorldSessionMgr::SessionMap::iterator itr = sessions.begin(); itr != sessions.end(); ++itr)
         {
