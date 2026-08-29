@@ -19,7 +19,7 @@ local ROLE_OPTIONS = {
 -- 最终显示仍会与服务端 supportedRoles 取交集，客户端只负责进一步收窄。
 local CLASS_ROLE_MASKS = {
     WARRIOR = 1 + 2 + 4,
-    PALADIN = 1 + 2 + 4 + 8,
+    PALADIN = 1 + 2 + 4 + 8+16,
     HUNTER = 4 + 16,
     ROGUE = 4,
     PRIEST = 4 + 8 + 16,
@@ -122,7 +122,7 @@ local function CreateManagementPanel(frame)
     panel.roleChecks = {}
     for index, option in ipairs(ROLE_OPTIONS) do
         local check = CreateCheck(roles, option.label)
-        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 16 + (index - 1) * 70, -38)
+        check:SetPoint("TOPLEFT", roles, "TOPLEFT", 16 + (index - 1) * 70, -35)
         check.roleValue = option.value
         panel.roleChecks[index] = check
         check:SetScript("OnClick", function(self)
@@ -173,7 +173,7 @@ local function CreateManagementPanel(frame)
     normal:SetPoint("LEFT", angleLabel, "RIGHT", 24, 0)
     normal.angleMode = 1
     local avoid = CreateRadio(behavior, "避开正面 AOE")
-    avoid:SetPoint("LEFT", normal, "RIGHT", 104, 0)
+    avoid:SetPoint("LEFT", normal, "RIGHT", 84, 0)
     avoid.angleMode = 2
     panel.angleRadios = { normal, avoid }
     for _, radio in ipairs(panel.angleRadios) do
@@ -193,14 +193,14 @@ local function CreateManagementPanel(frame)
     local positioningLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -144)
     positioningLabel:SetText("战斗走位")
-    local positioningFollow = CreateRadio(behavior, "跟随主人")
+    local positioningFollow = CreateRadio(behavior, "禁用")
     positioningFollow:SetPoint("LEFT", positioningLabel, "RIGHT", 24, 0)
     positioningFollow.positioningMode = 0
-    local positioningDisable = CreateRadio(behavior, "禁用")
-    positioningDisable:SetPoint("LEFT", positioningFollow, "RIGHT", 96, 0)
+    local positioningDisable = CreateRadio(behavior, "跟随主人")
+    positioningDisable:SetPoint("LEFT", positioningFollow, "RIGHT", 56, 0)
     positioningDisable.positioningMode = 1
     local positioningEnable = CreateRadio(behavior, "启用")
-    positioningEnable:SetPoint("LEFT", positioningDisable, "RIGHT", 80, 0)
+    positioningEnable:SetPoint("LEFT", positioningDisable, "RIGHT", 70, 0)
     positioningEnable.positioningMode = 2
     panel.combatPositioningRadios = { positioningFollow, positioningDisable, positioningEnable }
     for _, radio in ipairs(panel.combatPositioningRadios) do
@@ -304,7 +304,7 @@ function UI:RenderManagement(management)
         check:SetShown(check.roleSupported)
         if check.roleSupported then
             check:ClearAllPoints()
-            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 16 + visibleRoleIndex * 84, -36)
+            check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 16 + visibleRoleIndex * 64, -36)
             visibleRoleIndex = visibleRoleIndex + 1
         end
     end
