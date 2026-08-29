@@ -716,6 +716,8 @@ private:
 
     uint32 _botCommandState{};
     uint8 _botAwaitState{};
+    Position _stayPosition{};   // anchor point while in BOT_COMMAND_STAY
+    bool _stayPosValid = false;
 
     uint16 _rand{};
 
