@@ -1428,11 +1428,11 @@ public:
                     return;
             }
             //Consecration
-            if (IsSpellReady(CONSECRATION_1, diff) && can_do_holy && HasRole(BOT_ROLE_DPS) && dist < 5 && !mytar->isMoving() && Rand() < 20)
+            if (IsSpellReady(CONSECRATION_1, diff) && can_do_holy && HasRole(BOT_ROLE_DPS) && dist < 5 && !mytar->isMoving() && Rand() < 80)
             {
                 std::list<Unit*> targets;
                 GetNearbyTargetsList(targets, 8.f, 0);
-                if (targets.size() >= 2)
+                if (targets.size() >= 1)
                 {
                     if (doCast(me, GetSpell(CONSECRATION_1)))
                         return;

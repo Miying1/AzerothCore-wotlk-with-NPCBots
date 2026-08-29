@@ -193,13 +193,16 @@ local function CreateManagementPanel(frame)
     local positioningLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     positioningLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -144)
     positioningLabel:SetText("战斗走位")
+    local positioningFollow = CreateRadio(behavior, "跟随主人")
+    positioningFollow:SetPoint("LEFT", positioningLabel, "RIGHT", 24, 0)
+    positioningFollow.positioningMode = 0
     local positioningDisable = CreateRadio(behavior, "禁用")
-    positioningDisable:SetPoint("LEFT", positioningLabel, "RIGHT", 24, 0)
+    positioningDisable:SetPoint("LEFT", positioningFollow, "RIGHT", 96, 0)
     positioningDisable.positioningMode = 1
     local positioningEnable = CreateRadio(behavior, "启用")
     positioningEnable:SetPoint("LEFT", positioningDisable, "RIGHT", 80, 0)
     positioningEnable.positioningMode = 2
-    panel.combatPositioningRadios = { positioningDisable, positioningEnable }
+    panel.combatPositioningRadios = { positioningFollow, positioningDisable, positioningEnable }
     for _, radio in ipairs(panel.combatPositioningRadios) do
         radio:SetScript("OnClick", function(self)
             if panel.rendering then
@@ -324,8 +327,9 @@ function UI:RenderManagement(management)
         radio:SetChecked(radio.angleMode == tonumber(management.attackAngleMode))
     end
     -- 服务端返回的 combatPositioning 为数字：-1 = 跟随主人，0 = 禁用，1 = 启用。
-    -- 提交值为 1（禁用）/ 2（启用），据此映射选中哪个单选按钮。
-    local combatPositioningMode = tonumber(management.combatPositioning) == 1 and 2 or 1
+    -- 提交值（单选按钮 positioningMode）：0 = 跟随主人，1 = 禁用，2 = 启用。
+    -- 映射关系：服务端值 + 1 = 单选按钮值（-1→0、0→1、1→2）。
+    local combatPositioningMode = (tonumber(management.combatPositioning) or -1) + 1
     for _, radio in ipairs(panel.combatPositioningRadios) do
         radio:SetChecked(radio.positioningMode == combatPositioningMode)
     end
@@ -381,8 +385,8 @@ function UI:BuildManagementRequest()
         end
     end
 
-    -- 战斗走位三态：1 = 禁用，2 = 启用（0 = 跟随主人，客户端 UI 不产生该值）。
-    local combatPositioning = 1
+    -- 战斗走位三态：0 = 跟随主人，1 = 禁用，2 = 启用。
+    local combatPositioning = 0
     for _, radio in ipairs(panel.combatPositioningRadios) do
         if radio:GetChecked() then
             combatPositioning = radio.positioningMode
@@ -414,8 +418,8 @@ function UI:SubmitManagementChanges()
     end
 
     local current = self.management
-    -- 服务端返回的 combatPositioning 为 -1/0/1（启用为 1），提交值为 1/2（启用为 2），据此比较是否变化。
-    local currentCombatPositioning = tonumber(current and current.combatPositioning) == 1 and 2 or 1
+    -- 服务端返回的 combatPositioning 为 -1/0/1，提交值为 0/1/2，二者相差 +1，据此比较是否变化。
+    local currentCombatPositioning = (tonumber(current and current.combatPositioning) or -1) + 1
     if current and request.roles == tonumber(current.roles) and
         request.healHealthThreshold == tonumber(current.healHealthThreshold) and
         request.engageDelayMs == tonumber(current.engageDelayMs) and
