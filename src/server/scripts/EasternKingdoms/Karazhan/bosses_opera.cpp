@@ -751,7 +751,7 @@ struct boss_bigbadwolf : public ScriptedAI
         Talk(SAY_WOLF_AGGRO);
         DoZoneInCombat();
 
-        _scheduler.Schedule(30s, [this](TaskContext context)
+        _scheduler.Schedule(40s, [this](TaskContext context)
         {
             Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100); 
             if (target)
@@ -761,7 +761,7 @@ struct boss_bigbadwolf : public ScriptedAI
                 target->CastSpell(me, SPELL_PICNIC_BASKET_SMELL, true);
             }
 
-            context.Repeat(40s);
+            context.Repeat(50s);
         }).Schedule(25s, 35s, [this](TaskContext context)
         {
             DoCastAOE(SPELL_TERRIFYING_HOWL);
