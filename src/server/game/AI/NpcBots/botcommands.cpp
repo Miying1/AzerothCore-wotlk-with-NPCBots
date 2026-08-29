@@ -593,6 +593,7 @@ public:
         static ChatCommandTable npcbotCommandCommandTable =
         {
             { "attack",     HandleNpcBotCommandAttackCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "unattack",   HandleNpcBotCommandUnattackCommand,     rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "equip",      HandleNpcBotCommandEquipListCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST,          Console::No  },
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
@@ -2148,6 +2149,32 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
 
         bot->GetBotAI()->SetForcedAttackTarget(target);
         handler->PSendSysMessage("{} 将持续攻击 {}。", bot->GetName(), target->GetName());
+        return true;
+    }
+
+    static bool HandleNpcBotCommandUnattackCommand(ChatHandler* handler, Optional<std::string> bot_name)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        if (!owner->HaveBot() || !bot_name)
+        {
+            handler->SendSysMessage(".npcbot command unattack #bot_name");
+            handler->SendSysMessage("取消机器人的持续攻击命令");
+            return true;
+        }
+
+        for (char& c : *bot_name)
+            if (c == '_')
+                c = ' ';
+
+        Creature const* bot = owner->GetBotMgr()->GetBotByName(*bot_name);
+        if (!bot || !bot->IsInWorld())
+        {
+            handler->PSendSysMessage("未找到机器人 {}!", *bot_name);
+            return true;
+        }
+
+        bot->GetBotAI()->ClearForcedAttackTarget();
+        handler->PSendSysMessage("{} 已取消持续攻击命令。", bot->GetName());
         return true;
     }
 

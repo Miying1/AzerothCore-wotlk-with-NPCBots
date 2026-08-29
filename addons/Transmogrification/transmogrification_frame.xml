@@ -185,17 +185,6 @@
 			<Anchor point="CENTER" relativeTo="UIParent"/>
 		</Anchors>
 		<Layers>
-			<Layer level="BACKGROUND">
-				<Texture name="$parentDialogBG" hWrapMode="false" vWrapMode="false" vertTile="false" horizTile="false" file="Interface\AddOns\Transmogrification\assets\Transmog-Frame">
-					<Size x="1200" y="700"/>
-					<TexCoords left="0" right="0.52" top="0" bottom="0.66">
-						<Rect ULx="" ULy="" LLx="" LLy="" URx="" URy="" LRx="" LRy="" />
-					</TexCoords>
-					<Anchors>
-						<Anchor point="CENTER"/>
-					</Anchors>
-				</Texture>
-			</Layer>
 			<Layer level="OVERLAY">
 				<FontString name="Title" parentKey="TitleText" inherits="GameFontNormalHuge">
 					<Anchors>
@@ -226,6 +215,17 @@
 			</Layer>
 		</Layers>
 		<Frames>
+			<Frame name="$parentBackdrop" frameLevel="0">
+				<Size x="1200" y="700"/>
+				<Anchors>
+					<Anchor point="CENTER"/>
+				</Anchors>
+				<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true" alphaMode="BLEND">
+					<EdgeSize>
+						<AbsValue val="32"/>
+					</EdgeSize>
+				</Backdrop>
+			</Frame>
 			<Button name="TransmogCloseButton" inherits="UIPanelCloseButton" >
 				<Anchors>
 					<Anchor point="TOPRIGHT" x="-42" y="-84"/>

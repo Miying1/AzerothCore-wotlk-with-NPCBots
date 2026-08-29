@@ -168,6 +168,7 @@ public:
     bool CanBotAttack(Unit const* target, int8 byspell = 0, bool secondary = false) const;
     bool CanBotAttackOnVehicle() const;
     void SetForcedAttackTarget(Unit const* target);
+    void ClearForcedAttackTarget();
     void ApplyBotDamageMultiplierMelee(uint32& damage, CalcDamageInfo& damageinfo) const;
     void ApplyBotDamageMultiplierMelee(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType attackType, bool iscrit) const;
     void ApplyBotDamageMultiplierSpell(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType attackType, bool iscrit) const;

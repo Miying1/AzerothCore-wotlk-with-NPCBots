@@ -16187,6 +16187,11 @@ void bot_ai::SetForcedAttackTarget(Unit const* target)
     StartAttack(target, true);
 }
 
+void bot_ai::ClearForcedAttackTarget()
+{
+    _forcedAttackTargetGuid.Clear();
+}
+
 void bot_ai::JustEngagedWith(Unit* u)
 {
     _atHome = false;
