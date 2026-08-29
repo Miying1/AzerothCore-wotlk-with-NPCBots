@@ -18147,7 +18147,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     // or otherwise displaced away from it, automatically walk back to that point.
     if (me->IsAlive() && HasBotCommandState(BOT_COMMAND_STAY))
     {
-        if (!me->IsMoving())
+        if (!me->isMoving())
         {
             if (!_stayPosValid)
             {
