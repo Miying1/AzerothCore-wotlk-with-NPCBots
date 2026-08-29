@@ -2346,9 +2346,10 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
             return bot->GetBotAI()->GetBaseSpell(spellname, handler->GetSessionDbcLocale());
         };
 
-        auto canBotUseSpell = [](Creature const* tbot, uint32 bspell) {
-            //we ignore GCD for now
-            return bspell && tbot->GetBotAI()->IsSpellReady(bspell, tbot->GetBotAI()->GetLastDiff(), false);
+        // order cast 不检测技能是否被禁用；仅检查冷却，返回剩余冷却秒数（0 表示就绪）
+        auto orderCastCooldownSec = [](Creature const* tbot, uint32 bspell) -> uint32 {
+            uint32 cd = tbot->GetBotAI()->GetSpellCooldown(bspell); // 剩余冷却（毫秒）
+            return cd ? (cd / 1000u + (cd % 1000u ? 1u : 0u)) : 0u;  // 向上取整到秒
         };
 
         uint32 base_spell = 0;
@@ -2372,9 +2373,9 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
                 handler->PSendSysMessage("{} 没有名为 '{}' 的技能!", bot->GetName(), *spell_name);
                 return true;
             }
-            if (!canBotUseSpell(bot, base_spell))
+            if (uint32 cdSec = orderCastCooldownSec(bot, base_spell))
             {
-                handler->PSendSysMessage("{} 的 {} 还未准备好!", bot->GetName(), sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()]);
+                handler->PSendSysMessage("{} 的 {} 还在冷却中，剩余 {} 秒!", bot->GetName(), sSpellMgr->GetSpellInfo(base_spell)->SpellName[handler->GetSessionDbcLocale()], cdSec);
                 return true;
             }
         }
@@ -2423,7 +2424,7 @@ handler->PSendSysMessage("找到的 {} 个 {} 机器人都没有名为 '{}' 的�
             std::erase_if(cBots, [=](Creature const* tbot) {
                 if (tbot->GetBotAI()->GetActionsQueueSize() >= MAX_BOT_ORDERS_QUEUE_SIZE)
                     return true;
-                return !getBotBaseSpell(tbot, *spell_name) || !canBotUseSpell(tbot, base_spell);
+                return !getBotBaseSpell(tbot, *spell_name) || orderCastCooldownSec(tbot, base_spell) > 0;
             });
 
             decltype(cBots) ccBots;
