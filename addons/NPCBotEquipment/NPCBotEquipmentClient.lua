@@ -953,7 +953,7 @@ local function CreateCandidatePanel()
     status:SetText("正在筛选背包装备...")
     panel.status = status
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    local scrollFrame = CreateFrame("ScrollFrame", "NPCBotEquipmentCandidateScrollFrame", panel, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
     scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -24, 4)
     panel.scrollFrame = scrollFrame

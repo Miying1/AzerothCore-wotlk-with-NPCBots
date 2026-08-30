@@ -106,6 +106,22 @@ local function SafeEditBoxSetEnabled(edit, enabled)
     end
 end
 
+-- 兜底：部分版本的 CheckButton/RadioButton 只有 Enable/Disable，没有 SetEnabled，
+-- 这里优先用 SetEnabled，缺失时降级为 Enable/Disable。
+local function SafeSetEnabled(frame, enabled)
+    if frame.SetEnabled then
+        frame:SetEnabled(enabled)
+    elseif enabled then
+        if frame.Enable then
+            frame:Enable()
+        end
+    else
+        if frame.Disable then
+            frame:Disable()
+        end
+    end
+end
+
 local function CreateEditBox(parent, width)
     -- 参考 NetherBot 的输入框写法：不用模板，用 SetBackdrop 手动绘制背景边框。
     local edit = CreateFrame("EditBox", nil, parent)
@@ -280,14 +296,14 @@ function UI:SetManagementControlsEnabled(enabled)
     end
     for _, check in ipairs(panel.roleChecks) do
         local supported = check.roleSupported ~= false
-        check:SetEnabled(enabled and supported)
+        SafeSetEnabled(check, enabled and supported)
         check.label:SetTextColor(enabled and supported and 1 or 0.45, enabled and supported and 1 or 0.45, enabled and supported and 1 or 0.45)
     end
     for _, radio in ipairs(panel.angleRadios) do
-        radio:SetEnabled(enabled)
+        SafeSetEnabled(radio, enabled)
     end
     for _, radio in ipairs(panel.combatPositioningRadios) do
-        radio:SetEnabled(enabled)
+        SafeSetEnabled(radio, enabled)
     end
     if enabled and panel.healThresholdSupported then
         SafeEditBoxSetEnabled(panel.healThresholdEdit, true)
