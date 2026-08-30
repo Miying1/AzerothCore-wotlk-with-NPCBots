@@ -476,6 +476,7 @@ public:
     bool LoadBotCreatureFromDB(ObjectGuid::LowType guid, Map* map, bool addToMap = true, bool generated = false, uint32 entry = 0, Position const* pos = nullptr);
     Player* GetBotOwner() const;
     Unit* GetBotsPet() const;
+    ObjectGuid GetBotsPetGUID() const;
     bool IsNPCBot() const override;
     bool IsNPCBotPet() const override;
     bool IsNPCBotOrPet() const override;

@@ -7,6 +7,35 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = UI.namespace or "NPCBotEquipment"
 local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 
+-- 兼容辅助：优先复用主客户端文件定义的兼容层，缺失时本地降级兜底。
+local SafeSetShown = UI.SafeSetShown or function(widget, shown)
+    if not widget then
+        return
+    end
+    if widget.SetShown then
+        widget:SetShown(shown)
+    elseif shown then
+        widget:Show()
+    else
+        widget:Hide()
+    end
+end
+
+local SafeAdjustFontSize = UI.SafeAdjustFontSize or function(fontString, sizeOffset)
+    if not fontString or not fontString.GetFont or not fontString.SetFont then
+        return
+    end
+    local font, size, flags = fontString:GetFont()
+    if type(font) ~= "string" or font == "" then
+        font = "Fonts\\FRIZQT__.TTF"
+    end
+    if type(size) ~= "number" or size <= 0 then
+        size = 12
+    end
+    flags = type(flags) == "string" and flags or "OUTLINE"
+    fontString:SetFont(font, math.max(1, size + (sizeOffset or 0)), flags)
+end
+
 local SPEC_NAMES = {
     [1] = "武器", [2] = "狂怒", [3] = "防护", [4] = "神圣", [5] = "防护", [6] = "惩戒",
     [7] = "野兽控制", [8] = "射击", [9] = "生存", [10] = "刺杀", [11] = "战斗", [12] = "敏锐",
@@ -94,10 +123,8 @@ local function CreateAttributesPanel(frame)
     local specInset = createInset(panel, "TOPLEFT", panel, "TOPLEFT", 0, 0, 358, 48)
     local specValue = specInset:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     specValue:SetPoint("CENTER", specInset, "CENTER", 0, 0)
-    local specFont, specFontSize, specFontFlags = specValue:GetFont()
-    if specFont then
-        specValue:SetFont(specFont, (specFontSize or 12) + 2, specFontFlags)
-    end
+    -- 字体信息获取不到时使用默认字体兜底，字号在原基础上放大两号。
+    SafeAdjustFontSize(specValue, 2)
     specValue:SetText("正在读取...")
     specValue:SetTextColor(1, 0.82, 0.35)
     panel.specValue = specValue
@@ -162,7 +189,7 @@ function UI:RenderAttributes(attributes)
     if type(attributes) ~= "table" then return end
     self:EnsureFrames()
     local showPanel = self.activeTab == "属性"
-    self.frame.attributesPanel:SetShown(showPanel)
+    SafeSetShown(self.frame.attributesPanel, showPanel)
     self.attributes = attributes
     self.attributesBotKey = UI.SnapshotCacheKey(attributes.botEntry, attributes.botGuidLow)
     if self.currentBot then

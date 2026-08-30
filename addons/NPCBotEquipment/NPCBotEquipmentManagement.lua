@@ -7,6 +7,20 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = UI.namespace or "NPCBotEquipment"
 local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 
+-- 兼容层：SetShown 在部分客户端版本可能缺失，统一降级为 Show/Hide。
+local SafeSetShown = UI.SafeSetShown or function(widget, shown)
+    if not widget then
+        return
+    end
+    if widget.SetShown then
+        widget:SetShown(shown)
+    elseif shown then
+        widget:Show()
+    else
+        widget:Hide()
+    end
+end
+
 local ROLE_OPTIONS = {
     { value = 1, label = "主坦" },
     { value = 2, label = "副坦" },
@@ -301,7 +315,7 @@ function UI:RenderManagement(management)
         local classSupportsRole = not classRoleMask or HasRole(classRoleMask, check.roleValue)
         check.roleSupported = classSupportsRole and HasRole(supportedRoles, check.roleValue)
         check:SetChecked(check.roleSupported and HasRole(roles, check.roleValue))
-        check:SetShown(check.roleSupported)
+        SafeSetShown(check, check.roleSupported)
         if check.roleSupported then
             check:ClearAllPoints()
             check:SetPoint("TOPLEFT", check:GetParent(), "TOPLEFT", 16 + visibleRoleIndex * 64, -36)
@@ -310,20 +324,20 @@ function UI:RenderManagement(management)
     end
 
     panel.healThresholdSupported = management.healThresholdSupported == true
-    panel.healThresholdLabel:SetShown(panel.healThresholdSupported)
+    SafeSetShown(panel.healThresholdLabel, panel.healThresholdSupported)
     SafeEditBoxSetShown(panel.healThresholdEdit, panel.healThresholdSupported)
-    panel.healThresholdUnit:SetShown(panel.healThresholdSupported)
+    SafeSetShown(panel.healThresholdUnit, panel.healThresholdSupported)
     panel.healThresholdEdit:SetText(tostring(tonumber(management.healHealthThreshold) or 95))
     panel.healThresholdUnit:SetText("%（1-100，整数）")
     -- 有坦克职责（主坦或副坦）时隐藏进战延迟和攻击角度，坦克无需这两项设置。
     local hasTankRole = HasRole(roles, 1) or HasRole(roles, 2)
-    panel.engageDelayLabel:SetShown(not hasTankRole)
+    SafeSetShown(panel.engageDelayLabel, not hasTankRole)
     SafeEditBoxSetShown(panel.engageDelayEdit, not hasTankRole)
-    panel.engageDelayUnit:SetShown(not hasTankRole)
+    SafeSetShown(panel.engageDelayUnit, not hasTankRole)
     panel.engageDelayEdit:SetText(string.format("%.3g", (tonumber(management.engageDelayMs) or 0) / 1000))
-    panel.angleLabel:SetShown(not hasTankRole)
+    SafeSetShown(panel.angleLabel, not hasTankRole)
     for _, radio in ipairs(panel.angleRadios) do
-        radio:SetShown(not hasTankRole)
+        SafeSetShown(radio, not hasTankRole)
         radio:SetChecked(radio.angleMode == tonumber(management.attackAngleMode))
     end
     -- 服务端返回的 combatPositioning 为数字：-1 = 跟随主人，0 = 禁用，1 = 启用。

@@ -1630,6 +1630,7 @@ public:
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SUMMON_WATER_ELEMENTAL_1);
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPet = myPet;
+            botPetGUID = myPet->GetGUID();
         }
 
         void UnsummonAll(bool savePets = true) override
@@ -1645,7 +1646,10 @@ public:
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
             if (summon == botPet)
+            {
                 botPet = nullptr;
+                botPetGUID.Clear();
+            }
         }
 
         uint32 GetAIMiscValue(uint32 data) const override

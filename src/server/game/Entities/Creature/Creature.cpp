@@ -4279,6 +4279,10 @@ Unit* Creature::GetBotsPet() const
 {
     return bot_AI ? bot_AI->GetBotsPet() : nullptr;
 }
+ObjectGuid Creature::GetBotsPetGUID() const
+{
+    return bot_AI ? bot_AI->GetBotsPetGUID() : ObjectGuid::Empty;
+}
 
 bool Creature::IsNPCBot() const
 {

@@ -153,6 +153,75 @@ UI.namespace = NAMESPACE
 UI.handlers = handlers
 _G.NPCBotEquipmentUI = UI
 
+-- ============================================================================
+-- 兼容层：不同客户端 / 补丁环境下部分 API 可能缺失（SetShown、SetDesaturated 等），
+-- 或字体信息获取不到。统一做存在性判断与等价降级，避免
+-- "attempt to call method 'xxx' (a nil value)" 导致界面卡在加载态。
+-- ============================================================================
+
+local function ResolveDefaultFont()
+    if type(STANDARD_TEXT_FONT) == "string" and STANDARD_TEXT_FONT ~= "" then
+        return STANDARD_TEXT_FONT
+    end
+    if GameFontNormal and GameFontNormal.GetFont then
+        local font = GameFontNormal:GetFont()
+        if type(font) == "string" and font ~= "" then
+            return font
+        end
+    end
+    return "Fonts\\FRIZQT__.TTF"
+end
+
+local DEFAULT_FONT = ResolveDefaultFont()
+local DEFAULT_FONT_SIZE = 12
+local DEFAULT_FONT_FLAGS = "OUTLINE"
+
+-- 显示/隐藏：优先 SetShown，缺失时回退到 Show/Hide。
+local function SafeSetShown(widget, shown)
+    if not widget then
+        return
+    end
+    if widget.SetShown then
+        widget:SetShown(shown)
+    elseif shown then
+        widget:Show()
+    else
+        widget:Hide()
+    end
+end
+
+-- 去饱和：缺失时静默忽略（仅影响图标灰度显示，不影响功能）。
+local function SafeSetDesaturated(texture, desaturated)
+    if texture and texture.SetDesaturated then
+        texture:SetDesaturated(desaturated)
+    end
+end
+
+-- 在现有字体基础上调整字号（sizeOffset 为相对增量，可正可负）。
+-- 字体路径 / 字号 / 标志任一获取不到时使用默认值，避免跨客户端报错。
+local function SafeAdjustFontSize(fontString, sizeOffset)
+    if not fontString or not fontString.GetFont or not fontString.SetFont then
+        return
+    end
+    local font, size, flags = fontString:GetFont()
+    if type(font) ~= "string" or font == "" then
+        font = DEFAULT_FONT
+    end
+    if type(size) ~= "number" or size <= 0 then
+        size = DEFAULT_FONT_SIZE
+    end
+    if type(flags) ~= "string" then
+        flags = DEFAULT_FONT_FLAGS
+    end
+    fontString:SetFont(font, math.max(1, size + (sizeOffset or 0)), flags)
+end
+
+-- 暴露给后续加载的属性页、管理页复用（本文件最先加载）。
+UI.SafeSetShown = SafeSetShown
+UI.SafeSetDesaturated = SafeSetDesaturated
+UI.SafeAdjustFontSize = SafeAdjustFontSize
+UI.DEFAULT_FONT = DEFAULT_FONT
+
 local function NextRequestId()
     UI.requestSerial = UI.requestSerial + 1
     if UI.requestSerial > 2147483647 then
@@ -477,10 +546,8 @@ local function CreateSlotButton(frame, slot, side, index)
     local border = button:CreateTexture(nil, "BACKGROUND")
     border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
     border:SetAllPoints(button)
-    -- SetDesaturated 去金色：部分客户端版本可能不支持该方法，先判断存在性避免报错
-    if border.SetDesaturated then
-        border:SetDesaturated(true)
-    end
+    -- SetDesaturated 去金色：部分客户端版本可能不支持该方法，统一走兼容层避免报错
+    SafeSetDesaturated(border, true)
     border:SetVertexColor(EMPTY_SLOT_BORDER[1], EMPTY_SLOT_BORDER[2], EMPTY_SLOT_BORDER[3])
     button.border = border
 
@@ -526,11 +593,8 @@ local function CreateSlotButton(frame, slot, side, index)
     itemLevel:SetTextColor(1, 0.82, 0)
     itemLevel:SetShadowColor(0, 0, 0, 1)
     itemLevel:SetShadowOffset(1, -1)
-    -- 槽内装等字号比默认槽位字体再小一号
-    local itemLevelFont, itemLevelSize, itemLevelFlags = itemLevel:GetFont()
-    if itemLevelFont then
-        itemLevel:SetFont(itemLevelFont, itemLevelSize - 1, itemLevelFlags)
-    end
+    -- 槽内装等字号比默认槽位字体再小一号；字体信息获取不到时使用默认字体兜底。
+    SafeAdjustFontSize(itemLevel, -1)
     button.itemLevel = itemLevel
 
     button:SetScript("OnEnter", function(self)
@@ -633,9 +697,9 @@ local function CreateTab(frame, text, index)
     -- 刷新选项卡视觉状态（选中 / 悬停 / 普通）
     local function RefreshVisual(self)
         local selected = self.tabName == UI.activeTab
-        self.active:SetShown(selected)
-        self.activeTop:SetShown(selected)
-        self.activeBottom:SetShown(selected)
+        SafeSetShown(self.active, selected)
+        SafeSetShown(self.activeTop, selected)
+        SafeSetShown(self.activeBottom, selected)
         self.background:SetVertexColor(selected and 1 or 0.72, selected and 1 or 0.72, selected and 1 or 0.72)
         self.hover:Hide()
         self.label:SetTextColor(selected and 1 or 0.62, selected and 0.86 or 0.46, selected and 0.42 or 0.24)
@@ -965,13 +1029,13 @@ function UI:ShouldCloseForResponse(response)
 end
 
 function UI:SetEquipmentContentShown(shown)
-    self.frame.modelInset:SetShown(shown)
-    self.frame.totalGearScore:SetShown(shown)
-    self.frame.rotateLeft:SetShown(shown)
-    self.frame.rotateRight:SetShown(shown)
+    SafeSetShown(self.frame.modelInset, shown)
+    SafeSetShown(self.frame.totalGearScore, shown)
+    SafeSetShown(self.frame.rotateLeft, shown)
+    SafeSetShown(self.frame.rotateRight, shown)
     for _, button in ipairs(self.frame.slots) do
-        button:SetShown(shown)
-        button.slotPanel:SetShown(shown)
+        SafeSetShown(button, shown)
+        SafeSetShown(button.slotPanel, shown)
     end
 end
 
@@ -985,7 +1049,7 @@ function UI:UpdatePermissionUi()
         tab:ClearAllPoints()
         tab:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", firstX + (index - 1) * 107, 15)
     end
-    self.frame.tabs[3]:SetShown(canManage)
+    SafeSetShown(self.frame.tabs[3], canManage)
     if not canManage and self.activeTab == "管理" then
         self.activeTab = "装备"
     end
@@ -1356,7 +1420,7 @@ function UI:SetCandidateButtonsEnabled(enabled)
         if button:IsShown() then
             local canEnable = enabled and (button.itemData.kind ~= "UNEQUIP" or button.itemData.enabled)
             button:SetEnabled(canEnable)
-            button.icon:SetDesaturated(not canEnable)
+            SafeSetDesaturated(button.icon, not canEnable)
         end
     end
 end
@@ -1403,14 +1467,14 @@ function UI:RenderCandidates(candidates)
             button.icon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
             button.itemLevel:SetText("")
             button:SetEnabled(itemData.enabled)
-            button.icon:SetDesaturated(not itemData.enabled)
+            SafeSetDesaturated(button.icon, not itemData.enabled)
         else
             button.icon:SetTexture(GetEntryIcon(itemData.entry))
             button.itemLevel:SetText(itemData.itemLevel and itemData.itemLevel > 0 and itemData.itemLevel or "")
             local color = QUALITY_COLORS[itemData.quality] or QUALITY_COLORS[1]
             button.itemLevel:SetTextColor(color[1], color[2], color[3])
             button:SetEnabled(true)
-            button.icon:SetDesaturated(false)
+            SafeSetDesaturated(button.icon, false)
         end
         button:Show()
     end

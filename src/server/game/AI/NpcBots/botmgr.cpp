@@ -52,7 +52,6 @@ static uint8 _IpMaxBots = 8;
 BotMgr::BotMgr(Player* const master) : _owner(master), _positionControl(std::make_unique<BotPositionControl>(*this)), _dpstracker(new DPSTracker())
 {
     _quickrecall = false;
-    _update_lock = false;
     _data = nullptr;
 }
 BotMgr::~BotMgr()
@@ -198,6 +197,9 @@ void BotMgr::Update(uint32 diff)
     if (!HaveBot())
         return;
 
+    // 加锁保护 _bots 遍历，防止主线程（如命令行移除）并发修改容器或销毁机器人对象
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
     //ObjectGuid guid;
     bool partyCombat = IsPartyInCombat(false);
     bool restrictBots = RestrictBots(_bots.begin()->second, false);
@@ -205,7 +207,7 @@ void BotMgr::Update(uint32 diff)
     if (partyCombat)
         bot_ai::CalculateAoeSpots(_owner, _aoespots, _creatureHazardStates);
 
-    _update_lock = true;
+    ++_botsIterateDepth;
 
     for (auto const& [_, bot] : _bots)
     {
@@ -252,7 +254,7 @@ void BotMgr::Update(uint32 diff)
         ai->canUpdate = false;
     }
 
-    _update_lock = false;
+    --_botsIterateDepth;
 
     while (!_delayedRemoveList.empty())
     {
@@ -781,13 +783,16 @@ void BotMgr::RemoveAllBots(uint8 removetype)
 //Bot is being abandoned by player
 void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
 {
+    // 递归锁：主线程（命令行/登出）与地图线程（遍历更新）都可能调用，需互斥保护 _bots 与 _delayedRemoveList
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
     decltype(_bots)::const_iterator itr = _bots.find(guid);
     ASSERT(itr != _bots.end(), "Trying to remove bot which does not belong to this botmgr(a)!!");
     //ASSERT(_owner->IsInWorld(), "Trying to remove bot while not in world(a)!!");
 
     Creature* bot = itr->second;
 
-    if (_update_lock)
+    if (_botsIterateDepth > 0)
     {
         _delayedRemoveList.emplace_back(guid, BotRemoveType(removetype));
         return;
@@ -800,8 +805,11 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
         RemoveBotFromBGQueue(bot);
         RemoveBotFromGroup(bot);
         bot->SetCreator(nullptr);
-        if (Unit* bpet = bot->GetBotsPet())
-            bpet->SetCreator(nullptr);
+        // 宠物通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        if (ObjectGuid const petGuid = bot->GetBotsPetGUID())
+            if (Map* petMap = bot->FindMap())
+                if (Creature* bpet = petMap->GetCreature(petGuid))
+                    bpet->SetCreator(nullptr);
         bot->GetBotAI()->ResetBotAI(BOTAI_RESET_LOGOUT | BOTAI_RESET_DISMISS);
         BotDataMgr::DespawnDungeonBot(bot->GetEntry());
         _positionControl->ForgetBot(guid);
@@ -1360,12 +1368,14 @@ void BotMgr::UpdatePhaseForBots()
     if (!map)
         return;
 
-    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    // 加锁保护 _bots 遍历，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
     // 注意：这里不缓存 _bots 里的 Creature*（它可能已被销毁），而是在锁内通过 guid 重新解析并立即使用，
     // 以尽量缩短对象被解析到被解引用之间的竞态窗口。
     uint32 phaseMask = _owner->GetPhaseMask();
 
-    _update_lock = true;
+    ++_botsIterateDepth;
     for (auto const& [guid, bot] : _bots)
     {
         if (!bot)
@@ -1374,10 +1384,12 @@ void BotMgr::UpdatePhaseForBots()
         if (!creature)
             continue;
         creature->SetPhaseMask(phaseMask, creature->IsInWorld());
-        if (Unit* pet = creature->GetBotsPet())
-            pet->SetPhaseMask(phaseMask, pet->IsInWorld());
+        // 宠物同样通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        if (ObjectGuid const petGuid = creature->GetBotsPetGUID())
+            if (Creature* pet = map->GetCreature(petGuid))
+                pet->SetPhaseMask(phaseMask, pet->IsInWorld());
     }
-    _update_lock = false;
+    --_botsIterateDepth;
 
     // 处理遍历期间被延迟的移除请求
     while (!_delayedRemoveList.empty())
@@ -1393,11 +1405,13 @@ void BotMgr::UpdatePvPForBots()
     if (!map)
         return;
 
-    // 遍历 _bots 期间加锁，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    // 加锁保护 _bots 遍历，防止主线程（如 logout 的 RemoveAllBots）并发 erase/删除对象造成悬垂指针。
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
     // 不缓存 _bots 里的 Creature*，而是在锁内通过 guid 重新解析并立即使用，缩短竞态窗口。
     uint8 pvpByte = _owner->GetByteValue(UNIT_FIELD_BYTES_2, 1);
 
-    _update_lock = true;
+    ++_botsIterateDepth;
     for (auto const& [guid, bot] : _bots)
     {
         if (!bot)
@@ -1406,10 +1420,12 @@ void BotMgr::UpdatePvPForBots()
         if (!creature)
             continue;
         creature->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
-        if (Unit* pet = creature->GetBotsPet())
-            pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
+        // 宠物同样通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        if (ObjectGuid const petGuid = creature->GetBotsPetGUID())
+            if (Creature* pet = map->GetCreature(petGuid))
+                pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
     }
-    _update_lock = false;
+    --_botsIterateDepth;
 
     // 处理遍历期间被延迟的移除请求
     while (!_delayedRemoveList.empty())

@@ -1715,6 +1715,7 @@ public:
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPet = myPet;
+            botPetGUID = myPet->GetGUID();
         }
 
         void JustSummoned(Creature* summon) override
@@ -1734,7 +1735,10 @@ public:
         {
             //TC_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
             if (summon == botPet)
+            {
                 botPet = nullptr;
+                botPetGUID.Clear();
+            }
         }
 
         void SummonedCreatureDespawn(Creature* summon) override
@@ -1745,6 +1749,7 @@ public:
             {
                 petSummonTimer = 30000;
                 botPet = nullptr;
+                botPetGUID.Clear();
             }
         }
 

@@ -1887,6 +1887,7 @@ public:
             }
 
             botPet = myPet;
+            botPetGUID = myPet->GetGUID();
         }
 
         void UnsummonAll(bool savePets = true) override
@@ -1898,7 +1899,10 @@ public:
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
             if (summon == botPet)
+            {
                 botPet = nullptr;
+                botPetGUID.Clear();
+            }
         }
 
         void SummonedCreatureDespawn(Creature* summon) override
@@ -1909,6 +1913,7 @@ public:
             {
                 petSummonTimer = 10000;
                 botPet = nullptr;
+                botPetGUID.Clear();
             }
         }
 

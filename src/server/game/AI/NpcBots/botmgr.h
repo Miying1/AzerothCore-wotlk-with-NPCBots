@@ -291,7 +291,8 @@ private:
     NpcBotMgrData* _data;
 
     bool _quickrecall;
-    std::atomic<bool> _update_lock{false}; // 保护 _bots 遍历不被跨线程（如 logout）并发修改
+    std::recursive_mutex _botsMutex;   // 跨线程保护 _bots 与 _delayedRemoveList 的访问
+    uint32 _botsIterateDepth{0};       // _bots 遍历嵌套深度，>0 表示正在遍历（用于延迟移除，避免迭代器失效）
 
     AoeSpotsVec _aoespots;
     NPCBotCreatureHazardStateMap _creatureHazardStates;

@@ -21,6 +21,7 @@
 #include "SpellMgr.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
+#include "ObjectAccessor.h"
 /*
  * Scripts for spells with SPELLFAMILY_WARRIOR and SPELLFAMILY_GENERIC spells used by warrior players.
  * Ordered alphabetically using scriptname.
@@ -71,6 +72,8 @@ enum WarriorSpells
     SPELL_WARRIOR_SLAM_GCD_REDUCED                  = 71072,
     SPELL_WARRIOR_EXECUTE_GCD_REDUCED               = 71069,
     SPELL_WARRIOR_WARRIORS_WRATH                    = 21887,
+    SPELL_WARRIOR_HEROIC_LEAP                       = 90020,
+    SPELL_WARRIOR_HEROIC_LEAP_DAMAGE                = 90021,
 };
 
 enum WarriorSpellIcons
@@ -1221,6 +1224,66 @@ class spell_warr_warriors_wrath : public SpellScript
     }
 };
 
+// 90020 - 战士大跳（英雄跳跃）
+// 跳跃位移由引擎 EffectJumpDest(SPELL_EFFECT_JUMP_DEST) 在起跳瞬间完成，
+// 本脚本在落地时刻对落点周围敌人施放 90021，实现高版本"落地才砸地"的时序
+class spell_warr_heroic_leap : public SpellScriptLoader
+{
+public:
+    spell_warr_heroic_leap() : SpellScriptLoader("spell_warr_heroic_leap") { }
+
+    class spell_warr_heroic_leap_SpellScript : public SpellScript
+    {
+        PrepareSpellScript(spell_warr_heroic_leap_SpellScript);
+
+        bool Validate(SpellInfo const* /*spellInfo*/) override
+        {
+            return ValidateSpellInfo({ SPELL_WARRIOR_HEROIC_LEAP_DAMAGE });
+        }
+
+        void HandleLanding(SpellEffIndex /*effIndex*/)
+        {
+            Unit* caster = GetCaster();
+            WorldLocation const* dest = GetExplTargetDest();
+            if (!caster || !dest)
+                return;
+
+            ObjectGuid casterGuid = caster->GetGUID();
+            float x = dest->GetPositionX();
+            float y = dest->GetPositionY();
+            float z = dest->GetPositionZ();
+
+            // 复刻引擎 CalculateJumpSpeeds 公式，估算飞行时长以对齐落地时刻
+            float dist = caster->GetExactDist2d(x, y);
+            float multiplier = GetSpellInfo()->Effects[EFFECT_0].ValueMultiplier;
+            if (multiplier <= 0.0f)
+                multiplier = 1.0f;
+            // 用 playerBaseMoveSpeed（固定基础跑速，不含加速 buff），与引擎 Spell::CalculateJumpSpeeds 完全一致
+            float runSpeed = playerBaseMoveSpeed[MOVE_RUN];
+            float speedXY = std::min(runSpeed * 3.0f * multiplier,
+                                     std::max(28.0f, caster->GetSpeed(MOVE_RUN) * 4.0f));
+            float duration = std::clamp(dist / speedXY, 0.2f, 3.0f);
+
+            // 落地后在落点施放伤害（用 GUID 重查对象，避免跳跃过程中对象被移除导致悬垂指针）
+            caster->m_Events.AddEventAtOffset([casterGuid, x, y, z]()
+            {
+                if (Player* caster = ObjectAccessor::FindPlayer(casterGuid))
+                    caster->CastSpell(x, y, z, SPELL_WARRIOR_HEROIC_LEAP_DAMAGE, true);
+            }, Milliseconds(uint32(duration * 1000.0f)));
+        }
+
+        void Register() override
+        {
+            OnEffectLaunch += SpellEffectFn(spell_warr_heroic_leap_SpellScript::HandleLanding, EFFECT_0, SPELL_EFFECT_JUMP_DEST);
+        }
+    };
+
+    SpellScript* GetSpellScript() const override
+    {
+        return new spell_warr_heroic_leap_SpellScript();
+    }
+};
+
 void AddSC_warrior_spell_scripts()
 {
     RegisterSpellScript(spell_warr_mocking_blow);
@@ -1248,6 +1311,7 @@ void AddSC_warrior_spell_scripts()
     RegisterSpellScript(spell_warr_vigilance_redirect_threat);
     RegisterSpellScript(spell_warr_vigilance_trigger);
     RegisterSpellScript(spell_warr_warriors_wrath);
+    RegisterSpellScript(spell_warr_heroic_leap);
     RegisterSpellScript(spell_warr_t3_prot_8p_bonus);
     RegisterSpellScript(spell_warr_heroic_strike);
     RegisterSpellScript(spell_war_sudden_death_aura);

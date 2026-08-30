@@ -439,6 +439,7 @@ public:
             myPet->CastSpell(myPet, IMMOLATION, true);
 
             botPet = myPet;
+            botPetGUID = myPet->GetGUID();
         }
 
         void UnsummonAll(bool savePets = true) override
@@ -454,7 +455,10 @@ public:
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
             if (summon == botPet)
+            {
                 botPet = nullptr;
+                botPetGUID.Clear();
+            }
         }
 
         uint32 GetAIMiscValue(uint32 data) const override

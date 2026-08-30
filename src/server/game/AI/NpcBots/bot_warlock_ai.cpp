@@ -1784,6 +1784,7 @@ public:
             }
 
             botPet = myPet;
+            botPetGUID = myPet->GetGUID();
         }
 
         void UnsummonAll(bool savePets = true) override
@@ -1794,7 +1795,10 @@ public:
         void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
         {
             if (summon == botPet)
+            {
                 botPet = nullptr;
+                botPetGUID.Clear();
+            }
         }
 
         void SummonedCreatureDespawn(Creature* summon) override
@@ -1805,6 +1809,7 @@ public:
             {
                 petSummonTimer = 10000;
                 botPet = nullptr;
+                botPetGUID.Clear();
 
                 //party aura hack removal helper
                 switch (summon->GetEntry())
