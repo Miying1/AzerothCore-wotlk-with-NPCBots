@@ -136,91 +136,27 @@ local function GetEmptySlotTexture(slot)
     return SLOT_EMPTY_TEXTURES[slot] or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
-local UI = {
-    requestSerial = 0,
-    currentBot = nil,
-    currentUnit = nil,
-    snapshot = nil,
-    snapshotCache = nil,
-    snapshotCacheOrder = {},
-    candidateButtons = {},
-    equipPending = false,
-    requestDeadline = nil,
-    mutationDeadline = nil,
-    activeTab = "装备"
-}
+-- UI 全局表由最先加载的 NPCBotEquipmentUtil.lua 创建并注册共享兼容层，这里直接复用。
+local UI = _G.NPCBotEquipmentUI
+UI.requestSerial = 0
+UI.currentBot = nil
+UI.currentUnit = nil
+UI.snapshot = nil
+UI.snapshotCache = nil
+UI.snapshotCacheOrder = {}
+UI.candidateButtons = {}
+UI.equipPending = false
+UI.requestDeadline = nil
+UI.mutationDeadline = nil
+UI.activeTab = "装备"
 UI.namespace = NAMESPACE
 UI.handlers = handlers
-_G.NPCBotEquipmentUI = UI
 
--- ============================================================================
--- 兼容层：不同客户端 / 补丁环境下部分 API 可能缺失（SetShown、SetDesaturated 等），
--- 或字体信息获取不到。统一做存在性判断与等价降级，避免
--- "attempt to call method 'xxx' (a nil value)" 导致界面卡在加载态。
--- ============================================================================
-
-local function ResolveDefaultFont()
-    if type(STANDARD_TEXT_FONT) == "string" and STANDARD_TEXT_FONT ~= "" then
-        return STANDARD_TEXT_FONT
-    end
-    if GameFontNormal and GameFontNormal.GetFont then
-        local font = GameFontNormal:GetFont()
-        if type(font) == "string" and font ~= "" then
-            return font
-        end
-    end
-    return "Fonts\\FRIZQT__.TTF"
-end
-
-local DEFAULT_FONT = ResolveDefaultFont()
-local DEFAULT_FONT_SIZE = 12
-local DEFAULT_FONT_FLAGS = "OUTLINE"
-
--- 显示/隐藏：优先 SetShown，缺失时回退到 Show/Hide。
-local function SafeSetShown(widget, shown)
-    if not widget then
-        return
-    end
-    if widget.SetShown then
-        widget:SetShown(shown)
-    elseif shown then
-        widget:Show()
-    else
-        widget:Hide()
-    end
-end
-
--- 去饱和：缺失时静默忽略（仅影响图标灰度显示，不影响功能）。
-local function SafeSetDesaturated(texture, desaturated)
-    if texture and texture.SetDesaturated then
-        texture:SetDesaturated(desaturated)
-    end
-end
-
--- 在现有字体基础上调整字号（sizeOffset 为相对增量，可正可负）。
--- 字体路径 / 字号 / 标志任一获取不到时使用默认值，避免跨客户端报错。
-local function SafeAdjustFontSize(fontString, sizeOffset)
-    if not fontString or not fontString.GetFont or not fontString.SetFont then
-        return
-    end
-    local font, size, flags = fontString:GetFont()
-    if type(font) ~= "string" or font == "" then
-        font = DEFAULT_FONT
-    end
-    if type(size) ~= "number" or size <= 0 then
-        size = DEFAULT_FONT_SIZE
-    end
-    if type(flags) ~= "string" then
-        flags = DEFAULT_FONT_FLAGS
-    end
-    fontString:SetFont(font, math.max(1, size + (sizeOffset or 0)), flags)
-end
-
--- 暴露给后续加载的属性页、管理页复用（本文件最先加载）。
-UI.SafeSetShown = SafeSetShown
-UI.SafeSetDesaturated = SafeSetDesaturated
-UI.SafeAdjustFontSize = SafeAdjustFontSize
-UI.DEFAULT_FONT = DEFAULT_FONT
+-- 复用 NPCBotEquipmentUtil.lua 统一提供的兼容层方法（单一来源）。
+local SafeSetShown = UI.SafeSetShown
+local SafeSetDesaturated = UI.SafeSetDesaturated
+local SafeAdjustFontSize = UI.SafeAdjustFontSize
+local SafeSetEnabled = UI.SafeSetEnabled
 
 local function NextRequestId()
     UI.requestSerial = UI.requestSerial + 1
@@ -311,7 +247,7 @@ function UI:InitializeSnapshotCache()
     table.sort(self.snapshotCacheOrder, function(left, right)
         return self.snapshotCache[left].cachedAt < self.snapshotCache[right].cachedAt
     end)
-    while table.getn(self.snapshotCacheOrder) > SNAPSHOT_CACHE_MAX do
+    while #self.snapshotCacheOrder > SNAPSHOT_CACHE_MAX do
         local oldestKey = table.remove(self.snapshotCacheOrder, 1)
         self.snapshotCache[oldestKey] = nil
     end
@@ -327,7 +263,7 @@ function UI:DropSnapshotCache(botEntry, botGuidLow)
     self:EnsureSnapshotCache()
     local key = SnapshotCacheKey(botEntry, botGuidLow)
     self.snapshotCache[key] = nil
-    for index = table.getn(self.snapshotCacheOrder), 1, -1 do
+    for index = #self.snapshotCacheOrder, 1, -1 do
         if self.snapshotCacheOrder[index] == key then
             table.remove(self.snapshotCacheOrder, index)
         end
@@ -335,13 +271,13 @@ function UI:DropSnapshotCache(botEntry, botGuidLow)
 end
 
 function UI:TouchSnapshotCache(key)
-    for index = table.getn(self.snapshotCacheOrder), 1, -1 do
+    for index = #self.snapshotCacheOrder, 1, -1 do
         if self.snapshotCacheOrder[index] == key then
             table.remove(self.snapshotCacheOrder, index)
         end
     end
     table.insert(self.snapshotCacheOrder, key)
-    while table.getn(self.snapshotCacheOrder) > SNAPSHOT_CACHE_MAX do
+    while #self.snapshotCacheOrder > SNAPSHOT_CACHE_MAX do
         local oldestKey = table.remove(self.snapshotCacheOrder, 1)
         self.snapshotCache[oldestKey] = nil
     end
@@ -1419,7 +1355,7 @@ function UI:SetCandidateButtonsEnabled(enabled)
     for _, button in ipairs(self.candidateButtons) do
         if button:IsShown() then
             local canEnable = enabled and (button.itemData.kind ~= "UNEQUIP" or button.itemData.enabled)
-            button:SetEnabled(canEnable)
+            SafeSetEnabled(button, canEnable)
             SafeSetDesaturated(button.icon, not canEnable)
         end
     end
@@ -1443,7 +1379,7 @@ function UI:RenderCandidates(candidates)
         button:Hide()
     end
 
-    local rows = math.max(1, math.ceil(table.getn(displayItems) / CANDIDATE_COLUMNS))
+    local rows = math.max(1, math.ceil(#displayItems / CANDIDATE_COLUMNS))
     local contentHeight = CANDIDATE_PADDING + CANDIDATE_BOTTOM_PADDING + rows * CANDIDATE_SIZE +
         math.max(0, rows - 1) * CANDIDATE_ROW_GAP
     local visibleRows = math.min(rows, MAX_VISIBLE_ROWS)
@@ -1466,14 +1402,14 @@ function UI:RenderCandidates(candidates)
         if itemData.kind == "UNEQUIP" then
             button.icon:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
             button.itemLevel:SetText("")
-            button:SetEnabled(itemData.enabled)
+            SafeSetEnabled(button, itemData.enabled)
             SafeSetDesaturated(button.icon, not itemData.enabled)
         else
             button.icon:SetTexture(GetEntryIcon(itemData.entry))
             button.itemLevel:SetText(itemData.itemLevel and itemData.itemLevel > 0 and itemData.itemLevel or "")
             local color = QUALITY_COLORS[itemData.quality] or QUALITY_COLORS[1]
             button.itemLevel:SetTextColor(color[1], color[2], color[3])
-            button:SetEnabled(true)
+            SafeSetEnabled(button, true)
             SafeSetDesaturated(button.icon, false)
         end
         button:Show()
@@ -1700,8 +1636,10 @@ if UnitPopupButtons and UnitPopupMenus then
         local entry = ParseCreatureGuid(unit)
         local canViewEquipment = entry and entry > 70000 and entry < 80000
         local shown = false -- 多个菜单拼接时只保留一个“查看装备”，其余隐藏去重
-        for level = 1, UIDROPDOWNMENU_MAXLEVELS do
-            for index = 1, UIDROPDOWNMENU_MAXBUTTONS do
+        local maxLevels = UIDROPDOWNMENU_MAXLEVELS or 0
+        local maxButtons = UIDROPDOWNMENU_MAXBUTTONS or 0
+        for level = 1, maxLevels do
+            for index = 1, maxButtons do
                 local button = _G["DropDownList" .. level .. "Button" .. index]
                 if button and button.value == POPUP_VALUE then
                     if canViewEquipment and not shown then
@@ -1716,7 +1654,7 @@ if UnitPopupButtons and UnitPopupMenus then
     end)
 
     hooksecurefunc("UnitPopup_OnClick", function(button)
-        button = button or _G.this
+        -- 注：this 在 WoW 3.0 起已移除，hooksecurefunc 会传入按钮作为参数，无需回退。
         if not button or button.value ~= POPUP_VALUE then
             return
         end

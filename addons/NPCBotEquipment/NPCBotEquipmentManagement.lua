@@ -7,19 +7,10 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = UI.namespace or "NPCBotEquipment"
 local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 
--- 兼容层：SetShown 在部分客户端版本可能缺失，统一降级为 Show/Hide。
-local SafeSetShown = UI.SafeSetShown or function(widget, shown)
-    if not widget then
-        return
-    end
-    if widget.SetShown then
-        widget:SetShown(shown)
-    elseif shown then
-        widget:Show()
-    else
-        widget:Hide()
-    end
-end
+-- 复用 NPCBotEquipmentUtil.lua 统一提供的兼容层方法。
+local SafeSetShown = UI.SafeSetShown
+local SafeSetEnabled = UI.SafeSetEnabled
+local SafeEditBoxSetEnabled = UI.SafeEditBoxSetEnabled
 
 local ROLE_OPTIONS = {
     { value = 1, label = "主坦" },
@@ -78,48 +69,6 @@ local function CreateRadio(parent, label)
     text:SetText(label)
     radio.label = text
     return radio
-end
-
--- 兼容层：当前运行环境的 EditBox 缺少 Frame 基类方法 Disable/Enable/SetShown，
--- 这里用存在的方法做等价降级，避免 "attempt to call method ... (a nil value)"。
-local function SafeEditBoxSetShown(edit, shown)
-    if edit.SetShown then
-        edit:SetShown(shown)
-    elseif shown then
-        edit:Show()
-    else
-        edit:Hide()
-    end
-end
-
-local function SafeEditBoxSetEnabled(edit, enabled)
-    if edit.Enable and edit.Disable then
-        if enabled then
-            edit:Enable()
-        else
-            edit:Disable()
-        end
-    end
-    -- 无论是否真正禁用，都用文字颜色区分可用/禁用状态。
-    if edit.SetTextColor then
-        edit:SetTextColor(enabled and 1 or 0.45, enabled and 1 or 0.45, enabled and 1 or 0.45)
-    end
-end
-
--- 兜底：部分版本的 CheckButton/RadioButton 只有 Enable/Disable，没有 SetEnabled，
--- 这里优先用 SetEnabled，缺失时降级为 Enable/Disable。
-local function SafeSetEnabled(frame, enabled)
-    if frame.SetEnabled then
-        frame:SetEnabled(enabled)
-    elseif enabled then
-        if frame.Enable then
-            frame:Enable()
-        end
-    else
-        if frame.Disable then
-            frame:Disable()
-        end
-    end
 end
 
 local function CreateEditBox(parent, width)
@@ -341,14 +290,14 @@ function UI:RenderManagement(management)
 
     panel.healThresholdSupported = management.healThresholdSupported == true
     SafeSetShown(panel.healThresholdLabel, panel.healThresholdSupported)
-    SafeEditBoxSetShown(panel.healThresholdEdit, panel.healThresholdSupported)
+    SafeSetShown(panel.healThresholdEdit, panel.healThresholdSupported)
     SafeSetShown(panel.healThresholdUnit, panel.healThresholdSupported)
     panel.healThresholdEdit:SetText(tostring(tonumber(management.healHealthThreshold) or 95))
     panel.healThresholdUnit:SetText("%（1-100，整数）")
     -- 有坦克职责（主坦或副坦）时隐藏进战延迟和攻击角度，坦克无需这两项设置。
     local hasTankRole = HasRole(roles, 1) or HasRole(roles, 2)
     SafeSetShown(panel.engageDelayLabel, not hasTankRole)
-    SafeEditBoxSetShown(panel.engageDelayEdit, not hasTankRole)
+    SafeSetShown(panel.engageDelayEdit, not hasTankRole)
     SafeSetShown(panel.engageDelayUnit, not hasTankRole)
     panel.engageDelayEdit:SetText(string.format("%.3g", (tonumber(management.engageDelayMs) or 0) / 1000))
     SafeSetShown(panel.angleLabel, not hasTankRole)

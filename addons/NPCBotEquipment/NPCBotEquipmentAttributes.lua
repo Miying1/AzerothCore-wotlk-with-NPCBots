@@ -7,34 +7,9 @@ local AIO = AIO or require("AIO")
 local NAMESPACE = UI.namespace or "NPCBotEquipment"
 local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 
--- 兼容辅助：优先复用主客户端文件定义的兼容层，缺失时本地降级兜底。
-local SafeSetShown = UI.SafeSetShown or function(widget, shown)
-    if not widget then
-        return
-    end
-    if widget.SetShown then
-        widget:SetShown(shown)
-    elseif shown then
-        widget:Show()
-    else
-        widget:Hide()
-    end
-end
-
-local SafeAdjustFontSize = UI.SafeAdjustFontSize or function(fontString, sizeOffset)
-    if not fontString or not fontString.GetFont or not fontString.SetFont then
-        return
-    end
-    local font, size, flags = fontString:GetFont()
-    if type(font) ~= "string" or font == "" then
-        font = "Fonts\\FRIZQT__.TTF"
-    end
-    if type(size) ~= "number" or size <= 0 then
-        size = 12
-    end
-    flags = type(flags) == "string" and flags or "OUTLINE"
-    fontString:SetFont(font, math.max(1, size + (sizeOffset or 0)), flags)
-end
+-- 复用 NPCBotEquipmentUtil.lua 统一提供的兼容层方法。
+local SafeSetShown = UI.SafeSetShown
+local SafeAdjustFontSize = UI.SafeAdjustFontSize
 
 local SPEC_NAMES = {
     [1] = "武器", [2] = "狂怒", [3] = "防护", [4] = "神圣", [5] = "防护", [6] = "惩戒",

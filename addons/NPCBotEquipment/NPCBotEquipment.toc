@@ -4,6 +4,7 @@
 ## Author: 谜影
 ## Dependencies: AIO_Client
 ## SavedVariables: NPCBotEquipmentCacheDB
+NPCBotEquipmentUtil.lua
 NPCBotEquipmentClient.lua
 NPCBotEquipmentAttributes.lua
 NPCBotEquipmentManagement.lua
