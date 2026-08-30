@@ -1636,9 +1636,10 @@ function CreateLockedControlPanel(botName, botClass)
 
     -- 标题
     local cpTitle = frame:CreateFontString(nil, "OVERLAY")
-    cpTitle:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    cpTitle:SetFont(STANDARD_TEXT_FONT, 15, "OUTLINE")
     cpTitle:SetPoint("CENTER", headerAnchor, "CENTER", 8, 0)
-    cpTitle:SetText("|cffFFD700" .. botName)
+    cpTitle:SetText(botName)
+    cpTitle:SetTextColor(1, 1, 1)
 
     -- 职业图标（标题左侧）
     local classIcon = frame:CreateTexture(nil, "OVERLAY")
@@ -1823,9 +1824,10 @@ function CreateDynamicControlPanel()
 
     -- 标题
     local cpTitle = frame:CreateFontString(nil, "OVERLAY")
-    cpTitle:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    cpTitle:SetFont(STANDARD_TEXT_FONT, 15, "OUTLINE")
     cpTitle:SetPoint("LEFT", headerAnchor, "LEFT", 0, 0)
-    cpTitle:SetText("|cffFFD700<请选择>")
+    cpTitle:SetText("<请选择>")
+    cpTitle:SetTextColor(1, 1, 1)
 
     -- 职业图标（固定在标题区最左侧，名称显示在图标右侧）
     local classIcon = frame:CreateTexture(nil, "OVERLAY")
