@@ -432,7 +432,7 @@ function UI:SubmitManagementChanges()
     self.managementUpdateRequestId = request.requestId
     self.managementPending = true
     self.managementDeadline = GetTime() + 5
-    self.frame.managementPanel.status:SetText("正在保存管理设置...")
+    self.frame.managementPanel.status:SetText("正在保存设置...")
     self.frame.managementPanel.status:SetTextColor(0.72, 0.65, 0.52)
     self:SetManagementControlsEnabled(false)
     AIO.Handle(NAMESPACE, "UpdateManagement", request)
@@ -446,7 +446,7 @@ function UI:RequestManagement()
     self.managementRequestId = requestId
     self.managementLoading = true
     self.managementDeadline = GetTime() + 5
-    self.frame.managementPanel.status:SetText("正在读取管理设置...")
+    self.frame.managementPanel.status:SetText("正在读取设置...")
     self.frame.managementPanel.status:SetTextColor(0.72, 0.65, 0.52)
     self:SetManagementControlsEnabled(false)
     AIO.Handle(NAMESPACE, "RequestManagement", {
@@ -484,13 +484,13 @@ function handlers.ManagementResult(player, response)
     UI.managementLoading = false
     UI.managementDeadline = nil
     if not response.ok or type(response.management) ~= "table" then
-        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "读取管理设置失败"))
+        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "读取设置失败"))
         UI.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
         UI:SetManagementControlsEnabled(false)
         return
     end
     UI:RenderManagement(response.management)
-    UI.frame.managementPanel.status:SetText("管理设置已同步")
+    UI.frame.managementPanel.status:SetText("设置已同步")
     UI.frame.managementPanel.status:SetTextColor(0.35, 0.85, 0.35)
 end
 
@@ -504,7 +504,7 @@ function handlers.ManagementUpdateResult(player, response)
     UI.managementPending = false
     UI.managementDeadline = nil
     if not response.ok or type(response.management) ~= "table" then
-        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "保存管理设置失败"))
+        UI.frame.managementPanel.status:SetText(UI:GetResultMessage(response, "保存设置失败"))
         UI.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
         if UI.management then
             UI:RenderManagement(UI.management)
@@ -517,7 +517,7 @@ function handlers.ManagementUpdateResult(player, response)
     if UI.InvalidateAttributesModule then
         UI:InvalidateAttributesModule()
     end
-    UI.frame.managementPanel.status:SetText("管理设置已保存")
+    UI.frame.managementPanel.status:SetText("设置已保存")
     UI.frame.managementPanel.status:SetTextColor(0.35, 0.85, 0.35)
 end
 
@@ -531,7 +531,7 @@ function UI:UpdateManagementModule(now)
         self.managementLoading = false
         self.managementPending = false
         if self.frame and self.frame.managementPanel then
-            self.frame.managementPanel.status:SetText("管理设置请求超时")
+            self.frame.managementPanel.status:SetText("设置请求超时")
             self.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
             self:SetManagementControlsEnabled(true)
         end
