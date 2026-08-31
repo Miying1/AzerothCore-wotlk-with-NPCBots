@@ -87,6 +87,7 @@ local localeMessages = {
 local transmogCollectionCache = {}
 local characterTransmogCache = {}
 local characterTransmogLoaded = {}
+local latestApplyRequestSerial = {}
 
 local DISPLAY_SLOTS = {
 	[PLAYER_VISIBLE_ITEM_1_ENTRYID] = true,
@@ -142,6 +143,9 @@ local function GetTransmogCost(equippedItem)
 	end
 	return 0
 end
+
+local GetTransmogCollectionCache
+local GetCharacterTransmogCache
 
 local function ValidateTransmogItem(player, itemID, slot)
 	local numericSlot = tonumber(slot)
@@ -230,12 +234,12 @@ local function LoadTransmogCollectionCache(player)
 	return cache
 end
 
-local function GetTransmogCollectionCache(player)
+GetTransmogCollectionCache = function(player)
 	local accountGUID = player:GetAccountId()
 	return transmogCollectionCache[accountGUID] or LoadTransmogCollectionCache(player)
 end
 
-local function GetCharacterTransmogCache(player)
+GetCharacterTransmogCache = function(player)
 	local playerGUID = player:GetGUIDLow()
 	if not characterTransmogCache[playerGUID] then
 		characterTransmogCache[playerGUID] = {}
@@ -567,9 +571,17 @@ function TransmogrificationHandler.LoadPlayer(player)
 	player:SetUInt32Value(147, 1) -- use unit padding
 end
 
-function TransmogrificationHandler.EquipTransmogItem(player, item, slot)
+function TransmogrificationHandler.EquipTransmogItem(player, item, slot, requestSerial)
 	local numericSlot = tonumber(slot)
 	local numericItem = tonumber(item)
+	local numericRequestSerial = tonumber(requestSerial) or 0
+	local playerGUID = player:GetGUIDLow()
+	local latestRequestSerial = latestApplyRequestSerial[playerGUID] or 0
+	if numericRequestSerial < latestRequestSerial then
+		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, false, -1, 0, numericRequestSerial)
+		return
+	end
+	latestApplyRequestSerial[playerGUID] = numericRequestSerial
 	local state = GetCharacterTransmogCache(player)[numericSlot]
 	local equippedItem = numericSlot and player:GetEquippedItemBySlot(GetEquipmentSlot(numericSlot))
 	local oldItemID = state and state.realItem or nil
@@ -581,7 +593,7 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot)
 	end
 
 	local function SendResult(success, appliedItemID)
-		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, success, appliedItemID, oldItemID or 0)
+		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, success, appliedItemID, oldItemID or 0, requestSerial)
 	end
 
 	if not state or not numericItem or not DISPLAY_SLOTS[numericSlot] or not equippedItem then
@@ -628,13 +640,13 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot)
 	SendResult(true, numericItem)
 end
 
-function TransmogrificationHandler.EquipAllTransmogItems(player, transmogPreview)
+function TransmogrificationHandler.EquipAllTransmogItems(player, transmogPreview, requestSerial)
 	if not transmogPreview then
 		return
 	end
 
 	for slot, item in pairs(transmogPreview) do
-		TransmogrificationHandler.EquipTransmogItem(player, item, slot)
+		TransmogrificationHandler.EquipTransmogItem(player, item, slot, requestSerial)
 	end
 end
 
@@ -678,7 +690,7 @@ function TransmogrificationHandler.SetTransmogItemIDs(player)
 	end
 end
 
-function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page)
+function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, requestSerial)
     slot = tonumber(slot)
     page = math.max(1, tonumber(page) or 1)
     local collectionCache = GetTransmogCollectionCache(player)
@@ -748,14 +760,14 @@ function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page)
     local hasMorePages = #filteredItems > pageOffset + SLOTS
 
     -- Return the result to the player
-    AIO.Handle(player, "TransmogrificationServer", "InitTab", currentSlotItemIDs, page, hasMorePages)
-end
+    AIO.Handle(player, "TransmogrificationServer", "InitTab", currentSlotItemIDs, slot, page, hasMorePages, requestSerial)
+    end
 
-function TransmogrificationHandler.SetSearchCurrentSlotItemIDs(player, slot, page, search)
+    function TransmogrificationHandler.SetSearchCurrentSlotItemIDs(player, slot, page, search, requestSerial)
 	slot = tonumber(slot)
 	page = math.max(1, tonumber(page) or 1)
 	if search == nil or search == '' then
-		return TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page)
+		return TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, requestSerial)
 	end
 
 	local collectionCache = GetTransmogCollectionCache(player)
@@ -827,7 +839,7 @@ function TransmogrificationHandler.SetSearchCurrentSlotItemIDs(player, slot, pag
 	for index = pageOffset + 1, math.min(pageOffset + SLOTS, #filteredItems) do
 		table.insert(currentSlotItemIDs, filteredItems[index])
 	end
-	AIO.Handle(player, "TransmogrificationServer", "InitTab", currentSlotItemIDs, page, #filteredItems > pageOffset + SLOTS)
+	AIO.Handle(player, "TransmogrificationServer", "InitTab", currentSlotItemIDs, slot, page, #filteredItems > pageOffset + SLOTS, requestSerial)
 end
 
 function TransmogrificationHandler.SetEquipmentTransmogInfo(player, slot, currentSlotTooltip)

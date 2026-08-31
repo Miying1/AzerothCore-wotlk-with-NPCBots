@@ -107,6 +107,16 @@ local isTooltipHooked = false
 local CurrentItemSlot = PLAYER_VISIBLE_ITEM_1_ENTRYID
 local currentPage = 1
 local currentSearchText = ""
+local listRequestSerial = 0
+local latestListRequestSerial = 0
+local applyRequestSerial = 0
+local activeApplyRequestSerial = 0
+local pendingApplyCount = 0
+local pendingApplySlots = {}
+local applyTimeoutRemaining = 0
+local equipmentChangeSerial = 0
+local equipmentChangeEventRegistered = false
+local collectionMonitorRegistered = false
 local currentSlotTooltip = nil
 originalTransmogrificationIDs = originalTransmogrificationIDs or {}
 previewTransmogrificationIDs = {}
@@ -263,6 +273,8 @@ end
 
 -- 卸下物品时清除该栏位的幻化。
 function TransmogrificationHandler.ClearSlotTransmogrification(player, slot)
+	equipmentChangeSerial = equipmentChangeSerial + 1
+	pendingApplyCount = 0
 	-- 从栏位条目 ID 映射表中获取通用栏位名称。
 	local slotName = transmogrificationEquipmentSlotMap[tonumber(slot)]
 
@@ -278,6 +290,9 @@ function TransmogrificationHandler.ClearSlotTransmogrification(player, slot)
 end
 
 function OnClickItemTransmogrificationButton(btn, buttonType)
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("igMainMenuOptionCheckBoxOn", "sfx")
 	local itemID = btn:GetID()
 	local textureName = GetItemIcon(itemID)
@@ -322,25 +337,36 @@ function TransmogrificationHandler.SetTransmogItemIDClient(player, slot, id, rea
 end
 
 function TransmogrificationHandler.TransmogrificationFrame(player)
+	OnClickTransmogButton(nil)
 	TransmogrificationFrame:Show()
 end
 
-function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID)
-	local part = transmogrificationEquipmentSlotMap[tonumber(slot)]
-	if not part or not success then
+function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID, requestSerial)
+	if requestSerial ~= activeApplyRequestSerial then
 		return
 	end
 
-	if appliedItemID == -1 then
-		currentTransmogrificationIDs[part] = nil
-		originalTransmogrificationIDs[part] = nil
-	else
-		currentTransmogrificationIDs[part] = appliedItemID
-		originalTransmogrificationIDs[part] = appliedItemID
+	local numericSlot = tonumber(slot)
+	if not pendingApplySlots[numericSlot] then
+		return
 	end
-	previewTransmogrificationIDs[part] = nil
-	UpdateAllSlotTextures()
-	LoadTransmogrificationsFromCurrentIDs(false)
+	pendingApplySlots[numericSlot] = nil
+	pendingApplyCount = math.max(0, pendingApplyCount - 1)
+	local part = transmogrificationEquipmentSlotMap[numericSlot]
+	if part and success then
+		if appliedItemID == -1 then
+			currentTransmogrificationIDs[part] = nil
+			originalTransmogrificationIDs[part] = nil
+		else
+			currentTransmogrificationIDs[part] = appliedItemID
+			originalTransmogrificationIDs[part] = appliedItemID
+		end
+		previewTransmogrificationIDs[part] = nil
+	end
+
+	if pendingApplyCount == 0 then
+		LoadTransmogrificationsFromCurrentIDs(false)
+	end
 end
 
 -- 接收并保存已收集幻化外观的本地列表，用于显示“新外观”提示行。
@@ -369,22 +395,14 @@ end
 -- 我们利用系统消息来自然遵循服务器关于何时将新外观添加到玩家收藏的选项。
 -- 也就是说，如果系统消息字符串与 server_transmog.lua 中的字符串不一致，此函数将失效。
 TransmogrificationHandler.ReceiveMatchingAppearances = function(player, originalItemID, matchingItems)
-	-- 将所有匹配的物品添加到本地列表
-	for _, itemID in ipairs(matchingItems or {}) do
-		local alreadyCollected = false
-		for _, id in ipairs(CollectedAppearances) do
-			if id == itemID then
-				alreadyCollected = true
-				break
-			end
-		end
-		if not alreadyCollected then
-			table.insert(CollectedAppearances, itemID)
-		end
-	end
+	AIO.Handle("TransmogrificationServer", "SendCollectedTransmogItemIDs")
 end
 
 local function AddNewAppearanceToLocalList()
+	if collectionMonitorRegistered then
+		return
+	end
+	collectionMonitorRegistered = true
 	local chatMonitor = CreateFrame("Frame")
 	chatMonitor:RegisterEvent("CHAT_MSG_SYSTEM")
 
@@ -449,6 +467,9 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 end
 
 function OnClickRestoreAllButton(btn)
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("Glyph_MajorCreate", "sfx")
 	for slotName, _ in pairs(equipmentSlotIDs) do
 		previewTransmogrificationIDs[slotName] = -1
@@ -459,6 +480,9 @@ function OnClickRestoreAllButton(btn)
 end
 
 function OnClickHideAllButton(btn)
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("Glyph_MinorDestroy", "sfx")
 	for slotName, _ in pairs(equipmentSlotIDs) do
 		previewTransmogrificationIDs[slotName] = 0
@@ -470,12 +494,36 @@ end
 
 -- 注册装备变更事件。
 local function RegisterEquipmentChangeEvent()
+	if equipmentChangeEventRegistered then
+		return
+	end
+	equipmentChangeEventRegistered = true
 	local eventFrame = CreateFrame("Frame")
 	eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 
+	eventFrame:SetScript("OnUpdate", function(self, elapsed)
+		if applyTimeoutRemaining > 0 then
+			applyTimeoutRemaining = applyTimeoutRemaining - elapsed
+			if applyTimeoutRemaining <= 0 then
+				applyRequestSerial = applyRequestSerial + 1
+				activeApplyRequestSerial = applyRequestSerial
+				pendingApplyCount = 0
+				wipe(pendingApplySlots)
+				LoadTransmogrificationsFromCurrentIDs(true)
+			end
+		end
+	end)
+
 	eventFrame:SetScript("OnEvent", function(self, event, slot)
 		if event == "PLAYER_EQUIPMENT_CHANGED" then
+			applyRequestSerial = applyRequestSerial + 1
+			activeApplyRequestSerial = applyRequestSerial
+			pendingApplyCount = 0
+			wipe(pendingApplySlots)
+			applyTimeoutRemaining = 0
 			-- 装备变更时，通知服务器。
+			equipmentChangeSerial = equipmentChangeSerial + 1
+			wipe(previewTransmogrificationIDs)
 			AIO.Handle("TransmogrificationServer", "OnUnequipItem")
 
 			-- 更新所有装备图标。
@@ -495,7 +543,13 @@ local function RegisterEquipmentChangeEvent()
 					TransmogWarningFrame:Hide()
 					-- 向服务器请求当前数据，以保持幻化窗口最新。
 					if CurrentItemSlot then
-						AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+						listRequestSerial = listRequestSerial + 1
+						latestListRequestSerial = listRequestSerial
+						if currentSearchText ~= "" then
+							AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText, latestListRequestSerial)
+						else
+							AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage, latestListRequestSerial)
+						end
 					end
 				end
 
@@ -698,10 +752,16 @@ function SetSearchInputFocus()
 end
 
 function SetSearchTab()
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("igSpellBookSpellIconPickup", "sfx")
 	currentPage = 1
+	currentSearchText = ItemSearchInput:GetText()
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
 	TransmogPaginationText:SetText(string.format(L["Page %s"], currentPage))
-	AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, ItemSearchInput:GetText())
+	AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText, latestListRequestSerial)
 	ItemSearchInput:ClearFocus()
 end
 
@@ -758,6 +818,9 @@ function OnClickTransmogButton(self)
 	characterTransmogTab:SetChecked(true)
 	isInputHovered = false
 	currentPage = 1
+	currentSearchText = ""
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
 	TransmogPaginationText:SetText(string.format(L["Page %s"], currentPage))
 
 	-- 更新所有装备图标。
@@ -782,7 +845,7 @@ function OnClickTransmogButton(self)
 	ShowHelmCheckBox:SetChecked(ShowingHelm())
 
 	-- 直接向服务器请求物品。
-	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, 1)
+	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, 1, latestListRequestSerial)
 
 	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
@@ -811,6 +874,14 @@ function PaperDollFrame_OnShow(self)
 end
 
 function OnClickApplyAllowTransmogrifications(btn)
+	if pendingApplyCount > 0 then
+		return
+	end
+	pendingApplyCount = 0
+	wipe(pendingApplySlots)
+	applyTimeoutRemaining = 0
+	applyRequestSerial = applyRequestSerial + 1
+	activeApplyRequestSerial = applyRequestSerial
 	PlaySound("Distract Impact", "sfx")
 
 	-- 在服务器层面应用幻化，最终状态仅由服务器回调确认。
@@ -825,12 +896,17 @@ function OnClickApplyAllowTransmogrifications(btn)
 		local equipSlot = GetEquipmentSlot(entryID)
 		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 		if hasItem and requestedID ~= nil and requestedID ~= currentID then
-			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", requestedID, entryID)
+			pendingApplyCount = pendingApplyCount + 1
+			pendingApplySlots[entryID] = true
+			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", requestedID, entryID, activeApplyRequestSerial)
 		end
 	end
 
-	-- 使用服务器返回的新信息刷新幻化预览。
-	LoadTransmogrificationsFromCurrentIDs(false)
+	if pendingApplyCount == 0 then
+		LoadTransmogrificationsFromCurrentIDs(true)
+	else
+		applyTimeoutRemaining = 10
+	end
 end
 
 function OnClickHideCurrentTransmogSlot(btn)
@@ -966,6 +1042,9 @@ end
 
 -- 设置幻化窗口的当前标签页。
 function SetTab()
+	if pendingApplyCount > 0 then
+		return
+	end
 	if (ItemSearchInput:GetText() ~= "" and ItemSearchInput:GetText() ~= "|cff" .. L["b2b2b2"] .. L["Filter Item Appearance"] .. "|r") then
 		SetSearchTab()
 		return;
@@ -973,6 +1052,9 @@ function SetTab()
 
 	PlaySound("igSpellBookSpellIconPickup", "sfx")
 	currentPage = 1
+	currentSearchText = ""
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
 	TransmogPaginationText:SetText(string.format(L["Page %s"], currentPage))
 
 	-- 检查该栏位是否装备了物品。
@@ -1003,7 +1085,9 @@ function SetTab()
 	end
 
 	-- 向服务器查询可显示的适用物品外观。
-	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
+	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage, latestListRequestSerial)
 end
 
 function InitializeCloakHelmCheckboxes()
@@ -1040,22 +1124,36 @@ function InitializeCloakHelmCheckboxes()
 end
 
 function OnClickNextPage(btn)
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("igAbiliityPageTurn", "sfx")
 	currentPage = currentPage + 1
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
 	if currentSearchText ~= "" then
-		AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText)
+		AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText, latestListRequestSerial)
 	else
-		AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+		AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage, latestListRequestSerial)
 	end
 end
 
 function OnClickPrevPage(btn)
+	if pendingApplyCount > 0 then
+		return
+	end
 	PlaySound("igAbiliityPageTurn", "sfx")
 	if ( currentPage == 1 ) then
 		return;
 	end
 	currentPage = currentPage - 1
-	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+	listRequestSerial = listRequestSerial + 1
+	latestListRequestSerial = listRequestSerial
+	if currentSearchText ~= "" then
+		AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText, latestListRequestSerial)
+	else
+		AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage, latestListRequestSerial)
+	end
 end
 
 function OnClickHeadTab(btn)
@@ -1129,6 +1227,13 @@ function OnClickTabardTab(btn)
 end
 
 function OnHideTransmogrificationFrame(self)
+	applyRequestSerial = applyRequestSerial + 1
+	activeApplyRequestSerial = applyRequestSerial
+	pendingApplyCount = 0
+	wipe(pendingApplySlots)
+	applyTimeoutRemaining = 0
+	currentSearchText = ""
+	currentPage = 1
 	PlaySound("AchievementMenuClose", "sfx")
 
 	-- 丢弃幻化预览更改。
@@ -1224,7 +1329,13 @@ local function InitTabSlots()
 	end
 end
 
-function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMorePages)
+function TransmogrificationHandler.InitTab(player, newSlotItemIDs, responseSlot, page, hasMorePages, requestSerial)
+	if requestSerial and requestSerial ~= latestListRequestSerial then
+		return
+	end
+	if tonumber(responseSlot) ~= tonumber(CurrentItemSlot) then
+		return
+	end
 	TransmogPaginationText:SetText(string.format(L["Page %s"], page))
 
 	-- 判断该栏位是否为空。
