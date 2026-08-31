@@ -12,11 +12,10 @@ LearnSpells.Enable = 1
 
 LearnSpells.Announce = 1
 
-# Should the player receive all spells on first login?
-# Useful for instant leveling type of servers
+# Should the player learn spells for the first level on first login?
 # (1: true | 0: false)
 
-LearnSpells.LearnAllOnFirstLogin = 0
+LearnSpells.OnFirstLogin = 0
 
 # Max level Limit the player will learn spells
 # 	Default:  = 80

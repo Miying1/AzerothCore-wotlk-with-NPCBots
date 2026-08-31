@@ -106,6 +106,7 @@ local isInputHovered = false
 local isTooltipHooked = false
 local CurrentItemSlot = PLAYER_VISIBLE_ITEM_1_ENTRYID
 local currentPage = 1
+local currentSearchText = ""
 local currentSlotTooltip = nil
 originalTransmogrificationIDs = originalTransmogrificationIDs or {}
 previewTransmogrificationIDs = {}
@@ -301,28 +302,45 @@ function OnClickItemTransmogrificationButton(btn, buttonType)
 end
 
 function TransmogrificationHandler.SetTransmogItemIDClient(player, slot, id, realItemID)
-	-- 获取装备栏位名称。
 	local part = transmogrificationEquipmentSlotMap[tonumber(slot)]
 	if part then
-		-- 如果找到装备栏位名称，则初始化相应的幻化表。
-		local currentTransmogID = currentTransmogrificationIDs[part]
-		local originalTransmogID = originalTransmogrificationIDs[part]
-
-		if (id ~= 0 and id ~= nil and (currentTransmogID == nil or currentTransmogID == 0) and realItemID ~= id) then
+		if id == -1 then
+			currentTransmogrificationIDs[part] = nil
+			originalTransmogrificationIDs[part] = nil
+		elseif id == 0 then
+			currentTransmogrificationIDs[part] = 0
+			originalTransmogrificationIDs[part] = 0
+		else
 			currentTransmogrificationIDs[part] = id
 			originalTransmogrificationIDs[part] = id
-			TransmogrificationModelFrame:TryOn(id)
-		elseif (currentTransmogID ~= nil and currentTransmogID ~= 0) then
-				TransmogrificationModelFrame:TryOn(currentTransmogID)
-		elseif (id ~= 0 and realItemID ~= 0 and realItemID ~= nil) then
-			currentTransmogrificationIDs[part] = realItemID
-			originalTransmogrificationIDs[part] = realItemID
-				TransmogrificationModelFrame:TryOn(realItemID)
 		end
+		previewTransmogrificationIDs[part] = nil
 	end
 
-	-- 更新所有装备图标。
 	UpdateAllSlotTextures()
+	LoadTransmogrificationsFromCurrentIDs(false)
+end
+
+function TransmogrificationHandler.TransmogrificationFrame(player)
+	TransmogrificationFrame:Show()
+end
+
+function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID)
+	local part = transmogrificationEquipmentSlotMap[tonumber(slot)]
+	if not part or not success then
+		return
+	end
+
+	if appliedItemID == -1 then
+		currentTransmogrificationIDs[part] = nil
+		originalTransmogrificationIDs[part] = nil
+	else
+		currentTransmogrificationIDs[part] = appliedItemID
+		originalTransmogrificationIDs[part] = appliedItemID
+	end
+	previewTransmogrificationIDs[part] = nil
+	UpdateAllSlotTextures()
+	LoadTransmogrificationsFromCurrentIDs(false)
 end
 
 -- 接收并保存已收集幻化外观的本地列表，用于显示“新外观”提示行。
@@ -330,8 +348,8 @@ function TransmogrificationHandler.ReceiveCollectedAppearances(player, collected
 	-- 清空已收集幻化外观表。
 	wipe(CollectedAppearances)
 
-	-- 将接收到的已收集幻化外观保存到本地表。
-	for i, itemID in ipairs(collectedAppearances) do
+	-- 服务端返回代表外观的物品 ID，本地严格以服务端列表为准。
+	for _, itemID in ipairs(collectedAppearances or {}) do
 		table.insert(CollectedAppearances, itemID)
 	end
 	
@@ -352,8 +370,7 @@ end
 -- 也就是说，如果系统消息字符串与 server_transmog.lua 中的字符串不一致，此函数将失效。
 TransmogrificationHandler.ReceiveMatchingAppearances = function(player, originalItemID, matchingItems)
 	-- 将所有匹配的物品添加到本地列表
-	for _, itemID in ipairs(matchingItems) do
-		-- 检查是否已收集
+	for _, itemID in ipairs(matchingItems or {}) do
 		local alreadyCollected = false
 		for _, id in ipairs(CollectedAppearances) do
 			if id == itemID then
@@ -361,8 +378,6 @@ TransmogrificationHandler.ReceiveMatchingAppearances = function(player, original
 				break
 			end
 		end
-		
-		-- 如果尚未在列表中，则添加
 		if not alreadyCollected then
 			table.insert(CollectedAppearances, itemID)
 		end
@@ -383,20 +398,6 @@ local function AddNewAppearanceToLocalList()
 				local itemID = tonumber(itemLink)
 
 				if itemID then
-					-- 判断该物品外观是否因某些原因已被收集。
-					local alreadyCollected = false
-					for _, id in ipairs(CollectedAppearances) do
-						if id == itemID then
-							alreadyCollected = true
-							break
-						end
-					end
-
-					-- 如果该物品外观尚未被收集（通常应该是这种情况），则保存到本地列表。
-					if not alreadyCollected then
-						table.insert(CollectedAppearances, itemID)
-					end
-					
 					AIO.Handle("TransmogrificationServer", "GetItemsWithSameAppearance", itemID)
 				end
 			end
@@ -427,8 +428,8 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 	for slotName, slotID in pairs(equipmentSlotIDs) do
 		local transmogrificationID = transmogrificationTable[slotName]
 
-		-- 如果没有幻化外观或物品已恢复（nil），则显示原始物品。
-		if transmogrificationID == nil then
+		-- 如果没有幻化外观或物品已恢复，则显示原始物品。
+		if transmogrificationID == nil or transmogrificationID == -1 then
 			local itemID = GetItemIDForEquipmentSlot(slotName)
 			if itemID then
 				TransmogrificationModelFrame:TryOn(itemID)
@@ -438,7 +439,7 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 
 	-- 为已幻化的物品应用幻化外观。
 	for slotName, transmogrificationID in pairs(transmogrificationTable) do
-		if transmogrificationID and transmogrificationID ~= 0 then
+		if transmogrificationID and transmogrificationID ~= 0 and transmogrificationID ~= -1 then
 			TransmogrificationModelFrame:TryOn(transmogrificationID)
 		end
 	end
@@ -450,9 +451,9 @@ end
 function OnClickRestoreAllButton(btn)
 	PlaySound("Glyph_MajorCreate", "sfx")
 	for slotName, _ in pairs(equipmentSlotIDs) do
-		previewTransmogrificationIDs[slotName] = nil
+		previewTransmogrificationIDs[slotName] = -1
 	end
-	
+
 	-- 刷新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 end
@@ -812,19 +813,19 @@ end
 function OnClickApplyAllowTransmogrifications(btn)
 	PlaySound("Distract Impact", "sfx")
 
-	-- 在服务器层面应用幻化。
+	-- 在服务器层面应用幻化，最终状态仅由服务器回调确认。
 	for slotName, entryID in pairs(equipmentSlotIDs) do
 		local transmogID = previewTransmogrificationIDs[slotName]
+		local currentID = currentTransmogrificationIDs[slotName]
+		local requestedID = transmogID
+		if requestedID == nil and currentID ~= nil then
+			requestedID = -1
+		end
 
-		-- 判断装备栏位中是否有物品。
 		local equipSlot = GetEquipmentSlot(entryID)
 		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
-
-		-- 仅当装备栏位中有物品时才应用幻化。
-		if hasItem and transmogID ~= currentTransmogrificationIDs[slotName] then
-			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", transmogID, entryID)
-			currentTransmogrificationIDs[slotName] = transmogID
-			originalTransmogrificationIDs[slotName] = transmogID
+		if hasItem and requestedID ~= nil and requestedID ~= currentID then
+			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", requestedID, entryID)
 		end
 	end
 
@@ -885,7 +886,7 @@ function OnClickRestoreCurrentTransmogSlot(btn)
 	PlaySound("Glyph_MinorCreate", "sfx")
 
 	-- 在预览窗口中（临时）恢复该物品。
-	previewTransmogrificationIDs[slotName] = nil
+	previewTransmogrificationIDs[slotName] = -1
 
 	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
@@ -1041,7 +1042,11 @@ end
 function OnClickNextPage(btn)
 	PlaySound("igAbiliityPageTurn", "sfx")
 	currentPage = currentPage + 1
-	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+	if currentSearchText ~= "" then
+		AIO.Handle("TransmogrificationServer", "SetSearchCurrentSlotItemIDs", CurrentItemSlot, currentPage, currentSearchText)
+	else
+		AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage)
+	end
 end
 
 function OnClickPrevPage(btn)
@@ -1285,7 +1290,7 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 
 				child.itemModel:Show()
 				child.itemModel:SetUnit("player")
-				
+
 				-- 如果正在查看适用的栏位，则旋转玩家模型。
 				if (CurrentItemSlot == PLAYER_VISIBLE_ITEM_15_ENTRYID) then -- 披风
 					child.itemModel:SetRotation(10, false)
@@ -1296,10 +1301,94 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 				end
 				child.itemModel:Undress()
 				child.itemModel:TryOn(newSlotItemIDs[i])
-				child.itemModel:SetPoint("CENTER", itemChild, "CENTER", 0, 0)
-				child.itemModel:SetSize(142, 172)
-				
 
+				local _, playerRace = UnitRace("player")
+				playerRace = string.upper(playerRace)
+				local playerSex = UnitSex("player")
+				local isFemale = (playerSex == 3)
+
+				-- 根据种族更改预览模型的位置和缩放，确保它们与窗口对齐。
+				if playerRace == "HUMAN" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 4, -1)
+						child.itemModel:SetSize(169, 169)
+					else
+						child.itemModel:SetPoint("CENTER", 4, 2)
+						child.itemModel:SetSize(180, 180)
+					end
+				elseif playerRace == "DWARF" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 0, 6)
+						child.itemModel:SetSize(165, 165)
+					else
+						child.itemModel:SetPoint("CENTER", 6, -10)
+						child.itemModel:SetSize(170, 170)
+					end
+				elseif playerRace == "NIGHTELF" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 3, -9)
+						child.itemModel:SetSize(181, 181)
+					else
+						child.itemModel:SetPoint("CENTER", 2, -5)
+						child.itemModel:SetSize(190, 190)
+					end
+				elseif playerRace == "GNOME" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 3, -8)
+						child.itemModel:SetSize(133, 133)
+					else
+						child.itemModel:SetPoint("CENTER", 4, -4)
+						child.itemModel:SetSize(140, 140)
+					end
+				elseif playerRace == "DRAENEI" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 10, 3)
+						child.itemModel:SetSize(185, 185)
+					else
+						child.itemModel:SetPoint("CENTER", 6, 2)
+						child.itemModel:SetSize(165, 165)
+					end
+				elseif playerRace == "ORC" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", -3, -5)
+						child.itemModel:SetSize(175, 175)
+					else
+						child.itemModel:SetPoint("CENTER", 2, -4)
+						child.itemModel:SetSize(165, 165)
+					end
+				elseif playerRace == "UNDEAD" or playerRace == "SCOURGE" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 3, 0)
+						child.itemModel:SetSize(188, 188)
+					else
+						child.itemModel:SetPoint("CENTER", 1, -6)
+						child.itemModel:SetSize(175, 175)
+					end
+				elseif playerRace == "TAUREN" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 2, -1)
+						child.itemModel:SetSize(180, 180)
+					else
+						child.itemModel:SetPoint("CENTER", 1, -6)
+						child.itemModel:SetSize(220, 220)
+					end
+				elseif playerRace == "TROLL" then
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", -6, 2)
+						child.itemModel:SetSize(180, 180)
+					else
+						child.itemModel:SetPoint("CENTER", -2, 2)
+						child.itemModel:SetSize(170, 170)
+					end
+				else -- 血精灵作为回退。
+					if isFemale then
+						child.itemModel:SetPoint("CENTER", 2, -2)
+						child.itemModel:SetSize(180, 180)
+					else
+						child.itemModel:SetPoint("CENTER", -2, -4)
+						child.itemModel:SetSize(190, 190)
+					end
+				end
 			end
 		end
 	else
@@ -1358,10 +1447,10 @@ function OnTransmogrificationFrameLoad(self)
 	-- 幻化窗口初始化时应用设置。
 	if Transmogrification and Transmogrification.db then
 		local settings = Transmogrification:GetSettings()
-		TransmogrificationFrame:SetScale(settings.transmogrificationWindowScale)
-		TransmogrificationFrame:SetAlpha(settings.transmogrificationWindowOpacity)
+		TransmogrificationFrame:SetScale(settings.windowScale)
+		TransmogrificationFrame:SetAlpha(settings.windowOpacity)
 
-		if settings.transmogrificationWindowLock then
+		if settings.windowLock then
 			TransmogrificationFrame:SetMovable(false)
 			TransmogrificationFrame:RegisterForDrag()
 		else
