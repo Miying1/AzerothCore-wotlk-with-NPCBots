@@ -179,46 +179,40 @@
 			<OnLeave function="OnLeaveHideToolTip"/>
 		</Scripts>
 	</Button>
-	<Frame name="TransmogrificationFrame" parent="UIParent" toplevel="true" setAllPoints="true" id="6" hidden="true" enableMouse="true" movable="true" frameStrata="DIALOG">
-		<Size x="1200" y="700"/>
+	<Frame name="TransmogrificationFrame" parent="UIParent" toplevel="true" id="6" hidden="true" enableMouse="true" movable="true" frameStrata="DIALOG">
+		<Size x="1080" y="560"/>
 		<Anchors>
 			<Anchor point="CENTER" relativeTo="UIParent"/>
 		</Anchors>
+		<!-- 为主窗体增加边框纹理（成就木质边框），背景沿用对话框背景。 -->
+		<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\ACHIEVEMENTFRAME\UI-Achievement-WoodBorder" tile="true" alphaMode="BLEND">
+			<EdgeSize>
+				<AbsValue val="22"/>
+			</EdgeSize>
+			<TileSize>
+				<AbsValue val="32"/>
+			</TileSize>
+			<BackgroundInsets>
+				<AbsInset left="11" right="11" top="11" bottom="11"/>
+			</BackgroundInsets>
+		</Backdrop>
 		<Layers>
-			<Layer level="BACKGROUND">
-				<Texture name="$parentDialogBG" hWrapMode="false" vWrapMode="false" vertTile="false" horizTile="false" file="Interface\AddOns\Transmogrification\assets\Transmog-Frame">
-					<Size x="1200" y="700"/>
-					<TexCoords left="0" right="0.52" top="0" bottom="0.66"/>
-					<Anchors>
-						<Anchor point="CENTER"/>
-					</Anchors>
-				</Texture>
-			</Layer>
 			<Layer level="OVERLAY">
 				<FontString name="Title" parentKey="TitleText" inherits="GameFontNormalHuge">
 					<Anchors>
-						<Anchor point="CENTER" x="0" y="207"/>
+						<Anchor point="CENTER" x="0" y="250"/>
 					</Anchors>
                 </FontString>
 				<FontString name="Subtitle" parentKey="SubtitleText" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="CENTER" x="0" y="187"/>
+						<Anchor point="CENTER" x="0" y="230"/>
 					</Anchors>
 					<Color r="0.7" g="0.7" b="0.7"/>
 				</FontString>
-				<FontString name="ShowCloakText" inherits="GameFontNormal">
-					<Anchors>
-						<Anchor point="BOTTOMLEFT" x="145" y="60"/>
-					</Anchors>
-				</FontString>
-				<FontString name="ShowHelmText" inherits="GameFontNormal">
-					<Anchors>
-						<Anchor point="BOTTOMLEFT" x="254" y="60"/>
-					</Anchors>
-				</FontString>
+
 				<FontString name="TransmogPaginationText" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="BOTTOM" x="186" y="55"/>
+						<Anchor point="BOTTOM" x="186" y="35"/>
 					</Anchors>
                 </FontString>
 			</Layer>
@@ -226,17 +220,17 @@
 		<Frames>
 			<Button name="TransmogCloseButton" inherits="UIPanelCloseButton" >
 				<Anchors>
-					<Anchor point="TOPRIGHT" x="-42" y="-84"/>
+					<Anchor point="TOPRIGHT" x="-6" y="-6"/>
 				</Anchors>
 			</Button>
 			<DressUpModel name="TransmogrificationModelFrame">
                 <Size>
-                    <AbsDimension x="202" y="380"/>
+                    <AbsDimension x="170" y="380"/>
                 </Size>
                 <Anchors>
                     <Anchor point="TOPLEFT">
                         <Offset>
-                            <AbsDimension x="120" y="-240"/>
+                            <AbsDimension x="105" y="-110"/>
                         </Offset>
                     </Anchor>
                 </Anchors>
@@ -365,7 +359,7 @@
             </Button>
 			<Button name="TransmogCharacterHandsSlot" inherits="TransmogItemSlotButtonTemplate">
 				<Anchors>
-					<Anchor point="BOTTOM" relativeTo="TransmogCharacterHeadSlot" x="260" y="0"/>
+					<Anchor point="BOTTOM" relativeTo="TransmogCharacterHeadSlot" x="220" y="0"/>
 				</Anchors>
 				<Scripts>
 					<OnClick function="OnClickHandsTab"/>
@@ -424,7 +418,7 @@
 					<AbsDimension x="32" y="32"/>
 				</Size>
 				<Anchors>
-					<Anchor point="BOTTOM" x="135" y="45"/>
+					<Anchor point="BOTTOM" x="135" y="25"/>
 				</Anchors>
 				<Scripts>
 					<OnLoad>self:Disable()</OnLoad>
@@ -440,7 +434,7 @@
 					<AbsDimension x="32" y="32"/>
 				</Size>
 				<Anchors>
-					<Anchor point="BOTTOM" x="236" y="45"/>
+					<Anchor point="BOTTOM" x="236" y="25"/>
 				</Anchors>
 				<Scripts>
 					<OnLoad>self:Disable()</OnLoad>
@@ -454,7 +448,7 @@
 			<Frame name="TransmogWarningFrame">
 				<Size x="350" y="30"/>
 				<Anchors>
-					<Anchor point="CENTER" x="186" y="-80"/>
+					<Anchor point="CENTER" x="186" y="-100"/>
 				</Anchors>
 				<Layers>
 					<Layer level="OVERLAY">
@@ -468,7 +462,7 @@
 			</Frame>
 			<Button name="SaveButton" inherits="ItemButtonTemplate">
 				<Anchors>
-					<Anchor point="BOTTOM" relativeTo="TransmogPaginationText" x="0" y="-60"/>
+					<Anchor point="BOTTOMRIGHT" x="-80" y="10"/>
 				</Anchors>
 				<Layers>
 					<Layer level="BACKGROUND">
@@ -515,7 +509,7 @@
 			<EditBox name="ItemSearchInput" autoFocus="false" toplevel="true" enableMouse="true" letters="255" inherits="InputBoxTemplate">
 				<Size x="255" y="20"/>
 				<Anchors>
-					<Anchor point="CENTER" x="187" y="122"/>
+					<Anchor point="CENTER" x="187" y="197"/>
 				</Anchors>
 				<Scripts>
 					<OnEscapePressed>self:ClearFocus();</OnEscapePressed>
@@ -524,26 +518,7 @@
 					<OnMouseUp function="SetSearchInputFocus"/>
 				</Scripts>
 			</EditBox>
-			<CheckButton name="ShowCloakCheckBox" inherits="UICheckButtonTemplate">
-				<Size x="24" y="24"/>
-				<Anchors>
-					<Anchor point="LEFT" relativeTo="ShowCloakText" x="-24" y="0"/>
-				</Anchors>
-				<Scripts>
-					<OnEnter function="ShowCloakToolTip"/>
-					<OnLeave function="OnLeaveHideToolTip"/>
-				</Scripts>
-			</CheckButton>
-			<CheckButton name="ShowHelmCheckBox" inherits="UICheckButtonTemplate">
-				<Size x="24" y="24"/>
-				<Anchors>
-					<Anchor point="LEFT" relativeTo="ShowHelmText" x="-24" y="0"/>
-				</Anchors>
-				<Scripts>
-					<OnEnter function="ShowHelmToolTip"/>
-					<OnLeave function="OnLeaveHideToolTip"/>
-				</Scripts>
-			</CheckButton>
+
 		</Frames>
 		<Scripts>
 			<OnLoad function="OnTransmogrificationFrameLoad"/>

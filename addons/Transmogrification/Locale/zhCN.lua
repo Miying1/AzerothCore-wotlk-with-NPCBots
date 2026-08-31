@@ -4,6 +4,7 @@ if not L then return end
 
 -- 幻化窗口
 L["Transmogrify"] = "幻化"
+L["Cost"] = "花费"
 L["Collected Item Appearances"] = "已收集的物品外观"
 L["Filter Item Appearance"] = "筛选物品外观"
 L["No item equipped in this slot."] = "此栏位没有装备任何物品。"

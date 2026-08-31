@@ -49,8 +49,8 @@
 -- ║ 应用幻化时的金币费用，单位为铜币。                                    ║
 -- ║ 武器和护甲分别配置，设置为 0 表示不收取费用。                          ║
 -- ╟────────────────────────────────────────────────────────────────────────╢
-      local WEAPON_TRANSMOG_COST = 0                                     --║
-      local ARMOR_TRANSMOG_COST = 0                                      --║
+      local WEAPON_TRANSMOG_COST = 500000                                     --║
+      local ARMOR_TRANSMOG_COST = 250000                                      --║
 -- ╚════════════════════════════════════════════════════════════════════════╝
 
 local AIO = AIO or require("AIO")
@@ -619,11 +619,20 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot, request
 		return
 	end
 
-	local validatedState, validatedEquippedItem, _, transmogCost = ValidateTransmogItem(player, numericItem, numericSlot)
-	if not validatedState or validatedEquippedItem ~= equippedItem then
+	-- Eluna 单线程，handler 执行期间装备不可能被换掉，无需再比对"装备是否还是同一件"。
+	local validatedState, _, _, transmogCost = ValidateTransmogItem(player, numericItem, numericSlot)
+	if not validatedState then
 		SendResult(false, -1)
 		return
 	end
+
+	-- 请求的幻化目标与当前已应用的模型（或当前装备实物自身的模型）完全一致时，
+	-- 属于无视觉变化的操作，无需扣费（避免重复累计）。
+	if numericItem > 0 and (state.item == numericItem or (oldItemID and oldItemID == numericItem)) then
+		SendResult(true, numericItem)
+		return
+	end
+
 	if transmogCost > 0 then
 		if player:GetCoinage() < transmogCost then
 			player:SendBroadcastMessage("金币不足，无法应用幻化。")

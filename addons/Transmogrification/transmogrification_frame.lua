@@ -226,7 +226,8 @@ function UpdateSlotTexture(slotName, isTransmogrificationFrame, useTransmogrific
 	end
 	
 	-- 如果该栏位装备了物品，则继续处理幻化。
-	if transmogrificationID ~= nil and transmogrificationID ~= 0 then
+	-- 恢复原外观（transmogrificationID = -1）视为未幻化，显示原始装备图标，避免对 -1 调用 GetItemIcon 导致图标消失。
+	if transmogrificationID ~= nil and transmogrificationID ~= 0 and transmogrificationID ~= -1 then
 		-- 物品已幻化为其他外观，显示幻化装备图标。
 		SetItemButtonTexture(slotFrame, GetItemIcon(transmogrificationID))
 		iconTexture:SetDesaturated(false)
@@ -309,6 +310,8 @@ function OnClickItemTransmogrificationButton(btn, buttonType)
 	-- 更新该栏位的幻化预览。
 	previewTransmogrificationIDs[slotName] = itemID
 
+
+
 	-- 使用新的物品幻化预览更新玩家模型。
 	LoadTransmogrificationsFromCurrentIDs(true)
 
@@ -342,6 +345,7 @@ function TransmogrificationHandler.TransmogrificationFrame(player)
 end
 
 function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID, requestSerial)
+
 	if requestSerial ~= activeApplyRequestSerial then
 		return
 	end
@@ -384,10 +388,7 @@ function TransmogrificationHandler.ReceiveCollectedAppearances(player, collected
 	if collectedAppearancesCount == 0 then
 		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["No transmogrification appearances could be located for this account. If you believe this is an error, please contact a Game Master."])
 	else
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["Your transmogrification appearance collection has been successfully synchronized!"] .. "\n")
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["You have collected "] .. "|cff" .. L["f194f7"] .. tostring(collectedAppearancesCount) .. "|cffffff00" .. L[" transmogrification appearances."] .. "\n")
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["It is recommended that you "] .. "|cff" .. L["00ccff"] .. L["/reload"] .. "|cffffff00" .. L[" your interface to finalize any changes, otherwise the "] .. "|cff" .. L["f194f7"] .. L["New Appearance"] .. "|cffffff00" .. L[" tooltip line may not function correctly."])
-		Transmogrification:DisplayReloadPrompt()
+		-- 本地已收集外观列表已以服务端返回为准完成同步，无需额外提示。
 	end
 end
 
@@ -464,6 +465,9 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 
 	-- 更新所有装备图标。
 	UpdateAllSlotTextures(useTransmogrificationPreview)
+
+	-- 根据当前预览同步“应用幻化”按钮的可点击状态与金币花费显示。
+	UpdateTransmogApplyState()
 end
 
 function OnClickRestoreAllButton(btn)
@@ -475,8 +479,11 @@ function OnClickRestoreAllButton(btn)
 		previewTransmogrificationIDs[slotName] = -1
 	end
 
-	-- 刷新玩家模型。
+	-- 刷新玩家模型与幻化窗口中的装备图标（恢复后显示原始外观图标）。
 	LoadTransmogrificationsFromCurrentIDs(true)
+	for slotName, _ in pairs(equipmentSlotIDs) do
+		UpdateSlotTexture(slotName, true, true)
+	end
 end
 
 function OnClickHideAllButton(btn)
@@ -634,39 +641,123 @@ function HideAllItemsToolTip(btn)
 	GameTooltip:Show()
 end
 
-function ShowCloakToolTip(btn)
-	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-	GameTooltip:AddLine("|cffffffff" .. L["Toggle Character Cloak Display"])
-	GameTooltip:AddLine("|cffffd200" .. L["This checkbox provides the same function as\nticking or unticking the \"Show Cloak\" checkbox\nin the interface options menu. It will have no\neffect on the transmogrify preview window."])
-	GameTooltip:Show()
+-- function ShowCloakToolTip(btn)
+-- 	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+-- 	GameTooltip:AddLine("|cffffffff" .. L["Toggle Character Cloak Display"])
+-- 	GameTooltip:AddLine("|cffffd200" .. L["This checkbox provides the same function as\nticking or unticking the \"Show Cloak\" checkbox\nin the interface options menu. It will have no\neffect on the transmogrify preview window."])
+-- 	GameTooltip:Show()
+-- end
+
+-- function ShowHelmToolTip(btn)
+-- 	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+-- 	GameTooltip:AddLine("|cffffffff" .. L["Toggle Character Helm Display"])
+-- 	GameTooltip:AddLine("|cffffd200" .. L["This checkbox provides the same function as\nticking or unticking the \"Show Helm\" checkbox\nin the interface options menu. It will have no\neffect on the transmogrify preview window."])
+-- 	GameTooltip:Show()
+-- end
+
+-- 将铜币数值格式化为“金/银/铜”字符串（3.3.5 客户端无 GetMoneyString，需自行实现）。
+local function FormatMoney(copper)
+	copper = math.max(0, math.floor(tonumber(copper) or 0))
+	local gold = math.floor(copper / 10000)
+	local silver = math.floor((copper % 10000) / 100)
+	local copperRem = copper % 100
+
+	local parts = {}
+	if gold > 0 then
+		table.insert(parts, "|cffffd700" .. gold .. "|r|cffffffff金|r")
+	end
+	if silver > 0 then
+		table.insert(parts, "|cffc0c0c0" .. silver .. "|r|cffffffff银|r")
+	end
+	if copperRem > 0 or #parts == 0 then
+		table.insert(parts, "|cffb87333" .. copperRem .. "|r|cffffffff铜|r")
+	end
+	return table.concat(parts, " ")
 end
 
-function ShowHelmToolTip(btn)
-	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-	GameTooltip:AddLine("|cffffffff" .. L["Toggle Character Helm Display"])
-	GameTooltip:AddLine("|cffffd200" .. L["This checkbox provides the same function as\nticking or unticking the \"Show Helm\" checkbox\nin the interface options menu. It will have no\neffect on the transmogrify preview window."])
-	GameTooltip:Show()
+-- 判断是否还有待应用的幻化改动。
+-- 逻辑与“应用幻化”处理函数保持一致：仅在对应栏位已装备物品、且预览外观与当前外观不同时才算作改动。
+function HasTransmogChanges()
+	for slotName, entryID in pairs(equipmentSlotIDs) do
+		local transmogID = previewTransmogrificationIDs[slotName]
+		local currentID = currentTransmogrificationIDs[slotName]
+
+		-- 预览为 nil 表示没有待应用的改动（应用成功后预览会被清空，不应视为改动）。
+		local equipSlot = GetEquipmentSlot(entryID)
+		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
+		local equippedItemID = hasItem and GetInventoryItemID("player", equipSlot) or nil
+		-- 请求的外观若等于当前已应用的幻化，或等于当前装备实物自身的外观，均视为无改动（不改变显示）。
+		if hasItem and transmogID ~= nil and transmogID ~= currentID and transmogID ~= equippedItemID then
+			return true
+		end
+	end
+	return false
 end
 
 local function GetTransmogrificationCost()
 	local totalCost = 0
 
-	for slotName, transmogID in pairs(previewTransmogrificationIDs) do
-		if transmogID ~= currentTransmogrificationIDs[slotName] then
-			local entryID = equipmentSlotIDs[slotName]
-			local equipSlot = GetEquipmentSlot(entryID)
-			local itemID = equipSlot and GetInventoryItemID("player", equipSlot)
-			local _, _, _, _, _, itemClass = itemID and GetItemInfoInstant(itemID)
+	for slotName, entryID in pairs(equipmentSlotIDs) do
+		local transmogID = previewTransmogrificationIDs[slotName]
+		local currentID = currentTransmogrificationIDs[slotName]
 
-			if itemClass == 2 then
+		-- 预览为 nil 表示没有待应用的改动，不计费。
+		local equipSlot = GetEquipmentSlot(entryID)
+		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
+		local equippedItemID = hasItem and GetInventoryItemID("player", equipSlot) or nil
+		-- 仅对“应用一个具体外观”计费。恢复原外观（transmogID = -1）属于取消幻化的特殊操作，
+		-- 不收取金币，与服务端保持一致；若请求外观等于当前已应用幻化或装备实物自身外观，亦不计费。
+		if hasItem and transmogID and transmogID ~= -1 and transmogID ~= currentID and transmogID ~= equippedItemID then
+			local itemID = equippedItemID
+			-- 3.3.5 客户端无 GetItemInfoInstant / 数值化 itemClass，
+			-- 改用 GetItemInfo 返回的 invType（非本地化常量）区分武器与护甲。
+			local isWeapon = false
+			local _, _, _, _, _, _, _, _, invType = GetItemInfo(itemID)
+			if invType then
+				isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND"
+					or invType == "INVTYPE_WEAPONOFFHAND" or invType == "INVTYPE_2HWEAPON"
+					or invType == "INVTYPE_RANGED" or invType == "INVTYPE_RANGEDRIGHT" or invType == "INVTYPE_THROWN"
+			else
+				-- GetItemInfo 未命中缓存时，按栏位类型回退判断（副手可能含盾牌，保守按护甲计）。
+				isWeapon = (slotName == "MainHand" or slotName == "Ranged")
+			end
+
+			if isWeapon then
 				totalCost = totalCost + WEAPON_TRANSMOG_COST
-			elseif itemClass == 4 then
+			else
 				totalCost = totalCost + ARMOR_TRANSMOG_COST
 			end
 		end
 	end
 
 	return math.max(0, tonumber(totalCost) or 0)
+end
+
+-- 根据是否存在待应用改动，更新“应用幻化”按钮的可点击状态，并刷新所需金币显示。
+function UpdateTransmogApplyState()
+	local hasChanges = HasTransmogChanges()
+
+	if _G["SaveButton"] then
+		if hasChanges then
+			_G["SaveButton"]:Enable()
+		else
+			_G["SaveButton"]:Disable()
+		end
+	end
+
+	if _G["TransmogCostText"] then
+		if hasChanges then
+			local totalCost = GetTransmogrificationCost()
+			if totalCost > 0 then
+				local text = "|cffffd200" .. L["Cost"] .. "：|r" .. FormatMoney(totalCost)
+				_G["TransmogCostText"]:SetText(text)
+			else
+				_G["TransmogCostText"]:SetText("")
+			end
+		else
+			_G["TransmogCostText"]:SetText("")
+		end
+	end
 end
 
 function TransmogrificationToolTip(btn)
@@ -685,7 +776,7 @@ function TransmogrificationToolTip(btn)
 	if hasChanges then
 		local totalCost = GetTransmogrificationCost()
 		if totalCost > 0 then
-			GameTooltip:AddLine("|cffffd200需要消耗：|r" .. GetMoneyString(totalCost, true))
+			GameTooltip:AddLine("|cffffd200需要消耗：|r" .. FormatMoney(totalCost))
 		end
 	else
 		GameTooltip:AddLine("|cff808080" .. L["No appearances to apply."])
@@ -841,8 +932,6 @@ function OnClickTransmogButton(self)
 
 	-- 更多界面状态初始化。
 	ItemSearchInput:SetText("|cff" .. L["b2b2b2"] .. L["Filter Item Appearance"] .. "|r")
-	ShowCloakCheckBox:SetChecked(ShowingCloak())
-	ShowHelmCheckBox:SetChecked(ShowingHelm())
 
 	-- 直接向服务器请求物品。
 	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, 1, latestListRequestSerial)
@@ -898,13 +987,16 @@ function OnClickApplyAllowTransmogrifications(btn)
 		if hasItem and requestedID ~= nil and requestedID ~= currentID then
 			pendingApplyCount = pendingApplyCount + 1
 			pendingApplySlots[entryID] = true
+
 			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", requestedID, entryID, activeApplyRequestSerial)
 		end
 	end
 
 	if pendingApplyCount == 0 then
+
 		LoadTransmogrificationsFromCurrentIDs(true)
 	else
+
 		applyTimeoutRemaining = 10
 	end
 end
@@ -1090,38 +1182,6 @@ function SetTab()
 	AIO.Handle("TransmogrificationServer", "SetCurrentSlotItemIDs", CurrentItemSlot, currentPage, latestListRequestSerial)
 end
 
-function InitializeCloakHelmCheckboxes()
-	ShowCloakCheckBox:SetChecked(ShowingCloak())
-	ShowCloakCheckBox:SetScript("OnClick", function(self)
-		local value = self:GetChecked() and "1" or "0"
-		if value == "1" then
-			PlaySound("igMainMenuOptionCheckBoxOn", "sfx")
-		else
-			PlaySound("igMainMenuOptionCheckBoxOff", "sfx")
-		end
-		ShowCloak(value == "1")
-	end)
-
-	ShowHelmCheckBox:SetChecked(ShowingHelm())
-	ShowHelmCheckBox:SetScript("OnClick", function(self)
-		local value = self:GetChecked() and "1" or "0"
-		if value == "1" then
-			PlaySound("igMainMenuOptionCheckBoxOn", "sfx")
-		else
-			PlaySound("igMainMenuOptionCheckBoxOff", "sfx")
-		end
-		ShowHelm(value == "1")
-	end)
-
-	local frame = CreateFrame("Frame")
-	frame:RegisterEvent("PLAYER_FLAGS_CHANGED")
-	frame:SetScript("OnEvent", function(self, event, unit)
-		if unit == "player" then
-			ShowCloakCheckBox:SetChecked(ShowingCloak())
-			ShowHelmCheckBox:SetChecked(ShowingHelm())
-		end
-	end)
-end
 
 function OnClickNextPage(btn)
 	if pendingApplyCount > 0 then
@@ -1265,7 +1325,7 @@ local function InitTabSlots()
 		local itemChild
 		if ( i == 1 ) then
 			itemChild = CreateFrame("Frame", "ItemChild"..i, TransmogrificationFrame, "TransmogItemWrapperTemplate")
-			itemChild:SetPoint("TOPLEFT", 480, -240)
+			itemChild:SetPoint("TOPLEFT", 400, -110)
 			firstInRowSlot = itemChild
 		else
 			if ( i == 4 ) then
@@ -1517,8 +1577,6 @@ end
 function OnTransmogrificationFrameLoad(self)
 	Title:SetText(L["Transmogrify"])
 	Subtitle:SetText(L["Collected Item Appearances"])
-	ShowCloakText:SetText(L["Show Cloak"])
-	ShowHelmText:SetText(L["Show Helm"])
 	TransmogPaginationText:SetText(string.format(L["Page %s"], 1))
 
 	-- 加载幻化窗口时默认隐藏警告文本。
@@ -1550,7 +1608,6 @@ function OnTransmogrificationFrameLoad(self)
 	TransmogCloseButton:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() end)
 
 	PaperDollFrame:SetScript("OnShow", PaperDollFrame_OnShow)
-	InitializeCloakHelmCheckboxes()
 
 	-- 保存幻化窗口的位置。
 	AIO.SavePosition(TransmogrificationFrame)
@@ -1577,6 +1634,15 @@ function OnTransmogrificationFrameLoad(self)
 	TransmogrificationFrame:SetScript("OnEvent", OnEventEnterWorldReloadTransmogIDs)
 
 	SetItemButtonTexture(_G["SaveButton"], "Interface\\AddOns\\Transmogrification\\assets\\Transmog-Icon")
+
+	-- 创建“应用幻化”按钮左侧显示所需金币的文本。
+	-- 作为 SaveButton 的子元素创建，使其绘制层级高于按钮自带的装饰纹理（192x96 的 SaveTexture），
+	-- 避免被遮挡；并定位在按钮左侧。
+	local costText = _G["SaveButton"]:CreateFontString("TransmogCostText", "OVERLAY", "GameFontNormal")
+	costText:SetSize(220, 20)
+	costText:SetPoint("RIGHT", _G["SaveButton"], "LEFT", -10, 0)
+	costText:SetJustifyH("RIGHT")
+	costText:Show()
 
 	TransmogModelMouseRotation(TransmogrificationModelFrame)
 

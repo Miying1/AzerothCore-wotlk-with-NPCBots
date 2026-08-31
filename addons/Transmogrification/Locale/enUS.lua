@@ -2,6 +2,7 @@ local L = LibStub("AceLocale-3.0"):NewLocale("Transmogrification", "enUS", true)
 
 -- Transmogrification Window
 L["Transmogrify"] = true
+L["Cost"] = true
 L["Collected Item Appearances"] = true
 L["Filter Item Appearance"] = true
 L["No item equipped in this slot."] = true
