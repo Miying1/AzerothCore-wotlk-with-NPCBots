@@ -58,6 +58,12 @@
 -- ║ class fantasy intact.                                                  ║
 -- ╟────────────────────────────────────────────────────────────────────────╢
       local RESTRICT_WEAPON_TRANSMOG_TO_SIMILAR_WEAPONS = true            --║
+-- ╟────────────────────────────────────────────────────────────────────────╢
+-- ║ 应用幻化时的金币费用，单位为铜币。                                    ║
+-- ║ 武器和护甲分别配置，设置为 0 表示不收取费用。                          ║
+-- ╟────────────────────────────────────────────────────────────────────────╢
+      local WEAPON_TRANSMOG_COST = 0                                     --║
+      local ARMOR_TRANSMOG_COST = 0                                      --║
 -- ╚════════════════════════════════════════════════════════════════════════╝
 
 local AIO = AIO or require("AIO")
@@ -385,6 +391,24 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot)
 	
 	local oldItem = CharDBQuery("SELECT real_item FROM character_transmog WHERE player_guid = "..playerGUID.." AND slot = "..slot..";")
 	local oldItemID = oldItem:GetUInt32(0)
+	local equippedItem = player:GetEquippedItemBySlot(GetEquipmentSlot(slot))
+	local transmogCost = 0
+	if equippedItem then
+		if equippedItem:GetClass() == 2 then
+			transmogCost = WEAPON_TRANSMOG_COST
+		elseif equippedItem:GetClass() == 4 then
+			transmogCost = ARMOR_TRANSMOG_COST
+		end
+	end
+	transmogCost = math.max(0, tonumber(transmogCost) or 0)
+	if transmogCost > 0 then
+		if player:GetCoinage() < transmogCost then
+			player:SendBroadcastMessage("金币不足，无法应用幻化。")
+			return
+		end
+		player:ModifyMoney(-transmogCost)
+	end
+
 	if oldItemID == nil or oldItemID == 0 then
 		CharDBQuery("INSERT INTO character_transmog (`player_guid`, `slot`, `item`) VALUES ("..playerGUID..", '"..slot.."', "..item..") ON DUPLICATE KEY UPDATE item = VALUES(item);")
 	else

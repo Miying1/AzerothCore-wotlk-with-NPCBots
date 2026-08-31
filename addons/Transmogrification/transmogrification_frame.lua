@@ -593,6 +593,27 @@ function ShowHelmToolTip(btn)
 	GameTooltip:Show()
 end
 
+local function GetTransmogrificationCost()
+	local totalCost = 0
+
+	for slotName, transmogID in pairs(previewTransmogrificationIDs) do
+		if transmogID ~= currentTransmogrificationIDs[slotName] then
+			local entryID = equipmentSlotIDs[slotName]
+			local equipSlot = GetEquipmentSlot(entryID)
+			local itemID = equipSlot and GetInventoryItemID("player", equipSlot)
+			local _, _, _, _, _, itemClass = itemID and GetItemInfoInstant(itemID)
+
+			if itemClass == 2 then
+				totalCost = totalCost + WEAPON_TRANSMOG_COST
+			elseif itemClass == 4 then
+				totalCost = totalCost + ARMOR_TRANSMOG_COST
+			end
+		end
+	end
+
+	return math.max(0, tonumber(totalCost) or 0)
+end
+
 function TransmogrificationToolTip(btn)
 	GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
 
@@ -605,10 +626,13 @@ function TransmogrificationToolTip(btn)
 		end
 	end
 
+	GameTooltip:AddLine("|cffffffff" .. L["Transmogrify"])
 	if hasChanges then
-		GameTooltip:AddLine("|cffffffff" .. L["Transmogrify"])
+		local totalCost = GetTransmogrificationCost()
+		if totalCost > 0 then
+			GameTooltip:AddLine("|cffffd200需要消耗：|r" .. GetMoneyString(totalCost, true))
+		end
 	else
-		GameTooltip:AddLine("|cffffffff" .. L["Transmogrify"])
 		GameTooltip:AddLine("|cff808080" .. L["No appearances to apply."])
 	end
 
@@ -1272,94 +1296,10 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, page, hasMore
 				end
 				child.itemModel:Undress()
 				child.itemModel:TryOn(newSlotItemIDs[i])
+				child.itemModel:SetPoint("CENTER", itemChild, "CENTER", 0, 0)
+				child.itemModel:SetSize(142, 172)
 				
-				local _, playerRace = UnitRace("player")
-				playerRace = string.upper(playerRace)
-				local playerSex = UnitSex("player")
-				local isFemale = (playerSex == 3)
-				
-				-- 根据种族更改预览模型的位置和缩放，确保它们与窗口对齐。
-				if playerRace == "HUMAN" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 4, -1)
-						child.itemModel:SetSize(169, 169)
-					else
-						child.itemModel:SetPoint("CENTER", 4, 2)
-						child.itemModel:SetSize(180, 180)
-					end
-				elseif playerRace == "DWARF" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 0, 6)
-						child.itemModel:SetSize(165, 165)
-					else
-						child.itemModel:SetPoint("CENTER", 6, -10)
-						child.itemModel:SetSize(170, 170)
-					end
-				elseif playerRace == "NIGHTELF" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 3, -9)
-						child.itemModel:SetSize(181, 181)
-					else
-						child.itemModel:SetPoint("CENTER", 2, -5)
-						child.itemModel:SetSize(190, 190)
-					end
-				elseif playerRace == "GNOME" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 3, -8)
-						child.itemModel:SetSize(133, 133)
-					else
-						child.itemModel:SetPoint("CENTER", 4, -4)
-						child.itemModel:SetSize(140, 140)
-					end
-				elseif playerRace == "DRAENEI" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 10, 3)
-						child.itemModel:SetSize(185, 185)
-					else
-						child.itemModel:SetPoint("CENTER", 6, 2)
-						child.itemModel:SetSize(165, 165)
-					end
-				elseif playerRace == "ORC" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", -3, -5)
-						child.itemModel:SetSize(175, 175)
-					else
-						child.itemModel:SetPoint("CENTER", 2, -4)
-						child.itemModel:SetSize(165, 165)
-					end
-				elseif playerRace == "UNDEAD" or playerRace == "SCOURGE" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 3, 0)
-						child.itemModel:SetSize(188, 188)
-					else
-						child.itemModel:SetPoint("CENTER", 1, -6)
-						child.itemModel:SetSize(175, 175)
-					end
-				elseif playerRace == "TAUREN" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 2, -1)
-						child.itemModel:SetSize(180, 180)
-					else
-						child.itemModel:SetPoint("CENTER", 1, -6)
-						child.itemModel:SetSize(220, 220)
-					end
-				elseif playerRace == "TROLL" then
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", -6, 2)
-						child.itemModel:SetSize(180, 180)
-					else
-						child.itemModel:SetPoint("CENTER", -2, 2)
-						child.itemModel:SetSize(170, 170)
-					end
-				else -- 血精灵作为回退。
-					if isFemale then
-						child.itemModel:SetPoint("CENTER", 2, -2)
-						child.itemModel:SetSize(180, 180)
-					else
-						child.itemModel:SetPoint("CENTER", -2, -4)
-						child.itemModel:SetSize(190, 190)
-					end
-				end
+
 			end
 		end
 	else

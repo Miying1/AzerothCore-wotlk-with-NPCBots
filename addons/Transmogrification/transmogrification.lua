@@ -3,6 +3,10 @@ local addonName, addon = ...
 Transmogrification = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("Transmogrification")
 
+-- 应用幻化时的金币费用，单位为铜币；需与服务端脚本保持一致。
+WEAPON_TRANSMOG_COST = 0
+ARMOR_TRANSMOG_COST = 0
+
 -- 声明插件默认选项。插件选项将全局保存。
 local defaultTransmogrificationOptions = {
 	global = {
