@@ -2562,7 +2562,7 @@ public:
                 myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
                 myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, FORCE_OF_NATURE_1);
                 myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
-                //botPet = myPet;
+                //自然之力召唤物为多宠物集合，不记录为单一宠物。
 
                 myPet->Attack(target, true);
                 if (!HasBotCommandState(BOT_COMMAND_MASK_UNCHASE))
@@ -2595,8 +2595,8 @@ public:
         void SummonedCreatureDespawn(Creature* summon) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            //if (summon == botPet)
-            //    botPet = nullptr;
+            //if (summon->GetGUID() == botPetGUID)
+            //    GetBotsPet() = nullptr;
             if (summon->GetEntry() == BOT_PET_FORCE_OF_NATURE)
             {
                 //bool found = false;

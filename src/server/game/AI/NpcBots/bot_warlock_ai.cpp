@@ -575,7 +575,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!GetBotsPet() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             //Hellfire interrupt
@@ -642,7 +642,7 @@ public:
                 DrinkPotion(false);
             }
 
-            if (IsSpellReady(DARK_PACT_1, diff) && !IsCasting() && botPet && botPet->GetPower(POWER_MANA) >= 300 &&
+            if (IsSpellReady(DARK_PACT_1, diff) && !IsCasting() && GetBotsPet() && GetBotsPet()->GetPower(POWER_MANA) >= 300 &&
                 GetManaPCT(me) < 20)
             {
                 if (doCast(me, GetSpell(DARK_PACT_1)))
@@ -741,7 +741,7 @@ public:
                 if (me->GetLevel() >= 15 && !me->GetAuraEffect(SPELL_AURA_MOD_SPELL_DAMAGE_OF_STAT_PERCENT, SPELLFAMILY_WARLOCK, 208, 0))
                 {
                     //doesn't work: wrong spell proc entry 10.12.2020
-                    //if (IsSpellReady(DARK_PACT_1, diff) && botPet && GetManaPCT(me) > 70)
+                    //if (IsSpellReady(DARK_PACT_1, diff) && GetBotsPet() && GetManaPCT(me) > 70)
                     //{
                     //    if (doCast(me, GetSpell(DARK_PACT_1)))
                     //        return;
@@ -1027,11 +1027,11 @@ public:
 
             //Master Demonologist part 1.2 (me): 5% additional critical chance for Fire spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
-                lvl >= 35 && botPet && myPetType == BOT_PET_IMP && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_FIRE))
+                lvl >= 35 && GetBotsPet() && myPetType == BOT_PET_IMP && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_FIRE))
                 crit_chance += 5.f;
             //Master Demonologist part 3.2 (me): 5% additional critical chance for Shadow spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
-                lvl >= 35 && botPet && myPetType == BOT_PET_SUCCUBUS && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_SHADOW))
+                lvl >= 35 && GetBotsPet() && myPetType == BOT_PET_SUCCUBUS && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_SHADOW))
                 crit_chance += 5.f;
 
             //Warlock T84P Bonus (64932): 5% additional critical chance for Shadow Bolt and Incinerate
@@ -1158,11 +1158,11 @@ public:
                 pctbonus *= 1.1f;
             //Master Demonologist part 1.1 (me): 5% bonus damage for Fire spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
-                lvl >= 35 && botPet && myPetType == BOT_PET_IMP && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_FIRE))
+                lvl >= 35 && GetBotsPet() && myPetType == BOT_PET_IMP && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_FIRE))
                 pctbonus *= 1.05f;
             //Master Demonologist part 3.1 (me): 5% bonus damage for Shadow spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
-                lvl >= 35 && botPet && myPetType == BOT_PET_SUCCUBUS && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_SHADOW))
+                lvl >= 35 && GetBotsPet() && myPetType == BOT_PET_SUCCUBUS && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_SHADOW))
                 pctbonus *= 1.05f;
 
             damage = int32(fdamage * pctbonus);
@@ -1527,8 +1527,8 @@ public:
                 me->CastCustomSpell(me, LIFE_TAP_ENERGIZE, &manaGain, nullptr, nullptr, false);
 
                 //Mana Feed
-                if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && me->GetLevel() >= 35 && botPet)
-                    me->EnergizeBySpell(botPet, LIFE_TAP_ENERGIZE_PET, manaGain, POWER_MANA);
+                if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && me->GetLevel() >= 35 && GetBotsPet())
+                    me->EnergizeBySpell(GetBotsPet(), LIFE_TAP_ENERGIZE_PET, manaGain, POWER_MANA);
             }
 
             //Glyph of Life Tap trigger
@@ -1589,17 +1589,17 @@ public:
             }
 
             //Improved Imp part 3
-            if (lvl >= 10 && baseId == BLOOD_PACT_1 && botPet)
+            if (lvl >= 10 && baseId == BLOOD_PACT_1 && GetBotsPet())
             {
-                AuraEffect* pact = target->GetAuraEffect(spellId, 0, botPet->GetGUID());
+                AuraEffect* pact = target->GetAuraEffect(spellId, 0, GetBotsPet()->GetGUID());
                 if (pact)
                     pact->ChangeAmount(pact->GetAmount() * 1.3f);
             }
 
             //Improved Felhunter part 3
-            if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) && lvl >= 35 && baseId == FEL_INTELLIGENCE_1 && botPet)
+            if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) && lvl >= 35 && baseId == FEL_INTELLIGENCE_1 && GetBotsPet())
             {
-                Aura const* feli = target->GetAura(spellId, botPet->GetGUID());
+                Aura const* feli = target->GetAura(spellId, GetBotsPet()->GetGUID());
                 if (feli)
                 {
                     for (auto i : NPCBots::index_array<uint8, EFFECT_2>) // 2 effects
@@ -1671,14 +1671,14 @@ public:
         void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
         {
             //Fel Synergy (Life Tap)
-            if (damage && botPet && me->GetLevel() >= 10 && (damageType == SPELL_DIRECT_DAMAGE || damageType == DOT))
+            if (damage && GetBotsPet() && me->GetLevel() >= 10 && (damageType == SPELL_DIRECT_DAMAGE || damageType == DOT))
             {
                 uint32 healVal = float(damage) * 0.15f;
                 if (healVal)
                 {
                     SpellInfo const* synhealInfo = sSpellMgr->GetSpellInfo(FEL_SYNERGY_HEAL);
-                    HealInfo hinfo(me, botPet, healVal, synhealInfo, synhealInfo->GetSchoolMask());
-                    botPet->HealBySpell(hinfo);
+                    HealInfo hinfo(me, GetBotsPet(), healVal, synhealInfo, synhealInfo->GetSchoolMask());
+                    GetBotsPet()->HealBySpell(hinfo);
                 }
             }
 
@@ -1703,7 +1703,7 @@ public:
 
         void SummonBotPet()
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             if (myPetType == BOT_PET_INVALID) //disabled
@@ -1782,8 +1782,6 @@ public:
                     myPet->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, 22199);
                     break;
             }
-
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
         }
 
@@ -1794,9 +1792,8 @@ public:
 
         void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
         {
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }
@@ -1805,10 +1802,9 @@ public:
         {
             //all warlock bot pets despawn at death or manually (gossip, teleport, etc.)
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
                 petSummonTimer = 10000;
-                botPet = nullptr;
                 botPetGUID.Clear();
 
                 //party aura hack removal helper
@@ -1909,8 +1905,8 @@ public:
         {
             me->SetPowerType(POWER_MANA);
 
-            if (botPet && botPet->GetPowerType() != POWER_MANA)
-                botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
+            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_MANA)
+                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
         }
 
         void InitSpells() override

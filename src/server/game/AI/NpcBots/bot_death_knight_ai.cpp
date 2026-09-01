@@ -564,7 +564,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || !botPet->IsAlive() || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!GetBotsPet() || !GetBotsPet()->IsAlive() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             if (IsPotionReady())
@@ -1697,7 +1697,7 @@ public:
 
         void SummonBotPet()
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             uint32 entry = BOT_PET_GHOUL;
@@ -1714,7 +1714,6 @@ public:
             myPet->SetPvP(me->IsPvP());
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
         }
 
@@ -1734,9 +1733,8 @@ public:
         void SummonedCreatureDies(Creature*  summon , Unit* /*killer*/) override
         {
             //TC_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }
@@ -1745,10 +1743,9 @@ public:
         {
             //all hunter bot pets despawn at death or manually (gossip, teleport, etc.)
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
                 petSummonTimer = 30000;
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }
@@ -1814,8 +1811,8 @@ public:
             //    mast->ChangeAmount(1300);
             //}
 
-            if (botPet && botPet->GetPowerType() != POWER_ENERGY)
-                botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
+            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_ENERGY)
+                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
         }
 
         void InitSpells() override

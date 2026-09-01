@@ -524,8 +524,7 @@ public:
         void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            //if (summon == botPet)
-            //    botPet = nullptr;
+            // 暗影猎手的临时召唤物不作为单一宠物记录。
         }
 
         void SummonedCreatureDespawn(Creature* summon) override

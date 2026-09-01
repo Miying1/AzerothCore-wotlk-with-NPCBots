@@ -124,8 +124,7 @@ public:
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action);
     bool OnGossipSelectCode(Player* player, Creature* creature, uint32 sender, uint32 action, char const* code);
 
-    Creature* GetBotsPet() const { return botPet; }
-    // 宠物的 guid 与指针分离存储，便于在悬垂指针场景下通过地图对象存储重新解析
+    Creature* GetBotsPet() const;
     ObjectGuid GetBotsPetGUID() const { return botPetGUID; }
 
     void Evade();
@@ -599,7 +598,6 @@ protected:
     Player* _prevRRobin{};
     Unit* opponent{};
     Unit* disttarget{};
-    Creature* botPet{};
     ObjectGuid botPetGUID{};
     EventProcessor Events;
     ObjectGuid aftercastTargetGuid;

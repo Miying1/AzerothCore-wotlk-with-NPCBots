@@ -550,7 +550,7 @@ public:
                 SetSpellCooldown(SHADOWFIEND_1, 180000); // (5 - 2) min with Veiled Shadows
             }
 
-            if (!HasRole(BOT_ROLE_HEAL) || GetManaPCT(me) > 35 || botPet)
+            if (!HasRole(BOT_ROLE_HEAL) || GetManaPCT(me) > 35 || GetBotsPet())
             {
                 if (IsSpellReady(SW_DEATH_1, diff) && can_do_shadow && Rand() < 90 && GetHealthPCT(me) > 50 &&
                     (me->GetMap()->IsRaid() || GetHealthPCT(mytar) < 15 || mytar->GetHealth() < me->GetMaxHealth()/8) &&
@@ -1750,7 +1750,7 @@ public:
 
         void SummonBotPet(Unit* target)
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             uint32 entry = BOT_PET_SHADOWFIEND;
@@ -1769,7 +1769,6 @@ public:
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SHADOWFIEND_1);
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
 
             myPet->Attack(target, true);
@@ -1789,9 +1788,8 @@ public:
         void SummonedCreatureDespawn(Creature* summon) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }

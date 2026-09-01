@@ -1278,7 +1278,7 @@ void bot_pet_ai::SetPetStats(bool force)
         //Innate 5%
         m_totalhp *= 1.05f;
     }
-    //BOT_LOG_ERROR("entities.player", "SetPetStat(): hp stamval %.1f, stammult %.1f, base %u, total %.2f", stamValue, stamMult, botPet->GetCreateHealth(), m_totalhp);
+    //BOT_LOG_ERROR("entities.player", "SetPetStat(): hp stamval %.1f, stammult %.1f, base %u, total %.2f", stamValue, stamMult, GetBotsPet()->GetCreateHealth(), m_totalhp);
     bool fullhp = me->GetHealth() == me->GetMaxHealth();
     float pct = fullhp ? 100.f : me->GetHealthPct(); // needs for regeneration
     me->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, m_totalhp);
@@ -1309,7 +1309,7 @@ void bot_pet_ai::SetPetStats(bool force)
         //additional: store stat
         me->SetStat(STAT_INTELLECT, int32(intValue));
         float m_totalmana = intValue * intMult/* + me->GetCreatePowerValue(POWER_MANA)*/ + (IAmFree() ? level * 25.f : 0); //+2000/+0 mana at 80
-        //BOT_LOG_ERROR("entities.player", "SetPetStat(): mana intValue %.1f, intMult %.1f, base %u, total %.2f", intValue, intMult, botPet->GetCreatePowerValue(POWER_MANA), m_totalmana);
+        //BOT_LOG_ERROR("entities.player", "SetPetStat(): mana intValue %.1f, intMult %.1f, base %u, total %.2f", intValue, intMult, GetBotsPet()->GetCreatePowerValue(POWER_MANA), m_totalmana);
         bool fullmana = me->GetPower(POWER_MANA) == me->GetMaxPower(POWER_MANA);
         pct = fullmana ? 100.f : (float(me->GetPower(POWER_MANA)) * 100.f) / float(me->GetMaxPower(POWER_MANA));
         me->SetStatFlatModifier(UNIT_MOD_MANA, BASE_VALUE, m_totalmana);

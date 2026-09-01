@@ -805,7 +805,7 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
         RemoveBotFromBGQueue(bot);
         RemoveBotFromGroup(bot);
         bot->SetCreator(nullptr);
-        // 宠物通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        // 宠物通过 guid 重新解析，避免 GetBotsPet() 悬垂指针被解引用
         if (ObjectGuid const petGuid = bot->GetBotsPetGUID())
             if (Map* petMap = bot->FindMap())
                 if (Creature* bpet = petMap->GetCreature(petGuid))
@@ -1384,7 +1384,7 @@ void BotMgr::UpdatePhaseForBots()
         if (!creature)
             continue;
         creature->SetPhaseMask(phaseMask, creature->IsInWorld());
-        // 宠物同样通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        // 宠物同样通过 guid 重新解析，避免 GetBotsPet() 悬垂指针被解引用
         if (ObjectGuid const petGuid = creature->GetBotsPetGUID())
             if (Creature* pet = map->GetCreature(petGuid))
                 pet->SetPhaseMask(phaseMask, pet->IsInWorld());
@@ -1420,7 +1420,7 @@ void BotMgr::UpdatePvPForBots()
         if (!creature)
             continue;
         creature->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
-        // 宠物同样通过 guid 重新解析，避免 botPet 悬垂指针被解引用
+        // 宠物同样通过 guid 重新解析，避免 GetBotsPet() 悬垂指针被解引用
         if (ObjectGuid const petGuid = creature->GetBotsPetGUID())
             if (Creature* pet = map->GetCreature(petGuid))
                 pet->SetByteValue(UNIT_FIELD_BYTES_2, 1, pvpByte);
@@ -1447,7 +1447,7 @@ void BotMgr::BuildBotPartyMemberStatsPacket(ObjectGuid bot_guid, WorldPacket* da
         return;
     }
 
-    Creature const* pet = nullptr; //bot->GetBotAI()->GetBotsPet();
+    Creature const* pet = bot->GetBotsPet();
     Powers powerType = bot->GetPowerType();
 
     *data << uint8(0);                                       // only for SMSG_PARTY_MEMBER_STATS_FULL, probably arena/bg related
@@ -1631,7 +1631,7 @@ void BotMgr::BuildBotPartyMemberStatsChangedPacket(Creature const* bot, WorldPac
         }
     }
 
-    Creature const* pet = nullptr; //bot->GetBotAI()->GetBotsPet();
+    Creature const* pet = bot->GetBotsPet();
     if (mask & GROUP_UPDATE_FLAG_PET_GUID)
     {
         if (pet)

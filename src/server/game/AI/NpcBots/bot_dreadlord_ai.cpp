@@ -183,7 +183,7 @@ public:
             if (IsCasting())
                 return;
 
-            if (IsSpellReady(INFERNO_1, diff) && !botPet && me->IsInCombat() &&
+            if (IsSpellReady(INFERNO_1, diff) && !GetBotsPet() && me->IsInCombat() &&
                 me->GetPower(POWER_MANA) >= INFERNAL_COST && Rand() < 60)
             {
                 Unit* target = FindAOETarget(CalcSpellMaxRange(INFERNO_1));
@@ -374,7 +374,7 @@ public:
                 for (auto& [rank1_id, spell] : GetSpellMap())
                 {
                     //not affected if pet is alive
-                    if (botPet && rank1_id == INFERNO_1)
+                    if (GetBotsPet() && rank1_id == INFERNO_1)
                         continue;
 
                     if (!spell.cooldown)
@@ -400,7 +400,7 @@ public:
 
         void SummonBotPet(Position const* sPos)
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             uint32 entry = BOT_PET_INFERNAL;
@@ -437,8 +437,6 @@ public:
             myPet->CastSpell(myPet, SPELL_INFERNO_EFFECT, true); //damage, stun
             //myPet->CastSpell(myPet, SPELL_INFERNO_IMPACT_EXPLOSION, true); //visual
             myPet->CastSpell(myPet, IMMOLATION, true);
-
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
         }
 
@@ -454,9 +452,8 @@ public:
         void SummonedCreatureDespawn(Creature* summon) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }

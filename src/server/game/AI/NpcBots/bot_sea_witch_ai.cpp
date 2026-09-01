@@ -649,8 +649,8 @@ public:
         void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            //if (summon == botPet)
-            //    botPet = nullptr;
+            //if (summon->GetGUID() == botPetGUID)
+            //    GetBotsPet() = nullptr;
         }
 
         void SummonedCreatureDespawn(Creature* summon) override

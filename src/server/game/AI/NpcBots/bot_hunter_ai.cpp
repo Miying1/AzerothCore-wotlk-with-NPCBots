@@ -516,13 +516,13 @@ public:
         void CheckMendPet(uint32 diff)
         {
             if (!IsSpellReady(MEND_PET_1, diff) || checkMendTimer > diff || Rand() > 75 ||
-                !botPet || !botPet->IsAlive() || !botPet->IsInWorld() || GetHealthPCT(botPet) > 80 ||
-                me->GetDistance(botPet) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
+                !GetBotsPet() || !GetBotsPet()->IsAlive() || !GetBotsPet()->IsInWorld() || GetHealthPCT(GetBotsPet()) > 80 ||
+                me->GetDistance(GetBotsPet()) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
                 return;
 
             checkMendTimer = urand(2000, 4000);
 
-            Aura const* mend = botPet->GetAura(GetSpell(MEND_PET_1));
+            Aura const* mend = GetBotsPet()->GetAura(GetSpell(MEND_PET_1));
             if (!mend || mend->GetDuration() < 3000)
             {
                 if (doCast(me, GetSpell(MEND_PET_1)))
@@ -662,7 +662,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!botPet || !botPet->IsInWorld() || me->GetDistance2d(botPet) > World::GetMaxVisibleDistanceOnContinents()))
+                (!GetBotsPet() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             //Scare Beast interrupt
@@ -1131,7 +1131,7 @@ public:
             if (lvl >= 10)
                 pctbonus += 0.05f;
             //Focused Fire: 2% bonus damage while pet is active
-            if (lvl >= 15 && botPet)
+            if (lvl >= 15 && GetBotsPet())
                 pctbonus += 0.02f;
             //Ranged Weapon Specialization: 5% bonus damage for ranged attacks
             if ((GetSpec() == BOT_SPEC_HUNTER_MARKSMANSHIP) && lvl >= 35)
@@ -1766,14 +1766,14 @@ public:
 
         void OnBotDamageDealt(Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellInfo const* /*spellInfo*/) override
         {
-            if (botPet  && victim != me && victim != botPet && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
+            if (GetBotsPet()  && victim != me && victim != GetBotsPet() && damage > 0 && cleanDamage && cleanDamage->hitOutCome == MELEE_HIT_CRIT &&
                 (damagetype == DIRECT_DAMAGE || damagetype == SPELL_DIRECT_DAMAGE) && me->GetLevel() >= 20)
             { 
                 //Go for the Throat: energize pet
-               // me->EnergizeBySpell(botPet, GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
+               // me->EnergizeBySpell(GetBotsPet(), GO_FOR_THE_THROAT_ENERGIZE, 50, POWER_FOCUS);
                 //Frenzy hack: proc from hunter's crits
                /* if (me->GetLevel() >= 35)
-                    botPet->CastSpell(botPet, FRENZY_BUFF, true);*/
+                    GetBotsPet()->CastSpell(GetBotsPet(), FRENZY_BUFF, true);*/
             }
         }
 
@@ -1800,7 +1800,7 @@ public:
 
         void SummonBotPet()
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             if (me->GetLevel() < 10)
@@ -1885,8 +1885,6 @@ public:
                 default:
                     break;
             }
-
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
         }
 
@@ -1898,9 +1896,8 @@ public:
         void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDies: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }
@@ -1909,10 +1906,9 @@ public:
         {
             //all hunter bot pets despawn at death or manually (gossip, teleport, etc.)
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
                 petSummonTimer = 10000;
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }
@@ -2007,8 +2003,8 @@ public:
         {
             me->SetPowerType(POWER_MANA);
 
-            if (botPet && botPet->GetPowerType() != POWER_FOCUS)
-                botPet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_FOCUS);
+            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_FOCUS)
+                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_FOCUS);
         }
 
         void InitSpells() override

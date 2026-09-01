@@ -362,7 +362,7 @@ public:
                 DoNonCombatActions(diff);
 
             //pet
-            if ((!botPet || !botPet->IsAlive()) &&
+            if ((!GetBotsPet() || !GetBotsPet()->IsAlive()) &&
                 IsSpellReady(SUMMON_WATER_ELEMENTAL_1, diff) && !IsCasting() && (IAmFree() || master->IsInCombat()))
                 if (doCast(me, GetSpell(SUMMON_WATER_ELEMENTAL_1)))
                     return;
@@ -894,7 +894,7 @@ public:
             needFactor += !cooldown ? 0 : 2 * cooldown / 300;  //0-100 x2
             cooldown = GetSpellCooldown(ICY_VEINS_1);
             needFactor += !cooldown ? 0 : 2 * cooldown / 1500; //0-100 x2
-            cooldown = (botPet && botPet->IsAlive()) ? 0 : GetSpellCooldown(SUMMON_WATER_ELEMENTAL_1);
+            cooldown = (GetBotsPet() && GetBotsPet()->IsAlive()) ? 0 : GetSpellCooldown(SUMMON_WATER_ELEMENTAL_1);
             needFactor += !cooldown ? 0 : 1 * cooldown / 1500; //0-100
             cooldown = GetSpellCooldown(DEEP_FREEZE_1);
             needFactor += !cooldown ? 0 : 1 * cooldown / 240;  //0-100
@@ -1610,7 +1610,7 @@ public:
 
         void SummonBotPet()
         {
-            if (botPet)
+            if (GetBotsPet())
                 UnsummonAll(false);
 
             uint32 entry = BOT_PET_WATER_ELEMENTAL;
@@ -1629,7 +1629,6 @@ public:
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SUMMON_WATER_ELEMENTAL_1);
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
-            botPet = myPet;
             botPetGUID = myPet->GetGUID();
         }
 
@@ -1645,9 +1644,8 @@ public:
         void SummonedCreatureDespawn(Creature* summon) override
         {
             //BOT_LOG_ERROR("entities.unit", "SummonedCreatureDespawn: %s's %s", me->GetName().c_str(), summon->GetName().c_str());
-            if (summon == botPet)
+            if (summon->GetGUID() == botPetGUID)
             {
-                botPet = nullptr;
                 botPetGUID.Clear();
             }
         }

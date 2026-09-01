@@ -222,6 +222,18 @@ static void PrintCallStack(std::string_view message)
 #endif
 }
 
+Creature* bot_ai::GetBotsPet() const
+{
+    if (!botPetGUID || !me || !me->GetMap())
+        return nullptr;
+
+    Creature* pet = me->GetMap()->GetCreature(botPetGUID);
+    if (!pet || !pet->IsNPCBotPet() || pet->GetOwnerGUID() != me->GetGUID())
+        return nullptr;
+
+    return pet;
+}
+
 bot_ai::bot_ai(Creature* creature) : CreatureAI(creature),
     _botData(const_cast<NpcBotData*>(BotDataMgr::SelectNpcBotData(IsTempBot() ? creature->ToTempSummon()->GetSummonerGUID().GetEntry() : creature->GetEntry()))),
     _botExtras(BotDataMgr::SelectNpcBotExtras(creature->GetEntry()))
@@ -1112,11 +1124,14 @@ void bot_ai::MoveToSendPosition(Position const& mpos)
         SetBotCommandState(BOT_COMMAND_STAY);
         me->InterruptNonMeleeSpells(true);
         BotMovement(BOT_MOVE_POINT, &mpos, nullptr, false);
-        if (botPet && !CCed(botPet, true))
+        if (Creature* pet = GetBotsPet())
         {
-            botPet->GetBotPetAI()->SetBotCommandState(BOT_COMMAND_STAY);
-            botPet->InterruptNonMeleeSpells(true);
-            botPet->GetMotionMaster()->MovePoint(me->GetMapId(), mpos, FORCED_MOVEMENT_NONE, 0.0f, false);
+            if (!CCed(pet, true))
+            {
+                pet->GetBotPetAI()->SetBotCommandState(BOT_COMMAND_STAY);
+                pet->InterruptNonMeleeSpells(true);
+                pet->GetMotionMaster()->MovePoint(me->GetMapId(), mpos, FORCED_MOVEMENT_NONE, 0.0f, false);
+            }
         }
         sendlastpos.Relocate(me);
         BotWhisper("Moving to position!");
@@ -1725,8 +1740,9 @@ void bot_ai::CureGroup(uint32 cureSpell, uint32 diff)
     {
         if (_canCureTarget(me, cureSpell))
             targets.push_back(me);
-        if (botPet && !me->IsInCombat() && _canCureTarget(botPet, cureSpell))
-            targets.push_back(botPet);
+        if (Creature* pet = GetBotsPet())
+            if (!me->IsInCombat() && _canCureTarget(pet, cureSpell))
+                targets.push_back(pet);
 
         if (!(me->GetFaction() == FACTION_TEMPLATE_NEUTRAL_HOSTILE || me->HasAura(BERSERK)))
         {
@@ -2652,9 +2668,10 @@ void bot_ai::SetStats(bool force)
             tempval -= 0.06f;
         }
         //Master Demonologist part 2, Master Demonologist part 4
-        if (mylevel >= 35 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && botPet && botPet->IsAlive())
-        {
-            if (GetAIMiscValue(BOTAI_MISC_PET_TYPE) == BOT_PET_VOIDWALKER)
+        if (Creature* pet = GetBotsPet())
+            if (mylevel >= 35 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && pet->IsAlive())
+            {
+                if (GetAIMiscValue(BOTAI_MISC_PET_TYPE) == BOT_PET_VOIDWALKER)
                 value -= 0.1f;
             else if (GetAIMiscValue(BOTAI_MISC_PET_TYPE) == BOT_PET_FELHUNTER)
                 tempval -= 0.1f;
@@ -3287,8 +3304,9 @@ void bot_ai::SetStats(bool force)
                 value += 0.39f * _getTotalBotStat(BOT_STAT_MOD_SPIRIT);
             }
             //Demonic Knowledge
-            if (botPet && botPet->IsAlive() && mylevel >= 40 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
-                value += 0.12f * botPet->GetStat(STAT_STAMINA) + botPet->GetStat(STAT_INTELLECT);
+            if (Creature* pet = GetBotsPet())
+                if (pet->IsAlive() && mylevel >= 40 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
+                    value += 0.12f * pet->GetStat(STAT_STAMINA) + pet->GetStat(STAT_INTELLECT);
             //Glyph of Life Tap: 20% of spirit to spellpower
             if (me->GetAuraEffect(SPELL_AURA_MOD_SPELL_DAMAGE_OF_STAT_PERCENT, SPELLFAMILY_WARLOCK, 208, 0))
                 value += 0.2f * _getTotalBotStat(BOT_STAT_MOD_SPIRIT);
@@ -3358,8 +3376,9 @@ void bot_ai::SetStats(bool force)
             me->ResetPlayerDamageReq();
     }
 
-    if (botPet && botPet->GetBotPetAI())
-        botPet->GetBotPetAI()->SetShouldUpdateStats();
+    if (Creature* pet = GetBotsPet())
+        if (pet->GetBotPetAI())
+            pet->GetBotPetAI()->SetShouldUpdateStats();
 }
 
 //Emotion-based action
@@ -3549,7 +3568,7 @@ bool bot_ai::IsInBotParty(Unit const* unit) const
 {
     if (!unit)
         return false;
-    if (unit == master || unit == me || unit == botPet)
+    if (unit == master || unit == me || unit == GetBotsPet())
         return true;
 
     if (IAmFree())
@@ -3645,7 +3664,7 @@ bool bot_ai::IsInBotParty(ObjectGuid guid) const
             if (p && p->HaveBot())
             {
                 if (Creature const* bot = p->GetBotMgr()->GetBot(guid))
-                    if (bot->GetGUID() == guid || (bot->GetBotsPet() && bot->GetBotsPet()->GetGUID() == guid) ||
+                    if (bot->GetGUID() == guid || bot->GetBotsPetGUID() == guid ||
                         (bot->GetVehicle() && bot->GetCharmGUID() == guid))
                         return true;
             }
@@ -3656,7 +3675,7 @@ bool bot_ai::IsInBotParty(ObjectGuid guid) const
         if (master->GetPetGUID() == guid || (master->GetVehicle() && master->GetCharmGUID() == guid))
             return true;
         if (Creature const* bot = master->GetBotMgr()->GetBot(guid))
-            if (bot->GetGUID() == guid || (bot->GetBotsPet() && bot->GetBotsPet()->GetGUID() == guid) ||
+            if (bot->GetGUID() == guid || bot->GetBotsPetGUID() == guid ||
                 (bot->GetVehicle() && bot->GetCharmGUID() == guid))
                 return true;
     }
@@ -4149,8 +4168,9 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
                     {
                         if (IsCasting())
                             me->InterruptNonMeleeSpells(false);
-                        if (botPet && botPet->GetVictim())
-                            botPet->AttackStop();
+                        if (Creature* pet = GetBotsPet())
+                            if (pet->GetVictim())
+                                pet->AttackStop();
                         return { nullptr, nullptr };
                     }
                 }
@@ -4534,8 +4554,9 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
         for (Unit* att : me->getAttackers())
             if (_canSwitchToTarget(u, att, byspell))
                 u = att;
-        if (!u && botPet)
-            for (Unit* att : botPet->getAttackers())
+        if (!u)
+            if (Creature* pet = GetBotsPet())
+                for (Unit* att : pet->getAttackers())
                 if (_canSwitchToTarget(u, att, byspell))
                     u = att;
         if (u)
@@ -7520,8 +7541,9 @@ void bot_ai::_OnZoneUpdate(uint32 zoneId, uint32 areaId)
             {
                 if (!me->HasAura(itr->second->spellId))
                     me->CastSpell(me, itr->second->spellId, true);
-                if (botPet && !botPet->HasAura(itr->second->spellId))
-                    botPet->CastSpell(botPet, itr->second->spellId, true);
+                if (Creature* pet = GetBotsPet())
+                    if (!pet->HasAura(itr->second->spellId))
+                        pet->CastSpell(pet, itr->second->spellId, true);
             }
         }
     }
@@ -7545,8 +7567,8 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
                 //me->RemoveOwnedAura(iter);
                 //we assume 1 aura at a time at most for area (once per 1.5 sec)
                 me->RemoveAurasDueToSpell(spellId);
-                if (botPet)
-                    botPet->RemoveAurasDueToSpell(spellId);
+                if (Creature* pet = GetBotsPet())
+                    pet->RemoveAurasDueToSpell(spellId);
                 break;
             }
         }
@@ -7558,8 +7580,9 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
             {
                 if (!me->HasAura(itr->second->spellId))
                     me->CastSpell(me, itr->second->spellId, true);
-                if (botPet && botPet->IsInWorld() && !botPet->HasAura(itr->second->spellId))
-                    botPet->CastSpell(botPet, itr->second->spellId, true);
+                if (Creature* pet = GetBotsPet())
+                    if (pet->IsInWorld() && !pet->HasAura(itr->second->spellId))
+                        pet->CastSpell(pet, itr->second->spellId, true);
             }
         }
 
@@ -7579,8 +7602,8 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
         {
             me->SetByteFlag(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_SANCTUARY);
             me->CombatStop();
-            if (botPet)
-                botPet->CombatStop();
+            if (Creature* pet = GetBotsPet())
+                pet->CombatStop();
         }
     }
     else if (me->HasByteFlag(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_SANCTUARY))
@@ -10707,8 +10730,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             else if (reason == -1)
             {
                 me->SetFaction(FACTION_TEMPLATE_NEUTRAL_HOSTILE);
-                if (botPet)
-                    botPet->SetFaction(FACTION_TEMPLATE_NEUTRAL_HOSTILE);
+                if (Creature* pet = GetBotsPet())
+                    pet->SetFaction(FACTION_TEMPLATE_NEUTRAL_HOSTILE);
                 BotYell(LocalizedNpcText(player, BOT_TEXT_DIE), player);
                 me->Attack(player, true);
                 break;
@@ -15375,8 +15398,8 @@ void bot_ai::InitFaction()
     //    faction = 35;
 
     me->SetFaction(faction);
-    if (botPet)
-        botPet->SetFaction(faction);
+    if (Creature* pet = GetBotsPet())
+        pet->SetFaction(faction);
     const_cast<CreatureTemplate*>(me->GetCreatureTemplate())->faction = faction;
 }
 
@@ -16449,7 +16472,14 @@ void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
 }
 void bot_ai::UnsummonPet(bool save)
 {
-    UnsummonCreature(botPet, save);
+    ObjectGuid const petGuid = botPetGUID;
+    Creature* pet = GetBotsPet();
+    botPetGUID.Clear();
+
+    if (!pet || pet->GetGUID() != petGuid)
+        return;
+
+    UnsummonCreature(pet, save);
 }
 
 void bot_ai::MoveInLineOfSight(Unit* /*u*/)
@@ -19129,8 +19159,9 @@ void bot_ai::Evade()
         return;
     }
 
-    if (botPet && !me->IsWithinDist2d(botPet, 20.0f))
-        return;
+    if (Creature* pet = GetBotsPet())
+        if (!me->IsWithinDist2d(pet, 20.0f))
+            return;
 
     if (!IsWanderer())
         _atHome = true;
@@ -20887,8 +20918,8 @@ void bot_ai::SetWanderer()
     if (IAmFree())
     {
         _wanderer = true;
-        if (botPet)
-            botPet->GetBotPetAI()->SetWanderer();
+        if (Creature* pet = GetBotsPet())
+            pet->GetBotPetAI()->SetWanderer();
     }
 }
 
@@ -21788,19 +21819,23 @@ void bot_ai::SetContestedPvP()
         Bcore::AIRelocationNotifier notifier(*me);
         Cell::VisitObjects(me, notifier, me->GetVisibilityRange());
     }
-    if (botPet && !botPet->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
+    if (Creature* pet = GetBotsPet())
     {
-        botPet->AddUnitState(UNIT_STATE_ATTACK_PLAYER);
-        Bcore::AIRelocationNotifier notifier(*botPet);
-        Cell::VisitObjects(me, notifier, me->GetVisibilityRange());
+        if (!pet->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
+        {
+            pet->AddUnitState(UNIT_STATE_ATTACK_PLAYER);
+            Bcore::AIRelocationNotifier notifier(*pet);
+            Cell::VisitObjects(me, notifier, me->GetVisibilityRange());
+        }
     }
 }
 void bot_ai::ResetContestedPvP()
 {
     _contestedPvPTimer = 0;
     me->ClearUnitState(UNIT_STATE_ATTACK_PLAYER);
-    if (botPet && botPet->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
-        botPet->ClearUnitState(UNIT_STATE_ATTACK_PLAYER);
+    if (Creature* pet = GetBotsPet())
+        if (pet->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
+            pet->ClearUnitState(UNIT_STATE_ATTACK_PLAYER);
 }
 void bot_ai::UpdateContestedPvP()
 {
@@ -21860,10 +21895,9 @@ void bot_ai::SendUpdateToOutOfRangeBotGroupMembers()
 
     _groupUpdateMask = GROUP_UPDATE_FLAG_NONE;
     _auraRaidUpdateMask = 0;
-    if (botPet) {
-        if(bot_pet_ai* pet= botPet->GetBotPetAI())
-            pet->ResetAuraUpdateMaskForRaid();
-    }
+    if (Creature* pet = GetBotsPet())
+        if (bot_pet_ai* petAI = pet->GetBotPetAI())
+            petAI->ResetAuraUpdateMaskForRaid();
         
 }
 
