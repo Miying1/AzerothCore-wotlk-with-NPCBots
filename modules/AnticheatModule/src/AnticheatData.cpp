@@ -1,5 +1,6 @@
 #include "AnticheatData.h"
 #include "DatabaseEnv.h"
+#include "Field.h"
 
 AnticheatData::AnticheatData() = default;
 
@@ -124,15 +125,15 @@ bool AnticheatData::GetDailyReportState() const
 
 void AnticheatData::LoadPersistentReports(Field* fields)
 {
-    creationTime = fields[1].GetUInt32();
-    average = fields[2].GetFloat();
-    totalReports = fields[3].GetUInt32();
-    typeReports[SPEED_HACK_REPORT] = fields[4].GetUInt32();
-    typeReports[FLY_HACK_REPORT] = fields[5].GetUInt32();
-    typeReports[JUMP_HACK_REPORT] = fields[6].GetUInt32();
-    typeReports[WALK_WATER_HACK_REPORT] = fields[7].GetUInt32();
-    typeReports[TELEPORT_PLANE_HACK_REPORT] = fields[8].GetUInt32();
-    typeReports[CLIMB_HACK_REPORT] = fields[9].GetUInt32();
+    creationTime = fields[1].Get<uint32>();
+    average = fields[2].Get<float>();
+    totalReports = fields[3].Get<uint32>();
+    typeReports[SPEED_HACK_REPORT] = fields[4].Get<uint32>();
+    typeReports[FLY_HACK_REPORT] = fields[5].Get<uint32>();
+    typeReports[JUMP_HACK_REPORT] = fields[6].Get<uint32>();
+    typeReports[WALK_WATER_HACK_REPORT] = fields[7].Get<uint32>();
+    typeReports[TELEPORT_PLANE_HACK_REPORT] = fields[8].Get<uint32>();
+    typeReports[CLIMB_HACK_REPORT] = fields[9].Get<uint32>();
 }
 
 void AnticheatData::ResetPersistentReports()

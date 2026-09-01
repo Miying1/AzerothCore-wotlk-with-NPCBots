@@ -18,29 +18,28 @@
 #include "Chat.h"
 #include "AnticheatMgr.h"
 #include "Configuration/Config.h"
+using namespace Acore::ChatCommands;
 
 class anticheat_commandscript : public CommandScript
 {
 public:
     anticheat_commandscript() : CommandScript("anticheat_commandscript") { }
 
-    std::vector<ChatCommand> GetCommands() const override
+    ChatCommandTable GetCommands() const override
     {
-        static std::vector<ChatCommand> anticheatCommandTable =
+        static ChatCommandTable anticheatCommandTable =
         {
-            { "global",         SEC_GAMEMASTER,     true,  &HandleAntiCheatGlobalCommand,         "" },
-            { "player",         SEC_GAMEMASTER,     true,  &HandleAntiCheatPlayerCommand,         "" },
-            { "delete",         SEC_ADMINISTRATOR,  true,  &HandleAntiCheatDeleteCommand,         "" },
-            { "handle",         SEC_ADMINISTRATOR,  true,  &HandleAntiCheatHandleCommand,         "" },
-            { "jail",           SEC_GAMEMASTER,     true,  &HandleAnticheatJailCommand,         "" },
-            { "warn",           SEC_GAMEMASTER,     true,  &HandleAnticheatWarnCommand,         "" },
-//            { NULL,             0,                     false, NULL,                                           "", NULL }
+            { "global",  HandleAntiCheatGlobalCommand,  SEC_GAMEMASTER,    Console::Yes },
+            { "player",  HandleAntiCheatPlayerCommand,  SEC_GAMEMASTER,    Console::Yes },
+            { "delete",  HandleAntiCheatDeleteCommand,  SEC_ADMINISTRATOR, Console::Yes },
+            { "handle",  HandleAntiCheatHandleCommand,  SEC_ADMINISTRATOR, Console::Yes },
+            { "jail",    HandleAnticheatJailCommand,    SEC_GAMEMASTER,    Console::Yes },
+            { "warn",    HandleAnticheatWarnCommand,    SEC_GAMEMASTER,    Console::Yes },
         };
 
-        static std::vector<ChatCommand> commandTable =
+        static ChatCommandTable commandTable =
         {
-            { "anticheat",      SEC_GAMEMASTER,     true, NULL,                     "",  anticheatCommandTable},
-//            { NULL,             0,                  false, NULL,                               "", NULL }
+            { "anticheat", anticheatCommandTable },
         };
 
         return commandTable;
@@ -48,7 +47,7 @@ public:
 
     static bool HandleAnticheatWarnCommand(ChatHandler* handler, const char* args)
     {
-        if (!sConfigMgr->GetBoolDefault("Anticheat.Enabled", 0))
+        if (!sConfigMgr->GetOption<bool>("Anticheat.Enabled", 0))
             return false;
 
         Player* pTarget = NULL;
@@ -87,7 +86,7 @@ public:
 
     static bool HandleAnticheatJailCommand(ChatHandler* handler, const char* args)
     {
-		if (!sConfigMgr->GetBoolDefault("Anticheat.Enabled", 0))
+		if (!sConfigMgr->GetOption<bool>("Anticheat.Enabled", 0))
             return false;
 
         Player* pTarget = NULL;
@@ -136,7 +135,7 @@ public:
 
     static bool HandleAntiCheatDeleteCommand(ChatHandler* handler, const char* args)
     {
-        if (!sConfigMgr->GetBoolDefault("Anticheat.Enabled", 0))
+        if (!sConfigMgr->GetOption<bool>("Anticheat.Enabled", 0))
             return false;
 
         std::string strCommand;
@@ -157,7 +156,7 @@ public:
             if (!player)
                 handler->PSendSysMessage("Player doesn't exist");
             else
-                sAnticheatMgr->AnticheatDeleteCommand(player->GetGUIDLow());
+                sAnticheatMgr->AnticheatDeleteCommand(player->GetGUID().GetCounter());
         }
 
         return true;
@@ -165,7 +164,7 @@ public:
 
     static bool HandleAntiCheatPlayerCommand(ChatHandler* handler, const char* args)
     {
-		if (!sConfigMgr->GetBoolDefault("Anticheat.Enabled", 0))
+		if (!sConfigMgr->GetOption<bool>("Anticheat.Enabled", 0))
             return false;
 
         std::string strCommand;
@@ -183,12 +182,12 @@ public:
             player = ObjectAccessor::FindPlayerByName(strCommand.c_str()); // get player by name
 
             if (player)
-                guid = player->GetGUIDLow();
+                guid = player->GetGUID().GetCounter();
         }else
         {
             player = handler->getSelectedPlayer();
             if (player)
-                guid = player->GetGUIDLow();
+                guid = player->GetGUID().GetCounter();
         }
 
         if (!guid)
@@ -245,7 +244,7 @@ public:
 
     static bool HandleAntiCheatGlobalCommand(ChatHandler* handler, const char* /* args */)
     {
-		if (!sConfigMgr->GetBoolDefault("Anticheat.Enabled", 0))
+		if (!sConfigMgr->GetOption<bool>("Anticheat.Enabled", 0))
         {
             handler->PSendSysMessage("The Anticheat System is disabled.");
             return true;

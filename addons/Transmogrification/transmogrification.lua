@@ -12,23 +12,9 @@ local defaultTransmogrificationOptions = {
 	global = {
 		windowScale = 1.0,
 		windowOpacity = 1.0,
-		windowLock = false,
-		displayCollectionMessages = true
+		windowLock = false
 	}
 }
-
--- 挂载系统聊天消息函数。
-function Transmogrification:HookChatFilter()
-	ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(self, event, msg)
-		-- 如果玩家决定隐藏新的物品外观消息，则过滤外观收藏消息。
-		if not Transmogrification.db.global.displayCollectionMessages and
-			-- 确保新的物品外观消息与服务器发送的本地化文本一致。
-			msg:find(L["has been added to your appearance collection."]) then
-			return true
-		end
-		return false
-	end)
-end
 
 -- 应用自定义幻化窗口样式。
 function Transmogrification:ApplyWindowSettings()
@@ -74,11 +60,6 @@ function Transmogrification:HandleSlashCommand(input)
 	-- 如果命令参数是“config(s)”、“option(s)”或“setting(s)”，则显示选项面板。
 	if input:trim() == "config" or input:trim() == "configs" or input:trim() == "option" or input:trim() == "options" or input:trim() == "setting" or input:trim() == "settings" then
 		InterfaceOptionsFrame_OpenToCategory(addonName)
-	-- 如果命令参数是“sync”，则从服务器同步已收集外观到已收集外观表，并在完成后发送重载提示。
-	elseif input:trim() == "sync" then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["Querying the server for collected transmogrification appearances..."] .. "\n")
-		ChatFrame1EditBox:SetText(".transmog sync")
-		ChatEdit_SendText(ChatFrame1EditBox, 1)
 	else
 		if TransmogrificationFrame and TransmogrificationFrame:IsShown() then
 			TransmogrificationFrame:Hide()

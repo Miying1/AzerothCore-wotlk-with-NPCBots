@@ -296,10 +296,10 @@ function OnClickItemTransmogrificationButton(btn, buttonType)
 	PlaySound("igMainMenuOptionCheckBoxOn", "sfx")
 	local itemID = btn:GetID()
 	local textureName = GetItemIcon(itemID)
-	local slotName = transmogrificationEquipmentSlotMap[CurrentItemSlot]
+	local slotName = transmogrificationEquipmentSlotMap[tonumber(CurrentItemSlot)]
 
 	-- 判断装备栏位中是否有物品。
-	local equipSlot = GetEquipmentSlot(equipmentSlotIDs[slotName])
+	local equipSlot = slotName and GetEquipmentSlot(equipmentSlotIDs[slotName])
 	local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 
 	if not hasItem then
@@ -341,6 +341,18 @@ end
 function TransmogrificationHandler.TransmogrificationFrame(player)
 	OnClickTransmogButton(nil)
 	TransmogrificationFrame:Show()
+	SyncTransmogApplySerial()
+end
+
+-- 打开幻化窗口时向服务端同步 apply 串行号，避免客户端重载后 serial 归零导致“请求已过期”。
+function SyncTransmogApplySerial()
+	AIO.Handle("TransmogrificationServer", "SyncApplySerial")
+end
+
+-- 接收服务端回传的 apply 串行号，将本地计数器对齐，使后续应用请求通过过期校验。
+function TransmogrificationHandler.SetApplySerial(player, serial)
+	applyRequestSerial = tonumber(serial) or 0
+	activeApplyRequestSerial = applyRequestSerial
 end
 
 local TransmogErrorMessages = {
@@ -387,31 +399,27 @@ function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, ap
 end
 
 function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
+	-- 直接显示玩家当前全身装备（含双持的两把武器）。
+	-- 注意：不要先 Undress 再用 TryOn/SetInventoryItem 重新着装——副手通用单手武器
+	-- （INVTYPE_WEAPON）在 Undress 后无法在模型副手栏渲染，会导致只显示主手武器。
 	TransmogrificationModelFrame:SetUnit("player")
 
 	-- 确定使用哪个 ID 表。
 	local transmogrificationTable = useTransmogrificationPreview and previewTransmogrificationIDs or currentTransmogrificationIDs
 
-	-- 卸下模型装备，稍后将在函数下方更新外观。
-	TransmogrificationModelFrame:Undress()
-
-	-- 为没有幻化的装备栏位应用装备。
-	for slotName, slotID in pairs(equipmentSlotIDs) do
-		local transmogrificationID = transmogrificationTable[slotName]
-
-		-- 如果没有幻化外观或物品已恢复，则显示原始物品。
-		if transmogrificationID == nil or transmogrificationID == -1 then
-			local itemID = GetItemIDForEquipmentSlot(slotName)
-			if itemID then
-				TransmogrificationModelFrame:TryOn(itemID)
-			end
-		end
-	end
-
-	-- 为已幻化的物品应用幻化外观。
+	-- 仅对已幻化（且非恢复）的槽位覆盖为幻化外观；其余槽位保持玩家当前装备（双持时两把武器均正常显示）。
 	for slotName, transmogrificationID in pairs(transmogrificationTable) do
 		if transmogrificationID and transmogrificationID ~= 0 and transmogrificationID ~= -1 then
-			TransmogrificationModelFrame:TryOn(transmogrificationID)
+			if slotName == "SecondaryHand" then
+				-- 通用单手武器（INVTYPE_WEAPON）作为副手时，模型无法在副手栏渲染，
+				-- 若用 TryOn 又会被误塞进主手栏覆盖主手，因此保留玩家当前副手装备显示。
+				local _, _, _, _, _, _, _, _, equipSlot = GetItemInfo(transmogrificationID)
+				if equipSlot ~= "INVTYPE_WEAPON" then
+					TransmogrificationModelFrame:TryOn(transmogrificationID)
+				end
+			else
+				TransmogrificationModelFrame:TryOn(transmogrificationID)
+			end
 		end
 	end
 
@@ -658,19 +666,28 @@ local function GetTransmogrificationCost()
 		local equipSlot = GetEquipmentSlot(entryID)
 		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
 		local equippedItemID = hasItem and GetInventoryItemID("player", equipSlot) or nil
+
 		-- 仅对“应用一个具体外观”计费。恢复原外观（transmogID = -1）属于取消幻化的特殊操作，
 		-- 不收取金币，与服务端保持一致；若请求外观等于当前已应用幻化或装备实物自身外观，亦不计费。
 		if hasItem and transmogID and transmogID ~= -1 and transmogID ~= currentID and transmogID ~= equippedItemID then
 			local itemID = equippedItemID
-			-- 服务端按当前装备的物品 class 计算费用，客户端使用相同的分类规则。
+			-- 服务端按当前装备的物品 class 计算费用，客户端使用相同规则。
+			-- 本客户端(3.3.5 模拟服)不存在 GetItemClassInfo，故改用 GetItemInfo 返回的类别判定（数字或本地化字符串，均已兼容）。
 			local _, _, _, _, _, itemClass = GetItemInfo(itemID)
-			local weaponClass = GetItemClassInfo(2)
-			local armorClass = GetItemClassInfo(4)
-			if not itemClass or not weaponClass or not armorClass then
+			-- 兼容数字与本地化字符串两种返回形式，判定武器/护甲。
+			local isWeapon, isArmor
+			if type(itemClass) == "number" then
+				isWeapon = (itemClass == 2)
+				isArmor = (itemClass == 4)
+			else
+				isWeapon = (itemClass == "武器" or itemClass == "Weapon")
+				isArmor = (itemClass == "护甲" or itemClass == "Armor")
+			end
+			if not itemClass then
 				hasUnknownCost = true
-			elseif itemClass == weaponClass then
+			elseif isWeapon then
 				totalCost = totalCost + WEAPON_TRANSMOG_COST
-			elseif itemClass == armorClass then
+			elseif isArmor then
 				totalCost = totalCost + ARMOR_TRANSMOG_COST
 			else
 				hasUnknownCost = true
@@ -683,9 +700,9 @@ end
 
 -- 根据是否存在待应用改动，更新“应用幻化”按钮的可点击状态，并刷新所需金币显示。
 function UpdateTransmogApplyState()
-	local hasChanges = HasTransmogChanges()
+local hasChanges = HasTransmogChanges()
 
-	if _G["SaveButton"] then
+if _G["SaveButton"] then
 		if hasChanges then
 			_G["SaveButton"]:Enable()
 		else
@@ -886,18 +903,19 @@ function OnClickApplyAllowTransmogrifications(btn)
 	for slotName, entryID in pairs(equipmentSlotIDs) do
 		local transmogID = previewTransmogrificationIDs[slotName]
 		local currentID = currentTransmogrificationIDs[slotName]
-		local requestedID = transmogID
-		if requestedID == nil and currentID ~= nil then
-			requestedID = -1
-		end
 
-		local equipSlot = GetEquipmentSlot(entryID)
-		local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
-		if hasItem and requestedID ~= nil and requestedID ~= currentID then
-			pendingApplyCount = pendingApplyCount + 1
-			pendingApplySlots[entryID] = true
+		-- 仅处理用户明确操作过的槽位（preview 非 nil）。
+		-- preview 为 nil 表示该槽位未被改动，必须跳过；否则会被误判为“移除当前幻化”
+		-- （例如同窗口内先应用 A 再应用 B 时，A 的 preview 已清空为 nil，却会被错发 -1 删除）。
+		if transmogID ~= nil then
+			local equipSlot = GetEquipmentSlot(entryID)
+			local hasItem = equipSlot and GetInventoryItemID("player", equipSlot) ~= nil
+			if hasItem and transmogID ~= currentID then
+				pendingApplyCount = pendingApplyCount + 1
+				pendingApplySlots[entryID] = true
 
-			AIO.Handle("TransmogrificationServer", "EquipTransmogItem", requestedID, entryID, activeApplyRequestSerial)
+				AIO.Handle("TransmogrificationServer", "EquipTransmogItem", transmogID, entryID, activeApplyRequestSerial)
+			end
 		end
 	end
 
@@ -1376,9 +1394,16 @@ function TransmogrificationHandler.InitTab(player, newSlotItemIDs, responseSlot,
 					child.itemModel:SetRotation(10, false)
 				elseif (CurrentItemSlot == PLAYER_VISIBLE_ITEM_16_ENTRYID) then -- 主手
 					child.itemModel:SetRotation(1, false)
+				elseif (CurrentItemSlot == PLAYER_VISIBLE_ITEM_17_ENTRYID) then -- 副手
+					-- 副手通用单手武器经 TryOn 后会渲染在主手位置，故沿用主手偏转角度以展示武器。
+					child.itemModel:SetRotation(1, false)
 				else
 					child.itemModel:SetRotation(0, false)
 				end
+
+				-- 注意：3.3.5 的 DressUpModel 既无 SetItem，也无法把任意 INVTYPE_WEAPON 物品
+				-- 强制渲染到副手栏（TryOn 会将其误塞进主手栏）。这是客户端限制，副手通用单手武器
+				-- 的收藏预览只能以主手形式呈现；其余栏位正常试穿。
 				child.itemModel:Undress()
 				child.itemModel:TryOn(newSlotItemIDs[i])
 
@@ -1485,7 +1510,6 @@ end
 
 function OnTransmogrificationFrameLoad(self)
 	Title:SetText(L["Transmogrify"])
-	Subtitle:SetText(L["Collected Item Appearances"])
 	TransmogPaginationText:SetText(string.format(L["Page %s"], 1))
 
 	-- 加载幻化窗口时默认隐藏警告文本。
@@ -1513,8 +1537,8 @@ function OnTransmogrificationFrameLoad(self)
 	innerCharacterTransmogTab:Show()
 	characterTransmogTab:SetScript("OnEnter", TransmogrifyToolTip)
 	characterTransmogTab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-	characterTransmogTab:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() end)
-	TransmogCloseButton:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() end)
+	characterTransmogTab:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() SyncTransmogApplySerial() end)
+	TransmogCloseButton:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() SyncTransmogApplySerial() end)
 
 	PaperDollFrame:SetScript("OnShow", PaperDollFrame_OnShow)
 

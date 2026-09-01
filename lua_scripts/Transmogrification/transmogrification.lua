@@ -498,6 +498,8 @@ function Transmog_OnEquipItem(event, player, item, bag, slot)
 				state.realItem = itemID
 				if state.item then
 					SaveCharacterTransmog(player, displaySlot, state.item, itemID)
+					-- 换装瞬间立即把已保留的幻化外观套用到新装备上（正式服式即时生效）。
+					player:SetUInt32Value(displaySlot, state.item)
 				end
 			end
 		end
@@ -731,6 +733,13 @@ end
 function TransmogrificationHandler.displayTransmog(player, spellid)
 	AIO.Handle(player, "TransmogrificationServer", "TransmogrificationFrame")
 	return false
+end
+
+-- 客户端打开幻化窗口时调用，把当前已记录的 apply 串行号回传，
+-- 使客户端本地计数器与服务端对齐，避免客户端重载后 serial 归零导致“请求已过期”。
+function TransmogrificationHandler.SyncApplySerial(player)
+	local playerGUID = player:GetGUIDLow()
+	AIO.Handle(player, "TransmogrificationServer", "SetApplySerial", latestApplyRequestSerial[playerGUID] or 0)
 end
 
 function TransmogrificationHandler.Print(player, ...)

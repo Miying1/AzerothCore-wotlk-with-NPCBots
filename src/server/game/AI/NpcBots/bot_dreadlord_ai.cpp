@@ -183,7 +183,7 @@ public:
             if (IsCasting())
                 return;
 
-            if (IsSpellReady(INFERNO_1, diff) && !pet && me->IsInCombat() &&
+            if (IsSpellReady(INFERNO_1, diff) && !GetBotsPet() && me->IsInCombat() &&
                 me->GetPower(POWER_MANA) >= INFERNAL_COST && Rand() < 60)
             {
                 Unit* target = FindAOETarget(CalcSpellMaxRange(INFERNO_1));

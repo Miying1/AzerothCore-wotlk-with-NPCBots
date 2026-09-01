@@ -362,6 +362,7 @@ public:
                 DoNonCombatActions(diff);
 
             //pet
+            Creature* pet = GetBotsPet();
             if ((!pet || !pet->IsAlive()) &&
                 IsSpellReady(SUMMON_WATER_ELEMENTAL_1, diff) && !IsCasting() && (IAmFree() || master->IsInCombat()))
                 if (doCast(me, GetSpell(SUMMON_WATER_ELEMENTAL_1)))

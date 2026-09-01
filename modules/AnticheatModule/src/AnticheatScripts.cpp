@@ -2,6 +2,9 @@
 #include "AnticheatMgr.h"
 #include "Object.h"
 #include "AccountMgr.h"
+#include "Log.h"
+#include "GameTime.h"
+#include "Utilities/Timer.h"
 
 int64 resetTime = 0;
 uint32 saveQueueTimer = 0;
@@ -9,19 +12,19 @@ class AnticheatPlayerScript : public PlayerScript
 {
 public:
 	AnticheatPlayerScript()
-		: PlayerScript("AnticheatPlayerScript")
+		: PlayerScript("AnticheatPlayerScript", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT })
 	{
 	}
 
-	void OnLogout(Player* player) override
+	void OnPlayerLogout(Player* player) override
 	{
 		sAnticheatMgr->HandlePlayerLogout(player);
 	}
 
-	void OnLogin(Player* player) override
+	void OnPlayerLogin(Player* player) override
 	{
 		sAnticheatMgr->HandlePlayerLogin(player);
-		if(sConfigMgr->GetBoolDefault("Anticheat.LoginMessage", true))
+		if(sConfigMgr->GetOption<bool>("Anticheat.LoginMessage", true))
 			ChatHandler(player->GetSession()).PSendSysMessage("This server is running an Anticheat Module.");
 	}
 };
@@ -29,7 +32,7 @@ class AnticheatWorldScript : public WorldScript
 {
 public:
 	AnticheatWorldScript()
-		: WorldScript("AnticheatWorldScript")
+		: WorldScript("AnticheatWorldScript", { WORLDHOOK_ON_UPDATE, WORLDHOOK_ON_AFTER_CONFIG_LOAD })
 	{
 	}
 	void OnUpdate(uint32 diff) override
@@ -37,12 +40,12 @@ public:
 		if (!resetTime)
 			UpdateReportResetTime();
 
-		if (sWorld->GetGameTime() > resetTime)
+		if (GameTime::GetGameTime().count() > resetTime)
 		{
-			sLog->outString( "Anticheat: Resetting daily report states.");
+			LOG_INFO("modules.anticheat", "Anticheat: Resetting daily report states.");
 			sAnticheatMgr->ResetDailyReportStates();
 			UpdateReportResetTime();
-			sLog->outString( "Anticheat: Next daily report reset: %u", resetTime);
+			LOG_INFO("modules.anticheat", "Anticheat: Next daily report reset: {}", resetTime);
 		}
 		if (saveQueueTimer <= diff)
 		{
@@ -52,41 +55,25 @@ public:
 		else
 			saveQueueTimer -= diff;
 	}
-	void OnBeforeConfigLoad(bool reload) override
-	{
-		/* from skeleton module */
-		if (!reload) {
-			std::string conf_path = _CONF_DIR;
-			std::string cfg_file = conf_path + "/Anticheat.conf";
-			#ifdef WIN32
-				cfg_file = "Anticheat.conf";
-			#endif // WIN32
-			std::string cfg_def_file = cfg_file + ".dist";
-			sConfigMgr->LoadMore(cfg_def_file.c_str());
-
-			sConfigMgr->LoadMore(cfg_file.c_str());
-		}
-		/* end from skeleton module */
-	}
 	void OnAfterConfigLoad(bool reload) override
 	{
-		sLog->outString("AnticheatModule Loaded.");
+		LOG_INFO("modules.anticheat", "AnticheatModule Loaded.");
 	}
 	void UpdateReportResetTime()
 	{
-		resetTime = sWorld->GetNextTimeWithDayAndHour(-1, 6);
+		resetTime = Acore::Time::GetNextTimeWithDayAndHour(-1, 6);
 	}
 };
 class AnticheatMovementHandlerScript : public MovementHandlerScript
 {
 	public:
 	AnticheatMovementHandlerScript()
-		: MovementHandlerScript("AnticheatMovementHandlerScript")
+		: MovementHandlerScript("AnticheatMovementHandlerScript", { MOVEMENTHOOK_ON_PLAYER_MOVE })
 	{
 	}
     void OnPlayerMove(Player* player, MovementInfo mi, uint32 opcode) override
     {
-		if (!AccountMgr::IsGMAccount(player->GetSession()->GetSecurity()) || sConfigMgr->GetBoolDefault("Anticheat.EnabledOnGmAccounts", false))
+		if (!AccountMgr::IsGMAccount(player->GetSession()->GetSecurity()) || sConfigMgr->GetOption<bool>("Anticheat.EnabledOnGmAccounts", false))
 			sAnticheatMgr->StartHackDetection(player, mi, opcode);
     }
 };

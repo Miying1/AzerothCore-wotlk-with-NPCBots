@@ -563,11 +563,17 @@ public:
                 return;
 
             //pet is killed or unreachable
-            if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!pet || !pet->IsAlive() || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
+            if (Creature* pet = GetBotsPet())
+            {
+                if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
+                    (!pet->IsAlive() || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
+                {
+                    SummonBotPet();
+                }
+            }
+            else if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25)
             {
                 SummonBotPet();
-                pet = nullptr;
             }
 
             if (IsPotionReady())

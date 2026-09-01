@@ -3,7 +3,7 @@
 ## Notes: Adds the Transmogrification system to the Wrath of the Lich King client.
 ## Author: DanielTheDeveloper
 ## Version: 2.5.3
-## SavedVariables: TransmogrificationOptions, CollectedAppearances
+## SavedVariables: TransmogrificationOptions
 ## OptionalDeps: Ace3
 ## Deps: AIO_Client
 

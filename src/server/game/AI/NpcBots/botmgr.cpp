@@ -1455,7 +1455,7 @@ void BotMgr::BuildBotPartyMemberStatsPacket(ObjectGuid bot_guid, WorldPacket* da
         return;
     }
 
-    Creature const* pet = bot->GetBotsPet();
+    Unit const* pet = bot->GetBotsPet();
     Powers powerType = bot->GetPowerType();
 
     *data << uint8(0);                                       // only for SMSG_PARTY_MEMBER_STATS_FULL, probably arena/bg related
@@ -1543,7 +1543,7 @@ void BotMgr::BuildBotPartyMemberStatsPacket(ObjectGuid bot_guid, WorldPacket* da
     {
         for (auto i : NPCBots::index_array<uint8, MAX_AURAS_GROUP_UPDATE>)
         {
-            if (AuraApplication const* aurApp = const_cast<Creature*>(pet)->GetVisibleAura(i))
+            if (AuraApplication const* aurApp = const_cast<Unit*>(pet)->GetVisibleAura(i))
             {
                 petAuraMask |= uint64(1) << i;
                 *data << uint32(aurApp->GetBase()->GetId());
@@ -1639,7 +1639,7 @@ void BotMgr::BuildBotPartyMemberStatsChangedPacket(Creature const* bot, WorldPac
         }
     }
 
-    Creature const* pet = bot->GetBotsPet();
+    Unit const* pet = bot->GetBotsPet();
     if (mask & GROUP_UPDATE_FLAG_PET_GUID)
     {
         if (pet)
@@ -1708,13 +1708,13 @@ void BotMgr::BuildBotPartyMemberStatsChangedPacket(Creature const* bot, WorldPac
     {
         if (pet)
         {
-            uint64 auramask = GetBotPetAuraUpdateMaskForRaid(pet);
+            uint64 auramask = GetBotPetAuraUpdateMaskForRaid(pet->ToCreature());
             *data << uint64(auramask);
             for (auto i : NPCBots::index_array<uint8, MAX_AURAS_GROUP_UPDATE>)
             {
                 if (auramask & (uint64(1) << i))
                 {
-                    AuraApplication const* aurApp = const_cast<Creature*>(pet)->GetVisibleAura(i);
+                    AuraApplication const* aurApp = const_cast<Creature*>(pet->ToCreature())->GetVisibleAura(i);
                     *data << uint32(aurApp ? aurApp->GetBase()->GetId() : 0);
                     *data << uint8(aurApp ? aurApp->GetFlags() : 0);
                 }

@@ -776,7 +776,7 @@ public:
 
         TempSummon* wpc = map->SummonCreature(VISUAL_WAYPOINT, *wp);
         if (!wpc)
-            return false;
+            return nullptr;
 
         wpc->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
         wpc->AIM_Initialize(new WanderNode_AI(wpc, wp));
