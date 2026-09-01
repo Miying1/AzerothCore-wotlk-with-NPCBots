@@ -128,8 +128,8 @@ local SLOT_INVENTORY_TYPES = {
 	[PLAYER_VISIBLE_ITEM_9_ENTRYID] = { 9 },
 	[PLAYER_VISIBLE_ITEM_10_ENTRYID] = { 10 },
 	[PLAYER_VISIBLE_ITEM_15_ENTRYID] = { 16 },
-	[PLAYER_VISIBLE_ITEM_16_ENTRYID] = { 13, 17, 21 },
-	[PLAYER_VISIBLE_ITEM_17_ENTRYID] = { 13, 17, 22, 23, 14 },
+	[PLAYER_VISIBLE_ITEM_16_ENTRYID] = { 13, 17, 21, 22 },
+	[PLAYER_VISIBLE_ITEM_17_ENTRYID] = { 13, 17, 21, 22, 23, 14 },
 	[PLAYER_VISIBLE_ITEM_18_ENTRYID] = { 15, 25, 26 },
 	[PLAYER_VISIBLE_ITEM_19_ENTRYID] = { 19 },
 }
@@ -140,6 +140,29 @@ local function IsAllowedInventoryType(slot, inventoryType)
 			return true
 		end
 	end
+	return false
+end
+
+local function IsAllowedInventoryTypeForEquippedItem(slot, inventoryType, equippedItem)
+	if slot ~= PLAYER_VISIBLE_ITEM_17_ENTRYID or not equippedItem then
+		return IsAllowedInventoryType(slot, inventoryType)
+	end
+
+	local equippedTemplate = equippedItem:GetItemTemplate()
+	if not equippedTemplate then
+		return false
+	end
+
+	local equippedClass = equippedTemplate:GetClass()
+	local equippedInventoryType = equippedTemplate:GetInventoryType()
+	if equippedInventoryType == 14 then
+		return inventoryType == 14
+	elseif equippedInventoryType == 23 then
+		return inventoryType == 23
+	elseif equippedClass == 2 then
+		return inventoryType == 13 or inventoryType == 17 or inventoryType == 21 or inventoryType == 22
+	end
+
 	return false
 end
 
@@ -206,10 +229,10 @@ local function ValidateTransmogItem(player, itemID, slot)
 	if (itemClass ~= 2 and itemClass ~= 4) or itemClass ~= equippedClass then
 		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
-	if not IsAllowedInventoryType(numericSlot, inventoryType) then
+	if not IsAllowedInventoryTypeForEquippedItem(numericSlot, inventoryType, equippedItem) then
 		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
-	if not IsAllowedInventoryType(numericSlot, equippedInventoryType) then
+	if not IsAllowedInventoryTypeForEquippedItem(numericSlot, equippedInventoryType, equippedItem) then
 		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 	if itemClass == 4 and RESTRICT_ARMOR_TRANSMOG_TO_SIMILAR_MATERIALS and itemSubType ~= equippedSubType then
@@ -741,8 +764,8 @@ function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, req
         [PLAYER_VISIBLE_ITEM_9_ENTRYID] = "= 9",
         [PLAYER_VISIBLE_ITEM_10_ENTRYID] = "= 10",
         [PLAYER_VISIBLE_ITEM_15_ENTRYID] = "= 16",
-        [PLAYER_VISIBLE_ITEM_16_ENTRYID] = "IN (13, 17, 21)",
-        [PLAYER_VISIBLE_ITEM_17_ENTRYID] = "IN (13, 17, 22, 23, 14)",
+        [PLAYER_VISIBLE_ITEM_16_ENTRYID] = "IN (13, 17, 21, 22)",
+        [PLAYER_VISIBLE_ITEM_17_ENTRYID] = "IN (13, 17, 21, 22, 23, 14)",
         [PLAYER_VISIBLE_ITEM_18_ENTRYID] = "IN (15, 25, 26)",
         [PLAYER_VISIBLE_ITEM_19_ENTRYID] = "= 19"
     }
@@ -769,13 +792,7 @@ function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, req
 
     local filteredItems = {}
     for _, appearance in ipairs(collectionCache.list) do
-        local matchesSlot = false
-        for inventoryType in string.gmatch(inventoryTypes, "%d+") do
-            if appearance.inventoryType == tonumber(inventoryType) then
-                matchesSlot = true
-                break
-            end
-        end
+        local matchesSlot = IsAllowedInventoryTypeForEquippedItem(slot, appearance.inventoryType, currentItem)
         local matchesRestrictions = true
         if equippedItemType == 4 and RESTRICT_ARMOR_TRANSMOG_TO_SIMILAR_MATERIALS then
             matchesRestrictions = appearance.inventorySubType == equippedItemSubType
@@ -821,8 +838,8 @@ function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, req
 		[PLAYER_VISIBLE_ITEM_9_ENTRYID] = "= 9",
 		[PLAYER_VISIBLE_ITEM_10_ENTRYID] = "= 10",
 		[PLAYER_VISIBLE_ITEM_15_ENTRYID] = "= 16",
-		[PLAYER_VISIBLE_ITEM_16_ENTRYID] = "IN (13, 17, 21)",
-		[PLAYER_VISIBLE_ITEM_17_ENTRYID] = "IN (13, 17, 22, 23, 14)",
+		[PLAYER_VISIBLE_ITEM_16_ENTRYID] = "IN (13, 17, 21, 22)",
+		[PLAYER_VISIBLE_ITEM_17_ENTRYID] = "IN (13, 17, 21, 22, 23, 14)",
 		[PLAYER_VISIBLE_ITEM_18_ENTRYID] = "IN (15, 25, 26)",
 		[PLAYER_VISIBLE_ITEM_19_ENTRYID] = "= 19"
 	}
@@ -856,13 +873,7 @@ function TransmogrificationHandler.SetCurrentSlotItemIDs(player, slot, page, req
 	end
 	local filteredItems = {}
 	for _, appearance in ipairs(collectionCache.list) do
-		local matchesSlot = false
-		for inventoryType in string.gmatch(inventoryTypes, "%d+") do
-			if appearance.inventoryType == tonumber(inventoryType) then
-				matchesSlot = true
-				break
-			end
-		end
+		local matchesSlot = IsAllowedInventoryTypeForEquippedItem(slot, appearance.inventoryType, currentItem)
 		local searchableText = string.lower(tostring(appearance.itemName or ""))
 		local matchesSearch = string.find(searchableText, normalizedSearch, 1, true) or string.find(tostring(appearance.displayID), normalizedSearch, 1, true)
 		if matchesSlot and matchesSearch and matchesRestrictions(appearance) then
