@@ -4,48 +4,58 @@
 
 ###################################################################################################
 #     Anticheat.Enable
-#        Description: Enables or disables the Anticheat System functionality
-#        Default:     1 - (Enabled)
-#                     0 - (Disabled)
+#        说明：启用或禁用反作弊系统功能。
+#        默认值：1 -（启用）
+#                 0 -（禁用）
 
+# 是否启用反作弊系统。
 Anticheat.Enabled = 1
-#Enable detection for GM accounts
+# 是否对 GM 账号启用反作弊检测。
 Anticheat.EnabledOnGmAccounts = 0
 
 #     Anticheat.ReportsForIngameWarnings
-#        Description: How many reports the player must have to notify to GameMasters ingame when he generates a new report.
-#        Default:     70
+#        说明：玩家产生新报告时，累计达到此数量后，在游戏内通知 GM。
+#        默认值：70
 
+# 触发游戏内 GM 警告所需的玩家报告数量。
 Anticheat.ReportsForIngameWarnings = 70
 
 #     Anticheat.LoginMessage
-#        Description: Enable login message "This server is running an Anticheat module."
-#     	 Default: 1	
+#        说明：启用登录提示“此服务器正在运行反作弊模块”。
+#        默认值：1
 
-Anticheat.LoginMessage = 1
+# 是否在玩家登录时显示反作弊模块提示消息。
+Anticheat.LoginMessage = 0
 
 #     Anticheat.Detect
-#        Description: It represents which detections are enabled.
-#		Default 1 (climbhack = 0 by default)
+#        说明：控制各项反作弊检测是否启用。
+#        默认值：1（攀爬检测默认为 0）
+# 是否检测飞行作弊。
 Anticheat.DetectFlyHack = 1
-#Checks moveflag ascending (may give flase positives)
+# 是否进行更严格的飞行移动标志检测，可能产生误报。
 Anticheat.StricterFlyHackCheck = 0
-#kick option for first detect on flyhack, if false positives disable(disabled by default)
+# 首次检测到飞行作弊时是否踢出玩家；如出现误报，请禁用此项（默认禁用）。
 Anticheat.KickPlayerFlyHack = 0
-Anticheat.DetectWaterWalkHack = 1
-#kick option for first detect on waterwalkhack, if false positives disable(disabled by default)
+# 是否检测水上行走作弊。
+Anticheat.DetectWaterWalkHack = 0
+# 首次检测到水上行走作弊时是否踢出玩家；如出现误报，请禁用此项（默认禁用）。
 Anticheat.KickPlayerWaterWalkHack = 0
+# 是否检测跳跃作弊。
 Anticheat.DetectJumpHack = 1
+# 是否检测平面传送作弊。
 Anticheat.DetectTelePlaneHack = 1
+# 是否检测移动速度作弊。
 Anticheat.DetectSpeedHack = 1
 
-# 速度检测允许的浮点误差倍率
+# 速度检测允许的浮点误差倍率。
 Anticheat.SpeedTolerance = 1.10
+# 是否检测攀爬作弊。
 Anticheat.DetectClimbHack = 0
 
 
 #     Anticheat.MaxReportsForDailyReport
-#        Description: How many reports must the player have to make a report that it is in DB for a day (not only during the player's session).
-#        Default:     70
+#        说明：玩家报告在数据库中持续保留一天所需的报告数量，而不仅限于玩家当前会话期间。
+#        默认值：70
 
+# 玩家报告达到此数量后，将生成持续一天的数据库报告。
 Anticheat.MaxReportsForDailyReport = 70

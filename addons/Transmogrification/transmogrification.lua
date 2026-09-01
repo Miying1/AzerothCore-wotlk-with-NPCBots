@@ -50,24 +50,7 @@ function Transmogrification:ApplyWindowSettings()
 		TransmogrificationFrame:RegisterForDrag("LeftButton")
 	end
 end
-
--- 重载提示函数。
-function Transmogrification:DisplayReloadPrompt()
-	StaticPopupDialogs["TRANSMOGRIFICATION_RELOAD_PROMPT"] = {
-		text = L["Would you like to reload the interface?"],
-		button1 = L["Yes"],
-		button2 = L["No"],
-		OnAccept = function()
-			ReloadUI()
-		end,
-		timeout = 0,
-		whileDead = true,
-		hideOnEscape = true,
-		preferredIndex = 3,
-	}
-	StaticPopup_Show("TRANSMOGRIFICATION_RELOAD_PROMPT")
-end
-
+ 
 function Transmogrification:OnInitialize()
 	-- 初始化幻化选项数据库与选项表。
 	self.db = LibStub("AceDB-3.0"):New("TransmogrificationOptions", defaultTransmogrificationOptions)
