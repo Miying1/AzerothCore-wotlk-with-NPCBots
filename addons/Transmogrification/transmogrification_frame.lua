@@ -116,7 +116,6 @@ local pendingApplySlots = {}
 local applyTimeoutRemaining = 0
 local equipmentChangeSerial = 0
 local equipmentChangeEventRegistered = false
-local collectionMonitorRegistered = false
 local currentSlotTooltip = nil
 originalTransmogrificationIDs = originalTransmogrificationIDs or {}
 previewTransmogrificationIDs = {}
@@ -344,7 +343,16 @@ function TransmogrificationHandler.TransmogrificationFrame(player)
 	TransmogrificationFrame:Show()
 end
 
-function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID, requestSerial)
+local TransmogErrorMessages = {
+	[1] = "幻化请求无效。",
+	[2] = "该栏位没有装备物品。",
+	[3] = "该外观尚未收藏。",
+	[4] = "该外观与当前装备不兼容。",
+	[5] = "金币不足，无法应用幻化。",
+	[6] = "幻化请求已过期，请重新操作。",
+}
+
+function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, appliedItemID, realItemID, requestSerial, errorCode)
 
 	if requestSerial ~= activeApplyRequestSerial then
 		return
@@ -357,6 +365,11 @@ function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, ap
 	pendingApplySlots[numericSlot] = nil
 	pendingApplyCount = math.max(0, pendingApplyCount - 1)
 	local part = transmogrificationEquipmentSlotMap[numericSlot]
+	if not success and errorCode then
+		local message = TransmogErrorMessages[tonumber(errorCode)] or L["Transmogrification failed."]
+		DEFAULT_CHAT_FRAME:AddMessage("|cffff2020" .. message .. "|r")
+	end
+
 	if part and success then
 		if appliedItemID == -1 then
 			currentTransmogrificationIDs[part] = nil
@@ -371,67 +384,6 @@ function TransmogrificationHandler.ApplyTransmogResult(player, slot, success, ap
 	if pendingApplyCount == 0 then
 		LoadTransmogrificationsFromCurrentIDs(false)
 	end
-end
-
--- 接收并保存已收集幻化外观的本地列表，用于显示“新外观”提示行。
-function TransmogrificationHandler.ReceiveCollectedAppearances(player, collectedAppearances, uniqueAppearancesCount)
-	-- 清空已收集幻化外观表。
-	wipe(CollectedAppearances)
-
-	-- 服务端返回代表外观的物品 ID，本地严格以服务端列表为准。
-	for _, itemID in ipairs(collectedAppearances or {}) do
-		table.insert(CollectedAppearances, itemID)
-	end
-	
-	local collectedAppearancesCount = uniqueAppearancesCount or 0
-
-	if collectedAppearancesCount == 0 then
-		DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["No transmogrification appearances could be located for this account. If you believe this is an error, please contact a Game Master."])
-	else
-		-- 本地已收集外观列表已以服务端返回为准完成同步，无需额外提示。
-	end
-end
-
--- 收到新外观系统消息时，将新外观添加到本地物品列表。
--- 我们利用系统消息来自然遵循服务器关于何时将新外观添加到玩家收藏的选项。
--- 也就是说，如果系统消息字符串与 server_transmog.lua 中的字符串不一致，此函数将失效。
-TransmogrificationHandler.ReceiveMatchingAppearances = function(player, originalItemID, matchingItems)
-	AIO.Handle("TransmogrificationServer", "SendCollectedTransmogItemIDs")
-end
-
-local function AddNewAppearanceToLocalList()
-	if collectionMonitorRegistered then
-		return
-	end
-	collectionMonitorRegistered = true
-	local chatMonitor = CreateFrame("Frame")
-	chatMonitor:RegisterEvent("CHAT_MSG_SYSTEM")
-
-	chatMonitor:SetScript("OnEvent", function(self, event, msg)
-		if event == "CHAT_MSG_SYSTEM" and string.find(msg, L["has been added to your appearance collection."]) then
-
-			-- 然后使用链接模式从系统消息中提取物品。
-			local itemLink = string.match(msg, "|Hitem:(%d+):[^|]+|h|c%x+%[[^%]]+%]|r|h|r")
-
-			if itemLink then
-				local itemID = tonumber(itemLink)
-
-				if itemID then
-					AIO.Handle("TransmogrificationServer", "GetItemsWithSameAppearance", itemID)
-				end
-			end
-		end
-	end)
-end
-
--- 判断是否应向玩家显示新外观系统消息。
--- 这不决定物品是否添加到本地列表，只决定玩家是否应看到系统消息。
-local function collectionMessageFilter(self, event, msg)
-	if not Transmogrification.db.global.displayCollectionMessages and
-		msg:find(L["has been added to your appearance collection."]) then
-		return true -- 隐藏系统消息。
-	end
-	return false -- 显示系统消息。
 end
 
 function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
@@ -696,6 +648,7 @@ end
 
 local function GetTransmogrificationCost()
 	local totalCost = 0
+	local hasUnknownCost = false
 
 	for slotName, entryID in pairs(equipmentSlotIDs) do
 		local transmogID = previewTransmogrificationIDs[slotName]
@@ -709,28 +662,23 @@ local function GetTransmogrificationCost()
 		-- 不收取金币，与服务端保持一致；若请求外观等于当前已应用幻化或装备实物自身外观，亦不计费。
 		if hasItem and transmogID and transmogID ~= -1 and transmogID ~= currentID and transmogID ~= equippedItemID then
 			local itemID = equippedItemID
-			-- 3.3.5 客户端无 GetItemInfoInstant / 数值化 itemClass，
-			-- 改用 GetItemInfo 返回的 invType（非本地化常量）区分武器与护甲。
-			local isWeapon = false
-			local _, _, _, _, _, _, _, _, invType = GetItemInfo(itemID)
-			if invType then
-				isWeapon = invType == "INVTYPE_WEAPON" or invType == "INVTYPE_WEAPONMAINHAND"
-					or invType == "INVTYPE_WEAPONOFFHAND" or invType == "INVTYPE_2HWEAPON"
-					or invType == "INVTYPE_RANGED" or invType == "INVTYPE_RANGEDRIGHT" or invType == "INVTYPE_THROWN"
-			else
-				-- GetItemInfo 未命中缓存时，按栏位类型回退判断（副手可能含盾牌，保守按护甲计）。
-				isWeapon = (slotName == "MainHand" or slotName == "Ranged")
-			end
-
-			if isWeapon then
+			-- 服务端按当前装备的物品 class 计算费用，客户端使用相同的分类规则。
+			local _, _, _, _, _, itemClass = GetItemInfo(itemID)
+			local weaponClass = GetItemClassInfo(2)
+			local armorClass = GetItemClassInfo(4)
+			if not itemClass or not weaponClass or not armorClass then
+				hasUnknownCost = true
+			elseif itemClass == weaponClass then
 				totalCost = totalCost + WEAPON_TRANSMOG_COST
-			else
+			elseif itemClass == armorClass then
 				totalCost = totalCost + ARMOR_TRANSMOG_COST
+			else
+				hasUnknownCost = true
 			end
 		end
 	end
 
-	return math.max(0, tonumber(totalCost) or 0)
+	return math.max(0, tonumber(totalCost) or 0), hasUnknownCost
 end
 
 -- 根据是否存在待应用改动，更新“应用幻化”按钮的可点击状态，并刷新所需金币显示。
@@ -747,8 +695,10 @@ function UpdateTransmogApplyState()
 
 	if _G["TransmogCostText"] then
 		if hasChanges then
-			local totalCost = GetTransmogrificationCost()
-			if totalCost > 0 then
+			local totalCost, hasUnknownCost = GetTransmogrificationCost()
+			if hasUnknownCost then
+				_G["TransmogCostText"]:SetText("|cffff2020正在获取费用...|r")
+			elseif totalCost > 0 then
 				local text = "|cffffd200" .. L["Cost"] .. "：|r" .. FormatMoney(totalCost)
 				_G["TransmogCostText"]:SetText(text)
 			else
@@ -774,8 +724,10 @@ function TransmogrificationToolTip(btn)
 
 	GameTooltip:AddLine("|cffffffff" .. L["Transmogrify"])
 	if hasChanges then
-		local totalCost = GetTransmogrificationCost()
-		if totalCost > 0 then
+		local totalCost, hasUnknownCost = GetTransmogrificationCost()
+		if hasUnknownCost then
+			GameTooltip:AddLine("|cffff2020费用信息未准备好。|r")
+		elseif totalCost > 0 then
 			GameTooltip:AddLine("|cffffd200需要消耗：|r" .. FormatMoney(totalCost))
 		end
 	else
@@ -785,42 +737,7 @@ function TransmogrificationToolTip(btn)
 	GameTooltip:Show()
 end
 
--- 挂载物品提示系统，以便（启用时）显示“新外观”提示文本。
-local function HookItemTooltip()
-	local settings = Transmogrification:GetSettings()
-	if not settings.displayNewAppearanceTooltip then return end
 
-	if isTooltipHooked then return end
-
-	local originalSetItem = GameTooltip:GetScript("OnTooltipSetItem")
-
-	GameTooltip:SetScript("OnTooltipSetItem", function(self, ...)
-		if originalSetItem then
-			originalSetItem(self, ...)
-		end
-
-		local _, link = self:GetItem()
-		if not link then return end
-
-		local id = select(3, strfind(link, "^|%x+|Hitem:(%-?%d+):(%d+):(%d+):(%d+):(%d+):(%d+):(%-?%d+):(%-?%d+)"))
-		if not id then return end
-
-		id = tonumber(id)
-		if not id then return end
-
-		local _, _, _, _, _, _, _, _, itemEquipSlot = GetItemInfo(id)
-
-		-- 如果物品不可幻化或外观已被收集，则跳过应用“新外观”提示行。
-		if IsEquippableItem(id) and itemEquipSlot and itemEquipSlot ~= "INVTYPE_AMMO" and
-		itemEquipSlot ~= "INVTYPE_NECK" and itemEquipSlot ~= "INVTYPE_FINGER" and
-		itemEquipSlot ~= "INVTYPE_TRINKET" and itemEquipSlot ~= "INVTYPE_BAG" and
-		itemEquipSlot ~= "INVTYPE_QUIVER" and not tContains(CollectedAppearances, id) then
-			self:AddLine("|cff" .. L["f194f7"] .. L["New Appearance"])
-		end
-	end)
-	
-	isTooltipHooked = true
-end
 
 function OnLeaveHideToolTip(btn)
 	GameTooltip:Hide()
@@ -869,11 +786,6 @@ AIO.AddSavedVarChar("originalTransmogrificationIDs")
 local function OnEventEnterWorldReloadTransmogIDs(self, event)
 	if ( event == "PLAYER_ENTERING_WORLD") then
 		AIO.Handle("TransmogrificationServer", "SetTransmogItemIDs")
-		if CollectedAppearances == nil then
-			CollectedAppearances = {}
-		end
-		HookItemTooltip()
-		AddNewAppearanceToLocalList()
 	else
 		AIO.Handle("TransmogrificationServer", "OnUnequipItem")
 		UpdateAllSlotTextures()
@@ -887,9 +799,6 @@ end
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
 f:SetScript("OnEvent", OnEvent)
-
--- 为新外观系统消息过滤器注册事件框架。
-ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", collectionMessageFilter)
 
 -- 定义窗口函数。
 function OnClickTransmogButton(self)

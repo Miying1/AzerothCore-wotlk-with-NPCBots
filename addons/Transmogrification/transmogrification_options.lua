@@ -72,27 +72,6 @@ function GetTransmogrificationOptions()
 				order = 10,
 				type = "header",
 			},
-			displayNewAppearanceTooltip = {
-				name = "|cffffffff" .. L["Display New Appearance Tooltip"],
-				desc = "|cffffd200" .. L["Toggles the display of the "] .. "|cff" .. L["f194f7"] .. L["New Appearance"] .. "|cffffd200" .. L[" tooltip line."],
-				order = 11,
-				type = "toggle",
-				width = "double",
-				get = function() return Transmogrification:GetSettings().displayNewAppearanceTooltip end,
-				set = function(_, value) Transmogrification:UpdateSetting("displayNewAppearanceTooltip", value)
-					DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["You must "] .. "|cff" .. L["00ccff"] .. L["/reload"] .. "|cffffff00" .. L[" the interface for this change to take effect."])
-					Transmogrification:DisplayReloadPrompt()
-					end,
-			},
-			displayCollectionMessages = {
-				name = "|cffffffff" .. L["Display Collection Messages"],
-				desc = "|cffffd200" .. L["Toggles the display of the new appearance system message when collecting a new transmogrification appearance."],
-				order = 12,
-				type = "toggle",
-				width = "double",
-				get = function() return Transmogrification:GetSettings().displayCollectionMessages end,
-				set = function(_, value) Transmogrification:UpdateSetting("displayCollectionMessages", value) end,
-			},
 			spacer3 = {
 				name = " ",
 				desc = " ",
@@ -108,22 +87,6 @@ function GetTransmogrificationOptions()
 				type = "description",
 				fontSize = "medium",
 				width = "full",
-			},
-			collectionManagement = {
-				name = L["Collection Management"],
-				order = 20,
-				type = "header",
-			},
-			syncCollection = {
-				name = "|cffffffff" .. L["Sync Collection"],
-				desc = "|cffffd200" .. L["Creates a local list of collected transmogrification appearances. The collected transmogrification appearances list is used to display the "] .. "|cff" .. L["f194f7"] .. L["New Appearance"] .. "|cffffd200" .. L[" tooltip."] .. "\n\n" .. L["This button provides the same function as using the "] .. "|cff" .. L["00ccff"] .. L["/transmog sync"] .. "|cffffd200" .. L[" command."],
-				order = 21,
-				type = "execute",
-				func = function()
-					DEFAULT_CHAT_FRAME:AddMessage("|cffffff00" .. L["Querying the server for collected transmogrification appearances..."] .. "\n")
-					ChatFrame1EditBox:SetText(".transmog sync")
-					ChatEdit_SendText(ChatFrame1EditBox, 1)
-				end,
 			},
 		},
 	}

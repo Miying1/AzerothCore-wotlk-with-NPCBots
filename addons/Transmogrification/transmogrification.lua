@@ -13,15 +13,9 @@ local defaultTransmogrificationOptions = {
 		windowScale = 1.0,
 		windowOpacity = 1.0,
 		windowLock = false,
-		displayNewAppearanceTooltip = true,
 		displayCollectionMessages = true
 	}
 }
-
--- 禁用物品提示系统（若已禁用）以节省性能。
-function Transmogrification:HookItemTooltip()
-	if not self.db.global.displayNewAppearanceTooltip then return end
-end
 
 -- 挂载系统聊天消息函数。
 function Transmogrification:HookChatFilter()
@@ -84,20 +78,11 @@ function Transmogrification:OnInitialize()
 	self:RegisterChatCommand("transmog", "HandleSlashCommand")
 	self:RegisterChatCommand("transmogrify", "HandleSlashCommand")
 	self:RegisterChatCommand("transmogrification", "HandleSlashCommand")
-	
-	-- 如果已收集外观表尚不存在，则进行初始化。
-	if CollectedAppearances == nil then
-		CollectedAppearances = {}
 	end
-end
 
 function Transmogrification:OnEnable()
-	-- 挂载物品提示系统，以便（启用时）显示“新外观”提示文本。
-	self:HookItemTooltip()
-	
-	-- 挂载系统聊天消息函数，以便（启用时）隐藏新的物品外观系统消息。
-	self:HookChatFilter()
-	
+
+		
 	-- 应用自定义幻化窗口样式。
 	self:ApplyWindowSettings()
 end

@@ -58,6 +58,17 @@ local TransmogrificationHandler = AIO.AddHandlers("TransmogrificationServer", {}
 
 local SLOTS = 6
 local CALC = 281
+
+local TRANSMOG_ERROR = {
+	NONE = 0,
+	INVALID_REQUEST = 1,
+	NO_EQUIPMENT = 2,
+	APPEARANCE_NOT_COLLECTED = 3,
+	INCOMPATIBLE_ITEM = 4,
+	INSUFFICIENT_MONEY = 5,
+	OUTDATED_REQUEST = 6,
+}
+
 local PLAYER_VISIBLE_ITEM_1_ENTRYID = 283  -- Head
 local PLAYER_VISIBLE_ITEM_3_ENTRYID = 287  -- Shoulder
 local PLAYER_VISIBLE_ITEM_4_ENTRYID = 289  -- Shirt
@@ -151,7 +162,7 @@ local function ValidateTransmogItem(player, itemID, slot)
 	local numericSlot = tonumber(slot)
 	local numericItemID = tonumber(itemID)
 	if not numericSlot or not DISPLAY_SLOTS[numericSlot] or not numericItemID or numericItemID <= 0 then
-		return nil
+		return nil, TRANSMOG_ERROR.INVALID_REQUEST
 	end
 
 	local state = GetCharacterTransmogCache(player)[numericSlot]
@@ -159,7 +170,7 @@ local function ValidateTransmogItem(player, itemID, slot)
 	local collectedAppearance = nil
 	local itemTemplate = GetItemTemplate(numericItemID)
 	if not itemTemplate then
-		return nil
+		return nil, TRANSMOG_ERROR.INVALID_REQUEST
 	end
 
 	local displayID = itemTemplate:GetDisplayId()
@@ -169,19 +180,22 @@ local function ValidateTransmogItem(player, itemID, slot)
 			break
 		end
 	end
-	if not collectedAppearance or not state then
-		return nil
+	if not collectedAppearance then
+		return nil, TRANSMOG_ERROR.APPEARANCE_NOT_COLLECTED
+	end
+	if not state then
+		return nil, TRANSMOG_ERROR.INVALID_REQUEST
 	end
 
 	local equipmentSlot = GetEquipmentSlot(numericSlot)
 	local equippedItem = player:GetEquippedItemBySlot(equipmentSlot)
 	if not equippedItem then
-		return nil
+		return nil, TRANSMOG_ERROR.NO_EQUIPMENT
 	end
 
 	local equippedTemplate = equippedItem:GetItemTemplate()
 	if not equippedTemplate then
-		return nil
+		return nil, TRANSMOG_ERROR.NO_EQUIPMENT
 	end
 	local equippedClass = equippedTemplate:GetClass()
 	local equippedInventoryType = equippedTemplate:GetInventoryType()
@@ -190,19 +204,19 @@ local function ValidateTransmogItem(player, itemID, slot)
 	local inventoryType = itemTemplate:GetInventoryType()
 	local itemSubType = itemTemplate:GetSubClass()
 	if (itemClass ~= 2 and itemClass ~= 4) or itemClass ~= equippedClass then
-		return nil
+		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 	if not IsAllowedInventoryType(numericSlot, inventoryType) then
-		return nil
+		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 	if not IsAllowedInventoryType(numericSlot, equippedInventoryType) then
-		return nil
+		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 	if itemClass == 4 and RESTRICT_ARMOR_TRANSMOG_TO_SIMILAR_MATERIALS and itemSubType ~= equippedSubType then
-		return nil
+		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 	if itemClass == 2 and RESTRICT_WEAPON_TRANSMOG_TO_SIMILAR_WEAPONS and itemSubType ~= equippedSubType then
-		return nil
+		return nil, TRANSMOG_ERROR.INCOMPATIBLE_ITEM
 	end
 
 	return state, equippedItem, itemTemplate, GetTransmogCost(equippedItem)
@@ -216,7 +230,9 @@ local function LoadTransmogCollectionCache(player)
 		for _ = 1, result:GetRowCount() do
 			local row = result:GetRow()
 			local displayID = tonumber(row["display_id"])
-			if displayID and not cache.appearances[displayID] then
+			local itemTemplate = GetItemTemplate(tonumber(row["unlocked_item_id"]))
+			local itemQuality = itemTemplate and itemTemplate:GetQuality()
+			if displayID and itemQuality and itemQuality >= 2 and not cache.appearances[displayID] then
 				local appearance = {
 					itemID = tonumber(row["unlocked_item_id"]),
 					inventoryType = tonumber(row["inventory_type"]),
@@ -362,6 +378,12 @@ function TransmogrificationHandler.LootItemLocale(player, item, count, locale)
 	local inventoryType = itemTemplate:GetInventoryType()
 	local inventorySubType = itemTemplate:GetSubClass()
 	local class = itemTemplate:GetClass()
+	local itemQuality = itemTemplate:GetQuality()
+
+	-- 灰色和白色物品不加入账号幻化收藏。
+	if itemQuality == nil or itemQuality <= 1 then
+		return
+	end
 
 	if (class == 2 or class == 4) and not UNUSABLE_INVENTORY_TYPES[inventoryType] then
 		local collectionCache = GetTransmogCollectionCache(player)
@@ -578,11 +600,11 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot, request
 	local playerGUID = player:GetGUIDLow()
 	local latestRequestSerial = latestApplyRequestSerial[playerGUID] or 0
 	if numericRequestSerial < latestRequestSerial then
-		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, false, -1, 0, numericRequestSerial)
+		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, false, -1, 0, numericRequestSerial, TRANSMOG_ERROR.OUTDATED_REQUEST)
 		return
 	end
 	latestApplyRequestSerial[playerGUID] = numericRequestSerial
-	local state = GetCharacterTransmogCache(player)[numericSlot]
+	local state = numericSlot and GetCharacterTransmogCache(player)[numericSlot]
 	local equippedItem = numericSlot and player:GetEquippedItemBySlot(GetEquipmentSlot(numericSlot))
 	local oldItemID = state and state.realItem or nil
 	if equippedItem then
@@ -592,12 +614,16 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot, request
 		end
 	end
 
-	local function SendResult(success, appliedItemID)
-		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, success, appliedItemID, oldItemID or 0, requestSerial)
+	local function SendResult(success, appliedItemID, errorCode)
+		AIO.Handle(player, "TransmogrificationServer", "ApplyTransmogResult", numericSlot, success, appliedItemID, oldItemID or 0, requestSerial, errorCode or TRANSMOG_ERROR.NONE)
 	end
 
-	if not state or not numericItem or not DISPLAY_SLOTS[numericSlot] or not equippedItem then
-		SendResult(false, -1)
+	if not numericSlot or not numericItem or not DISPLAY_SLOTS[numericSlot] then
+		SendResult(false, -1, TRANSMOG_ERROR.INVALID_REQUEST)
+		return
+	end
+	if not state or not equippedItem then
+		SendResult(false, -1, TRANSMOG_ERROR.NO_EQUIPMENT)
 		return
 	end
 
@@ -620,9 +646,9 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot, request
 	end
 
 	-- Eluna 单线程，handler 执行期间装备不可能被换掉，无需再比对"装备是否还是同一件"。
-	local validatedState, _, _, transmogCost = ValidateTransmogItem(player, numericItem, numericSlot)
+	local validatedState, validationError, _, transmogCost = ValidateTransmogItem(player, numericItem, numericSlot)
 	if not validatedState then
-		SendResult(false, -1)
+		SendResult(false, -1, validationError or TRANSMOG_ERROR.INVALID_REQUEST)
 		return
 	end
 
@@ -635,8 +661,7 @@ function TransmogrificationHandler.EquipTransmogItem(player, item, slot, request
 
 	if transmogCost > 0 then
 		if player:GetCoinage() < transmogCost then
-			player:SendBroadcastMessage("金币不足，无法应用幻化。")
-			SendResult(false, -1)
+			SendResult(false, -1, TRANSMOG_ERROR.INSUFFICIENT_MONEY)
 			return
 		end
 		player:ModifyMoney(-transmogCost)
@@ -875,15 +900,6 @@ function TransmogrificationHandler.GetItemsWithSameAppearance(player, itemID)
 	AIO.Handle(player, "TransmogrificationServer", "ReceiveMatchingAppearances", itemID, matchingItems)
 end
 
-function TransmogrificationHandler.SendCollectedTransmogItemIDs(player)
-	local collectionCache = GetTransmogCollectionCache(player)
-	local collectedItemIDs = {}
-	for _, appearance in ipairs(collectionCache.list) do
-		table.insert(collectedItemIDs, appearance.itemID)
-	end
-	AIO.Handle(player, "TransmogrificationServer", "ReceiveCollectedAppearances", collectedItemIDs, #collectedItemIDs)
-end
-
 RegisterPlayerEvent(1, Transmog_OnCharacterCreate)
 RegisterPlayerEvent(2, Transmog_OnCharacterDelete)
 RegisterPlayerEvent(3, Transmog_OnCharacterLogin)
@@ -908,13 +924,5 @@ end
 if ADD_QUEST_REWARD_ITEMS_TO_THE_TRANSMOG_LIST then
 	RegisterPlayerEvent(54, Transmog_OnQuestComplete)
 end
-
-RegisterPlayerEvent(42, function(event, player, command)
-	if command:lower() == "transmog sync" then
-		TransmogrificationHandler.SendCollectedTransmogItemIDs(player)
-		return false
-	end
-	return true
-end)
 
 print("[Eluna] Transmog System loaded successfully.")
