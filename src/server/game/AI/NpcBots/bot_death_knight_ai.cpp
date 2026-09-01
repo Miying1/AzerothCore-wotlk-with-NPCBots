@@ -564,8 +564,11 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!GetBotsPet() || !GetBotsPet()->IsAlive() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
+                (!pet || !pet->IsAlive() || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
+            {
                 SummonBotPet();
+                pet = nullptr;
+            }
 
             if (IsPotionReady())
             {
@@ -1705,6 +1708,9 @@ public:
             Position pos;
 
             Creature* myPet = me->SummonCreature(entry, *me, TEMPSUMMON_CORPSE_DESPAWN);
+            if (!myPet)
+                return;
+
             me->GetNearPoint(myPet, pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.f, 0.f, float(me->GetOrientation() + M_PI / 2.f));
             myPet->GetMotionMaster()->MovePoint(me->GetMapId(), pos);
             myPet->SetCreator(master);
@@ -1811,8 +1817,9 @@ public:
             //    mast->ChangeAmount(1300);
             //}
 
-            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_ENERGY)
-                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
+            if (Creature* pet = GetBotsPet())
+                if (pet->GetPowerType() != POWER_ENERGY)
+                    pet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
         }
 
         void InitSpells() override

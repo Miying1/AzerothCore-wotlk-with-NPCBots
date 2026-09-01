@@ -566,6 +566,8 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            Creature* pet = GetBotsPet();
+
             if (!GlobalUpdate(diff))
                 return;
 
@@ -575,8 +577,11 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!GetBotsPet() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
+                (!pet || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
+            {
                 SummonBotPet();
+                pet = nullptr;
+            }
 
             //Hellfire interrupt
             Spell const* spell = me->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
@@ -642,7 +647,7 @@ public:
                 DrinkPotion(false);
             }
 
-            if (IsSpellReady(DARK_PACT_1, diff) && !IsCasting() && GetBotsPet() && GetBotsPet()->GetPower(POWER_MANA) >= 300 &&
+            if (IsSpellReady(DARK_PACT_1, diff) && !IsCasting() && pet && pet->GetPower(POWER_MANA) >= 300 &&
                 GetManaPCT(me) < 20)
             {
                 if (doCast(me, GetSpell(DARK_PACT_1)))
@@ -1589,17 +1594,19 @@ public:
             }
 
             //Improved Imp part 3
-            if (lvl >= 10 && baseId == BLOOD_PACT_1 && GetBotsPet())
+            if (lvl >= 10 && baseId == BLOOD_PACT_1)
             {
-                AuraEffect* pact = target->GetAuraEffect(spellId, 0, GetBotsPet()->GetGUID());
+                Creature* pet = GetBotsPet();
+                AuraEffect* pact = pet ? target->GetAuraEffect(spellId, 0, pet->GetGUID()) : nullptr;
                 if (pact)
                     pact->ChangeAmount(pact->GetAmount() * 1.3f);
             }
 
             //Improved Felhunter part 3
-            if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) && lvl >= 35 && baseId == FEL_INTELLIGENCE_1 && GetBotsPet())
+            if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) && lvl >= 35 && baseId == FEL_INTELLIGENCE_1)
             {
-                Aura const* feli = target->GetAura(spellId, GetBotsPet()->GetGUID());
+                Creature* pet = GetBotsPet();
+                Aura const* feli = pet ? target->GetAura(spellId, pet->GetGUID()) : nullptr;
                 if (feli)
                 {
                     for (auto i : NPCBots::index_array<uint8, EFFECT_2>) // 2 effects
@@ -1671,14 +1678,15 @@ public:
         void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
         {
             //Fel Synergy (Life Tap)
-            if (damage && GetBotsPet() && me->GetLevel() >= 10 && (damageType == SPELL_DIRECT_DAMAGE || damageType == DOT))
+            if (damage && me->GetLevel() >= 10 && (damageType == SPELL_DIRECT_DAMAGE || damageType == DOT))
             {
+                Creature* pet = GetBotsPet();
                 uint32 healVal = float(damage) * 0.15f;
-                if (healVal)
+                if (pet && healVal)
                 {
                     SpellInfo const* synhealInfo = sSpellMgr->GetSpellInfo(FEL_SYNERGY_HEAL);
-                    HealInfo hinfo(me, GetBotsPet(), healVal, synhealInfo, synhealInfo->GetSchoolMask());
-                    GetBotsPet()->HealBySpell(hinfo);
+                    HealInfo hinfo(me, pet, healVal, synhealInfo, synhealInfo->GetSchoolMask());
+                    pet->HealBySpell(hinfo);
                 }
             }
 
@@ -1762,6 +1770,9 @@ public:
 
             me->CastSpell(me, SUMMON_DEMON_VISUAL, true);
             Creature* myPet = me->SummonCreature(myPetType, *me, TEMPSUMMON_CORPSE_DESPAWN);
+            if (!myPet)
+                return;
+
             me->GetNearPoint(myPet, pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.f, 0, me->GetOrientation() + M_PI / 2);
             myPet->GetMotionMaster()->MovePoint(me->GetMapId(), pos);
             myPet->SetCreator(master);
@@ -1905,8 +1916,9 @@ public:
         {
             me->SetPowerType(POWER_MANA);
 
-            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_MANA)
-                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
+            if (Creature* pet = GetBotsPet())
+                if (pet->GetPowerType() != POWER_MANA)
+                    pet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_MANA);
         }
 
         void InitSpells() override

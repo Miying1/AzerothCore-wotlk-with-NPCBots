@@ -126,6 +126,8 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            Creature* pet = GetBotsPet();
+
             if (!me->IsMounted() && !me->GetVehicle())
                 me->Mount(ARCHMAGE_MOUNTID);
 
@@ -149,7 +151,7 @@ public:
             //pet is killed or unreachable
             if (IsSpellReady(SUMMON_WATER_ELEMENTAL_1, diff, false) && me->GetPower(POWER_MANA) >= SUMMON_ELEM_COST && !IsCasting() &&
                 (IAmFree() || master->IsInCombat()/* || !master->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING)*/) &&
-                (!GetBotsPet() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
+                (!pet || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
             {
                 me->CastSpell(me, GetSpell(SUMMON_WATER_ELEMENTAL_1), false);
                 return;
@@ -289,6 +291,9 @@ public:
 
             //water elemetal 1 minute duration
             Creature* myPet = me->SummonCreature(entry, *me, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+            if (!myPet)
+                return;
+
             me->GetNearPoint(myPet, pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.f, 2, me->GetOrientation());
             myPet->GetMotionMaster()->MovePoint(me->GetMapId(), pos);
             myPet->SetCreator(master);

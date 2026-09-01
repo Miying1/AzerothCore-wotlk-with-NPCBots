@@ -775,6 +775,9 @@ public:
         ASSERT(map->GetEntry()->IsContinent() || map->GetEntry()->IsBattlegroundOrArena(), map->GetDebugInfo().c_str());
 
         TempSummon* wpc = map->SummonCreature(VISUAL_WAYPOINT, *wp);
+        if (!wpc)
+            return false;
+
         wpc->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
         wpc->AIM_Initialize(new WanderNode_AI(wpc, wp));
         wpc->setActive(true);
@@ -3138,7 +3141,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         uint32 recalled_count = 0;
         for (ObjectGuid botguid : botvec)
         {
-            if (Creature const* bot = BotDataMgr::FindBot(botguid.GetEntry()))
+            if (Creature const* bot = BotDataMgr::FindBot(botguid))
             {
                 bot->GetBotAI()->ResetBotAI(BOTAI_RESET_FORCERECALL);
                 ++recalled_count;
@@ -4602,7 +4605,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         handler->PSendSysMessage("{} inactive bots:", uint32(guidvec.size()));
         for (ObjectGuid guid : guidvec)
         {
-            Creature const* bot = BotDataMgr::FindBot(guid.GetEntry());
+            Creature const* bot = BotDataMgr::FindBot(guid);
             uint8 bot_class = bot ? bot->GetBotClass() : uint8(BOT_CLASS_NONE);
             std::ostringstream nss;
             nss << "|c" << BotColors.at(bot_class).color << BotColors.at(bot_class).name << "|r";

@@ -513,16 +513,16 @@ public:
             //}
         }
 
-        void CheckMendPet(uint32 diff)
+        void CheckMendPet(uint32 diff, Creature* pet)
         {
             if (!IsSpellReady(MEND_PET_1, diff) || checkMendTimer > diff || Rand() > 75 ||
-                !GetBotsPet() || !GetBotsPet()->IsAlive() || !GetBotsPet()->IsInWorld() || GetHealthPCT(GetBotsPet()) > 80 ||
-                me->GetDistance(GetBotsPet()) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
+                !pet || !pet->IsAlive() || !pet->IsInWorld() || GetHealthPCT(pet) > 80 ||
+                me->GetDistance(pet) > CalcSpellMaxRange(MEND_PET_1, false) || IsCasting())
                 return;
 
             checkMendTimer = urand(2000, 4000);
 
-            Aura const* mend = GetBotsPet()->GetAura(GetSpell(MEND_PET_1));
+            Aura const* mend = pet->GetAura(GetSpell(MEND_PET_1));
             if (!mend || mend->GetDuration() < 3000)
             {
                 if (doCast(me, GetSpell(MEND_PET_1)))
@@ -653,6 +653,8 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            Creature* pet = GetBotsPet();
+
             if (!GlobalUpdate(diff))
                 return;
 
@@ -662,7 +664,7 @@ public:
 
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
-                (!GetBotsPet() || !GetBotsPet()->IsInWorld() || me->GetDistance2d(GetBotsPet()) > World::GetMaxVisibleDistanceOnContinents()))
+                (!pet || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
                 SummonBotPet();
 
             //Scare Beast interrupt
@@ -698,7 +700,7 @@ public:
                     return;
             }
 
-            //CheckMendPet(diff);
+            //CheckMendPet(diff, pet);
 
             if (master->IsInCombat() || me->IsInCombat())
                 CheckScare(diff);
@@ -2003,8 +2005,9 @@ public:
         {
             me->SetPowerType(POWER_MANA);
 
-            if (GetBotsPet() && GetBotsPet()->GetPowerType() != POWER_FOCUS)
-                GetBotsPet()->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_FOCUS);
+            if (Creature* pet = GetBotsPet())
+                if (pet->GetPowerType() != POWER_FOCUS)
+                    pet->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_FOCUS);
         }
 
         void InitSpells() override

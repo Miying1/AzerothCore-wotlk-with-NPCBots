@@ -588,6 +588,9 @@ public:
             Position pos = from->GetPosition();
 
             Creature* myPet = me->SummonCreature(entry, pos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2000);
+            if (!myPet)
+                return;
+
             myPet->SetCreator(master);
             myPet->SetOwnerGUID(me->GetGUID());
             myPet->SetFaction(master->GetFaction());
@@ -621,6 +624,9 @@ public:
             Position pos = me->GetNearPosition(frand(5.0f, 15.0f), frand(float(M_PI * 0.75), float(M_PI * 1.25)));
 
             Creature* locust = me->SummonCreature(entry, *me, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 1000);
+            if (!locust)
+                return;
+
             locust->SetCreator(master);
             locust->SetOwnerGUID(me->GetGUID());
             locust->SetFaction(master->GetFaction());

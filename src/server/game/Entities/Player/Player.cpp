@@ -1600,7 +1600,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             if (pet)
                 UnsummonPetTemporaryIfAny();
 
-            //bot: teleport npcbots
+            // bot: teleport npcbots（OnTeleportFar 中先销毁 NPCBot 宠物）
             if (HaveBot())
                 _botMgr->OnTeleportFar(mapid, x, y, z, orientation);
             //end bot

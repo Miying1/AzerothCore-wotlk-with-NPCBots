@@ -88,6 +88,7 @@ public:
     virtual void OnBotDespawn(Creature* /*summon*/) {}
 
     virtual void UnsummonAll(bool /*savePets*/ = true) {}
+    void UnsummonCreature(ObjectGuid guid, bool save);
     void UnsummonCreature(Creature* creature, bool save);
     void UnsummonPet(bool save);
     template<typename C>

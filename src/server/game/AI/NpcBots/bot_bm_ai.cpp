@@ -510,7 +510,7 @@ public:
                 if (!IAmFree())
                     ASSERT(master->GetBotMgr()->AddBot(illusion));
 
-                illusion->SetCreator(master); //TempSummon* Map::SummonCreature()
+                illusion->SetCreator(master); // TempSummon* Map::SummonCreature()
                 (static_cast<blademaster_botAI*>(illusion->GetAI()))->SetGUID(me->GetGUID());
 
                 //copy visuals

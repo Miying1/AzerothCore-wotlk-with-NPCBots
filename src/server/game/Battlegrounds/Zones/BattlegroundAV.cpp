@@ -702,7 +702,7 @@ void BattlegroundAV::RemovePlayer(Player* player)
 //npcbot
 void BattlegroundAV::RemoveBot(ObjectGuid guid)
 {
-    if (Creature const* bot = BotDataMgr::FindBot(guid.GetEntry()))
+    if (Creature const* bot = BotDataMgr::FindBot(guid))
     {
         const_cast<Creature*>(bot)->RemoveAurasDueToSpell(AV_BUFF_ARMOR);
         const_cast<Creature*>(bot)->RemoveAurasDueToSpell(AV_BUFF_A_CAPTAIN);

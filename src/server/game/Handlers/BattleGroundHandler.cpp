@@ -371,7 +371,7 @@ void WorldSession::HandleBattlegroundPlayerPositionsOpcode(WorldPacket& /*recvDa
         //npcbot
         else if (guid.IsCreature())
         {
-            afcbot = BotDataMgr::FindBot(guid.GetEntry());
+            afcbot = BotDataMgr::FindBot(guid);
             if (afcbot)
                 ++flagCarrierCount;
         }
@@ -386,7 +386,7 @@ void WorldSession::HandleBattlegroundPlayerPositionsOpcode(WorldPacket& /*recvDa
         //npcbot
         else if (guid.IsCreature())
         {
-            hfcbot = BotDataMgr::FindBot(guid.GetEntry());
+            hfcbot = BotDataMgr::FindBot(guid);
             if (hfcbot)
                 ++flagCarrierCount;
         }

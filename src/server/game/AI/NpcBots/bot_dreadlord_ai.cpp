@@ -183,7 +183,7 @@ public:
             if (IsCasting())
                 return;
 
-            if (IsSpellReady(INFERNO_1, diff) && !GetBotsPet() && me->IsInCombat() &&
+            if (IsSpellReady(INFERNO_1, diff) && !pet && me->IsInCombat() &&
                 me->GetPower(POWER_MANA) >= INFERNAL_COST && Rand() < 60)
             {
                 Unit* target = FindAOETarget(CalcSpellMaxRange(INFERNO_1));
@@ -408,6 +408,9 @@ public:
             //Position pos;
 
             Creature* myPet = me->SummonCreature(entry, *sPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2000);
+            if (!myPet)
+                return;
+
             //me->GetNearPoint(myPet, pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0, 2, me->GetOrientation());
             //myPet->GetMotionMaster()->MovePoint(me->GetMapId(), pos);
             myPet->SetCreator(master);

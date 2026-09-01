@@ -362,7 +362,7 @@ public:
                 DoNonCombatActions(diff);
 
             //pet
-            if ((!GetBotsPet() || !GetBotsPet()->IsAlive()) &&
+            if ((!pet || !pet->IsAlive()) &&
                 IsSpellReady(SUMMON_WATER_ELEMENTAL_1, diff) && !IsCasting() && (IAmFree() || master->IsInCombat()))
                 if (doCast(me, GetSpell(SUMMON_WATER_ELEMENTAL_1)))
                     return;
@@ -894,7 +894,8 @@ public:
             needFactor += !cooldown ? 0 : 2 * cooldown / 300;  //0-100 x2
             cooldown = GetSpellCooldown(ICY_VEINS_1);
             needFactor += !cooldown ? 0 : 2 * cooldown / 1500; //0-100 x2
-            cooldown = (GetBotsPet() && GetBotsPet()->IsAlive()) ? 0 : GetSpellCooldown(SUMMON_WATER_ELEMENTAL_1);
+            Creature* pet = GetBotsPet();
+            cooldown = (pet && pet->IsAlive()) ? 0 : GetSpellCooldown(SUMMON_WATER_ELEMENTAL_1);
             needFactor += !cooldown ? 0 : 1 * cooldown / 1500; //0-100
             cooldown = GetSpellCooldown(DEEP_FREEZE_1);
             needFactor += !cooldown ? 0 : 1 * cooldown / 240;  //0-100
@@ -1619,6 +1620,9 @@ public:
 
             //glyphed: permanent
             Creature* myPet = me->SummonCreature(entry, *me, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 3000);
+            if (!myPet)
+                return;
+
             me->GetNearPoint(myPet, pos.m_positionX, pos.m_positionY, pos.m_positionZ, 0.f, 2, me->GetOrientation());
             myPet->GetMotionMaster()->MovePoint(me->GetMapId(), pos);
             myPet->SetCreator(master);

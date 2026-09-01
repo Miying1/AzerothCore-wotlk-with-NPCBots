@@ -145,7 +145,7 @@ public:
             AbortMe();
             return true;
         }
-        else if (Creature const* bot = BotDataMgr::FindBot(_botGUID.GetEntry()))
+        else if (Creature const* bot = BotDataMgr::FindBot(_botGUID))
         {
             // Battleground is created at this point, try to find it
             BattlegroundQueue& queue = sBattlegroundMgr->GetBattlegroundQueue(_bgQueueTypeId);
@@ -3329,6 +3329,15 @@ Creature const* BotDataMgr::FindBot(uint32 entry)
     auto it = std::ranges::find_if(_existingBots, [entry](Creature const* bot) { return bot->GetEntry() == entry; });
     return it != _existingBots.cend() ? *it : nullptr;
 }
+
+Creature const* BotDataMgr::FindBot(ObjectGuid guid)
+{
+    std::shared_lock lock(*GetLock());
+
+    auto it = std::ranges::find_if(_existingBots, [guid](Creature const* bot) { return bot->GetGUID() == guid; });
+    return it != _existingBots.cend() ? *it : nullptr;
+}
+
 Creature const* BotDataMgr::FindBot(std::string_view name, LocaleConstant loc, std::vector<uint32> const* not_ids)
 {
     std::wstring wname;

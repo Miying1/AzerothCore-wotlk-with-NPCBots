@@ -602,7 +602,7 @@ void BattlegroundWS::RemoveBot(ObjectGuid guid)
     // sometimes flag aura not removed :(
     if (GetFlagPickerGUID(TEAM_ALLIANCE) == guid)
     {
-        Creature const* bot = BotDataMgr::FindBot(guid.GetEntry());
+        Creature const* bot = BotDataMgr::FindBot(guid);
         if (!bot)
         {
             LOG_ERROR("bg.battleground", "BattlegroundWS: Removing offline bot {} who has the FLAG!!", guid.GetEntry());
@@ -614,7 +614,7 @@ void BattlegroundWS::RemoveBot(ObjectGuid guid)
     }
     if (GetFlagPickerGUID(TEAM_HORDE) == guid)
     {
-        Creature const* bot = BotDataMgr::FindBot(guid.GetEntry());
+        Creature const* bot = BotDataMgr::FindBot(guid);
         if (!bot)
         {
             LOG_ERROR("bg.battleground", "BattlegroundWS: Removing offline bot {} who has the FLAG!!", guid.GetEntry());

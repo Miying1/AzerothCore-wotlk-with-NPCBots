@@ -409,7 +409,7 @@ inline void Battleground::_ProcessResurrect(uint32 diff)
                     //npcbot
                     if (guid.IsCreature())
                     {
-                        if (Creature const* cbot = BotDataMgr::FindBot(guid.GetEntry()))
+                        if (Creature const* cbot = BotDataMgr::FindBot(guid))
                         {
                             Creature* bot = const_cast<Creature*>(cbot);
                             ASSERT(bot->IsInWorld());
@@ -463,7 +463,7 @@ inline void Battleground::_ProcessResurrect(uint32 diff)
             //npcbot
             if (guid.IsCreature())
             {
-                if (Creature const* cbot = BotDataMgr::FindBot(guid.GetEntry()))
+                if (Creature const* cbot = BotDataMgr::FindBot(guid))
                     cbot->GetBotAI()->UpdateReviveTimer(std::numeric_limits<uint32>::max());
                 continue;
             }
@@ -724,7 +724,7 @@ inline void Battleground::_ProcessJoin(uint32 diff)
         //npcbot: activate bots
         for (auto const& kv : m_Bots)
         {
-            if (Creature const* bot = BotDataMgr::FindBot(kv.first.GetEntry()))
+            if (Creature const* bot = BotDataMgr::FindBot(kv.first))
             {
                 if (bot->IsNPCBot() && bot->IsWandererBot())
                     bot->GetBotAI()->RemoveBotCommandState(BOT_COMMAND_STAY);
@@ -962,7 +962,7 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
         ++bnext;
         if (bitr->first.IsCreature())
         {
-            if (Creature const* bot = BotDataMgr::FindBot(bitr->first.GetEntry()))
+            if (Creature const* bot = BotDataMgr::FindBot(bitr->first))
             {
                 if (!bot->IsAlive())
                     BotMgr::ReviveBot(const_cast<Creature*>(bot));
@@ -1311,7 +1311,7 @@ void Battleground::RemoveBotAtLeave(ObjectGuid guid)
         }
     }
 
-    if (Creature const* bot = BotDataMgr::FindBot(guid.GetEntry()))
+    if (Creature const* bot = BotDataMgr::FindBot(guid))
     {
         if (bot->IsInWorld()) {
             if (bot->HasAuraType(SPELL_AURA_SPIRIT_OF_REDEMPTION))
@@ -1760,7 +1760,7 @@ void Battleground::RelocateDeadPlayers(ObjectGuid queueIndex)
             //npcbot
             if (guid.IsCreature())
             {
-                if (Creature const* bot = BotDataMgr::FindBot(guid.GetEntry()))
+                if (Creature const* bot = BotDataMgr::FindBot(guid))
                 {
                     if (!closestBotGrave)
                         closestBotGrave = GetClosestGraveyardForBot(const_cast<Creature*>(bot));
@@ -2122,7 +2122,7 @@ void Battleground::HandleKillPlayer(Player* victim, Player* killer)
         {
             if (kv.second.Team != team || kv.first == killer->GetGUID())
                 continue;
-            Creature const* teamedBot = BotDataMgr::FindBot(kv.first.GetEntry());
+            Creature const* teamedBot = BotDataMgr::FindBot(kv.first);
             if (teamedBot && teamedBot->GetDistance(victim) <= sWorld->getFloatConfig(CONFIG_GROUP_XP_DISTANCE))
                 UpdateBotScore(teamedBot, SCORE_HONORABLE_KILLS, 1);
         }
@@ -2160,7 +2160,7 @@ void Battleground::HandleBotKillPlayer(Creature* killer, Player* victim)
         {
             if (kv.second.Team != team || kv.first == killer->GetGUID())
                 continue;
-            Creature const* teamedBot = BotDataMgr::FindBot(kv.first.GetEntry());
+            Creature const* teamedBot = BotDataMgr::FindBot(kv.first);
             if (teamedBot && teamedBot->GetDistance(victim) <= sWorld->getFloatConfig(CONFIG_GROUP_XP_DISTANCE))
                 UpdateBotScore(teamedBot, SCORE_HONORABLE_KILLS, 1);
         }
@@ -2189,7 +2189,7 @@ void Battleground::HandleBotKillBot(Creature* killer, Creature* victim)
         {
             if (kv.second.Team != team || kv.first == killer->GetGUID())
                 continue;
-            Creature const* teamedBot = BotDataMgr::FindBot(kv.first.GetEntry());
+            Creature const* teamedBot = BotDataMgr::FindBot(kv.first);
             if (teamedBot && teamedBot->GetDistance(victim) <= sWorld->getFloatConfig(CONFIG_GROUP_XP_DISTANCE))
                 UpdateBotScore(teamedBot, SCORE_HONORABLE_KILLS, 1);
         }
@@ -2222,7 +2222,7 @@ void Battleground::HandlePlayerKillBot(Creature* victim, Player* killer)
         {
             if (kv.second.Team != team || kv.first == killer->GetGUID())
                 continue;
-            Creature const* teamedBot = BotDataMgr::FindBot(kv.first.GetEntry());
+            Creature const* teamedBot = BotDataMgr::FindBot(kv.first);
             if (teamedBot && teamedBot->GetDistance(victim) <= sWorld->getFloatConfig(CONFIG_GROUP_XP_DISTANCE))
                 UpdateBotScore(teamedBot, SCORE_HONORABLE_KILLS, 1);
         }
@@ -2292,7 +2292,7 @@ uint32 Battleground::GetAlivePlayersCountByTeam(TeamId teamId) const
     {
         if (GetBotTeamId(itr->first) == teamId)
         {
-            Creature const* bot = BotDataMgr::FindBot(itr->first.GetEntry());
+            Creature const* bot = BotDataMgr::FindBot(itr->first);
             if (bot && bot->IsAlive() && !bot->HasByteFlag(UNIT_FIELD_BYTES_2, 3, FORM_SPIRITOFREDEMPTION))
                 ++count;
         }

@@ -542,6 +542,14 @@ void BotMgr::OnOwnerSetGameMaster(bool on)
 
 void BotMgr::OnTeleportFar(uint32 mapId, float x, float y, float z, float ori)
 {
+    for (auto const& [_, bot] : _bots)
+    {
+        if (!bot || !bot->GetBotAI())
+            continue;
+
+        bot->GetBotAI()->UnsummonAll(false);
+    }
+
     Map* newMap = sMapMgr->CreateBaseMap(mapId);
     Position pos{ x, y, z, ori };
 
@@ -1437,7 +1445,7 @@ void BotMgr::UpdatePvPForBots()
 
 void BotMgr::BuildBotPartyMemberStatsPacket(ObjectGuid bot_guid, WorldPacket* data)
 {
-    Creature const* bot = BotDataMgr::FindBot(bot_guid.GetEntry());
+    Creature const* bot = BotDataMgr::FindBot(bot_guid);
     if (!bot)
     {
         *data << uint8(0);
@@ -2213,7 +2221,7 @@ std::vector<Unit*> BotMgr::GetAllGroupMembers(Unit const* source)
 
 void BotMgr::InviteBotToBG(ObjectGuid botguid, GroupQueueInfo* ginfo, Battleground* bg)
 {
-    Creature const* bot = BotDataMgr::FindBot(botguid.GetEntry());
+    Creature const* bot = BotDataMgr::FindBot(botguid);
     ASSERT(bot);
 
     bg->IncreaseInvitedCount(ginfo->teamId);

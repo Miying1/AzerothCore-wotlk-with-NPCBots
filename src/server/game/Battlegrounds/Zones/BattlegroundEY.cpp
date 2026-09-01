@@ -142,7 +142,7 @@ void BattlegroundEY::UpdatePointsState()
     //npcbot
     for (decltype(m_Bots)::value_type const& p : m_Bots)
     {
-        if (Creature const* bot = BotDataMgr::FindBot(p.first.GetEntry()))
+        if (Creature const* bot = BotDataMgr::FindBot(p.first))
         {
             for (uint8 point = 0; point < EY_POINTS_MAX; ++point)
             {
@@ -273,7 +273,7 @@ void BattlegroundEY::RemovePlayer(Player* player)
 void BattlegroundEY::RemoveBot(ObjectGuid guid)
 {
     if (GetFlagPickerGUID() == guid)
-        if (Creature const* bot = BotDataMgr::FindBot(guid.GetEntry()))
+        if (Creature const* bot = BotDataMgr::FindBot(guid))
             EventBotDroppedFlag(const_cast<Creature*>(bot));
 }
 //end npcbot

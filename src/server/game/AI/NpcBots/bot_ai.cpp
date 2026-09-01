@@ -228,7 +228,7 @@ Creature* bot_ai::GetBotsPet() const
         return nullptr;
 
     Creature* pet = me->GetMap()->GetCreature(botPetGUID);
-    if (!pet || !pet->IsNPCBotPet() || pet->GetOwnerGUID() != me->GetGUID())
+    if (!pet || !pet->IsInWorld() || !pet->IsNPCBotPet() || pet->GetOwnerGUID() != me->GetGUID())
         return nullptr;
 
     return pet;
@@ -16452,12 +16452,23 @@ bool bot_ai::SummonGameobject(uint32 entry, uint32 spell_id, int32 life_time, ui
     return true;
 }
 
-void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
+void bot_ai::UnsummonCreature(ObjectGuid guid, bool save)
 {
+    if (!guid || !me || !me->GetMap())
+        return;
+
+    Creature* creature = me->GetMap()->GetCreature(guid);
     if (!creature)
         return;
 
-    // 对象可能已不是 TempSummon（悬空指针被内存分配器复用为普通 NPC），此时直接放弃解散，避免断言崩溃
+    UnsummonCreature(creature, save);
+}
+
+void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
+{
+    if (!creature || !creature->IsInWorld())
+        return;
+
     TempSummon* summon = creature->ToTempSummon();
     if (!summon)
         return;
@@ -16473,13 +16484,8 @@ void bot_ai::UnsummonCreature(Creature* creature, bool /*save*/)
 void bot_ai::UnsummonPet(bool save)
 {
     ObjectGuid const petGuid = botPetGUID;
-    Creature* pet = GetBotsPet();
     botPetGUID.Clear();
-
-    if (!pet || pet->GetGUID() != petGuid)
-        return;
-
-    UnsummonCreature(pet, save);
+    UnsummonCreature(petGuid, save);
 }
 
 void bot_ai::MoveInLineOfSight(Unit* /*u*/)
