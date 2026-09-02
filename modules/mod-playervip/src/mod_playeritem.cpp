@@ -85,7 +85,7 @@ public:
 
  
  
-void AddPlayerVipScripts()
+void AddPlayerItemScripts()
 { 
     new ReNameItem();
     new ChangeFactionItem();

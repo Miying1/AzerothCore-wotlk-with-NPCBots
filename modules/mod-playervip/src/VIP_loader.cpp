@@ -3,10 +3,10 @@
  * Copyright (C) 2021+ WarheadCore <https://github.com/WarheadCore>
  */
 
-void AddPlayerVipScripts();
+void AddPlayerItemScripts();
 void Addworldboss_list();
 void Addmod_playervipScripts()
 {
-    AddPlayerVipScripts();
+    AddPlayerItemScripts();
     Addworldboss_list();
 }
