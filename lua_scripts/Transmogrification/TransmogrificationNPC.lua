@@ -1,7 +1,7 @@
 local AIO = AIO or require("AIO")
 
 -- 设置为实际幻化 NPC 的 entry，0 表示不注册 NPC 脚本。
-local TRANSMOGRIFICATION_NPC_ENTRY = 0
+local TRANSMOGRIFICATION_NPC_ENTRY = 190010
 
 local AIO_NAMESPACE = "TransmogrificationServer"
 local AIO_HANDLER = "TransmogrificationFrame"
