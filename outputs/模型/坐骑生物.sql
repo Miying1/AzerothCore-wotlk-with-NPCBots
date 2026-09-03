@@ -69,3 +69,24 @@ FROM `tmp_mounts`;
 
 DROP TEMPORARY TABLE IF EXISTS `tmp_mounts`;
 DROP TEMPORARY TABLE IF EXISTS `tmp_mount_template`;
+
+-- 为各坐骑自定义显示模型补充 `creature_model_info` 碰撞体积数据。
+-- 修复启动报错：No model data exist for `CreatureDisplayID` = ... listed by creature (Entry: 910xx)。
+-- 说明：`creature_model_info` 以 DisplayID 为键；下方 DisplayID 对应 tmp_mounts 中各坐骑的 model_id。
+-- BoundingRadius / CombatReach 为按坐骑体型的经验值，可据实际观感微调。
+DELETE FROM `creature_model_info` WHERE `DisplayID` IN (100007,100012,100013,100014,100015,100016,100020,100021,100025,100026,100029,100047,100048,100063);
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`, `VerifiedBuild`) VALUES
+(100007, 1.0, 4.0, 2, 0, 0),
+(100012, 1.0, 4.0, 2, 0, 0),
+(100013, 1.0, 4.0, 2, 0, 0),
+(100014, 1.0, 4.0, 2, 0, 0),
+(100015, 1.0, 4.0, 2, 0, 0),
+(100016, 1.0, 4.0, 2, 0, 0),
+(100020, 0.8, 3.5, 2, 0, 0),
+(100021, 1.0, 4.0, 2, 0, 0),
+(100025, 1.0, 4.0, 2, 0, 0),
+(100026, 1.0, 4.0, 2, 0, 0),
+(100029, 1.0, 4.0, 2, 0, 0),
+(100047, 1.2, 4.5, 2, 0, 0),
+(100048, 0.8, 3.5, 2, 0, 0),
+(100063, 1.5, 5.0, 2, 0, 0);

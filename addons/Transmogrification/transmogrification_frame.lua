@@ -832,7 +832,6 @@ function OnClickTransmogButton(self)
 	CurrentItemSlot = PLAYER_VISIBLE_ITEM_1_ENTRYID
 
 	-- 设置界面状态变量。
-	characterTransmogTab:SetChecked(true)
 	isInputHovered = false
 	currentPage = 1
 	currentSearchText = ""
@@ -877,12 +876,6 @@ function PaperDollFrame_OnShow(self)
 	end
 	if ( not PlayerTitlePickerScrollFrame.titles ) then
 		PlayerTitleFrame_UpdateTitles();
-	end
-
-	if ( TransmogrificationFrame:IsShown() ) then
-		characterTransmogTab:SetChecked(true)
-		else
-		characterTransmogTab:SetChecked(false)
 	end
 
 	LoadTransmogrificationsFromCurrentIDs()
@@ -1228,7 +1221,6 @@ function OnHideTransmogrificationFrame(self)
 
 	-- 使用服务器返回的新信息刷新幻化预览。
 	LoadTransmogrificationsFromCurrentIDs(false)
-	characterTransmogTab:SetChecked(false)
 end
 
 -- 定义窗口布局。
@@ -1526,18 +1518,6 @@ function OnTransmogrificationFrameLoad(self)
 
 	InitTabSlots()
 
-	-- 在角色信息窗口上创建标签按钮。
-	characterTransmogTab = CreateFrame("CheckButton", "CharacterFrameTab6", CharacterFrame, "SpellBookSkillLineTabTemplate")
-	characterTransmogTab:SetSize(32, 32);
-	characterTransmogTab:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", 0, -48)
-	characterTransmogTab:Show()
-	innerCharacterTransmogTab = characterTransmogTab:CreateTexture("Item", "ARTWORK")
-	innerCharacterTransmogTab:SetTexture("Interface\\AddOns\\Transmogrification\\assets\\Transmog-Icon")
-	innerCharacterTransmogTab:SetAllPoints()
-	innerCharacterTransmogTab:Show()
-	characterTransmogTab:SetScript("OnEnter", TransmogrifyToolTip)
-	characterTransmogTab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-	characterTransmogTab:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() SyncTransmogApplySerial() end)
 	TransmogCloseButton:SetScript("OnClick", function(self) if ( TransmogrificationFrame:IsShown() ) then TransmogrificationFrame:Hide() return; end TransmogrificationFrame:Show() SyncTransmogApplySerial() end)
 
 	PaperDollFrame:SetScript("OnShow", PaperDollFrame_OnShow)

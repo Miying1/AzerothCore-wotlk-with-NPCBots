@@ -15,6 +15,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
+#include "Vehicle.h"
 #include "World.h" 
 /*
 Hunter NpcBot (reworked by Trickerer onlysuffering@gmail.com)
@@ -284,8 +285,8 @@ public:
 
             if (rangedMeleeFallback)
             {
-                if (rangedMeleeFallbackTimer > lastdiff)
-                    rangedMeleeFallbackTimer -= lastdiff;
+                if (rangedMeleeFallbackTimer > GetLastDiff())
+                    rangedMeleeFallbackTimer -= GetLastDiff();
                 else
                 {
                     rangedMeleeFallback = false;
@@ -327,7 +328,7 @@ public:
             bool cannotUseRangedAttack = distance < 5.5f && (!hasLineOfSight || blockedByCollision);
             if (!rangedEscaping && !pos && sameTarget && cannotUseRangedAttack && !hasMoved)
             {
-                rangedStuckTimer += lastdiff;
+                rangedStuckTimer += GetLastDiff();
                 if (rangedStuckTimer >= 1000)
                 {
                     rangedEscaping = true;
@@ -354,8 +355,8 @@ public:
                     rangedEscapeMoving = false;
                     rangedEscapeTimer = 3000;
                 }
-                else if (rangedEscapeTimer > lastdiff)
-                    rangedEscapeTimer -= lastdiff;
+                else if (rangedEscapeTimer > GetLastDiff())
+                    rangedEscapeTimer -= GetLastDiff();
                 else
                 {
                     rangedEscapeTimer = 0;

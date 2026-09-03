@@ -41,12 +41,6 @@ function Transmogrification:OnInitialize()
 	-- 初始化幻化选项数据库与选项表。
 	self.db = LibStub("AceDB-3.0"):New("TransmogrificationOptions", defaultTransmogrificationOptions)
 	self:RegisterOptions()
-	
-	-- 注册聊天命令。
-	self:RegisterChatCommand("tmog", "HandleSlashCommand")
-	self:RegisterChatCommand("transmog", "HandleSlashCommand")
-	self:RegisterChatCommand("transmogrify", "HandleSlashCommand")
-	self:RegisterChatCommand("transmogrification", "HandleSlashCommand")
 	end
 
 function Transmogrification:OnEnable()
@@ -54,21 +48,6 @@ function Transmogrification:OnEnable()
 		
 	-- 应用自定义幻化窗口样式。
 	self:ApplyWindowSettings()
-end
-
-function Transmogrification:HandleSlashCommand(input)
-	-- 如果命令参数是“config(s)”、“option(s)”或“setting(s)”，则显示选项面板。
-	if input:trim() == "config" or input:trim() == "configs" or input:trim() == "option" or input:trim() == "options" or input:trim() == "setting" or input:trim() == "settings" then
-		InterfaceOptionsFrame_OpenToCategory(addonName)
-	else
-		if TransmogrificationFrame and TransmogrificationFrame:IsShown() then
-			TransmogrificationFrame:Hide()
-		else
-			if TransmogrificationFrame then
-				TransmogrificationFrame:Show()
-			end
-		end
-	end
 end
 
 -- 在界面插件窗口中注册选项窗口。
