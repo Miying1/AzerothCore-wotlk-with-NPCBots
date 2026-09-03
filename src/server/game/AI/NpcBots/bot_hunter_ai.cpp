@@ -212,7 +212,21 @@ public:
 
             myPetType = 0;
 
+            ResetRangedPositionState();
             InitUnitFlags();
+        }
+
+        void ResetRangedPositionState()
+        {
+            rangedStuckTimer = 0;
+            rangedEscapeTimer = 0;
+            lastRangedPositionTargetGuid.Clear();
+            hasLastRangedPosition = false;
+            rangedEscaping = false;
+            rangedEscapeMoving = false;
+            rangedEscapeAttempts = 0;
+            rangedMeleeFallback = false;
+            rangedMeleeFallbackTimer = 0;
         }
 
         bool doCast(Unit* victim, uint32 spellId)
@@ -223,18 +237,206 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        uint32 rangedStuckTimer{};
+        uint32 rangedEscapeTimer{};
+        Position lastRangedBotPos{};
+        ObjectGuid lastRangedPositionTargetGuid;
+        bool hasLastRangedPosition{};
+        bool rangedEscaping{};
+        bool rangedEscapeMoving{};
+        uint8 rangedEscapeAttempts{};
+        bool rangedMeleeFallback{};
+        uint32 rangedMeleeFallbackTimer{};
+
+        void GetInPosition(bool force, Unit* newtarget, Position* pos = nullptr) override
+        {
+            if (!newtarget)
+                newtarget = me->GetVictim();
+            if (!newtarget || !IsRanged())
+            {
+                bot_ai::GetInPosition(force, newtarget, pos);
+                return;
+            }
+
+            Unit* mover = me->GetVehicle() ? me->GetVehicle()->GetBase() : me;
+            if (HasBotCommandState(BOT_COMMAND_STAY) || (!IAmFree() && !GetAllowCombatPositioning()) ||
+                CCed(mover, true) || (mover == me && JumpingOrFalling()) || IsCasting(mover))
+            {
+                bot_ai::GetInPosition(force, newtarget, pos);
+                return;
+            }
+
+            if (hasLastRangedPosition && lastRangedPositionTargetGuid != newtarget->GetGUID())
+                ResetRangedPositionState();
+
+            float distance = me->GetDistance(newtarget);
+            if (rangedMeleeFallback && (lastRangedPositionTargetGuid != newtarget->GetGUID() || distance >= 5.5f))
+            {
+                rangedMeleeFallback = false;
+                rangedMeleeFallbackTimer = 0;
+                rangedEscaping = false;
+                rangedEscapeMoving = false;
+                rangedEscapeAttempts = 0;
+                rangedEscapeTimer = 0;
+                rangedStuckTimer = 0;
+                hasLastRangedPosition = false;
+            }
+
+            if (rangedMeleeFallback)
+            {
+                if (rangedMeleeFallbackTimer > lastdiff)
+                    rangedMeleeFallbackTimer -= lastdiff;
+                else
+                {
+                    rangedMeleeFallback = false;
+                    rangedMeleeFallbackTimer = 0;
+                    rangedEscaping = false;
+                    rangedEscapeMoving = false;
+                    rangedEscapeAttempts = 0;
+                    rangedEscapeTimer = 0;
+                    rangedStuckTimer = 0;
+                    hasLastRangedPosition = false;
+                    bot_ai::GetInPosition(force, newtarget, pos);
+                    return;
+                }
+
+                if (!JumpingOrFalling() && ((!mover->HasUnitState(UNIT_STATE_CHASE) && !mover->isMoving()) ||
+                    (!mover->HasUnitState(UNIT_STATE_CHASE_MOVE) && distance > 1.5f)))
+                    BotMovement(BOT_MOVE_CHASE, nullptr, newtarget);
+
+                if (newtarget != me->GetVictim() && (mover == me || CanBotAttackOnVehicle()))
+                {
+                    if (!me->Attack(newtarget, true))
+                        me->SetInFront(newtarget);
+                }
+                return;
+            }
+
+            if (distance >= 5.5f && !rangedEscaping)
+            {
+                bot_ai::GetInPosition(force, newtarget, pos);
+                return;
+            }
+
+            bool sameTarget = lastRangedPositionTargetGuid == newtarget->GetGUID();
+            bool hasMoved = hasLastRangedPosition && mover->GetExactDist2d(lastRangedBotPos) >= 0.5f;
+            bool hasLineOfSight = mover->IsWithinLOS(newtarget->GetPositionX(), newtarget->GetPositionY(), newtarget->GetPositionZ());
+            Position collisionPosition = mover->GetFirstCollisionPosition(distance,
+                Position::NormalizeOrientation(mover->GetAbsoluteAngle(newtarget) - mover->GetOrientation()));
+            bool blockedByCollision = collisionPosition.GetExactDist2d(newtarget) < distance - 0.5f;
+            bool cannotUseRangedAttack = distance < 5.5f && (!hasLineOfSight || blockedByCollision);
+            if (!rangedEscaping && !pos && sameTarget && cannotUseRangedAttack && !hasMoved)
+            {
+                rangedStuckTimer += lastdiff;
+                if (rangedStuckTimer >= 1000)
+                {
+                    rangedEscaping = true;
+                    rangedEscapeMoving = false;
+                    rangedEscapeAttempts = 0;
+                    rangedEscapeTimer = 0;
+                    rangedStuckTimer = 0;
+                }
+            }
+            else
+                rangedStuckTimer = 0;
+
+            lastRangedBotPos.Relocate(mover->GetPosition());
+            lastRangedPositionTargetGuid = newtarget->GetGUID();
+            hasLastRangedPosition = true;
+
+            if (rangedEscaping)
+            {
+                if (rangedEscapeMoving)
+                {
+                    if (mover->isMoving())
+                        return;
+
+                    rangedEscapeMoving = false;
+                    rangedEscapeTimer = 3000;
+                }
+                else if (rangedEscapeTimer > lastdiff)
+                    rangedEscapeTimer -= lastdiff;
+                else
+                {
+                    rangedEscapeTimer = 0;
+                    if (++rangedEscapeAttempts >= 3)
+                    {
+                        rangedEscaping = false;
+                        rangedMeleeFallback = true;
+                        rangedMeleeFallbackTimer = 5000;
+                        rangedStuckTimer = 0;
+                        return;
+                    }
+                }
+
+                if (!rangedEscapeMoving && !mover->isMoving())
+                {
+                    Position escapePosition;
+                    float targetAngle = mover->GetAbsoluteAngle(newtarget);
+                    float attemptOffset = 0.75f + 0.35f * std::min<uint8>(rangedEscapeAttempts, 2);
+                    float escapeDistance = 5.0f + 2.0f * std::min<uint8>(rangedEscapeAttempts, 2);
+                    float escapeAngles[5] =
+                    {
+                        targetAngle + float(M_PI),
+                        targetAngle + float(M_PI) + attemptOffset,
+                        targetAngle + float(M_PI) - attemptOffset,
+                        targetAngle + attemptOffset,
+                        targetAngle
+                    };
+                    float escapeDistances[5] = { escapeDistance, escapeDistance, escapeDistance, escapeDistance + 3.0f, escapeDistance };
+                    for (uint8 i = 0; i < 5; ++i)
+                    {
+                        float angle = Position::NormalizeOrientation(escapeAngles[i]);
+                        escapePosition = mover->GetFirstCollisionPosition(escapeDistances[i], angle - mover->GetOrientation());
+                        if (mover->GetExactDist2d(escapePosition) > 1.5f)
+                            break;
+                    }
+
+                    if (mover->GetExactDist2d(escapePosition) > 1.5f)
+                    {
+                        BotMovement(BOT_MOVE_POINT, &escapePosition);
+                        rangedEscapeMoving = true;
+                    }
+                    else if (++rangedEscapeAttempts >= 3)
+                    {
+                        rangedEscaping = false;
+                        rangedMeleeFallback = true;
+                        rangedMeleeFallbackTimer = 5000;
+                    }
+                }
+                return;
+            }
+
+            bot_ai::GetInPosition(force, newtarget, pos);
+        }
+
         void StartAttack(Unit* u, bool force = false)
         {
             if (!bot_ai::StartAttack(u, force))
                 return;
-            GetInPosition(force, u);
+            bot_ai::GetInPosition(force, u);
         }
 
-        void JustEngagedWith(Unit* u) override { aspectTimer = 0; bot_ai::JustEngagedWith(u); }
+        void JustEngagedWith(Unit* u) override
+        {
+            ResetRangedPositionState();
+            aspectTimer = 0;
+            bot_ai::JustEngagedWith(u);
+        }
         void KilledUnit(Unit* u) override { bot_ai::KilledUnit(u); }
-        void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override { bot_ai::EnterEvadeMode(why); }
+        void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
+        {
+            ResetRangedPositionState();
+            bot_ai::EnterEvadeMode(why);
+        }
         void MoveInLineOfSight(Unit* u) override { bot_ai::MoveInLineOfSight(u); }
-        void JustDied(Unit* u) override { _myaspect = 0; UnsummonAll(false); bot_ai::JustDied(u); }
+        void JustDied(Unit* u) override
+        {
+            ResetRangedPositionState();
+            _myaspect = 0;
+            UnsummonAll(false);
+            bot_ai::JustDied(u);
+        }
         void DoNonCombatActions(uint32 /*diff*/) { }
 
         void CheckAspects(uint32 diff)

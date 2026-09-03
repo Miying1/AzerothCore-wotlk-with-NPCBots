@@ -477,7 +477,7 @@ protected:
 
     float InitAttackRange(float origRange, bool ranged) const;
     void CalculateAttackPos(Unit* target, Position &pos, bool& force) const;
-    void GetInPosition(bool force, Unit* newtarget, Position* pos = nullptr);
+    virtual void GetInPosition(bool force, Unit* newtarget, Position* pos = nullptr);
     bool AdjustTankingPosition(Unit const* mytarget) const;
     virtual float GetSpellAttackRange(bool longRange) const { return longRange ? 23.f : 15.f; }
     virtual void CheckAttackState();

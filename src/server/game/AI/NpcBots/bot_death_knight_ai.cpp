@@ -562,8 +562,13 @@ public:
             if (!CanBotAttackOnVehicle())
                 return;
 
-            //pet is killed or unreachable
-            if (Creature* pet = GetBotsPet())
+            // 仅邪恶专精可以召唤食尸鬼
+            if (GetSpec() != BOT_SPEC_DK_UNHOLY)
+            {
+                if (GetBotsPet())
+                    UnsummonAll(false);
+            }
+            else if (Creature* pet = GetBotsPet())
             {
                 if (GC_Timer <= diff && petSummonTimer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
                     (!pet->IsAlive() || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
