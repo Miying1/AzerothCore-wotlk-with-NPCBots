@@ -74,12 +74,21 @@ public:
             return false;
         }
 
+        void StartIntroIfReady()
+        {
+            if (InstanceProgress != INSTANCE_PROGRESS_NONE || !NPC_LeaderFirstGUID)
+                return;
+
+            if (Creature* leader = instance->GetCreature(NPC_LeaderFirstGUID))
+                if (leader->IsAIEnabled)
+                    leader->AI()->SetData(DATA_START_INTRO, 0);
+        }
+
         void OnPlayerEnter(Player* player) override
         {
             InstanceScript::OnPlayerEnter(player);
 
-            if (Creature* c = instance->GetCreature(GetGuidData(DATA_LEADER_FIRST_GUID)))
-                c->AI()->SetData(DATA_START_INTRO, 0);
+            StartIntroIfReady();
             CheckChallengeMode();
         }
 
@@ -103,6 +112,8 @@ public:
 
         void OnCreatureCreate(Creature* creature) override
         {
+            InstanceScript::OnCreatureCreate(creature);
+
             switch (creature->GetEntry())
             {
                 case NPC_SYLVANAS_PART1:
@@ -123,6 +134,8 @@ public:
                             creature->SetPosition(SBSLeaderEndPos);
                             break;
                     }
+
+                    StartIntroIfReady();
                     break;
                 case NPC_SYLVANAS_PART2:
                     if (GetTeamIdInInstance() == TEAM_ALLIANCE)

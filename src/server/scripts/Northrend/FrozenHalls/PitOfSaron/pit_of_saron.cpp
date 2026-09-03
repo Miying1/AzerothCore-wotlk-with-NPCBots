@@ -63,7 +63,7 @@ public:
 
         void SetData(uint32 type, uint32  /*val*/) override
         {
-            if (type == DATA_START_INTRO && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0 && !me->IsVisible())
+            if (type == DATA_START_INTRO && pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0 && !me->IsVisible())
             {
                 me->setActive(true);
                 events.RescheduleEvent(1, 0ms);

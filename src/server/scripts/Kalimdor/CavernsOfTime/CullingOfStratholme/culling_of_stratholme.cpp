@@ -1624,6 +1624,9 @@ public:
         {
             ScriptedAI::UpdateAI(diff);
 
+            if (me->GetEntry() == NPC_RISEN_ZOMBIE)
+                return;
+
             if (isStephanieCrowd && stephanieDialogueTimer)
             {
                 if (stephanieDialogueTimer <= diff)
