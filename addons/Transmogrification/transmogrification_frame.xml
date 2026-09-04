@@ -224,9 +224,9 @@
 				</Anchors>
 			</Button>
 			<DressUpModel name="TransmogrificationModelFrame">
-                <Size>
-                    <AbsDimension x="170" y="380"/>
-                </Size>
+			    <Size>
+			        <AbsDimension x="220" y="380"/>
+			    </Size>
                 <Anchors>
                     <Anchor point="TOPLEFT">
                         <Offset>
@@ -248,7 +248,7 @@
 						<Anchors>
 							<Anchor point="TOPLEFT">
 								<Offset>
-                            		<AbsDimension x="68" y="11"/>
+                            		<AbsDimension x="78" y="11"/>
                         		</Offset>
 							</Anchor>
 						</Anchors>
@@ -359,7 +359,7 @@
             </Button>
 			<Button name="TransmogCharacterHandsSlot" inherits="TransmogItemSlotButtonTemplate">
 				<Anchors>
-					<Anchor point="BOTTOM" relativeTo="TransmogCharacterHeadSlot" x="220" y="0"/>
+					<Anchor point="BOTTOM" relativeTo="TransmogCharacterHeadSlot" x="270" y="0"/>
 				</Anchors>
 				<Scripts>
 					<OnClick function="OnClickHandsTab"/>
@@ -491,7 +491,7 @@
 			<Button name="RestoreAllButton" inherits="RestoreButtonTemplate">
 				<Size x="22" y="22"/>
 				<Anchors>
-					<Anchor point="LEFT" relativeTo="TransmogCharacterWristSlot" x="84" y="-12"/>
+					<Anchor point="LEFT" relativeTo="TransmogCharacterWristSlot" x="105" y="-12"/>
 				</Anchors>
 				<Scripts>
 					<OnClick function="OnClickRestoreAllButton"/>
@@ -500,7 +500,7 @@
 			<Button name="HideAllButton" inherits="HideButtonTemplate">
 				<Size x="24" y="24"/>
 				<Anchors>
-					<Anchor point="RIGHT" relativeTo="TransmogCharacterRangedSlot" x="-82" y="-12"/>
+					<Anchor point="RIGHT" relativeTo="TransmogCharacterRangedSlot" x="-92" y="-12"/>
 				</Anchors>
 				<Scripts>
 					<OnClick function="OnClickHideAllButton"/>

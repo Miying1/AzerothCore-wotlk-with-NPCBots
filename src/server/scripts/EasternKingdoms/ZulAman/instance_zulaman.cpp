@@ -156,8 +156,25 @@ public:
         {
             InstanceScript::OnGameObjectCreate(go);
 
-            if (go->GetEntry() == GO_GATE_HEXLORD)
-                CheckInstanceStatus(go);
+            switch (go->GetEntry())
+            {
+                case GO_GATE_HEXLORD:
+                    CheckInstanceStatus(go);
+                    break;
+                // 已有进度再次进入时，若已有任意 Boss 被击杀（说明必然走过哈里森开门流程），则主动恢复入口大门开门状态
+                case GO_MASSIVE_GATE:
+                {
+                    bool gateOpened = false;
+                    for (uint32 i = 0; i < MAX_ENCOUNTER && !gateOpened; ++i)
+                        if (GetBossState(i) == DONE)
+                            gateOpened = true;
+                    if (gateOpened)
+                        HandleGameObject(go->GetGUID(), true, go);
+                    break;
+                }
+                default:
+                    break;
+            }
         }
 
         void SummonHostage(uint8 num)

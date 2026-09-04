@@ -353,6 +353,7 @@ local TEAM_DEFENSIVE_SPELLS = {
     },
     PRIEST = {
         { spellName = "神圣赞美诗", icon = "Interface\\Icons\\Spell_Holy_DivineHymn" },
+        { spellName = "希望赞美诗", icon = "Interface\\Icons\\Spell_Holy_SymbolOfHope" }, -- 团队回蓝
         { spellName = "真言术：盾", icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" }, 
         { spellName = "痛苦压制", icon = "Interface\\Icons\\Spell_Holy_PainSupression" },
         { spellName = "能量灌注", icon = "Interface\\Icons\\Spell_Holy_PowerInfusion" }
@@ -364,9 +365,9 @@ local TEAM_DEFENSIVE_SPELLS = {
         { spellName = "复生", icon = "Interface\\Icons\\Spell_Nature_Reincarnation" }
     },
     SHAMAN = {
-        { spellName = "嗜血", icon = "Interface\\Icons\\Spell_Nature_BloodLust" },
+        { spellName = "嗜血", icon = "Interface\\Icons\\Spell_Nature_BloodLust", faction = "Horde" },
+        { spellName = "英勇", icon = "Interface\\Icons\\Spell_Nature_BloodLust", faction = "Alliance" }, -- 联盟(德莱尼)萨满版嗜血
         { spellName = "治疗链", icon = "Interface\\Icons\\Spell_Nature_HealingWaveGreater" },
-        { spellName = "法力之潮图腾", icon = "Interface\\Icons\\Spell_Nature_SlowingTotem" }, 
         { spellName = "治疗之泉图腾", icon = "Interface\\Icons\\inv_spear_04" },
         { spellName = "战栗图腾", icon = "Interface\\Icons\\Spell_Nature_TremorTotem" }
     },
@@ -1450,8 +1451,22 @@ local function CreateBaseControlFrame()
     return frame
 end
 
+-- 按 NPCBot 的种族判定其阵营（联盟萨满施放英勇，部落萨满施放嗜血）
+-- 直接用 UnitRace 读取 BOT 自身种族，避免误用玩家阵营
+local ALLIANCE_RACES = { Human = true, Dwarf = true, NightElf = true, Gnome = true, Draenei = true }
+local function GetBotFaction(unit)
+    local _, englishRace = UnitRace(unit)
+    if englishRace then
+        return ALLIANCE_RACES[englishRace] and "Alliance" or "Horde"
+    end
+    -- 取不到种族时回退到阵营接口
+    local faction = UnitFactionGroup(unit)
+    return (faction and faction ~= "Neutral") and faction or nil
+end
+
 -- 在窗口中按锚点参照填充团队技能按钮（图标显示 + 悬浮 tooltip）
-local function FillTeamSpellButtons(frame, class, anchorRef, spellButtons, isLocked, lockedName)
+-- faction: 目标阵营（"Alliance"/"Horde"），用于按种族区分同名效果的不同法术（如萨满嗜血/英勇）
+local function FillTeamSpellButtons(frame, class, anchorRef, spellButtons, isLocked, lockedName, faction)
     -- 清除旧按钮
     for _, btn in ipairs(spellButtons) do
         btn:Hide()
@@ -1461,8 +1476,23 @@ local function FillTeamSpellButtons(frame, class, anchorRef, spellButtons, isLoc
     end
     while #spellButtons > 0 do table.remove(spellButtons) end
 
-    local spells = TEAM_DEFENSIVE_SPELLS[class]
-    if not spells then
+    local allSpells = TEAM_DEFENSIVE_SPELLS[class]
+    if not allSpells then
+        frame:SetHeight(60)
+        return
+    end
+
+    -- 按阵营过滤：仅保留无阵营限制或阵营匹配的法术
+    local spells = allSpells
+    if faction then
+        spells = {}
+        for _, s in ipairs(allSpells) do
+            if not s.faction or s.faction == faction then
+                table.insert(spells, s)
+            end
+        end
+    end
+    if #spells == 0 then
         frame:SetHeight(60)
         return
     end
@@ -1807,7 +1837,9 @@ function CreateLockedControlPanel(botName, botClass)
 
     -- 一次性填充团队技能
     local cpTeamSpellButtons = {}
-    FillTeamSpellButtons(frame, botClass, teamAnchor, cpTeamSpellButtons, true, botName)
+    -- 锁定面板创建时目标即为该机器人，按 BOT 自身种族判定阵营
+    local botFaction = GetBotFaction("target")
+    FillTeamSpellButtons(frame, botClass, teamAnchor, cpTeamSpellButtons, true, botName, botFaction)
 
     frame:Show()
 end
@@ -2035,7 +2067,9 @@ function CreateDynamicControlPanel()
             return
         end
         -- 非锁定时使用记录的目标名（而非玩家当前 target），保证面板指向的目标不被切换干扰
-        FillTeamSpellButtons(frame, cls, teamAnchor, cpTeamSpellButtons, false, recordedBotName)
+        -- 按 BOT 自身种族判定阵营
+        local faction = GetBotFaction("target")
+        FillTeamSpellButtons(frame, cls, teamAnchor, cpTeamSpellButtons, false, recordedBotName, faction)
     end
 
     -- 监听目标切换：仅在非锁定状态下刷新

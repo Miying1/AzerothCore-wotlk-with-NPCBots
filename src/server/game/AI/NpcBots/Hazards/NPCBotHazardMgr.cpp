@@ -128,18 +128,20 @@ void NPCBotHazardMgr::LoadFromDB()
         if (damageSpellId)
         {
             SpellInfo const* damageSpell = sSpellMgr->GetSpellInfo(damageSpellId);
+            float spellRadius = 0.0f;
             if (!damageSpell || damageSpell->IsPositive())
             {
-                ++skippedCount;
-                LOG_ERROR("sql.sql", "NPCBot creature hazard for map {} and creature {} references positive or missing damage spell {}", mapId, creatureEntry, damageSpellId);
-                continue;
+                // 按配置回退到 radius 而非丢弃该危险区域规则。
+                LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} references positive or missing damage spell {}; falling back to configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
             }
-
-            float spellRadius = GetDamageSpellRadius(damageSpellId);
-            if (spellRadius > 0.0f)
-                radius = spellRadius;
             else
-                LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} cannot get radius from spell {}; using configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
+            {
+                spellRadius = GetDamageSpellRadius(damageSpellId);
+                if (spellRadius > 0.0f)
+                    radius = spellRadius;
+                else
+                    LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} cannot get radius from spell {}; using configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
+            }
         }
 
         if (radius <= 0.0f)

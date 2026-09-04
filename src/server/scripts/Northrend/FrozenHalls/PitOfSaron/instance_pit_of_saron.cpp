@@ -79,9 +79,9 @@ public:
             if (InstanceProgress != INSTANCE_PROGRESS_NONE || !NPC_LeaderFirstGUID)
                 return;
 
+            // leader 入界时 AI 已初始化完成，直接触发开场剧情（无需再检查 IsAIEnabled）
             if (Creature* leader = instance->GetCreature(NPC_LeaderFirstGUID))
-                if (leader->IsAIEnabled)
-                    leader->AI()->SetData(DATA_START_INTRO, 0);
+                leader->AI()->SetData(DATA_START_INTRO, 0);
         }
 
         void OnPlayerEnter(Player* player) override

@@ -61,6 +61,18 @@ public:
                 }
         }
 
+        void InitializeAI() override
+        {
+            // AI 初始化（creature 入界）完成后，若开场剧情尚未进行则立即启动，
+            // 避免依赖 InstanceScript 的触发时机，确保玩家进本即播放剧情
+            NullCreatureAI::InitializeAI(); // 内部会调用 Reset()，INSTANCE_PROGRESS_NONE 时会将 me 设为不可见
+            if (pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0)
+            {
+                me->setActive(true);
+                events.RescheduleEvent(1, 0ms);
+            }
+        }
+
         void SetData(uint32 type, uint32  /*val*/) override
         {
             if (type == DATA_START_INTRO && pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0 && !me->IsVisible())
