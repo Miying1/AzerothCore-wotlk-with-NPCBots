@@ -543,6 +543,7 @@ void bot_ai::ResetBotAI(uint8 resetType)
     _botCommandState = 0;
     _combatPositioningOverride = -1;
     _botAwaitState = BOT_AWAIT_NONE;
+    _stayPosition = Position{};
     _stayPosValid = false;
     _reviveTimer = 0;
 
@@ -18179,26 +18180,29 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     lastdiff = diff;
 
-    // While holding BOT_COMMAND_STAY, remember the anchor point. If the bot gets knocked back
-    // or otherwise displaced away from it, automatically walk back to that point.
-    if (me->IsAlive() && HasBotCommandState(BOT_COMMAND_STAY))
+    // 传送时清除驻守状态和守卫锚点，避免传送后返回传送前的位置。
+    if (IsDuringTeleport())
     {
-        if (!me->isMoving())
+        RemoveBotCommandState(BOT_COMMAND_STAY);
+        _stayPosition = Position{};
+        _stayPosValid = false;
+    }
+    else if (me->IsAlive() && HasBotCommandState(BOT_COMMAND_STAY))
+    {
+        if (!_stayPosValid)
         {
-            if (!_stayPosValid)
-            {
-                _stayPosition.Relocate(me);
-                _stayPosValid = true;
-            }
-            else if (me->GetExactDist2d(_stayPosition) > 2.0f)
-            {
-                BotMovement(BOT_MOVE_POINT, &_stayPosition, nullptr, false);
-            }
+            _stayPosition.Relocate(me);
+            _stayPosValid = true;
         }
-        // while walking back, keep _stayPosValid so we don't re-trigger every frame
+        // 仅在战斗中检查驻守锚点，非战斗状态下不主动返回守卫地点。
+        else if (me->IsInCombat() && !me->isMoving() && me->GetExactDist2d(_stayPosition) > 2.0f)
+            BotMovement(BOT_MOVE_POINT, &_stayPosition, nullptr, false);
     }
     else
+    {
+        _stayPosition = Position{};
         _stayPosValid = false;
+    }
 
     FindMaster();
 
