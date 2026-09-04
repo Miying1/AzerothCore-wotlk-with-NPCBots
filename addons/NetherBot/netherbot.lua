@@ -353,7 +353,7 @@ local TEAM_DEFENSIVE_SPELLS = {
     },
     PRIEST = {
         { spellName = "神圣赞美诗", icon = "Interface\\Icons\\Spell_Holy_DivineHymn" },
-        { spellName = "希望赞美诗", icon = "Interface\\Icons\\Spell_Holy_SymbolOfHope" }, -- 团队回蓝
+        { spellName = "希望圣歌", icon = "Interface\\Icons\\Spell_Holy_SymbolOfHope" }, -- 团队回蓝
         { spellName = "真言术：盾", icon = "Interface\\Icons\\Spell_Holy_PowerWordShield" }, 
         { spellName = "痛苦压制", icon = "Interface\\Icons\\Spell_Holy_PainSupression" },
         { spellName = "能量灌注", icon = "Interface\\Icons\\Spell_Holy_PowerInfusion" }

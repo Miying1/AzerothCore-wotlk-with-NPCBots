@@ -249,6 +249,22 @@ public:
         bool rangedMeleeFallback{};
         uint32 rangedMeleeFallbackTimer{};
 
+        //远程输出的最小距离(码), 低于此距离即视为处于近战范围。
+        //DoRangedAttack() 内部以 3 码划分近战段与远程段: dist < 3 时直接 return 不放任何远程技能,
+        //Auto Shot 又要求 dist > 3 才能起手。取 3 会卡在"不能射击也不打近战"的死区, 故留 0.5 码缓冲
+        static constexpr float RANGED_MIN_DIST = 3.5f;
+
+        //站桩输出死区的下限(码): 低于此距离视为已被目标贴到近战范围, 需要继续拉开到理想射程;
+        //高于此距离才允许原地站定射击
+        static constexpr float RANGED_STAND_MIN_DIST = 8.5f;
+
+        //站桩输出死区的上限(码): 与 DoRangedAttack() 的 maxRangeNormal(41/35) 保持一致并留出约 5 码余量,
+        //目标小幅移动时射击仍能命中, 避免反复跟进/后退
+        float RangedMaxStandDist() const
+        {
+            return me->GetLevel() >= 10 ? 36.f : 30.f;
+        }
+
         void GetInPosition(bool force, Unit* newtarget, Position* pos = nullptr) override
         {
             if (!newtarget)
@@ -271,7 +287,7 @@ public:
                 ResetRangedPositionState();
 
             float distance = me->GetDistance(newtarget);
-            if (rangedMeleeFallback && (lastRangedPositionTargetGuid != newtarget->GetGUID() || distance >= 5.5f))
+            if (rangedMeleeFallback && (lastRangedPositionTargetGuid != newtarget->GetGUID() || distance >= RANGED_MIN_DIST))
             {
                 rangedMeleeFallback = false;
                 rangedMeleeFallbackTimer = 0;
@@ -313,8 +329,35 @@ public:
                 return;
             }
 
-            if (distance >= 5.5f && !rangedEscaping)
+            //已成功拉开距离，退出逃离状态恢复正常远程走位
+            if (rangedEscaping && distance >= RANGED_MIN_DIST)
             {
+                rangedEscaping = false;
+                rangedEscapeMoving = false;
+                rangedEscapeAttempts = 0;
+                rangedEscapeTimer = 0;
+                rangedStuckTimer = 0;
+            }
+
+            if (distance >= RANGED_MIN_DIST && !rangedEscaping)
+            {
+                //站桩输出死区: 距离落在舒适的远程输出区间内且视线畅通时原地站定, 不做任何走位。
+                //不能直接放行到基类: 基类会在目标周围按随机角度反复重算攻击点并周期性重新下发走位,
+                //导致满足射程后仍左右横移、站不住射击
+                if (distance >= RANGED_STAND_MIN_DIST && distance <= RangedMaxStandDist() &&
+                    mover->IsWithinLOS(newtarget->GetPositionX(), newtarget->GetPositionY(), newtarget->GetPositionZ()))
+                {
+                    //目标还不是当前攻击目标(如散射后 AttackStop 重新接战)时仍交给基类,
+                    //由基类补发起攻击/面向, 避免复制基类尾部逻辑
+                    if (newtarget != me->GetVictim())
+                    {
+                        bot_ai::GetInPosition(force, newtarget, pos);
+                        return;
+                    }
+                    return;
+                }
+
+                //过近(< RANGED_STAND_MIN_DIST): 交给基类向外拉开; 过远/无视线: 交给基类跟进或换角度找位置
                 bot_ai::GetInPosition(force, newtarget, pos);
                 return;
             }
@@ -325,7 +368,7 @@ public:
             Position collisionPosition = mover->GetFirstCollisionPosition(distance,
                 Position::NormalizeOrientation(mover->GetAbsoluteAngle(newtarget) - mover->GetOrientation()));
             bool blockedByCollision = collisionPosition.GetExactDist2d(newtarget) < distance - 0.5f;
-            bool cannotUseRangedAttack = distance < 5.5f && (!hasLineOfSight || blockedByCollision);
+            bool cannotUseRangedAttack = distance < RANGED_MIN_DIST && (!hasLineOfSight || blockedByCollision);
             if (!rangedEscaping && !pos && sameTarget && cannotUseRangedAttack && !hasMoved)
             {
                 rangedStuckTimer += GetLastDiff();
@@ -347,63 +390,122 @@ public:
 
             if (rangedEscaping)
             {
+                //正在位移中，等待本次位移到位。
+                //这里必须用计时器而不是 mover->isMoving(): 追击目标时 isMoving 恒为 true,
+                //会导致逃离指令永远发不出去, 每次尝试都空转一次, 三次后直接切近战兜底
                 if (rangedEscapeMoving)
                 {
-                    if (mover->isMoving())
+                    if (rangedEscapeTimer > GetLastDiff())
+                    {
+                        rangedEscapeTimer -= GetLastDiff();
                         return;
-
+                    }
                     rangedEscapeMoving = false;
-                    rangedEscapeTimer = 3000;
                 }
+                //两次尝试之间留出间隔
                 else if (rangedEscapeTimer > GetLastDiff())
-                    rangedEscapeTimer -= GetLastDiff();
-                else
                 {
+                    rangedEscapeTimer -= GetLastDiff();
+                    return;
+                }
+                else
                     rangedEscapeTimer = 0;
-                    if (++rangedEscapeAttempts >= 3)
+
+                //三次尝试之后仍无法拉开距离, 放弃逃离转为近战兜底
+                if (rangedEscapeAttempts >= 3)
+                {
+                    rangedEscaping = false;
+                    rangedMeleeFallback = true;
+                    rangedMeleeFallbackTimer = 5000;
+                    rangedStuckTimer = 0;
+                    return;
+                }
+
+                //选择一条远离目标的新路径并移动过去
+                //每多尝试一次, 扇形偏移与逃离距离都随之增大
+                Position escapePosition;
+                float targetAngle = mover->GetAbsoluteAngle(newtarget);
+                float attemptOffset = 0.75f + 0.35f * std::min<uint8>(rangedEscapeAttempts, 2);
+                //逃离距离要能一次跨过 RANGED_MIN_DIST, 否则第一次尝试白跑
+                float escapeDistance = RANGED_MIN_DIST + 2.0f + 2.0f * std::min<uint8>(rangedEscapeAttempts, 2);
+                //走到目标另一侧: 距离为"当前距离 + escapeDistance", 落点与目标正好相距 escapeDistance
+                float const throughDist = distance + escapeDistance;
+                //优先级: 正后方 -> 左右后方 -> 前方/左右前方(穿到目标对侧) -> 两侧横向绕行。
+                //背后不可达时优先走前方, 比绕着目标转半圈路径更短; 横向绕行只作最后兜底
+                float escapeAngles[8] =
+                {
+                    targetAngle + float(M_PI),                 //正后方, 直接拉开距离
+                    targetAngle + float(M_PI) + attemptOffset, //左右后方
+                    targetAngle + float(M_PI) - attemptOffset,
+                    targetAngle,                               //前方, 穿到目标对侧
+                    targetAngle + attemptOffset * 0.5f,        //左右前方
+                    targetAngle - attemptOffset * 0.5f,
+                    targetAngle + float(M_PI_2),               //两侧横向绕开障碍
+                    targetAngle - float(M_PI_2)
+                };
+                float escapeDistances[8] =
+                {
+                    escapeDistance, escapeDistance, escapeDistance,
+                    throughDist, throughDist, throughDist,
+                    escapeDistance + 3.0f, escapeDistance + 3.0f
+                };
+                //GetFirstCollisionPosition 在 raycast 失败时会原样返回当前坐标(即"挪不动")。
+                //正后方紧贴墙壁时理想距离往往直接失败, 故逐级缩短重试, 让该方向至少能退到墙根,
+                //否则所有方向都会被判成"挪不动", 机器人一次位移都不发就切近战
+                constexpr float distanceScales[4] = { 1.0f, 0.6f, 0.35f, 0.2f };
+                float const targetX = newtarget->GetPositionX();
+                float const targetY = newtarget->GetPositionY();
+                //在所有候选方向里挑落点离目标最远的一个。
+                //只以"挪得动"为准是不够的: 背后有墙时正后方虽能后退几码却仍贴在目标身上,
+                //会被当场采纳, 机器人就顶着墙反复后退, 永远轮不到前方和两侧绕行的方向
+                bool foundIdeal = false;
+                float bestDistToTarget = -1.0f;
+                for (uint8 i = 0; i < 8 && !foundIdeal; ++i)
+                {
+                    float angle = Position::NormalizeOrientation(escapeAngles[i]);
+                    for (uint8 s = 0; s < 4; ++s)
                     {
-                        rangedEscaping = false;
-                        rangedMeleeFallback = true;
-                        rangedMeleeFallbackTimer = 5000;
-                        rangedStuckTimer = 0;
-                        return;
+                        Position candidate = mover->GetFirstCollisionPosition(escapeDistances[i] * distanceScales[s],
+                            angle - mover->GetOrientation());
+                        if (mover->GetExactDist2d(candidate) <= 1.5f)
+                            continue; //这个距离挪不动, 再短一点试
+
+                        float distToTarget = candidate.GetExactDist2d(targetX, targetY);
+                        if (distToTarget <= distance)
+                            break; //落点反而更靠近目标, 这个方向到此为止
+
+                        //落点已经能拉开到安全距离, 直接采用
+                        if (distToTarget >= RANGED_MIN_DIST)
+                        {
+                            escapePosition = candidate;
+                            bestDistToTarget = distToTarget;
+                            foundIdeal = true;
+                            break;
+                        }
+                        //否则先记下最优备选, 继续看看有没有更好的方向
+                        if (distToTarget > bestDistToTarget)
+                        {
+                            bestDistToTarget = distToTarget;
+                            escapePosition = candidate;
+                        }
+                        break; //该方向已有可用落点, 换下一个方向
                     }
                 }
 
-                if (!rangedEscapeMoving && !mover->isMoving())
-                {
-                    Position escapePosition;
-                    float targetAngle = mover->GetAbsoluteAngle(newtarget);
-                    float attemptOffset = 0.75f + 0.35f * std::min<uint8>(rangedEscapeAttempts, 2);
-                    float escapeDistance = 5.0f + 2.0f * std::min<uint8>(rangedEscapeAttempts, 2);
-                    float escapeAngles[5] =
-                    {
-                        targetAngle + float(M_PI),
-                        targetAngle + float(M_PI) + attemptOffset,
-                        targetAngle + float(M_PI) - attemptOffset,
-                        targetAngle + attemptOffset,
-                        targetAngle
-                    };
-                    float escapeDistances[5] = { escapeDistance, escapeDistance, escapeDistance, escapeDistance + 3.0f, escapeDistance };
-                    for (uint8 i = 0; i < 5; ++i)
-                    {
-                        float angle = Position::NormalizeOrientation(escapeAngles[i]);
-                        escapePosition = mover->GetFirstCollisionPosition(escapeDistances[i], angle - mover->GetOrientation());
-                        if (mover->GetExactDist2d(escapePosition) > 1.5f)
-                            break;
-                    }
+                //本次尝试计数: 无论有没有找到路径都算一次, 避免永久后撤
+                ++rangedEscapeAttempts;
 
-                    if (mover->GetExactDist2d(escapePosition) > 1.5f)
-                    {
-                        BotMovement(BOT_MOVE_POINT, &escapePosition);
-                        rangedEscapeMoving = true;
-                    }
-                    else if (++rangedEscapeAttempts >= 3)
-                    {
-                        rangedEscaping = false;
-                        rangedMeleeFallback = true;
-                        rangedMeleeFallbackTimer = 5000;
-                    }
+                //foundIdeal 为理想落点, 否则退而用 bestDistToTarget 记下的最优备选;
+                //两者都没有才说明所有方向都挪不动
+                if (foundIdeal || bestDistToTarget >= 0.f)
+                {
+                    //先打断当前追击/移动, 否则新的定点位移会被压在追击生成器下方,
+                    //位移结束后追击恢复又把机器人带回近战范围
+                    if (mover->isMoving() && mover->IsCreature())
+                        mover->ToCreature()->BotStopMovement();
+                    BotMovement(BOT_MOVE_POINT, &escapePosition);
+                    rangedEscapeMoving = true;
+                    rangedEscapeTimer = 1500; //等待本次位移到位
                 }
                 return;
             }
@@ -963,7 +1065,7 @@ public:
                 if (shot->GetSpellInfo()->Id == AUTO_SHOT_1 && (shot->m_targets.GetUnitTarget() != mytar || !inposition))
                     me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
             }
-            else if (HasRole(BOT_ROLE_DPS) && dist > 5 && dist < maxRangeNormal)
+            else if (HasRole(BOT_ROLE_DPS) && dist > 3 && dist < maxRangeNormal)
             {
                 if (doCast(mytar, AUTO_SHOT_1))
                 {}
@@ -995,7 +1097,7 @@ public:
             //DISENGAGE
             if (IsSpellReady(DISENGAGE_1, diff, false) && me->IsInCombat() && !IsTank() && Rand() < 70 &&
                 !HasBotCommandState(BOT_COMMAND_STAY) &&
-                !me->getAttackers().empty() && me->GetDistance(*me->getAttackers().begin()) < 5 &&
+                !me->getAttackers().empty() && me->GetDistance(*me->getAttackers().begin()) < 3 &&
                 me->HasInArc(float(M_PI), *me->getAttackers().begin()))
             {
                 if (doCast(me, GetSpell(DISENGAGE_1)))
@@ -1005,7 +1107,7 @@ public:
             MoveBehind(mytar);
 
             //MELEE SECTION
-            if (dist < 5)
+            if (dist < 3)
             {
                 if (!can_do_normal)
                     return;
