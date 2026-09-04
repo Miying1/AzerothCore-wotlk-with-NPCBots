@@ -1,3 +1,8 @@
+-- NPCBot 生物型危险区域配置：80级副本 Boss 召唤生物圆形危险区域
+-- 依据：outputs/NPCBot/机制处理/危险区域配置说明.md
+-- 范围：仅配置由 Boss 技能召唤、并由召唤生物承载伤害的 Creature。
+-- 半径规则：damage_spell_id 非 0 时由核心优先通过 SpellInfo::CalcRadius() 读取；radius 仅作读取失败时的回退值。
+
 CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
   `map_id` SMALLINT UNSIGNED NOT NULL COMMENT '地图ID，0表示所有地图',
   `creature_entry` INT UNSIGNED NOT NULL COMMENT '危险区域生物Entry',
@@ -9,12 +14,6 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
   PRIMARY KEY (`map_id`, `creature_entry`),
   KEY `idx_creature_entry` (`creature_entry`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='NPCBot生物型危险区域配置';
-
-DELETE FROM `npcbot_creature_hazard` WHERE `map_id` = 532 AND `creature_entry` = 16697;
-INSERT INTO `npcbot_creature_hazard`
-(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
-VALUES
-(532, 16697, 8, 28865, 2, 3000, '卡拉赞：虚空幽龙的虚空领域');
 
 -- 奥杜尔：米米尔隆硬模式 Flames Spread。
 -- 34121 由火焰扩散机制生成，并由生物自身承载 64561 Flames Aura。

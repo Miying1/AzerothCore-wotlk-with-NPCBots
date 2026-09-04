@@ -81,7 +81,7 @@ float NPCBotHazardMgr::GetDamageSpellRadius(uint32 spellId)
 
     float radius = 0.0f;
     for (SpellEffectInfo const& effect : spellInfo->Effects)
-        if (IsDamageEffect(effect))
+        if (IsDamageEffect(effect) && !spellInfo->IsPositiveEffect(effect.EffectIndex))
             radius = std::max(radius, effect.CalcRadius());
 
     return radius;
@@ -127,6 +127,14 @@ void NPCBotHazardMgr::LoadFromDB()
         float radius = configuredRadius;
         if (damageSpellId)
         {
+            SpellInfo const* damageSpell = sSpellMgr->GetSpellInfo(damageSpellId);
+            if (!damageSpell || damageSpell->IsPositive())
+            {
+                ++skippedCount;
+                LOG_ERROR("sql.sql", "NPCBot creature hazard for map {} and creature {} references positive or missing damage spell {}", mapId, creatureEntry, damageSpellId);
+                continue;
+            }
+
             float spellRadius = GetDamageSpellRadius(damageSpellId);
             if (spellRadius > 0.0f)
                 radius = spellRadius;

@@ -1268,12 +1268,38 @@ class NearbyHostileAoEDynobjectCheck
                 return false;
             if (!dObj->IsWithinDistInMap(_me, _range))
                 return false;
-            if (!dObj->GetCaster()->IsValidAttackTarget(_me))
+
+            Unit const* caster = dObj->GetCaster();
+            if (caster->IsValidAttackTarget(_me))
+                return true;
+
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(dObj->GetSpellId());
+            if (!spellInfo || !IsNegativeAreaSpell(spellInfo))
                 return false;
 
-            return true;
+            if (Unit const* vehicleBase = caster->GetVehicleBase())
+                if (vehicleBase != caster && vehicleBase->IsValidAttackTarget(_me))
+                    return true;
+
+            bot_ai const* ai = _me->IsCreature() ? _me->ToCreature()->GetBotAI() : nullptr;
+            Player const* owner = ai ? ai->GetBotOwner() : nullptr;
+            Unit const* victim = caster->GetVictim();
+            if (!victim)
+                return owner && owner->GetVictim() == caster;
+
+            return victim == _me || victim == owner || (ai && ai->IsInBotParty(victim));
         }
     private:
+        static bool IsNegativeAreaSpell(SpellInfo const* spellInfo)
+        {
+            for (SpellEffectInfo const& effect : spellInfo->Effects)
+                if (effect.Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA && effect.ApplyAuraName != 0 &&
+                    !spellInfo->IsPositiveEffect(effect.EffectIndex))
+                    return true;
+
+            return false;
+        }
+
         Unit const* _me;
         float _range;
 };

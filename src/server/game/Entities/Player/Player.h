@@ -1086,6 +1086,13 @@ struct PendingSpellCastRequest
         : spellId(spellId), category(category), requestPacket(std::move(packet)), isItem(item) , cancelInProgress(cancel) {}
 };
 
+struct PlayerVipBenefits
+{
+    uint32 vip_level = 0;
+    uint32 gold_loot_bonus = 0;
+    uint32 skill_max_count = 4;
+};
+
 class Player : public Unit, public GridObject<Player>
 {
     friend class WorldSession;
@@ -1798,6 +1805,8 @@ public:
     [[nodiscard]] uint32 GetFreePrimaryProfessionPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS2); }
     void SetFreePrimaryProfessions(uint16 profs) { SetUInt32Value(PLAYER_CHARACTER_POINTS2, profs); }
     void InitPrimaryProfessions();
+    void RecalculatePrimaryProfessionPoints();
+    [[nodiscard]] uint32 GetMaxPrimaryProfessionCount() const { return GetVipBenefits().skill_max_count; }
 
     [[nodiscard]] PlayerSpellMap const& GetSpellMap() const { return m_spells; }
     PlayerSpellMap&       GetSpellMap()       { return m_spells; }
@@ -2694,8 +2703,10 @@ public:
     void SetMapChangeOrderCounter() { _mapChangeOrderCounter = GetSession()->GetOrderCounter(); }
     uint32 GetMapChangeOrderCounter() { return _mapChangeOrderCounter; }
 
-    void SetVip(bool val);
-    bool IsVip() const;
+    bool IsVip() const { return _vipBenefits.vip_level > 0; }
+
+    PlayerVipBenefits& GetVipBenefits() { return _vipBenefits; }
+    PlayerVipBenefits const& GetVipBenefits() const { return _vipBenefits; }
     /*****************************************************************/
     /***                        NPCBOT SYSTEM                      ***/
     /*****************************************************************/
@@ -3003,8 +3014,8 @@ protected:
 
     uint8 m_grantableLevels;
 
-    bool m_needZoneUpdate;
-    bool _isvip = false;
+    bool m_needZoneUpdate; 
+    PlayerVipBenefits _vipBenefits;
 
 private:
     /*****************************************************************/

@@ -5465,33 +5465,34 @@ AoeSafeSpotsVec bot_ai::CalculateAoeSafeSpots(Unit* target, float maxdist) const
 
 bool bot_ai::IsPeriodicDynObjAOEDamage(SpellInfo const* spellInfo)
 {
-    if (!spellInfo->IsPositive())
+    if (!spellInfo)
+        return false;
+
+    for (auto i : NPCBots::index_array<uint8, MAX_SPELL_EFFECTS>)
     {
-        for (auto i : NPCBots::index_array<uint8, MAX_SPELL_EFFECTS>)
+        if (spellInfo->Effects[i].Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA &&
+            spellInfo->Effects[i].ApplyAuraName != 0 && !spellInfo->IsPositiveEffect(i))
         {
-            if (spellInfo->Effects[i].Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA &&
-                spellInfo->Effects[i].ApplyAuraName != 0)
+            switch (spellInfo->Effects[i].ApplyAuraName)
             {
-                switch (spellInfo->Effects[i].ApplyAuraName)
-                {
-                    case SPELL_AURA_PERIODIC_DAMAGE:
-                    case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
-                    case SPELL_AURA_POWER_BURN:
-                    case SPELL_AURA_PERIODIC_LEECH:
-                    //Most of these are damaging spells
-                    case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
-                    case SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE:
-                    //Scripted spells (mostly, some of these are wrong or not periodic damage)
-                    case SPELL_AURA_PERIODIC_DUMMY:
-                    //Channeled spells with SPELL_AURA_PERIODIC_TRIGGER_SPELL -> damage on TARGET_DEST_CHANNEL_TARGET (mostly)
-                    case SPELL_AURA_DUMMY:
-                        return true;
-                    default:
-                        break;
-                }
+                case SPELL_AURA_PERIODIC_DAMAGE:
+                case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
+                case SPELL_AURA_POWER_BURN:
+                case SPELL_AURA_PERIODIC_LEECH:
+                //Most of these are damaging spells
+                case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
+                case SPELL_AURA_PERIODIC_TRIGGER_SPELL_WITH_VALUE:
+                //Scripted spells (mostly, some of these are wrong or not periodic damage)
+                case SPELL_AURA_PERIODIC_DUMMY:
+                //Channeled spells with SPELL_AURA_PERIODIC_TRIGGER_SPELL -> damage on TARGET_DEST_CHANNEL_TARGET (mostly)
+                case SPELL_AURA_DUMMY:
+                    return true;
+                default:
+                    break;
             }
         }
     }
+
     return false;
 }
 bool bot_ai::IsWithinAoERadius(Position const& pos) const

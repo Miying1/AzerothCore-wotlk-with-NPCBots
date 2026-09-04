@@ -3663,7 +3663,7 @@ void Player::removeSpell(uint32 spell_id, uint8 removeSpecMask, bool onlyTempora
     if (spellInfo->IsPrimaryProfessionFirstRank())
     {
         uint32 freeProfs = GetFreePrimaryProfessionPoints() + 1;
-        if (freeProfs <= sWorld->getIntConfig(CONFIG_MAX_PRIMARY_TRADE_SKILL))
+        if (freeProfs <= GetMaxPrimaryProfessionCount())
             SetFreePrimaryProfessions(freeProfs);
     }
 
@@ -11844,7 +11844,24 @@ bool Player::IsVisibleGloballyFor(Player const* u) const
 
 void Player::InitPrimaryProfessions()
 {
-    SetFreePrimaryProfessions(sWorld->getIntConfig(CONFIG_MAX_PRIMARY_TRADE_SKILL));
+    SetFreePrimaryProfessions(GetMaxPrimaryProfessionCount());
+}
+
+void Player::RecalculatePrimaryProfessionPoints()
+{
+    uint32 learnedPrimaryProfessions = 0;
+    for (auto const& [spellId, playerSpell] : m_spells)
+    {
+        if (playerSpell->State == PLAYERSPELL_REMOVED)
+            continue;
+
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (spellInfo && spellInfo->IsPrimaryProfessionFirstRank())
+            ++learnedPrimaryProfessions;
+    }
+
+    uint32 maxPrimaryProfessions = GetMaxPrimaryProfessionCount();
+    SetFreePrimaryProfessions(static_cast<uint16>(maxPrimaryProfessions > learnedPrimaryProfessions ? maxPrimaryProfessions - learnedPrimaryProfessions : 0));
 }
 
 bool Player::ModifyMoney(int32 amount, bool sendError /*= true*/)
@@ -16891,15 +16908,7 @@ std::string Player::GetDebugInfo() const
     sstr << Unit::GetDebugInfo();
     return sstr.str();
 }
-void Player::SetVip( bool val) 
-{ 
-    _isvip=val;
-}
-bool Player::IsVip() const
-{  
-    return _isvip;
-}
-
+  
 void Player::SendSystemMessage(std::string_view msg, bool escapeCharacters)
 {
     ChatHandler(GetSession()).SendSysMessage(msg, escapeCharacters);
