@@ -1,6 +1,5 @@
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
-#include "Loot.h"
 #include "LootScript.h"
 #include "InstanceSaveMgr.h"
 #include "Item.h"
@@ -54,7 +53,7 @@ public:
     }
 };
 
-bool TryParseInstanceInfo(std::string const& description, uint32& mapId, Difficulty& difficulty)
+bool TryParseInstanceInfo(std::string const& description, uint32& mapId, Difficulty& difficulty, std::string& modeName)
 {
     constexpr std::string_view mapMarker = "MAP:";
     size_t markerPosition = description.find(mapMarker);
@@ -77,15 +76,30 @@ bool TryParseInstanceInfo(std::string const& description, uint32& mapId, Difficu
 
     std::string_view mode(description.data() + markerPosition + 1, description.size() - markerPosition - 1);
     if (mode.starts_with("10PT"))
+    {
         difficulty = RAID_DIFFICULTY_10MAN_NORMAL;
+        modeName = "10人普通";
+    }
     else if (mode.starts_with("10H"))
+    {
         difficulty = RAID_DIFFICULTY_10MAN_HEROIC;
+        modeName = "10人英雄";
+    }
     else if (mode.starts_with("25PT"))
+    {
         difficulty = RAID_DIFFICULTY_25MAN_NORMAL;
+        modeName = "25人普通";
+    }
     else if (mode.starts_with("25H"))
+    {
         difficulty = RAID_DIFFICULTY_25MAN_HEROIC;
+        modeName = "25人英雄";
+    }
     else if (mode.starts_with("5H"))
+    {
         difficulty = DUNGEON_DIFFICULTY_HEROIC;
+        modeName = "5人英雄";
+    }
     else
         return false;
 
@@ -136,7 +150,7 @@ public:
         if (!player || !item || !item->GetTemplate())
             return false;
 
-        if (player->IsInCombat() || !player->IsAlive()  || (GetMap() && player->GetMap()->GetEntry()->IsDungeon()))
+        if (player->IsInCombat() || !player->IsAlive() || (player->GetMap() && player->GetMap()->GetEntry()->IsDungeon()))
         {
             ChatHandler(player->GetSession()).PSendSysMessage("当前状态无法使用该物品。");
             return true;
@@ -144,7 +158,8 @@ public:
 
         uint32 mapId = 0;
         Difficulty difficulty;
-        if (!TryParseInstanceInfo(item->GetTemplate()->Description, mapId, difficulty))
+        std::string modeName;
+        if (!TryParseInstanceInfo(item->GetTemplate()->Description, mapId, difficulty, modeName))
         {
             ChatHandler(player->GetSession()).PSendSysMessage("物品描述格式错误，模式必须为 10PT、10H、25PT、25H 或 5H，例如 MAP:631|10PT。");
             return true;
@@ -165,28 +180,6 @@ public:
         {
             ChatHandler(player->GetSession()).PSendSysMessage("你当前没有该副本的副本 CD，无法使用此物品。");
             return true;
-        }
-
-        char const* modeName = "未知模式";
-        switch (difficulty)
-        {
-            case RAID_DIFFICULTY_10MAN_NORMAL:
-                modeName = "10人普通";
-                break;
-            case RAID_DIFFICULTY_10MAN_HEROIC:
-                modeName = "10人英雄";
-                break;
-            case RAID_DIFFICULTY_25MAN_NORMAL:
-                modeName = "25人普通";
-                break;
-            case RAID_DIFFICULTY_25MAN_HEROIC:
-                modeName = "25人英雄";
-                break;
-            case DUNGEON_DIFFICULTY_HEROIC:
-                modeName = "5人英雄";
-                break;
-            default:
-                break;
         }
 
         player->DestroyItemCount(item->GetEntry(), 1, true);
