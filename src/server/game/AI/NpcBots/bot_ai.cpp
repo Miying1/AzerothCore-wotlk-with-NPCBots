@@ -545,6 +545,8 @@ void bot_ai::ResetBotAI(uint8 resetType)
     _botAwaitState = BOT_AWAIT_NONE;
     _stayPosition = Position{};
     _stayPosValid = false;
+    _stayTactical = false;
+    _stayFoughtInCombat = false;
     _reviveTimer = 0;
 
     if (resetType & BOTAI_RESET_MASK_RESET_MASTER)
@@ -757,6 +759,30 @@ SpellCastResult bot_ai::CheckBotCast(Unit const* victim, uint32 spellId) const
     }
 
     return SPELL_CAST_OK;
+}
+
+void bot_ai::UpdateMassNoCastLong()
+{
+    bool outOfMassRange = false;
+    if (!IAmFree() && master && master->GetBotMgr())
+        outOfMassRange = master->GetBotMgr()->GetBotPositionControl()->IsBotOutOfMassRange(*me, *this);
+
+    if (outOfMassRange)
+    {
+        // bot 仍在集合圈外跑位：确保“禁止长读条”生效；
+        // 若已有玩家手动设置的同系列状态（NO_CAST/NO_CAST_LONG）则保留不动
+        if (!_massNoCastLongSet && !HasBotCommandState(BOT_COMMAND_MASK_NOCAST_ANY))
+        {
+            SetBotCommandState(BOT_COMMAND_NO_CAST_LONG);
+            _massNoCastLongSet = true;
+        }
+    }
+    else if (_massNoCastLongSet)
+    {
+        // bot 已进入集合圈内（或已退出集合/主人不可用）：撤销由集合逻辑自动设置的状态
+        RemoveBotCommandState(BOT_COMMAND_NO_CAST_LONG);
+        _massNoCastLongSet = false;
+    }
 }
 
 bool bot_ai::doCast(Unit* victim, uint32 spellId, bool triggered)
@@ -1123,6 +1149,13 @@ void bot_ai::MoveToSendPosition(Position const& mpos)
     if (me->GetExactDist(mpos) <= 70.0f && !CCed(me, true))
     {
         SetBotCommandState(BOT_COMMAND_STAY);
+        // 守卫锚点直接记录为发送目标点，避免 bot 尚未到达时被更新逻辑把出发点误记为守卫锚点，
+        // 导致到达目标后又被拉回原地。
+        // sendto 建立的为战术守卫：参与战斗后脱战自动解除守卫并恢复跟随主人。
+        _stayPosition.Relocate(mpos);
+        _stayPosValid = true;
+        _stayTactical = true;
+        _stayFoughtInCombat = false;
         me->InterruptNonMeleeSpells(true);
         BotMovement(BOT_MOVE_POINT, &mpos, nullptr, false);
         if (Creature* pet = GetBotsPet())
@@ -1260,6 +1293,9 @@ void bot_ai::SetBotCommandState(uint32 st, bool force, Position* newpos, float* 
         else if (st & BOT_COMMAND_STAY)
         {
             RemoveBotCommandState(BOT_COMMAND_FOLLOW | BOT_COMMAND_FULLSTOP);
+            // 经此入口设置的为手动驻守（standstill/emote 等），保持驻守直至玩家指令，脱战不自动解除
+            _stayTactical = false;
+            _stayFoughtInCombat = false;
             if (mover->isMoving())
                 mover->ToCreature()->BotStopMovement();
         }
@@ -16324,8 +16360,9 @@ void bot_ai::JustDied(Unit* u)
             IsWanderer() ? _travel_node_cur->GetName().c_str() : "''");
     }
 
-    _reviveTimer = (IsWanderer() && !(u && u->IsControlledByPlayer())) ? REVIVE_TIMER_MEDIUM :
-        IAmFree() ? REVIVE_TIMER_DEFAULT : master->InBattleground() ? REVIVE_TIMER_BG : REVIVE_TIMER_SHORT;
+    // 自动复活时间增加 1-5s 随机量，错开同一批阵亡 bot 的复活时刻，避免全体在同一 tick 集体站起
+    _reviveTimer = urand(1000, 5000) + ((IsWanderer() && !(u && u->IsControlledByPlayer())) ? REVIVE_TIMER_MEDIUM :
+        IAmFree() ? REVIVE_TIMER_DEFAULT : master->InBattleground() ? REVIVE_TIMER_BG : REVIVE_TIMER_SHORT);
     _atHome = false;
     _evadeMode = false;
     spawned = false;
@@ -18105,6 +18142,15 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         }
     }
 
+    //集合模式下动态管理“禁止长读条”（BOT_COMMAND_NO_CAST_LONG）：
+    //bot 跑出集合圈（距主人超过集合半径*1.5）时自动启用，回到圈内或退出集合时自动恢复。
+    //该状态每 300ms 检测一次，避免每个 tick 都执行
+    if (_massNoCastTimer <= diff)
+    {
+        _massNoCastTimer = 300;
+        UpdateMassNoCastLong();
+    }
+
     //db saves with cd
     //  1) disabled spells
     if (_saveDisabledSpells && _saveDisabledSpellsTimer <= diff)
@@ -18181,28 +18227,44 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
     lastdiff = diff;
 
-    // 传送时清除驻守状态和守卫锚点，避免传送后返回传送前的位置。
-    if (IsDuringTeleport())
+    // 传送后的守卫/驻守状态统一在 FinishTeleport 落地处清除：
+    // bot 传送期间会被移出世界，GlobalUpdate 不会执行（BotMgr::Update 对世界外的 bot
+    // 只调用 CommonTimers），IsDuringTeleport() 在此不可达，故不在此放置清除逻辑。
+    if (me->IsAlive() && HasBotCommandState(BOT_COMMAND_STAY))
     {
-        RemoveBotCommandState(BOT_COMMAND_STAY);
-        _stayPosition = Position{};
-        _stayPosValid = false;
-    }
-    else if (me->IsAlive() && HasBotCommandState(BOT_COMMAND_STAY))
-    {
-        if (!_stayPosValid)
+        // sendto 建立的战术守卫：参与过战斗后在脱战时自动解除守卫模式并恢复跟随主人。
+        // 手动驻守(standstill)不受影响；尚未开打的预站位也会保持，直到真正进入过战斗。
+        if (_stayTactical)
+        {
+            if (me->IsInCombat())
+                _stayFoughtInCombat = true;
+            else if (_stayFoughtInCombat)
+            {
+                RemoveBotCommandState(BOT_COMMAND_STAY);
+                _stayPosition = Position{};
+                _stayPosValid = false;
+                _stayTactical = false;
+                _stayFoughtInCombat = false;
+            }
+        }
+
+        // 守卫锚点应在 bot 停稳（已到达守卫点）后再记录当前位置，
+        // 否则在 bot 前往守卫点的移动过程中会把途中位置误记为锚点，到达后又被拉回。
+        if (HasBotCommandState(BOT_COMMAND_STAY) && !_stayPosValid && !me->isMoving())
         {
             _stayPosition.Relocate(me);
             _stayPosValid = true;
         }
         // 仅在战斗中检查驻守锚点，非战斗状态下不主动返回守卫地点。
-        else if (me->IsInCombat() && !me->isMoving() && me->GetExactDist2d(_stayPosition) > 2.0f)
+        else if (HasBotCommandState(BOT_COMMAND_STAY) && me->IsInCombat() && !me->isMoving() && me->GetExactDist2d(_stayPosition) > 2.0f)
             BotMovement(BOT_MOVE_POINT, &_stayPosition, nullptr, false);
     }
     else
     {
         _stayPosition = Position{};
         _stayPosValid = false;
+        _stayTactical = false;
+        _stayFoughtInCombat = false;
     }
 
     FindMaster();
@@ -18326,7 +18388,10 @@ bool bot_ai::GlobalUpdate(uint32 diff)
 
             if (!interrupt && !info->IsPositive())
             {
-                if (!target->IsAlive() && info->Id != SPELL_CORPSE_EXPLOSION && info->Id != SPELL_RAISE_DEAD)
+                // 复活类法术同样以已死亡单位为施法对象，须与上述两个特例一样豁免，
+                // 否则复活 bot（creature 目标）的读条会被当成无意义施法打断。
+                if (!target->IsAlive() && info->Id != SPELL_CORPSE_EXPLOSION && info->Id != SPELL_RAISE_DEAD &&
+                    !info->HasEffect(SPELL_EFFECT_RESURRECT) && !info->HasEffect(SPELL_EFFECT_RESURRECT_NEW))
                     interrupt = true;
                 else if ((info->Mechanic == MECHANIC_POLYMORPH || info->Mechanic == MECHANIC_SHACKLE ||
                     info->Mechanic == MECHANIC_DISORIENTED || info->Mechanic == MECHANIC_SLEEP ||
@@ -18400,7 +18465,11 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             if (!interrupt && (info->HasEffect(SPELL_EFFECT_RESURRECT) || info->HasEffect(SPELL_EFFECT_RESURRECT_NEW)) &&
                 (target->IsAlive() || (target->IsPlayer() && target->ToPlayer()->isResurrectRequested())))
                 interrupt = true;
-            if (!interrupt && checkAurasTimer <= diff && me->GetMap()->IsDungeon() && !CCed(me, true) && IsWithinAoERadius(*me))
+            // 复活类法术需贴近尸体（位置可能正好落在战斗残留的危险圈内）才能读条，
+            // 危险圈打断只应作用于战斗施法；若在此打断复活，bot 会陷入“读条-被打断-重读”的死循环，
+            // 永远拉不起同伴，故对复活类法术豁免（其目标有效性已由上方分支判断）。
+            if (!interrupt && !info->HasEffect(SPELL_EFFECT_RESURRECT) && !info->HasEffect(SPELL_EFFECT_RESURRECT_NEW) &&
+                checkAurasTimer <= diff && me->GetMap()->IsDungeon() && !CCed(me, true) && IsWithinAoERadius(*me))
                 interrupt = true;
 
             if (interrupt)
@@ -19047,6 +19116,8 @@ void bot_ai::CommonTimers(uint32 diff)
     if (_updateTimerEx1 > diff)     _updateTimerEx1 -= diff;
     if (_updateTimerEx2 > diff)     _updateTimerEx2 -= diff;
 
+    if (_massNoCastTimer > diff)     _massNoCastTimer -= diff; // 集合跑位禁读条检测：每 300ms 一次
+
     if (_saveDisabledSpellsTimer > diff) _saveDisabledSpellsTimer -= diff;
     if (_saveMiscValuesTimer > diff)     _saveMiscValuesTimer -= diff;
 }
@@ -19508,6 +19579,13 @@ bool bot_ai::FinishTeleport(bool reset)
         }
 
         map->AddToMap(me);
+        // 传送落地：清除守卫/驻守状态和守卫锚点，避免 bot 在新位置继续尝试返回旧的守卫地点。
+        // （传送期间 bot 会移出世界，GlobalUpdate 无法按 IsDuringTeleport() 清除守卫，需在此落地处理。）
+        RemoveBotCommandState(BOT_COMMAND_STAY);
+        _stayPosition = Position{};
+        _stayPosValid = false;
+        _stayTactical = false;
+        _stayFoughtInCombat = false;
         me->BotStopMovement();
         if (reset)
             this->Reset();

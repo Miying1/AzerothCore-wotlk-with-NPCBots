@@ -284,6 +284,21 @@ bool BotPositionControl::ShouldHoldMassPosition(Creature const& bot, bot_ai cons
     return !inLineOfSight || !bot.IsWithinMeleeRange(target);
 }
 
+bool BotPositionControl::IsBotOutOfMassRange(Creature const& bot, bot_ai const& ai) const
+{
+    // 集合模式未启用或该 bot 不是集合成员：不适用
+    if (!IsMassEnabled() || !IsMassEligible(bot, ai))
+        return false;
+
+    // 主人不可用（死亡/不在场/异地/相位不一致）时集合走位已失效，不做限制
+    Player const* owner = _botMgr.GetOwner();
+    if (!owner || !owner->IsAlive() || !owner->IsInWorld() || !bot.IsInMap(owner) || !bot.InSamePhase(owner))
+        return false;
+
+    // bot 距主人超过集合半径的 1.5 倍：视为仍在集合跑位未就位，需要禁止读条
+    return bot.GetExactDist2d(owner) > _massRadius * 1.5f;
+}
+
 bool BotPositionControl::EnableSpread(float distance)
 {
     if (!std::isfinite(distance) || distance < MIN_SPREAD_DISTANCE || distance > MAX_SPREAD_DISTANCE)

@@ -121,6 +121,13 @@ struct boss_akilzon : public BossAI
             if (DynamicObject* dynObj = target->GetDynObject(SPELL_ELECTRICAL_STORM_AREA))
                 dynObj->SetDuration(8500);
 
+            // 电气风暴开始时同步开启暴雨天气，风暴结束（ACTION_STORM_EXPIRE）时恢复晴天
+            if (!_isRaining)
+            {
+                SetWeather(WEATHER_STATE_HEAVY_RAIN, 0.9999f);
+                _isRaining = true;
+            }
+
             float x, y, z;
             target->GetPosition(x, y, z);
             target->GetMotionMaster()->MoveJump(x, y, target->GetPositionZ() + 16.0f, 1.0f, 1.0f);
@@ -129,24 +136,8 @@ struct boss_akilzon : public BossAI
                 HandleStormSequence();
             }, 3s);
 
-            me->m_Events.AddEventAtOffset([&] {
-                if (!_isRaining)
-                {
-                    SetWeather(WEATHER_STATE_HEAVY_RAIN, 0.9999f);
-                    _isRaining = true;
-                }
-            }, Seconds(urand(47, 52)));
-
             context.Repeat();
         });
-
-        ScheduleTimedEvent(47s, 52s, [&] {
-            if (!_isRaining)
-            {
-                SetWeather(WEATHER_STATE_HEAVY_RAIN, 0.9999f);
-                _isRaining = true;
-            }
-        }, 47s, 52s);
 
         me->m_Events.AddEventAtOffset([&] {
             Talk(SAY_ENRAGE);
@@ -160,6 +151,9 @@ struct boss_akilzon : public BossAI
     {
         Talk(SAY_DEATH);
         _JustDied();
+        // 死亡后恢复晴天，避免战斗结束后区域仍持续下雨
+        SetWeather(WEATHER_STATE_FINE, 0.0f);
+        _isRaining = false;
         me->m_Events.KillAllEvents(false);
     }
 
@@ -345,7 +339,9 @@ class spell_electrical_storm_proc : public SpellScript
         if (Aura* aura = GetCaster()->GetAura(SPELL_ELECTRICAL_STORM))
         {
             uint8 multiplier = aura->GetEffect(EFFECT_1)->GetTickNumber();
-            SetHitDamage(GetHitDamage() * multiplier);
+            // 整体伤害降低30%：最终伤害 = 基础伤害 × 当前tick次数 × 70%
+            int32 damage = (GetHitDamage() * multiplier * 70) / 100;
+            SetHitDamage(damage);
         }
     }
 

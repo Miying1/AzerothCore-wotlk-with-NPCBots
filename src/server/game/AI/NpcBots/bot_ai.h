@@ -450,6 +450,8 @@ protected:
     bool doCast(Unit* victim, uint32 spellId, bool triggered = false);
     bool doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags);
     SpellCastResult CheckBotCast(Unit const* victim, uint32 spellId) const;
+    // 集合模式下按 bot 与主人的距离动态管理 BOT_COMMAND_NO_CAST_LONG
+    void UpdateMassNoCastLong();
     virtual bool removeShapeshiftForm() { return true; }
 
     bool CanRemoveReflectSpells(Unit const* target, uint32 spellId) const;
@@ -717,9 +719,12 @@ private:
     NPCBotCreatureHazardStateMap _creatureHazardStates;
 
     uint32 _botCommandState{};
+    bool _massNoCastLongSet = false; // 集合跑位期间由集合逻辑自动设置的 NO_CAST_LONG 是否已生效
     uint8 _botAwaitState{};
     Position _stayPosition{};   // anchor point while in BOT_COMMAND_STAY
     bool _stayPosValid = false;
+    bool _stayTactical = false;      // true: sendto 建立的战术守卫，参与战斗后脱战即自动解除守卫并恢复跟随
+    bool _stayFoughtInCombat = false; // 战术守卫期间是否进入过战斗，用于脱战后自动解除守卫的判定
 
     uint16 _rand{};
 
@@ -736,6 +741,7 @@ private:
     uint32 lastdiff{}, checkAurasTimer{}, roleTimer{}, actionsTimer{}, regenTimer{}, _updateTimerLong{}, _updateTimerMedium{}, _updateTimerEx1{}, _updateTimerEx2{};
     uint32 _checkOwershipTimer{}, _checkMasterTimer{};
     uint32 _moveBehindTimer{};
+    uint32 _massNoCastTimer{}; // 集合跑位禁读条状态检测计时器（300ms 检测一次）
     uint32 _rentTimer{};
     uint32 _wmoAreaUpdateTimer{};
     uint32 waitTimer{};

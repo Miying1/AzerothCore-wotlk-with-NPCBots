@@ -38,6 +38,10 @@ public:
         }
 
         Player* player = unit->ToPlayer();
+        if (player->isGameMaster())
+        {
+            return;
+        }
         Map* map = player->GetMap();
         if (map && map->IsDungeon() && player->IsFlying())
         {

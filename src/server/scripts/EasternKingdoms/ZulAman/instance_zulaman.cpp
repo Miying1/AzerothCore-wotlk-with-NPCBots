@@ -161,6 +161,14 @@ public:
                 case GO_GATE_HEXLORD:
                     CheckInstanceStatus(go);
                     break;
+                case GO_GATE_ZULJIN:
+                    // 妖术领主已击杀时，通往祖尔金的木门应保持可用；重新进本 GO 状态会被重置，需按进度恢复解锁并开门
+                    if (GetBossState(DATA_HEXLORD) == DONE)
+                    {
+                        go->RemoveGameObjectFlag(GO_FLAG_LOCKED);
+                        HandleGameObject(go->GetGUID(), true, go);
+                    }
+                    break;
                 // 已有进度再次进入时，若已有任意 Boss 被击杀（说明必然走过哈里森开门流程），则主动恢复入口大门开门状态
                 case GO_MASSIVE_GATE:
                 {

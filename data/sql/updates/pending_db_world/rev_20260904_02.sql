@@ -44,3 +44,13 @@ INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
 (631, 38223, 8.0, 71380, 1.5, 3000, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
+
+-- 祖阿曼：加亚莱火焰炸弹。
+-- 23920 由加亚莱轰炸阶段在场内刷出（含四边火墙同用该 Entry），并由生物自身施放 42630 Fire Bomb Damage 爆炸。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 568 AND `creature_entry` = 23920;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+(568, 23920, 4.0, 42630, 1.5, 3000, '祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');

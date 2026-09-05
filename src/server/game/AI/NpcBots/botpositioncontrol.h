@@ -38,6 +38,9 @@ public:
     bool CanUpdateMassPosition(Creature& bot, bot_ai const& ai) const;
     bool TryGetMassPosition(Creature const& bot, bot_ai const& ai, Unit const* followUnit, Position& pos, float* speed);
     bool ShouldHoldMassPosition(Creature const& bot, bot_ai const& ai, Unit const* target) const;
+    // 该 bot 是否已跑出集合圈（距主人超过集合半径的 1.5 倍）。
+    // 用于集合期间动态启用/撤销 BOT_COMMAND_NO_CAST_LONG（禁止读条类技能）。
+    bool IsBotOutOfMassRange(Creature const& bot, bot_ai const& ai) const;
 
     bool EnableSpread(float distance);
     void DisableSpread() { _spreadDistance = 0.0f; }
