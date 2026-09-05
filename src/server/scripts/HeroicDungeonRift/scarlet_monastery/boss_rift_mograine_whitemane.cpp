@@ -75,6 +75,13 @@ enum WhitemanePhase : uint8
 
 Position const WhitemaneSpawnPosition = { 1202.13f, 1399.07f, 29.0931f, 3.12414f };
 constexpr float MograineApproachDistance = 3.0f;
+// 入场移动兜底参数：出生点到莫格莱尼身边需要穿过大门并跨越多级台阶，若路径被地形或门碰撞
+// 卡住、或 MovementInform 因移动被重置而丢失，战斗将永远停在"只有喊话没有现身"的状态。
+// 因此持续无实质进展达到阈值时直接传送进场，保证怀特迈恩必然出现并进入战斗。
+constexpr float EntranceReachedDistance = 2.0f;   // 视为已到达的半径（码）
+constexpr float EntranceProgressThreshold = 0.5f; // 每轮检查至少应缩短的距离（码）
+constexpr uint32 EntranceProgressCheckMs = 500;   // 进展检查间隔（毫秒）
+constexpr uint32 EntranceStallTeleportMs = 3000;  // 无实质进展超过该时长则传送进场（毫秒）
 constexpr uint32 WhitemaneDoorEntry = 104600;
 constexpr float WhitemaneDoorSearchRange = 100.0f;
 
@@ -162,7 +169,11 @@ struct npc_rift_whitemane : public ScriptedAI
         me->SetReactState(REACT_PASSIVE);
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
         me->SetInCombatWithZone();
-        me->GetMotionMaster()->MovePoint(PointWhitemaneEntrance, GetApproachPosition(*mograine));
+        Position const approachPosition = GetApproachPosition(*mograine);
+        me->GetMotionMaster()->MovePoint(PointWhitemaneEntrance, approachPosition);
+        _lastEntranceDistance = me->GetDistance(approachPosition);
+        _entranceProgressTimer = 0;
+        _entranceStallMilliseconds = 0;
     }
 
     void MovementInform(uint32 type, uint32 pointId) override
@@ -170,12 +181,8 @@ struct npc_rift_whitemane : public ScriptedAI
         if (type != POINT_MOTION_TYPE)
             return;
 
-        if (pointId == PointWhitemaneEntrance && _phase == WhitemaneMovingToMograine)
-        {
-            _phase = WhitemaneCombatPhaseOne;
-            me->SetInCombatWithZone();
-            ResumeCombat();
-        }
+        if (pointId == PointWhitemaneEntrance)
+            EnterCombatPhaseOne();
         else if (pointId == PointWhitemaneResurrection && _phase == WhitemaneMovingForResurrection)
         {
             _phase = WhitemaneResurrecting;
@@ -253,6 +260,10 @@ struct npc_rift_whitemane : public ScriptedAI
     {
         _events.Update(diff);
 
+        // 入场移动兜底：路径卡住或MovementInform丢失时传送进场，避免只喊话不出人。
+        if (!UpdateWhitemaneEntrance(diff))
+            return;
+
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
@@ -303,6 +314,67 @@ struct npc_rift_whitemane : public ScriptedAI
     }
 
 private:
+    // 怀特迈恩走到莫格莱尼身边后进入第一战斗阶段；由 MovementInform、接近判定或传送兜底触发。
+    void EnterCombatPhaseOne()
+    {
+        if (_phase != WhitemaneMovingToMograine)
+            return;
+
+        _phase = WhitemaneCombatPhaseOne;
+        me->SetInCombatWithZone();
+        ResumeCombat();
+    }
+
+    // 入场移动兜底：只要还在 WhitemaneMovingToMograine 阶段就持续跟踪到目标的距离。
+    // 到达目标附近但 MovementInform 未触发时直接进入战斗；持续无实质进展则传送进场。
+    bool UpdateWhitemaneEntrance(uint32 diff)
+    {
+        if (_phase != WhitemaneMovingToMograine)
+            return true;
+
+        Creature* mograine = ObjectAccessor::GetCreature(*me, _mograineGuid);
+        if (!mograine || !mograine->IsAlive())
+        {
+            me->KillSelf();
+            return false;
+        }
+
+        Position const approachPosition = GetApproachPosition(*mograine);
+        float const distanceToTarget = me->GetDistance(approachPosition);
+
+        if (distanceToTarget <= EntranceReachedDistance)
+        {
+            EnterCombatPhaseOne();
+            return false;
+        }
+
+        _entranceProgressTimer += diff;
+        if (_entranceProgressTimer < EntranceProgressCheckMs)
+            return true;
+
+        _entranceProgressTimer = 0;
+        if (distanceToTarget < _lastEntranceDistance - EntranceProgressThreshold)
+        {
+            _lastEntranceDistance = distanceToTarget;
+            _entranceStallMilliseconds = 0;
+        }
+        else
+        {
+            _entranceStallMilliseconds += EntranceProgressCheckMs;
+            if (_entranceStallMilliseconds >= EntranceStallTeleportMs)
+            {
+                LOG_WARN("scripts", "Rift Whitemane {} is stuck approaching Mograine {} (remaining {:.1f} yd), teleporting into position.",
+                    me->GetGUID().ToString(), mograine->GetGUID().ToString(), distanceToTarget);
+                me->GetMotionMaster()->Clear(false);
+                me->NearTeleportTo(approachPosition.GetPositionX(), approachPosition.GetPositionY(),
+                    approachPosition.GetPositionZ(), approachPosition.GetOrientation());
+                EnterCombatPhaseOne();
+                return false;
+            }
+        }
+        return true;
+    }
+
     void ResetToDormantState()
     {
         _events.Reset();
@@ -387,6 +459,9 @@ private:
     uint32 _lastCastSpellId = 0;
     bool _resurrectionStarted = false;
     WhitemanePhase _phase = WhitemaneDormant;
+    float _lastEntranceDistance = 0.0f;      // 上一次检查时到莫格莱尼身边目标的距离
+    uint32 _entranceProgressTimer = 0;       // 距下一次进展检查的计时
+    uint32 _entranceStallMilliseconds = 0;   // 已持续无实质进展的时长
 };
 
 struct boss_rift_mograine : public BossAIBase
@@ -542,8 +617,10 @@ private:
                 return;
             }
 
+        // 怀特迈恩在莫格莱尼假死前必须保持休眠（不可攻击、被动、不进入战斗），
+        // 故保留被动状态；入口启动时由 DoAction 打开大门并让她入场。
         Creature* whitemane = SummonTieredCreature(RiftEntryWhitemane, WhitemaneSpawnPosition, 0.8f, 0.8f,
-            TEMPSUMMON_CORPSE_TIMED_DESPAWN, CreatureSummonLifetimeMilliseconds);
+            TEMPSUMMON_CORPSE_TIMED_DESPAWN, CreatureSummonLifetimeMilliseconds, true);
         if (!whitemane)
         {
             LOG_ERROR("scripts", "Rift Mograine {} failed to prepare Whitemane at {}.",

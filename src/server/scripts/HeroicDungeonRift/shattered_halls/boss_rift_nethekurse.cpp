@@ -17,7 +17,8 @@ enum Events : uint32
     EventDeathCoil = 1,       // 死亡缠绕（T1基础）
     EventShadowFissure,       // 暗影裂隙（T1基础）
     EventShadowCleave,        // 暗影顺劈（T1基础）
-    EventDarkSpin,            // 黑暗旋转（T1，25%生命阶段）
+    EventDarkSpin,            // 黑暗旋转阶段开始（T1，25%生命阶段）
+    EventDarkSpinTick,        // 黑暗旋转周期打击（每1秒）
     EventShadowBoltVolley,    // 暗影箭雨（T2新增）
     EventCorruption           // 腐蚀术（T3新增）
 };
@@ -25,9 +26,10 @@ enum Events : uint32
 enum Spells : uint32
 {
     SpellDeathCoil = 30500,
-    SpellDarkSpin = 30502,
     SpellShadowFissure = 30496,
     SpellShadowCleave = 30495,
+    SpellShadowBolt = 30505,           // 黑暗旋转触发的暗影箭（spell_tsh_shadow_bolt）
+    SpellDarkSpinPulse = 30508,        // 黑暗旋转的旋风武器打击
     SpellShadowBoltVolley = 28599,
     SpellCorruption = 30938
 };
@@ -141,7 +143,15 @@ protected:
                 events.ScheduleEvent(EventShadowCleave, Milliseconds(urand(1200, 23900)));
                 break;
             case EventDarkSpin:
-                CastIfConfigured(me, SpellDarkSpin);
+                // 原版由 30502 黑暗旋转光环每 1 秒自动触发 30505 暗影箭（随机玩家）与 30508 旋风武器打击。
+                // 裂隙改为显式周期事件，使 30505 通过调谐施放（读取 rift_spell_damage 中 30505 的 T1 基线）。
+                events.ScheduleEvent(EventDarkSpinTick, 1s);
+                break;
+            case EventDarkSpinTick:
+                if (Unit* target = SelectRandomPlayer(100.0f))
+                    CastIfConfigured(target, SpellShadowBolt, true);
+                CastIfConfigured(me, SpellDarkSpinPulse, true);
+                events.ScheduleEvent(EventDarkSpinTick, 1s);
                 break;
             case EventShadowBoltVolley: // T2新增：与暗影裂隙至少错开 3 秒，避免两次全队高伤重合
                 if (events.GetTimeUntilEvent(EventShadowFissure) < 3s)

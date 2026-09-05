@@ -415,9 +415,12 @@ struct boss_rift_the_seven : public BossAIBase
         SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
     }
 
-    void sGossipSelect(Player* player, uint32 sender, uint32 action) override
+    void sGossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
     {
-        if (_encounterStarted || sender != GOSSIP_SENDER_MAIN || action != GOSSIP_ACTION_INFO_DEF + 1)
+        // AI 层的 sGossipSelect 由引擎以 (menuId, gossipListId) 传入，
+        // 真实的 sender/action 需通过 PlayerTalkClass 按选项索引反查。
+        uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+        if (_encounterStarted || action != GOSSIP_ACTION_INFO_DEF + 1)
             return;
 
         CloseGossipMenuFor(player);
