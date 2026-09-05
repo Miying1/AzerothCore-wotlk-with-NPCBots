@@ -38,7 +38,7 @@ public:
         }
 
         Player* player = unit->ToPlayer();
-        if (player->isGameMaster())
+        if (player->IsGameMaster())
         {
             return;
         }
