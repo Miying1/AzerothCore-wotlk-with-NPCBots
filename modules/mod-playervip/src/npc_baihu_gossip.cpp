@@ -34,7 +34,7 @@ constexpr char const* TXT_FLIGHT = "航班";                       // 航班选�
 constexpr char const* TXT_GOLD_RATE = "我的金币倍率";             // 悄悄话告知选项
 
 // 悄悄话模板：{} 为真实金币倍率（基础 100% + 玩家 VIP 金币加成，取自 PlayerVipBenefits）
-constexpr char const* TXT_GOLD_RATE_WHISPER = "你的金币倍率为:|cffffd100{}%|r";
+constexpr char const* TXT_GOLD_RATE_WHISPER = "你的金币倍率为:{}%";
 
 // ===== 欢迎语正文（npc_text 表）=====
 constexpr uint32 TEXT_ID_BASE = 101000;          // 与生物入口一致，避开官方文本 ID 段
@@ -153,7 +153,7 @@ public:
         case ACTION_GOLD_RATE: // 我的金币倍率：由 NPC 悄悄话告知真实倍率
         {
             uint32 goldRate = 100 + player->GetVipBenefits().gold_loot_bonus;
-            creature->Whisper(Acore::StringFormat(TXT_GOLD_RATE_WHISPER, goldRate), LANG_UNIVERSAL, player);
+            creature->Whisper(Acore::StringFormat(TXT_GOLD_RATE_WHISPER, goldRate), LANG_UNIVERSAL, player,true);
             CloseGossipMenuFor(player);
             break;
         }

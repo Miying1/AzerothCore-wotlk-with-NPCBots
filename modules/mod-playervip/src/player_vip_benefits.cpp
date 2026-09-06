@@ -116,7 +116,7 @@ public:
         if (!player || !item)
             return false;
 
-        if (player->IsInCombat() || !player->IsAlive() || player->IsBeingTeleported() || player->IsInFlight() || player->IsFlying())
+        if (!player->IsAlive() )
         {
             ChatHandler(player->GetSession()).PSendSysMessage("当前状态无法使用该物品。");
             return true;
@@ -134,7 +134,7 @@ public:
         uint32 accountId = player->GetSession()->GetAccountId();
         LoginDatabase.Execute("UPDATE `account_vip` SET `gold_loot_bonus` = {} WHERE `account_id` = {}", newBonus, accountId);
         player->DestroyItemCount(item->GetEntry(), 1, true);
-        ChatHandler(player->GetSession()).PSendSysMessage("金币拾取额外加成已增加 {}%%，当前额外加成：{}%%（账号通用）。", GoldLootBonusIncrement, newBonus);
+        ChatHandler(player->GetSession()).PSendSysMessage("金币拾取额外加成已增加 {}%，当前额外加成：{}%（账号通用）。", GoldLootBonusIncrement, newBonus);
         return true;
     }
 
@@ -172,16 +172,15 @@ public:
             return true;
         }
 
-        bool unbound = sInstanceSaveMgr->PlayerGetBoundInstance(player->GetGUID(), mapId, difficulty) != nullptr;
-        if (unbound)
-            sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), mapId, difficulty, true, player);
-
-        if (!unbound)
+        // PlayerGetBoundInstance 返回非 null 表示玩家当前已绑定（有副本 CD）
+        bool bound = sInstanceSaveMgr->PlayerGetBoundInstance(player->GetGUID(), mapId, difficulty) != nullptr;
+        if (!bound)
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("你当前没有该副本的副本 CD，无法使用此物品。");
+            ChatHandler(player->GetSession()).PSendSysMessage("你当前没有该副本的 CD，无法使用此物品。");
             return true;
         }
 
+        sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), mapId, difficulty, true, player);
         player->DestroyItemCount(item->GetEntry(), 1, true);
         ChatHandler(player->GetSession()).PSendSysMessage("{}[{}] 副本已重置。", mapEntry->name[sWorld->GetDefaultDbcLocale()],  modeName);
         return true;
