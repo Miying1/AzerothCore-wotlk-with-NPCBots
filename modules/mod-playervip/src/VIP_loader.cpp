@@ -7,10 +7,12 @@ void AddPlayerItemScripts();
 void Addworldboss_list();
 void AddPlayerNoFlyInInstanceScript();
 void AddPlayerVipBenefitsScripts();
+void AddNpcBaihuGossipScripts();
 void Addmod_playervipScripts()
 {
     AddPlayerItemScripts();
     Addworldboss_list();
     AddPlayerNoFlyInInstanceScript();
     AddPlayerVipBenefitsScripts();
+    AddNpcBaihuGossipScripts();
 }

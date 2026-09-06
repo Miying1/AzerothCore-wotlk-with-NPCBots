@@ -16,6 +16,7 @@
  */
 
 #include "CreatureScript.h"
+#include "Log.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
@@ -99,14 +100,41 @@ void SummonCroneIfReady(InstanceScript* instance, Creature* creature)
 {
     instance->SetData(DATA_OPERA_OZ_DEATHCOUNT, SPECIAL);  // Increment DeathCount
 
-    if (instance->GetData(DATA_OPERA_OZ_DEATHCOUNT) == 4)
+    // 优先使用死亡计数判断;计数未达到 4 时,再兜底校验四位主角(DOROTHEE/ROAR/STRAWMAN/TINHEAD)
+    // 是否确实全部死亡。(计数可能被中途重置(失败后巴内斯重开剧目)或因 JustDied 漏触发/重复触发
+    // 而失真,导致演出卡死,因此保留战场状态校验作为兜底。)
+    bool allBossesDead = true;
+    if (instance->GetData(DATA_OPERA_OZ_DEATHCOUNT) != 4)
+    {
+        uint32 const ozBossDatas[4] = {DATA_DOROTHEE, DATA_ROAR, DATA_STRAWMAN, DATA_TINHEAD};
+        for (uint32 data : ozBossDatas)
+        {
+            if (Creature const* ozBoss = instance->GetCreature(data))
+            {
+                if (ozBoss->IsAlive())
+                {
+                    allBossesDead = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    LOG_DEBUG("scripts.ai", "Barnes Opera Event - OZ deathcount {}, all bosses dead: {}", instance->GetData(DATA_OPERA_OZ_DEATHCOUNT), allBossesDead);
+
+    if (instance->GetData(DATA_OPERA_OZ_DEATHCOUNT) == 4 || allBossesDead)
     {
         if (Creature* pCrone = creature->SummonCreature(CREATURE_CRONE, -10891.96f, -1755.95f, creature->GetPositionZ(), 4.64f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, HOUR * 2 * IN_MILLISECONDS))
         {
-            if (creature->GetVictim())
-                pCrone->AI()->AttackStart(creature->GetVictim());
             pCrone->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             pCrone->SetImmuneToPC(false);
+
+            // 召唤瞬间召唤者已处于死亡状态,GetVictim 可能为空,导致老巫婆站桩不进战;
+            // 先继承当前目标,再强制进入区域战斗,确保下一阶段立即开始。
+            if (creature->GetVictim())
+                pCrone->AI()->AttackStart(creature->GetVictim());
+
+            pCrone->SetInCombatWithZone();
         }
     }
 }

@@ -35,7 +35,7 @@ public:
 
     struct npc_pos_leaderAI: public NullCreatureAI
     {
-        npc_pos_leaderAI(Creature* creature) : NullCreatureAI(creature), summons(me)
+        npc_pos_leaderAI(Creature* creature) : NullCreatureAI(creature), summons(me), counter(0)
         {
             pInstance = me->GetInstanceScript();
         }
@@ -63,19 +63,21 @@ public:
 
         void InitializeAI() override
         {
-            // AI 初始化（creature 入界）完成后，若开场剧情尚未进行则立即启动，
-            // 避免依赖 InstanceScript 的触发时机，确保玩家进本即播放剧情
+            // AI 初始化（creature 入界）完成后，若开场剧情尚未进行则延迟启动，
+            // 给玩家客户端留出读图渲染时间，避免玩家进本后错过剧情开头
             NullCreatureAI::InitializeAI(); // 内部会调用 Reset()，INSTANCE_PROGRESS_NONE 时会将 me 设为不可见
             if (pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0)
             {
                 me->setActive(true);
-                events.RescheduleEvent(1, 0ms);
+                events.RescheduleEvent(1, 1500ms);
             }
         }
 
         void SetData(uint32 type, uint32  /*val*/) override
         {
-            if (type == DATA_START_INTRO && pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0 && !me->IsVisible())
+            // 玩家进本触发：只要剧情尚未进行（counter==0）就立即启动，
+            // 不再依赖可见性判断，避免 leader 可见状态异常时剧情永远无法启动
+            if (type == DATA_START_INTRO && pInstance && pInstance->GetData(DATA_INSTANCE_PROGRESS) == INSTANCE_PROGRESS_NONE && counter == 0)
             {
                 me->setActive(true);
                 events.RescheduleEvent(1, 0ms);
@@ -109,7 +111,7 @@ public:
                                 summon->GetMotionMaster()->MovePoint(1, introPositions[counter].endPosition);
                                 summon->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_READY1H);
                             }
-
+                            // 召唤失败也推进计数，防止开场剧情在当前步骤永久卡死
                             ++counter;
                             events.Repeat(150ms);
                         }
