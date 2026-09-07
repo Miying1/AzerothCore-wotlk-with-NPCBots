@@ -624,10 +624,13 @@ public:
         if (InstanceScript* instance = owner->GetInstanceScript())
             if (!instance->IsBossDone(DATA_HADRONOX) != NOT_STARTED)
             {
-                if (!owner->HasAura(SPELL_WEB_FRONT_DOORS))
+                // 封门信号(SPELL_WEB_FRONT_DOORS)由哈德诺克斯本体施放，而非 world trigger，
+                // 必须检测 BOSS 实体才能正确停止召唤，否则停止条件恒不成立、小怪一直刷新
+                Creature* hadronox = instance->GetCreature(DATA_HADRONOX);
+                if (!hadronox || !hadronox->HasAura(SPELL_WEB_FRONT_DOORS))
                     owner->CastSpell(owner, _spellEntry, true);
                 else if (!instance->IsEncounterInProgress())
-                    owner->RemoveAurasDueToSpell(SPELL_WEB_FRONT_DOORS);
+                    hadronox->RemoveAurasDueToSpell(SPELL_WEB_FRONT_DOORS);
             }
     }
 
