@@ -2,11 +2,13 @@ local AIO = AIO or require("AIO")
 
 -- 设置为实际幻化 NPC 的 entry，0 表示不注册 NPC 脚本。
 local TRANSMOGRIFICATION_NPC_ENTRY = 190010
+local BAIHU_NPC_ENTRY = 101000
 
 local AIO_NAMESPACE = "TransmogrificationServer"
 local AIO_HANDLER = "TransmogrificationFrame"
 local GOSSIP_ACTION_OPEN = 1
 local GOSSIP_ACTION_CLOSE = 2
+local BAIHU_GOSSIP_ACTION_OPEN = 1004
 
 local function OpenTransmogrification(player)
     player:GossipComplete()
@@ -27,8 +29,17 @@ local function OnTransmogrificationNpcSelect(event, player, creature, sender, ac
     end
 end
 
+local function OnBaihuGossipSelect(event, player, creature, sender, action)
+    if creature:GetEntry() == BAIHU_NPC_ENTRY and action == BAIHU_GOSSIP_ACTION_OPEN then
+        OpenTransmogrification(player)
+    end
+end
+
 if TRANSMOGRIFICATION_NPC_ENTRY > 0 then
     RegisterCreatureGossipEvent(TRANSMOGRIFICATION_NPC_ENTRY, 1, OnTransmogrificationNpcHello)
     RegisterCreatureGossipEvent(TRANSMOGRIFICATION_NPC_ENTRY, 2, OnTransmogrificationNpcSelect)
     print("[ALE] 幻化 NPC 脚本已加载，NPC entry: " .. TRANSMOGRIFICATION_NPC_ENTRY)
 end
+
+RegisterCreatureGossipEvent(BAIHU_NPC_ENTRY, 2, OnBaihuGossipSelect)
+print("[ALE] 白虎幻化入口已加载，NPC entry: " .. BAIHU_NPC_ENTRY)

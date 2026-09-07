@@ -5,6 +5,7 @@
  *   2. 宝物商店：选择后打开售卖窗口
  *   3. 航班：选择后打开飞行点地图
  *   4. 我的金币倍率：选择后由 NPC 悄悄话告知玩家真实倍率（100% + VIP 金币加成）
+ *   5. 幻化：选择后打开 Lua 幻化界面
  * 配套 SQL：data/小宠物生物_101000_白虎.sql（需在 acore_world 库执行）
  */
 
@@ -32,6 +33,7 @@ constexpr uint32 NPC_BAIHU_ENTRY = 101000; // 白虎生物入口
 constexpr char const* TXT_SHOP = "宝物商店";                     // 宝物商店选项
 constexpr char const* TXT_FLIGHT = "航班";                       // 航班选项
 constexpr char const* TXT_GOLD_RATE = "我的金币倍率";             // 悄悄话告知选项
+constexpr char const* TXT_TRANSMOGRIFICATION = "幻化";            // 打开幻化界面
 
 // 悄悄话模板：{} 为真实金币倍率（基础 100% + 玩家 VIP 金币加成，取自 PlayerVipBenefits）
 constexpr char const* TXT_GOLD_RATE_WHISPER = "你的金币倍率为:{}%";
@@ -43,9 +45,10 @@ constexpr uint32 TEXT_ID_BASE = 101000;          // 与生物入口一致，避�
 constexpr uint32 NPC_WELCOME_TEXT_COUNT = 23;
 
 // ===== 菜单动作 ID =====
-constexpr uint32 ACTION_SHOP = GOSSIP_ACTION_INFO_DEF + 1;      // 宝物商店
-constexpr uint32 ACTION_FLIGHT = GOSSIP_ACTION_INFO_DEF + 2;    // 航班
-constexpr uint32 ACTION_GOLD_RATE = GOSSIP_ACTION_INFO_DEF + 3; // 我的金币倍率
+constexpr uint32 ACTION_SHOP = GOSSIP_ACTION_INFO_DEF + 1;                 // 宝物商店
+constexpr uint32 ACTION_FLIGHT = GOSSIP_ACTION_INFO_DEF + 2;               // 航班
+constexpr uint32 ACTION_GOLD_RATE = GOSSIP_ACTION_INFO_DEF + 3;            // 我的金币倍率
+constexpr uint32 ACTION_TRANSMOGRIFICATION = GOSSIP_ACTION_INFO_DEF + 4;   // 幻化
 
 // 航班功能使用条件校验：返回空字符串表示允许使用，否则返回拒绝原因
 // 条件：仅限大世界（大陆地图，不含副本/团队/战场/竞技场），且玩家存活、不在战斗中
@@ -117,6 +120,8 @@ public:
             AddGossipItemFor(player, GOSSIP_ICON_TAXI, TXT_FLIGHT, GOSSIP_SENDER_MAIN, ACTION_FLIGHT);
         // 我的金币倍率（NPC 悄悄话告知）
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_GOLD_RATE, GOSSIP_SENDER_MAIN, ACTION_GOLD_RATE);
+        // 幻化（打开 Lua 幻化界面）
+        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_TRANSMOGRIFICATION, GOSSIP_SENDER_MAIN, ACTION_TRANSMOGRIFICATION);
 
         // 正文欢迎语：70% 概率取第一条，30% 概率随机取一条
         uint32 textId = TEXT_ID_BASE;
@@ -157,6 +162,9 @@ public:
             CloseGossipMenuFor(player);
             break;
         }
+        case ACTION_TRANSMOGRIFICATION: // 幻化：由 Lua 脚本处理客户端界面
+            CloseGossipMenuFor(player);
+            break;
         default: // 未知选项：直接关闭
             CloseGossipMenuFor(player);
             break;

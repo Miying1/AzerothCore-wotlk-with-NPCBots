@@ -1219,9 +1219,9 @@ public:
             return true;
         }
 
-        void SpawnGunship()
+        void SpawnGunship(bool requirePlayers = true)
         {
-            if (!GunshipGUID && instance->HavePlayers())
+            if (!GunshipGUID && (!requirePlayers || instance->HavePlayers()))
             {
                 SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
                 uint32 gunshipEntry = GetTeamIdInInstance() == TEAM_HORDE ? GO_ORGRIMS_HAMMER_H : GO_THE_SKYBREAKER_A;
@@ -1752,7 +1752,7 @@ public:
                             wind->SetGoState(GO_STATE_ACTIVE);
                         break;
                     case EVENT_RESPAWN_GUNSHIP:
-                        SpawnGunship();
+                        SpawnGunship(false);
                         break;
                     case EVENT_RESPAWN_SINDRAGOSA:
                         if (!GetCreature(DATA_SINDRAGOSA))
