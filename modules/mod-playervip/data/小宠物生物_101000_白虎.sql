@@ -55,12 +55,13 @@ UPDATE `creature_template` SET `npcflag` = 12417, `ScriptName` = 'npc_baihu_goss
 -- 问候语正文（窗口顶部显示，替换默认问候文本 "Greetings $N"）
 -- 背景设定：白虎为潘达利亚四天神之一，身处 WLK 3.3.5 时代，被玩家召唤而来；
 --           内容方向：以未来见证者身份隐晦透露后续版本的剧情（天神预言体，不明说人名事件）
--- 多条文本随机显示：脚本按 urand 随机发送 ID（101000 ~ 101023），
+-- 多条欢迎语文本随机显示：脚本按 urand 随机发送 ID（101000 ~ 101022，共 23 条），
 -- 增删文本时需同步修改脚本常量 NPC_WELCOME_TEXT_COUNT（npc_baihu_gossip.cpp）
+-- 101023 为「节点传送」子菜单的正文（脚本常量 NODE_TEXT_ID），需一并提供
 -- 真实金币倍率由对话选项「我的金币倍率」以 NPC 悄悄话形式告知
 -- 幂等清理：先删后插（重复执行无副作用）
 -- ============================================================
-DELETE FROM `npc_text` WHERE `ID` BETWEEN 101000 AND 101022;
+DELETE FROM `npc_text` WHERE `ID` BETWEEN 101000 AND 101023;
 
 INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`) VALUES
 (101000,'|cff4A3520凡人,我在未来见过你!|r',1),
@@ -85,7 +86,8 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`) VALUES
 (101019,'|cff4A3520王冠与王座几度易主,唯有权力的游戏,从未因血与火而落幕。|r',1),
 (101020,'|cff4A3520冥界的看守者自以为执掌众生,却不知自己也不过是棋盘上的一枚子。|r',1),
 (101021,'|cff4A3520冰原之上,新的龙裔将重新振翅,古老的誓言会随钟声归来。|r',1),
-(101022,'|cff4A3520未来还会有人开启新的裂隙,也会有人缝补旧日的伤痕。|r',1);
+(101022,'|cff4A3520未来还会有人开启新的裂隙,也会有人缝补旧日的伤痕。|r',1),
+(101023,'|cff4A3520选定你的传送节点,或记录脚下的位置。|r',1);
 
 DELETE FROM `item_template` WHERE `ID` = 91500 ;
 INSERT INTO `acore_world`.`item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclass`, `name`, `displayid`, `Quality`, `Flags`, `FlagsExtra`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `RequiredSkill`, `RequiredSkillRank`, `requiredspell`, `requiredhonorrank`, `RequiredCityRank`, `RequiredReputationFaction`, `RequiredReputationRank`, `maxcount`, `stackable`, `ContainerSlots`, `stat_type1`, `stat_value1`, `stat_type2`, `stat_value2`, `stat_type3`, `stat_value3`, `stat_type4`, `stat_value4`, `stat_type5`, `stat_value5`, `stat_type6`, `stat_value6`, `stat_type7`, `stat_value7`, `stat_type8`, `stat_value8`, `stat_type9`, `stat_value9`, `stat_type10`, `stat_value10`, `ScalingStatDistribution`, `ScalingStatValue`, `dmg_min1`, `dmg_max1`, `dmg_type1`, `dmg_min2`, `dmg_max2`, `dmg_type2`, `armor`, `holy_res`, `fire_res`, `nature_res`, `frost_res`, `shadow_res`, `arcane_res`, `delay`, `ammo_type`, `RangedModRange`, `spellid_1`, `spelltrigger_1`, `spellcharges_1`, `spellppmRate_1`, `spellcooldown_1`, `spellcategory_1`, `spellcategorycooldown_1`, `spellid_2`, `spelltrigger_2`, `spellcharges_2`, `spellppmRate_2`, `spellcooldown_2`, `spellcategory_2`, `spellcategorycooldown_2`, `spellid_3`, `spelltrigger_3`, `spellcharges_3`, `spellppmRate_3`, `spellcooldown_3`, `spellcategory_3`, `spellcategorycooldown_3`, `spellid_4`, `spelltrigger_4`, `spellcharges_4`, `spellppmRate_4`, `spellcooldown_4`, `spellcategory_4`, `spellcategorycooldown_4`, `spellid_5`, `spelltrigger_5`, `spellcharges_5`, `spellppmRate_5`, `spellcooldown_5`, `spellcategory_5`, `spellcategorycooldown_5`, `bonding`, `description`, `PageText`, `LanguageID`, `PageMaterial`, `startquest`, `lockid`, `Material`, `sheath`, `RandomProperty`, `RandomSuffix`, `block`, `itemset`, `MaxDurability`, `area`, `Map`, `BagFamily`, `TotemCategory`, `socketColor_1`, `socketContent_1`, `socketColor_2`, `socketContent_2`, `socketColor_3`, `socketContent_3`, `socketBonus`, `GemProperties`, `RequiredDisenchantSkill`, `ArmorDamageModifier`, `duration`, `ItemLimitCategory`, `HolidayId`, `ScriptName`, `DisenchantID`, `FoodType`, `minMoneyLoot`, `maxMoneyLoot`, `flagsCustom`, `VerifiedBuild`) VALUES (91500, 15, 2, -1, '白虎天神', 62969, 3, 134250560, 0, 1, 0, 0, 0, -1, -1, 20, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55884, 0, 0, 0, -1, 0, -1, 69541, 6, 0, 0, -1, 0, -1, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 0, -1, 0, -1, 1, '', 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 4096, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, '', 0, 0, 0, 0, 0, 10505);

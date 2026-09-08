@@ -336,6 +336,10 @@ void bot_ai::InitializeAI()
 
 void bot_ai::BotSay(std::string_view text, Player const* target) const
 {
+    // 机器人在传送/移除过程中不在世界中，此时 Say 会访问空地图指针触发断言，直接返回
+    if (!me->FindMap())
+        return;
+
     if (!target && master->IsPlayer())
         target = master;
     if (!target)
@@ -345,6 +349,10 @@ void bot_ai::BotSay(std::string_view text, Player const* target) const
 }
 void bot_ai::BotWhisper(std::string_view text, Player const* target) const
 {
+    // 机器人在传送/移除过程中不在世界中，直接返回，避免后续操作访问空地图指针
+    if (!me->FindMap())
+        return;
+
     if (!target && master->IsPlayer())
         target = master;
     if (!target)
@@ -355,6 +363,10 @@ void bot_ai::BotWhisper(std::string_view text, Player const* target) const
 }
 void bot_ai::BotYell(std::string_view text, Player const* /*target*/) const
 {
+    // 机器人在传送/移除过程中不在世界中，此时 Yell 会访问空地图指针触发断言，直接返回
+    if (!me->FindMap())
+        return;
+
     me->Yell(text, LANG_UNIVERSAL);
 }
 
@@ -8302,7 +8314,8 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
 //GossipSelect
 bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32 sender, uint32 action)
 {
-    if (!BotCfg::IsNpcBotModEnabled() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
+    // 机器人在传送/移除过程中可能不在世界中，此时继续处理 gossip 会访问空地图指针导致断言崩溃
+    if (!BotCfg::IsNpcBotModEnabled() || !me->IsInWorld() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()))
     {
         player->PlayerTalkClass->SendCloseGossip();
@@ -11573,7 +11586,7 @@ bool bot_ai::OnGossipSelectCode(Player* player, Creature* creature/* == me*/, ui
     if (!*code)
         return true;
 
-    if (!BotCfg::IsNpcBotModEnabled() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || IsDuringTeleport() ||
+    if (!BotCfg::IsNpcBotModEnabled() || !me->IsInWorld() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || IsDuringTeleport() ||
         HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()))
     {

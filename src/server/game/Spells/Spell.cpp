@@ -5064,7 +5064,7 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
                 }
                 else if (m_caster->HasAura(46699))      // Requires No Ammo
                 {
-                    ammoDisplayID = 5996;                   // normal arrow
+                    ammoDisplayID = 23211;                   // normal arrow
                     ammoInventoryType = INVTYPE_AMMO;
                 }
             }
