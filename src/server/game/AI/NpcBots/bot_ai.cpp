@@ -8314,8 +8314,12 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
 //GossipSelect
 bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32 sender, uint32 action)
 {
-    // 机器人在传送/移除过程中可能不在世界中，此时继续处理 gossip 会访问空地图指针导致断言崩溃
-    if (!BotCfg::IsNpcBotModEnabled() || !me->IsInWorld() || me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
+    // 机器人在传送/移除过程中可能不在世界中，此时继续处理 gossip 会访问空地图指针导致断言崩溃；
+    // 但雇佣请求（GOSSIP_SENDER_HIRE）必须放行：空闲 bot 在附近无玩家时会被移出世界（_canAppearInWorld），
+    // 雇佣列表中大量 bot 平时并不在世界中，而 BotMgr::AddBot 本身支持雇佣这类 bot（内部会发起异步传送），
+    // 若在此一并拦截，会导致通过雇佣管理员确认雇佣后无任何反应（不雇佣、不扣钱、无提示）
+    if (!BotCfg::IsNpcBotModEnabled() || (sender != GOSSIP_SENDER_HIRE && !me->IsInWorld()) ||
+        me->HasUnitState(UNIT_STATE_CASTING) || CCed(me) || HasBotCommandState(BOT_COMMAND_ISSUED_ORDER) ||
         (me->GetVehicle() && me->GetVehicle()->GetBase()->IsInCombat()))
     {
         player->PlayerTalkClass->SendCloseGossip();
@@ -10771,7 +10775,13 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 if (SetBotOwner(player))
                 {
                     if (_botclass == BOT_CLASS_SPHYNX)
-                        me->TextEmote(me->GetName() + LocalizedNpcText(player, BOT_TEXT_HIRE_EMOTE_SPHYNX) + player->GetName());
+                    {
+                        // 刚雇佣的 bot 可能仍在异步传送中（不在世界/无地图），TextEmote 会访问空地图指针，兜底走悄悄话
+                        if (me->FindMap())
+                            me->TextEmote(me->GetName() + LocalizedNpcText(player, BOT_TEXT_HIRE_EMOTE_SPHYNX) + player->GetName());
+                        else
+                            BotWhisper(LocalizedNpcText(player, BOT_TEXT_HIRE_SUCCESS), player);
+                    }
                     else
                         BotWhisper(LocalizedNpcText(player, BOT_TEXT_HIRE_SUCCESS), player);
                 }
