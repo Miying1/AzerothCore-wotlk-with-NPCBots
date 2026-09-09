@@ -197,12 +197,12 @@ void DoSetTeleportNode(Player* player, uint32 slot)
     ChatHandler(player->GetSession()).PSendSysMessage("已记录节点{}的位置，2 小时后自动消失。", slot + 1);
 }
 
-// 按记录的坐标传送指定槽位：校验玩家当前地图/实例与记录一致后，同地图 Relocate
+// 按记录的坐标传送指定槽位：野外位置允许跨地图传送，副本位置必须匹配地图和实例
 void DoTeleportToNode(Player* player, uint32 slot)
 {
-    if (!player->IsAlive() || player->IsInCombat() || player->IsInFlight())
+    if (!player->IsAlive() || player->IsInCombat())
     {
-        ChatHandler(player->GetSession()).PSendSysMessage("你已死亡、战斗中或飞行中，无法传送。");
+        ChatHandler(player->GetSession()).PSendSysMessage("你已死亡或处于战斗中，无法传送。");
         return;
     }
 
@@ -218,22 +218,23 @@ void DoTeleportToNode(Player* player, uint32 slot)
     if (!curMap)
         return;
 
-    // 必须与记录位于同一张地图，否则坐标会落到错误位置
-    if (curMap->GetId() != info.mapId)
+    // 记录点位于副本内时，必须与玩家当前所处的地图和副本实例一致
+    if (info.instanceId != 0)
     {
-        ChatHandler(player->GetSession()).PSendSysMessage("传送节点不在当前地图上，无法直接传送。");
-        return;
+        if (curMap->GetId() != info.mapId)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("传送节点位于副本地图中，无法跨地图传送。");
+            return;
+        }
+
+        if (curMap->GetInstanceId() != info.instanceId)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("传送节点位于另一个副本实例中，无法传送。");
+            return;
+        }
     }
 
-    // 节点若设置在副本中，则必须与玩家当前所处的副本实例一致
-    if (info.instanceId != 0 && curMap->GetInstanceId() != info.instanceId)
-    {
-        ChatHandler(player->GetSession()).PSendSysMessage("传送节点位于另一个副本实例中，无法直接传送。");
-        return;
-    }
-
-    // 先播放传送视觉法术，再直接按坐标传送
-    // （TeleportTo 在目标与当前为同一地图时会直接 Relocate，不会重新生成副本实例）
+    // 先播放传送视觉法术，再按坐标传送；非副本位置支持跨地图传送
     player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
     player->TeleportTo(info.mapId, info.x, info.y, info.z, info.o);
 }
@@ -257,17 +258,22 @@ public:
         if (creature->GetEntry() != NPC_BAIHU_ENTRY)
             return false;
 
-        // 宝物商店（打开售卖窗口）
+        // 宝物商店对所有玩家开放
         AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_SHOP, GOSSIP_SENDER_MAIN, ACTION_SHOP);
-        // 节点传送（打开子级对话菜单，可设置节点 / 传送到节点）
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_TELEPORT_NODE, GOSSIP_SENDER_MAIN, ACTION_OPEN_NODE_MENU);
-        // 航班（打开飞行点地图）：仅在满足使用条件（大世界 + 存活 + 非战斗）时显示
-        if (GetFlightDenyReason(player).empty())
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, TXT_FLIGHT, GOSSIP_SENDER_MAIN, ACTION_FLIGHT);
-        // 幻化（打开 Lua 幻化界面）
-        AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_TRANSMOGRIFICATION, GOSSIP_SENDER_MAIN, ACTION_TRANSMOGRIFICATION);
-        // 我的金币倍率（NPC 悄悄话告知）
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_GOLD_RATE, GOSSIP_SENDER_MAIN, ACTION_GOLD_RATE);
+
+        // 小宠物的其他功能仅对宠物主人开放
+        if (creature->GetCharmerOrOwnerPlayerOrPlayerItself() == player)
+        {
+            // 节点传送（打开子级对话菜单，可设置节点 / 传送到节点）
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_TELEPORT_NODE, GOSSIP_SENDER_MAIN, ACTION_OPEN_NODE_MENU);
+            // 航班（打开飞行点地图）：仅在满足使用条件（大世界 + 存活 + 非战斗）时显示
+            if (GetFlightDenyReason(player).empty())
+                AddGossipItemFor(player, GOSSIP_ICON_TAXI, TXT_FLIGHT, GOSSIP_SENDER_MAIN, ACTION_FLIGHT);
+            // 幻化（打开 Lua 幻化界面）
+            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_TRANSMOGRIFICATION, GOSSIP_SENDER_MAIN, ACTION_TRANSMOGRIFICATION);
+            // 我的金币倍率（NPC 悄悄话告知）
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_GOLD_RATE, GOSSIP_SENDER_MAIN, ACTION_GOLD_RATE);
+        }
 
         // 正文欢迎语：70% 概率取第一条，30% 概率随机取一条
         uint32 textId = TEXT_ID_BASE;
@@ -280,6 +286,13 @@ public:
     bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
     {
         player->PlayerTalkClass->ClearMenus();
+
+        // 除商店外的选项仅允许宠物主人执行，防止通过伪造动作绕过菜单显示限制
+        if (action != ACTION_SHOP && creature->GetCharmerOrOwnerPlayerOrPlayerItself() != player)
+        {
+            CloseGossipMenuFor(player);
+            return true;
+        }
 
         // 节点槽位菜单：点击「节点1/2/3」→ 打开该节点的操作菜单
         if (action >= ACTION_NODE_SLOT_BASE && action < ACTION_NODE_SLOT_BASE + MAX_NODE_SLOTS)

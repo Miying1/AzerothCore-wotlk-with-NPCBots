@@ -2,13 +2,13 @@
 -- 270 由 284 按成长公式缩放得到：目标值 = 284基准值 × EXP(k × (270 - 284))，k 取自 装备等级成长拟合参数.csv
 -- 未执行；绿色属性不使用随机后缀。
 
-DELETE FROM `item_template` WHERE `entry` BETWEEN 104270 AND 104274;
-DELETE FROM `item_template` WHERE `entry` BETWEEN 104280 AND 104284;
+DELETE FROM `item_template` WHERE `entry` BETWEEN 110000 AND 110004;
+DELETE FROM `item_template` WHERE `entry` BETWEEN 110010 AND 110014;
 
 -- ============ 270 装等（紫色） ============
 
 INSERT INTO `item_template` SET
-    `entry` = 104270,
+    `entry` = 110000,
     `class` = 2,
     `subclass` = 10,
     `SoundOverrideSubclass` = -1,
@@ -31,7 +31,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 45,
     `stat_value1` = 771,
     `stat_type2` = 7,
@@ -53,7 +52,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104271,
+    `entry` = 110001,
     `class` = 2,
     `subclass` = 4,
     `SoundOverrideSubclass` = -1,
@@ -76,7 +75,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 6,
     `stat_type1` = 45,
     `stat_value1` = 771,
     `stat_type2` = 7,
@@ -100,11 +98,11 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104272,
+    `entry` = 110002,
     `class` = 2,
     `subclass` = 2,
     `SoundOverrideSubclass` = -1,
-    `name` = '风痕逐日长弓·初',
+    `name` = '炎痕逐日长弓·初',
     `displayid` = 43834,
     `Quality` = 4,
     `Flags` = 0,
@@ -123,7 +121,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 38,
     `stat_value1` = 67,
     `stat_type2` = 3,
@@ -147,7 +144,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104273,
+    `entry` = 110003,
     `class` = 4,
     `subclass` = 6,
     `SoundOverrideSubclass` = -1,
@@ -170,7 +167,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 4,
     `stat_value1` = 92,
     `stat_type2` = 7,
@@ -190,7 +186,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104274,
+    `entry` = 110004,
     `class` = 2,
     `subclass` = 7,
     `SoundOverrideSubclass` = -1,
@@ -213,7 +209,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 38,
     `stat_value1` = 92,
     `stat_type2` = 3,
@@ -234,10 +229,10 @@ INSERT INTO `item_template` SET
     `MaxDurability` = 105,
     `VerifiedBuild` = 12340;
 
--- ============ 284 装等（橙色） ============
+-- ============ 284 装等（传奇） ============
 
 INSERT INTO `item_template` SET
-    `entry` = 104280,
+    `entry` = 110010,
     `class` = 2,
     `subclass` = 10,
     `SoundOverrideSubclass` = -1,
@@ -260,7 +255,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 45,
     `stat_value1` = 870,
     `stat_type2` = 7,
@@ -275,6 +269,10 @@ INSERT INTO `item_template` SET
     `dmg_max1` = 650,
     `dmg_type1` = 0,
     `delay` = 2100,
+    `spellid_1` = 92000,
+    `spelltrigger_1` = 1,
+    `spellid_2` = 92001,
+    `spelltrigger_2` = 1,
     `bonding` = 1,
     `Material` = 7,
     `sheath` = 3,
@@ -282,7 +280,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104281,
+    `entry` = 110011,
     `class` = 2,
     `subclass` = 4,
     `SoundOverrideSubclass` = -1,
@@ -305,7 +303,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 6,
     `stat_type1` = 45,
     `stat_value1` = 870,
     `stat_type2` = 7,
@@ -322,6 +319,8 @@ INSERT INTO `item_template` SET
     `dmg_max1` = 430,
     `dmg_type1` = 0,
     `delay` = 1800,
+    `spellid_1` = 64415,
+    `spelltrigger_1` = 1,
     `bonding` = 1,
     `Material` = 7,
     `sheath` = 3,
@@ -329,11 +328,11 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104282,
+    `entry` = 110012,
     `class` = 2,
     `subclass` = 2,
     `SoundOverrideSubclass` = -1,
-    `name` = '风痕逐日长弓',
+    `name` = '炎痕逐日长弓',
     `displayid` = 43834,
     `Quality` = 5,
     `Flags` = 0,
@@ -352,7 +351,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 38,
     `stat_value1` = 74,
     `stat_type2` = 3,
@@ -369,6 +367,10 @@ INSERT INTO `item_template` SET
     `delay` = 3000,
     `ammo_type` = 2,
     `RangedModRange` = 100,
+    `spellid_1` = 46699,
+    `spelltrigger_1` = 1,
+    `spellid_2` = 92004,
+    `spelltrigger_2` = 1,
     `bonding` = 1,
     `Material` = 7,
     `sheath` = 3,
@@ -376,7 +378,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104283,
+    `entry` = 110013,
     `class` = 4,
     `subclass` = 6,
     `SoundOverrideSubclass` = -1,
@@ -399,7 +401,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 4,
     `stat_value1` = 106,
     `stat_type2` = 7,
@@ -412,6 +413,10 @@ INSERT INTO `item_template` SET
     `stat_value5` = 180,
     `armor` = 9303,
     `block` = 260,
+    `spellid_1` = 92006,
+    `spelltrigger_1` = 1,
+    `spellid_2` = 92007,
+    `spelltrigger_2` = 1,
     `bonding` = 1,
     `Material` = 7,
     `sheath` = 4,
@@ -419,7 +424,7 @@ INSERT INTO `item_template` SET
     `VerifiedBuild` = 12340;
 
 INSERT INTO `item_template` SET
-    `entry` = 104284,
+    `entry` = 110014,
     `class` = 2,
     `subclass` = 7,
     `SoundOverrideSubclass` = -1,
@@ -442,7 +447,6 @@ INSERT INTO `item_template` SET
     `socketColor_2` = 2,
     `socketColor_3` = 2,
     `socketBonus` = 0,
-    `StatsCount` = 5,
     `stat_type1` = 38,
     `stat_value1` = 101,
     `stat_type2` = 3,
@@ -457,12 +461,94 @@ INSERT INTO `item_template` SET
     `dmg_max1` = 885,
     `dmg_type1` = 0,
     `delay` = 2600,
+    `spellid_1` = 92003,
+    `spelltrigger_1` = 1,
+    `spellid_2` = 92009,
+    `spelltrigger_2` = 1,
     `bonding` = 1,
     `Material` = 7,
     `sheath` = 3,
     `MaxDurability` = 105,
     `VerifiedBuild` = 12340;
 
+-- 根据数据库同品类装备校准武器与盾牌的客户端分类字段。
+UPDATE `item_template`
+SET
+    `class` = 2,
+    `subclass` = 10,
+    `SoundOverrideSubclass` = -1,
+    `InventoryType` = 17,
+    `Material` = 2,
+    `sheath` = 2
+WHERE `entry` IN (110000, 110010);
 
+UPDATE `item_template`
+SET
+    `class` = 2,
+    `subclass` = 4,
+    `SoundOverrideSubclass` = -1,
+    `InventoryType` = 13,
+    `Material` = 2,
+    `sheath` = 1
+WHERE `entry` IN (110001, 110011);
+
+UPDATE `item_template`
+SET
+    `class` = 2,
+    `subclass` = 2,
+    `SoundOverrideSubclass` = -1,
+    `InventoryType` = 26,
+    `Material` = 2,
+    `sheath` = 0
+WHERE `entry` IN (110002, 110012);
+
+UPDATE `item_template`
+SET
+    `class` = 4,
+    `subclass` = 6,
+    `SoundOverrideSubclass` = -1,
+    `InventoryType` = 14,
+    `Material` = 2,
+    `sheath` = 4
+WHERE `entry` IN (110003, 110013);
+
+UPDATE `item_template`
+SET
+    `class` = 2,
+    `subclass` = 7,
+    `SoundOverrideSubclass` = -1,
+    `InventoryType` = 13,
+    `Material` = 2,
+    `sheath` = 3
+WHERE `entry` IN (110004, 110014);
+
+DELETE FROM `spell_bonus_data` WHERE `entry` = 92005;
 INSERT INTO `spell_bonus_data` (`entry`, `direct_bonus`, `dot_bonus`, `ap_bonus`, `ap_dot_bonus`, `comments`)
 VALUES (92005, 0, 0, 0, 0.05, '弓矢点燃 - 每跳伤害受5%攻击强度加成');
+
+-- 复制物品 49908：源生萨隆邪铁。
+DELETE FROM `item_template` WHERE `entry` = 109999;
+INSERT INTO `item_template` SET
+    `entry` = 109999,
+    `class` = 7,
+    `subclass` = 11,
+    `SoundOverrideSubclass` = -1,
+    `name` = '神器材料',
+    `displayid` = 13124,
+    `Quality` = 5,
+    `Flags` = 4096,
+    `FlagsExtra` = 0,
+    `BuyCount` = 1,
+    `BuyPrice` = 280000,
+    `SellPrice` = 70000,
+    `InventoryType` = 0,
+    `AllowableClass` = -1,
+    `AllowableRace` = -1,
+    `ItemLevel` = 80,
+    `RequiredLevel` = 0,
+    `maxcount` = 0,
+    `stackable` = 100,
+    `Material` = 4,
+    `sheath` = 0,
+    `RequiredDisenchantSkill` = -1,
+    `VerifiedBuild` = 11159;
