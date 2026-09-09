@@ -32,7 +32,9 @@ end
 local function OnBaihuGossipSelect(event, player, creature, sender, action)
     if creature:GetEntry() == BAIHU_NPC_ENTRY and action == BAIHU_GOSSIP_ACTION_OPEN then
         OpenTransmogrification(player)
+        return true -- 已处理幻化选项，阻止 C++ 脚本重复处理
     end
+    return false -- 未处理的选项（宝物商店/节点传送/航班/金币倍率）交还给 C++ 脚本处理
 end
 
 if TRANSMOGRIFICATION_NPC_ENTRY > 0 then

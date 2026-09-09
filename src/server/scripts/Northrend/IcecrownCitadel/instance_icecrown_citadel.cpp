@@ -1223,6 +1223,14 @@ public:
         {
             if (!GunshipGUID && (!requirePlayers || instance->HavePlayers()))
             {
+                // npcbot: 清除船体的重生时间，避免重建舰艇时静态乘客（船体）因重生时间未到被跳过
+                ObjectGuid skybreakerGuid = GetGuidData(DATA_THE_SKYBREAKER);
+                if (!skybreakerGuid.IsEmpty())
+                    instance->RemoveCreatureRespawnTime(skybreakerGuid.GetCounter());
+                ObjectGuid orgrimsHammerGuid = GetGuidData(DATA_ORGRIMS_HAMMER);
+                if (!orgrimsHammerGuid.IsEmpty())
+                    instance->RemoveCreatureRespawnTime(orgrimsHammerGuid.GetCounter());
+
                 SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
                 uint32 gunshipEntry = GetTeamIdInInstance() == TEAM_HORDE ? GO_ORGRIMS_HAMMER_H : GO_THE_SKYBREAKER_A;
                 if (MotionTransport* gunship = sTransportMgr->CreateTransport(gunshipEntry, 0, instance))

@@ -942,6 +942,15 @@ public:
                 if (checkTimer <= diff)
                 {
                     checkTimer = 1000;
+
+                    // npcbot: 副本内没有玩家（全部死亡并释放）时重置舰艇战斗，避免带 BOT 时玩家跑尸进本后 BOSS 仍处于进行中
+                    if (!me->GetMap()->HavePlayers())
+                    {
+                        bool const isHorde = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE;
+                        if (Creature* ship = _instance->GetCreature(isHorde ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
+                            Unit::Kill(me, ship);
+                    }
+
                     Map::PlayerList const& pl = me->GetMap()->GetPlayers();
                     for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
                         if (Player* p = itr->GetSource())
@@ -1278,6 +1287,15 @@ public:
                 if (checkTimer <= diff)
                 {
                     checkTimer = 1000;
+
+                    // npcbot: 副本内没有玩家（全部死亡并释放）时重置舰艇战斗，避免带 BOT 时玩家跑尸进本后 BOSS 仍处于进行中
+                    if (!me->GetMap()->HavePlayers())
+                    {
+                        bool const isHorde = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE;
+                        if (Creature* ship = _instance->GetCreature(isHorde ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
+                            Unit::Kill(me, ship);
+                    }
+
                     Map::PlayerList const& pl = me->GetMap()->GetPlayers();
                     for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
                         if (Player* p = itr->GetSource())
