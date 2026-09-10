@@ -7,6 +7,7 @@
 #include "SharedDefines.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "StringFormat.h"
 #include <set>
 #include <sstream>
