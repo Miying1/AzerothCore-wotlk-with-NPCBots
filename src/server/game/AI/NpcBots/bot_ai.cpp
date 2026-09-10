@@ -5137,7 +5137,7 @@ bool bot_ai::ProcessImmediateNonAttackTarget()
                     {
                         for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
                         {
-                            if (bot && is_impaled(bot))
+                            if (bot && bot->IsInWorld() && bot->FindMap() == me->FindMap() && is_impaled(bot))
                                 spears.push_back(bot->ToUnit());
                         }
                     }
