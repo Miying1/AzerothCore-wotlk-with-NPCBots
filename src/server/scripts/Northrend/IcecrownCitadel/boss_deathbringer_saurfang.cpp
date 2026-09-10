@@ -531,6 +531,7 @@ public:
         void Reset() override
         {
             _events.Reset();
+            _guardList.clear();  // 清除悬垂指针，防止Reset后原事件中已销毁的生物指针残留
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
             me->CombatStop();
@@ -557,7 +558,8 @@ public:
                         }
                         uint32 x = 1;
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                            (*itr)->AI()->SetData(0, x++);
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                                guard->AI()->SetData(0, x++);
 
                         me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                         Talk(SAY_INTRO_HORDE_1);
@@ -583,7 +585,8 @@ public:
                         me->SetDisableGravity(false);
                         me->GetMotionMaster()->MovePoint(0, me->GetPositionX(), me->GetPositionY(), 539.2917f, FORCED_MOVEMENT_NONE, 10.0f);
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                            (*itr)->AI()->DoAction(ACTION_DESPAWN);
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                                guard->AI()->DoAction(ACTION_DESPAWN);
                         me->CombatStop();
                         /*Talk(SAY_OUTRO_HORDE_1);
                         _events.ScheduleEvent(EVENT_OUTRO_HORDE_1, 10s);
@@ -602,12 +605,15 @@ public:
                         EnterEvadeMode();
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
                         {
-                            (*itr)->GetMotionMaster()->Clear();
-                            (*itr)->GetHomePosition(x, y, z, o);
-                            (*itr)->SetPosition(x, y, z, o);
-                            (*itr)->StopMovingOnCurrentPos();
-                            (*itr)->SetDisableGravity(false);
-                            (*itr)->AI()->EnterEvadeMode();
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                            {
+                                guard->GetMotionMaster()->Clear();
+                                guard->GetHomePosition(x, y, z, o);
+                                guard->SetPosition(x, y, z, o);
+                                guard->StopMovingOnCurrentPos();
+                                guard->SetDisableGravity(false);
+                                guard->AI()->EnterEvadeMode();
+                            }
                         }
                     }
                     break;
@@ -694,7 +700,8 @@ public:
                 case EVENT_INTRO_HORDE_8:
                     Talk(SAY_INTRO_HORDE_8);
                     for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                        (*itr)->AI()->DoAction(ACTION_CHARGE);
+                        if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                            guard->AI()->DoAction(ACTION_CHARGE);
                     me->GetMotionMaster()->MoveCharge(chargePos[0].GetPositionX(), chargePos[0].GetPositionY(), chargePos[0].GetPositionZ(), 8.5f, POINT_CHARGE);
                     break;
                 case EVENT_INTRO_HORDE_9:
@@ -793,6 +800,7 @@ public:
         void Reset() override
         {
             _events.Reset();
+            _guardList.clear();  // 清除悬垂指针，防止Reset后原事件中已销毁的生物指针残留
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
             me->CombatStop();
@@ -819,7 +827,8 @@ public:
                         }
                         uint32 x = 1;
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                            (*itr)->AI()->SetData(0, x++);
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                                guard->AI()->SetData(0, x++);
 
                         me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                         Talk(SAY_INTRO_ALLIANCE_1);
@@ -846,7 +855,8 @@ public:
                         me->SetDisableGravity(false);
                         me->GetMotionMaster()->MovePoint(0, me->GetPositionX(), me->GetPositionY(), 539.2917f, FORCED_MOVEMENT_NONE, 10.0f);
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                            (*itr)->AI()->DoAction(ACTION_DESPAWN);
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                                guard->AI()->DoAction(ACTION_DESPAWN);
 
                         //Talk(SAY_OUTRO_ALLIANCE_1);
                         me->CombatStop();
@@ -863,12 +873,15 @@ public:
                         EnterEvadeMode();
                         for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
                         {
-                            (*itr)->GetMotionMaster()->Clear();
-                            (*itr)->GetHomePosition(x, y, z, o);
-                            (*itr)->SetPosition(x, y, z, o);
-                            (*itr)->StopMovingOnCurrentPos();
-                            (*itr)->SetDisableGravity(false);
-                            (*itr)->AI()->EnterEvadeMode();
+                            if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                            {
+                                guard->GetMotionMaster()->Clear();
+                                guard->GetHomePosition(x, y, z, o);
+                                guard->SetPosition(x, y, z, o);
+                                guard->StopMovingOnCurrentPos();
+                                guard->SetDisableGravity(false);
+                                guard->AI()->EnterEvadeMode();
+                            }
                         }
                     }
                     break;
@@ -928,7 +941,8 @@ public:
                 case EVENT_INTRO_ALLIANCE_5:
                     Talk(SAY_INTRO_ALLIANCE_5);
                     for (std::list<Creature*>::iterator itr = _guardList.begin(); itr != _guardList.end(); ++itr)
-                        (*itr)->AI()->DoAction(ACTION_CHARGE);
+                        if (Creature* guard = *itr)  // 防止悬垂指针崩溃
+                            guard->AI()->DoAction(ACTION_CHARGE);
                     me->GetMotionMaster()->MoveCharge(chargePos[0].GetPositionX(), chargePos[0].GetPositionY(), chargePos[0].GetPositionZ(), 8.5f, POINT_CHARGE);
                     break;
                 case EVENT_INTRO_ALLIANCE_6:
