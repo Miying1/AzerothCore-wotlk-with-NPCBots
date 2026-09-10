@@ -2198,7 +2198,7 @@ public:
 
         float GetSpellAttackRange(bool longRange) const override
         {
-            return longRange ? CalcSpellMaxRange(GetSpell(EXORCISM_1) ? EXORCISM_1 : JUDGEMENT_OF_LIGHT_1) : 10.f;
+            return longRange ? CalcSpellMaxRange(GetSpell(EXORCISM_1) ? EXORCISM_1 : JUDGEMENT_OF_LIGHT_1) : 15.f;
         }
 
         uint32 GetAIMiscValue(uint32 data) const override
