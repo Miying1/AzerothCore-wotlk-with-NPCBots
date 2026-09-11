@@ -194,7 +194,7 @@ void DoSetTeleportNode(Player* player, uint32 slot)
     info.nodeGUID = node->GetGUID();
     info.valid = true;
 
-    ChatHandler(player->GetSession()).PSendSysMessage("已记录节点{}的位置，2 小时后自动消失。", slot + 1);
+    ChatHandler(player->GetSession()).PSendSysMessage("已记录节点{}的位置。", slot + 1);
 }
 
 // 按记录的坐标传送指定槽位：野外位置允许跨地图传送，副本位置必须匹配地图和实例

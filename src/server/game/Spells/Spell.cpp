@@ -621,14 +621,13 @@ Spell::Spell(Unit* caster, SpellInfo const* info, TriggerCastFlags triggerFlags,
     m_spellSchoolMask = info->GetSchoolMask();           // Can be override for some spell (wand shoot for example)
 
     if (m_attackType == RANGED_ATTACK)
-        // wand case
-        if ((m_caster->getClassMask() & CLASSMASK_WAND_USERS) != 0 && m_caster->IsPlayer())
+        // 远程武器（魔杖、弓、枪、弩）的普通射击伤害类型继承武器自身的伤害类型
+        if (m_caster->IsPlayer())
             if (Item* pItem = m_caster->ToPlayer()->GetWeaponForAttack(RANGED_ATTACK))
                 m_spellSchoolMask = SpellSchoolMask(1 << pItem->GetTemplate()->Damage[0].DamageType);
 
-    //npcbot: ranged weapon dmg school
-    if (m_attackType == RANGED_ATTACK && m_caster->IsNPCBot() &&
-        ((1<<(m_caster->ToCreature()->GetBotClass()-1)) & CLASSMASK_WAND_USERS))
+    //npcbot: 远程武器普通射击伤害类型继承武器自身的伤害类型
+    if (m_attackType == RANGED_ATTACK && m_caster->IsNPCBot())
     {
         if (Item const* pItem = m_caster->ToCreature()->GetBotEquips(2))
             m_spellSchoolMask = SpellSchoolMask(1 << pItem->GetTemplate()->Damage[0].DamageType);
