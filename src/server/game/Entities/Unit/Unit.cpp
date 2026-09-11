@@ -9584,6 +9584,9 @@ float Unit::SpellDoneCritChance(Unit const* /*victim*/, SpellInfo const* spellPr
                 else
                 {
                     crit_chance = (float)m_baseSpellCritChance;
+                    // npcbot 修复：生物单位（NPCBots）也要计入通用法术爆击光环，
+                    // 否则类似星光之拥(92000, SPELL_AURA_MOD_SPELL_CRIT_CHANCE)的团队光环对 bot 施法无效
+                    crit_chance += GetTotalAuraModifier(SPELL_AURA_MOD_SPELL_CRIT_CHANCE);
                     crit_chance += GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, schoolMask);
                 }
                 break;

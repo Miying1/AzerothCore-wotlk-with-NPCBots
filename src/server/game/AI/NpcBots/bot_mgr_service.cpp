@@ -613,10 +613,12 @@ BotEquipmentUiResult bot_mgr_service::GetAttributes(
     snapshot.maxHealth = bot->GetMaxHealth();
     snapshot.armor = uint32(bot->GetArmor());
     snapshot.defense = uint32(bot->GetDefenseSkillValue());
-    snapshot.dodge = ai->GetBotDodgeChance();
-    snapshot.parry = ai->CanParry() ? ai->GetBotParryChance() : 0.0f;
-    snapshot.block = ai->CanBlock() ? ai->GetBotBlockChance() : 0.0f;
-    snapshot.blockValue = ai->CanBlock() ? ai->GetShieldBlockValue() : 0;
+    // 与 bot_ai::_listAuras（表情查看属性）及实际战斗判定保持一致：
+    // 在 bot_ai 基础值之上叠加 SPELL_AURA_MOD_*_PERCENT 光环，不再单独按 CanParry/CanBlock 归零。
+    snapshot.dodge = bot->GetUnitDodgeChance();
+    snapshot.parry = bot->GetUnitParryChance();
+    snapshot.block = bot->GetUnitBlockChance();
+    snapshot.blockValue = bot->GetShieldBlockValue();
 
     WeaponAttackType const attackType = snapshot.category == "RANGED_PHYSICAL" ? RANGED_ATTACK : BASE_ATTACK;
     snapshot.attackPower = int32(bot->GetTotalAttackPowerValue(attackType));
@@ -633,13 +635,17 @@ BotEquipmentUiResult bot_mgr_service::GetAttributes(
     snapshot.attackSpeed = GetAttackSpeedSeconds(bot, attackType);
     snapshot.damagePerSecond = GetDamagePerSecond(snapshot.minDamage, snapshot.maxDamage, snapshot.attackSpeed);
     snapshot.hit = -ai->GetBotMissChance();
-    snapshot.crit = ai->GetBotCritChance();
+    // 与表情显示一致：基础暴击 + 武器/全局暴击光环（目标侧临时修正不纳入静态面板）。
+    snapshot.crit = ai->GetBotCritChance() +
+        float(bot->GetTotalAuraModifier(SPELL_AURA_MOD_WEAPON_CRIT_PERCENT)) +
+        float(bot->GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PCT));
     snapshot.haste = ai->GetHaste();
     snapshot.expertise = ai->GetBotExpertise() +
         uint32(std::max<int32>(0, bot->GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE)));
     snapshot.armorPenetration = bot->GetCreatureArmorPenetrationCoef();
 
-    snapshot.spellPower = ai->GetBotSpellPower();
+    // 与表情显示一致：bot 基础法强 + SPELL_AURA_MOD_DAMAGE_DONE 光环贡献。
+    snapshot.spellPower = uint32(std::max<int32>(0, bot->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC)));
     snapshot.healingPower = std::max<int32>(0, bot->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_MAGIC));
     snapshot.spellPenetration = ai->GetBotSpellPenetration() + uint32(std::abs(
         bot->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_MAGIC)));
