@@ -2195,6 +2195,8 @@ void bot_ai::_listAuras(Player const* player, Unit const* unit) const
         }
         int32 bot_expertise = expertise + me->GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CRIT) << ": " << float(unit->GetUnitCriticalChance(BASE_ATTACK, me));
+        // npcbot: 显示法术爆击（基础值 + 通用法术爆击光环如星光之拥92000 + bot自身爆击加成），与 bot 施法实际爆击计算口径一致
+        botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_CRIT) << "(spell): " << float(me->m_baseSpellCritChance + me->GetTotalAuraModifier(SPELL_AURA_MOD_SPELL_CRIT_CHANCE) + crit);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HASTE) << ": " << (haste >= 0 ? "+" : "-") << float(haste) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_HIT) << ": +" << float(hit) << " " << LocalizedNpcText(player, BOT_TEXT_PCT);
         botstring << "\n" << LocalizedNpcText(player, BOT_TEXT_EXPERTISE) << ": " << int32(bot_expertise) << " (-" << float(float(bot_expertise) * 0.25f) << " " << LocalizedNpcText(player, BOT_TEXT_PCT) << ")";
