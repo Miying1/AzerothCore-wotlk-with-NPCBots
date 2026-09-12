@@ -122,10 +122,10 @@ public:
             break;
         case GOSSIP_SENDER_USE://变身
             CloseGossipMenuFor(player); 
-            //if (target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
-            //    pTransmog->CastTransmogBot(target, action);
-            //    return;
-            //} 
+            if (target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
+               pTransmog->CastTransmogBot(target, action);
+               return;
+            } 
             pTransmog->CastTransmog(player, action); 
             return;
         case GOSSIP_SENDER_USE + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_PT:
