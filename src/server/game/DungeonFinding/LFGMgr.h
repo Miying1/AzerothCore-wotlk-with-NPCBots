@@ -600,6 +600,8 @@ namespace lfg
         void SetState(ObjectGuid guid, LfgState state);
         void SetCanOverrideRBState(ObjectGuid guid, bool val);
         void GetCompatibleDungeons(LfgDungeonSet& dungeons, LfgGuidSet const& players, LfgLockPartyMap& lockMap, uint32 randomDungeonId = 0);
+        // 清理残留的 LFG 队伍（标志还在但 LFG 数据失效/已退本），同时同步 Group 标志与 LFGMgr 数据
+        bool CleanupStaleLfgGroup(Group* group);
         void _SaveToDB(ObjectGuid guid);
         LFGDungeonData const* GetLFGDungeon(uint32 id);
 

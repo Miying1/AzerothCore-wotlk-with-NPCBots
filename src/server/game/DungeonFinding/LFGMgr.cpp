@@ -593,6 +593,66 @@ namespace lfg
     }
 
     /**
+       检测并清理残留的 LFG 队伍。
+
+       满足以下任一情况即视为残留（队伍标志无法自动清除）：
+         - LFG 状态为 NONE / FINISHED_DUNGEON：状态已失效或副本已通关，但队伍仍带 LFG 标志；
+         - 处于 DUNGEON / BOOT 状态，但队伍已不在对应副本实例内（中途退本、掉线或数据残留）。
+
+       清理时同时重置 Group 的 GROUPTYPE_LFG 标志与 LFGMgr 的队伍数据，避免两边状态不同步
+       导致队伍被永久卡住（例如满 5 人时被 isContinue 判定拦住无法重新排队）。
+
+       @param[in]     group 待检查的队伍
+       @return 是否执行了清理
+    */
+    bool LFGMgr::CleanupStaleLfgGroup(Group* group)
+    {
+        if (!group || !group->isLFGGroup())
+            return false;
+
+        ObjectGuid gguid = group->GetGUID();
+        LfgState state = GetState(gguid);
+        bool stale = false;
+
+        switch (state)
+        {
+            case LFG_STATE_NONE:
+            case LFG_STATE_FINISHED_DUNGEON:
+                // 状态已失效或副本已通关，队伍标志残留
+                stale = true;
+                break;
+            case LFG_STATE_DUNGEON:
+            case LFG_STATE_BOOT:
+                {
+                    // 副本数据无效，或队伍已不在该副本实例内
+                    uint32 mapId = GetDungeonMapId(gguid);
+                    stale = true;
+                    for (GroupReference* itr = group->GetFirstMember(); itr != nullptr && stale; itr = itr->next())
+                    {
+                        if (Player* member = itr->GetSource())
+                            if (member->IsInWorld() && mapId && member->GetMapId() == mapId)
+                                stale = false;
+                    }
+                }
+                break;
+            default:
+                // QUEUED / ROLECHECK / PROPOSAL：正常的排队或组队流程，不做处理
+                break;
+        }
+
+        if (!stale)
+            return false;
+
+        LOG_DEBUG("lfg", "LFGMgr::CleanupStaleLfgGroup: [{}] stale LFG group, state: {}, dungeon: {}",
+            gguid.ToString(), state, GetDungeon(gguid, false));
+
+        // 先清 LFGMgr 侧数据（成员状态、队伍数据与 DB 记录），再清队伍标志
+        RemoveGroupData(gguid);
+        group->ConvertToGroup();
+        return true;
+    }
+
+    /**
         Adds the player/group to lfg queue. If player is in a group then it is the leader
         of the group tying to join the group. Join conditions are checked before adding
         to the new queue.
@@ -613,10 +673,15 @@ namespace lfg
         LfgJoinResultData joinData;
         LfgGuidSet players;
         uint32 rDungeonId = 0;
-        bool isContinue = grp && grp->isLFGGroup() && GetState(gguid) != LFG_STATE_FINISHED_DUNGEON;
 
         if (grp && (grp->isBGGroup() || grp->isBFGroup()))
             return;
+
+        // 先清理残留的 LFG 队伍标志，避免 isContinue 把队伍永久卡在“副本进行中”
+        if (grp)
+            CleanupStaleLfgGroup(grp);
+
+        bool isContinue = grp && grp->isLFGGroup() && GetState(gguid) != LFG_STATE_FINISHED_DUNGEON;
 
         if (!sScriptMgr->OnPlayerCanJoinLfg(player, roles, dungeons, comment))
             return;
@@ -638,8 +703,9 @@ namespace lfg
                 dungeons.insert(continueDungeon);
             else
             {
-                // 队伍 LFG 数据缺失（残留 LFG 标志但副本数据为 0）：拒绝排队并重置队伍的 LFG 标志
+                // 队伍 LFG 数据缺失（残留 LFG 标志但副本数据为 0）：拒绝排队并完整重置队伍的 LFG 状态
                 joinData.result = LFG_JOIN_DUNGEON_INVALID;
+                RemoveGroupData(gguid);
                 grp->ConvertToGroup();
             }
         }
