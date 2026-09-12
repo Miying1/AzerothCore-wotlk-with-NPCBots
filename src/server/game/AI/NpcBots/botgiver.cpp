@@ -95,11 +95,17 @@ public:
                         }
                     }
 
-                    //test2: IP-based bot limits
+                    // IP 限制：每个 IP 最大雇佣 BOT 数量，VIP 等级大于 0 时上限乘以 vip_level
                     if (!player->IsGameMaster())
                     {
+                        // 基础 IP 上限，VIP 玩家按等级放大
+                        uint32 ipMaxBots = BotMgr::GetIPMaxBots();
+                        uint32 vipLevel = player->GetVipBenefits().vip_level;
+                        if (vipLevel > 0)
+                            ipMaxBots *= vipLevel;
+
                         uint32 allcount = BotDataMgr::GetNpcBotCountByIp(player->GetSession()->GetRemoteAddress());
-                        if ((allcount >= BotMgr::GetIPMaxBots() && !player->IsVip()) )
+                        if (allcount >= ipMaxBots)
                         {
                             WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
                             break;
