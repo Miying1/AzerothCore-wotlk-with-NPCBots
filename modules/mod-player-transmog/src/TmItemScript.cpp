@@ -151,7 +151,7 @@ public:
             for (auto it = list->begin(); it != list->end(); ++it)
             {
                 if(count>=30){
-                   ChatHandler(player->GetSession()).SendNotification("你的该类幻想已超出30个,需删除部分幻象,保持30个幻象内!"); 
+                   ChatHandler(player->GetSession()).SendNotification("你的该类幻象已超出30个,需删除部分幻象,保持30个幻象内!"); 
                   return true;
                 }
                 AddGossipItemFor(player, GOSSIP_ICON_INTERACT_2, pTransmog->GetModelNameText(&(*it)), GOSSIP_SENDER_MODEL_INFO + sender, (*it).modelid);
