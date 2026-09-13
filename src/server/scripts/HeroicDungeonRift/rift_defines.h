@@ -31,6 +31,24 @@ constexpr uint8 MaxCombatSlots = 5;
 constexpr uint32 ExitPortalEntryTier1 = 100500;
 constexpr uint32 ExitPortalEntryTier2 = 100501;
 constexpr uint32 ExitPortalEntryTier3 = 100502;
+// 区域随机入口：三档各一个虚空门生物模板，运行时在区域刷新点上随机生成。
+// 视觉取自卡拉赞虚空幽龙（Netherspite）的三个陷阱传送门：
+//   T1 = 17367 Nether Portal - Serenity（绿/平静），门体特效光环 30490
+//   T2 = 17368 Nether Portal - Dominance（蓝/统御），门体特效光环 30491
+//   T3 = 17369 Nether Portal - Perseverence（红/坚韧），门体特效光环 30487
+constexpr uint32 EntranceEntryTier1 = 100510; // 绿
+constexpr uint32 EntranceEntryTier2 = 100511; // 蓝
+constexpr uint32 EntranceEntryTier3 = 100512; // 红
+constexpr uint32 EntranceAuraTier1 = 30490;
+constexpr uint32 EntranceAuraTier2 = 30491;
+constexpr uint32 EntranceAuraTier3 = 30487;
+// 玩家进入裂隙后，入口停止提供对话并保留一段时间再移除。
+constexpr uint32 EntrancePurgeGraceMilliseconds = 5 * IN_MILLISECONDS;
+// 常规补充间隔：入口数量不低于最小值时，每隔该时间向最大值补齐一次。
+constexpr uint32 EntranceRefillIntervalMilliseconds = 5 * MINUTE * IN_MILLISECONDS;
+// 时间表评估间隔：开启窗口内每秒一次（保证到点即刷），关闭窗口时放宽以节流。
+constexpr uint32 SchedulePollIntervalOpenMilliseconds = 1 * IN_MILLISECONDS;
+constexpr uint32 SchedulePollIntervalClosedMilliseconds = 5 * IN_MILLISECONDS;
 constexpr uint32 RunTimeoutMilliseconds = 2 * HOUR * IN_MILLISECONDS;
 constexpr uint32 RollbackGraceMilliseconds = 30 * IN_MILLISECONDS;
 constexpr uint32 CreatureSummonLifetimeMilliseconds = 2 * HOUR * IN_MILLISECONDS;
@@ -232,7 +250,8 @@ enum GossipActions : uint32
     GossipSpecifyTier1 = GOSSIP_ACTION_INFO_DEF + 4,
     GossipSpecifyTier2 = GOSSIP_ACTION_INFO_DEF + 5,
     GossipSpecifyTier3 = GOSSIP_ACTION_INFO_DEF + 6,
-    GossipExit = GOSSIP_ACTION_INFO_DEF + 10
+    GossipExit = GOSSIP_ACTION_INFO_DEF + 10,
+    GossipEnterRiftEntrance = GOSSIP_ACTION_INFO_DEF + 20
 };
 
 enum class EncounterState : uint8
@@ -357,10 +376,124 @@ private:
     uint64 _nextRunToken = 1;
 };
 
+// 区域配置：一行代表一个允许刷新裂隙入口的开放区域。
+struct RiftSpawnRegion
+{
+    uint32 RegionId = 0;
+    std::string RegionName; // 用于全服通知显示的区域名称
+    uint32 MapId = 0;
+    uint32 AreaId = 0;
+    Position Center;
+    uint8 TierMinCounts[MaxTier] = { 0, 0, 0 }; // 依次为 T1/T2/T3 的最小数量：低于该值时立即补齐
+    uint8 TierMaxCounts[MaxTier] = { 0, 0, 0 }; // 依次为 T1/T2/T3 的最大数量：常规补充的上限
+    bool Enabled = false;
+    std::string Remark;
+    std::vector<uint32> PointIds; // 该区域全部可用刷新点
+};
+
+// 刷新点：区域内的一个固定候选刷新坐标。
+struct RiftSpawnPoint
+{
+    uint32 PointId = 0;
+    uint32 RegionId = 0;
+    Position Pos;
+    bool Enabled = false;
+    std::string Remark;
+};
+
+// 每周开启时段：一行代表一个允许刷新入口的时间窗口，可配置多行取并集。
+// WeekDay: 0=周日, 1=周一, ... 6=周六；Start/EndMinuteOfDay 为当日分钟数 [0, 1440)。
+// 当 EndMinuteOfDay <= StartMinuteOfDay 时视为跨零点窗口（延续到次日）。
+struct RiftScheduleWindow
+{
+    uint32 ScheduleId = 0;
+    uint8 WeekDay = 0;
+    uint16 StartMinuteOfDay = 0;
+    uint16 EndMinuteOfDay = 0;
+    bool Enabled = false;
+    std::string Remark;
+};
+
+// 区域入口刷新管理器：在开放区域内的固定点位上随机生成 T1/T2/T3 虚空门生物，
+// 维持每档目标数量；入口被玩家使用后停止对话，并在宽限期结束后移除。
+class RiftSpawnManager
+{
+public:
+    static RiftSpawnManager& Instance();
+
+    void Load();
+    void Update(uint32 diff);
+    void Clear();
+
+    // 查询该生物是否为受管入口及其难度；非受管入口返回 0。
+    uint8 GetEntranceTier(Creature const* creature) const;
+    // 入口是否已被消耗（已使用或已不在管理中）。
+    bool IsEntranceConsumed(Creature const* creature) const;
+    // 标记入口已被使用，停止对话并在宽限期后移除。
+    void ConsumeEntrance(Creature* creature);
+
+private:
+    struct EntranceEntry
+    {
+        uint64 Token = 0;
+        ObjectGuid Guid;
+        uint32 RegionId = 0;
+        uint32 PointId = 0;
+        uint32 MapId = 0;
+        uint8 Tier = 0;
+        bool Consumed = false;
+        uint32 PurgeCountdown = 0;
+    };
+
+    RiftSpawnManager() = default;
+
+    // 根据每周时间表切换开启/关闭状态，并在切换时刷满/清空入口与发送全服通知。
+    void PollSchedule();
+    bool EvaluateSchedule() const;
+    bool IsWithinWindow(RiftScheduleWindow const& window, uint32 weekDay, uint32 minuteOfDay) const;
+    // 距离下一次开启的剩余秒数（epoch）；没有可用窗口时返回 0。
+    int64 ComputeNextOpenTime() const;
+    // 开启前播报：还剩 10/5/1 分钟各一次。
+    void UpdateOpenReminders(bool announce);
+    std::string BuildRegionNames() const;
+    bool HasEnabledRegion() const;
+    // 清空指定区域已刷新的全部入口（含已消耗待移除的），并释放其点位。
+    void RemoveRegionEntrances(uint32 regionId);
+    // 清空所有存在入口的区域；关闭窗口时调用。
+    void RemoveAllEntrances();
+    void BroadcastNotice(std::string const& message) const;
+    // 开启/结束连发两条相同通知。
+    void BroadcastOpenCloseNotice(std::string const& message) const;
+
+    // 是否存在任一启用区域的有效入口数低于最小数量（用于触发立即补充）。
+    bool HasRegionBelowMin() const;
+
+    void RefreshAll(bool fillToMax);
+    void RefreshRegion(RiftSpawnRegion const& region, bool fillToMax);
+    bool SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 tier, std::vector<uint32>& freePoints);
+    RiftSpawnPoint const* GetPoint(uint32 pointId) const;
+
+    std::map<uint32, RiftSpawnRegion> _regions;
+    std::map<uint32, RiftSpawnPoint> _points;
+    std::map<ObjectGuid, EntranceEntry> _entrances;
+    std::vector<RiftScheduleWindow> _schedule;
+    bool _hasSchedule = false;
+    bool _windowOpen = true;
+    bool _windowInitialized = false;
+    uint32 _refillTimer = EntranceRefillIntervalMilliseconds;
+    uint32 _scheduleTimer = 0;     // 时间表评估计时器：避免每帧计算时间
+    int64 _cachedNextOpenTime = 0; // 已播报过的下次开启时刻，用于重置倒计时阶段
+    uint32 _openReminderStage = 0; // 0=未播报, 1=已播报10分钟, 2=已播报5分钟, 3=已播报1分钟
+    uint64 _nextToken = 1;
+};
+
 class BossAIBase;
 
 uint32 GetExitPortalEntryForTier(uint8 tier);
 bool IsExitPortalEntry(uint32 entry);
+uint32 GetEntranceEntryForTier(uint8 tier);
+uint32 GetEntranceAuraForTier(uint8 tier);
+uint8 GetTierForEntranceEntry(uint32 entry);
 uint8 GetTierForCreature(Creature const* creature);
 TierConfig const* GetTierConfigForCreature(Creature const* creature);
 void ApplyTierStats(Creature* creature, TierConfig const& config, uint32 baseHealth);

@@ -1,0 +1,181 @@
+-- ============================================================================
+-- 五人英雄裂隙：区域随机入口点刷新系统（暂不执行）
+-- ----------------------------------------------------------------------------
+-- 本脚本只新增以下内容，不修改任何既有裂隙数据：
+--   1) 区域入口刷新主表 `heroic_dungeon_rift_spawn_region`（含每档 min/max 数量）
+--   2) 区域入口刷新点子表 `heroic_dungeon_rift_spawn_point`
+--   3) 每周开启时段表 `heroic_dungeon_rift_schedule`
+--   4) 三档入口生物模板 100510/100511/100512（ScriptName=npc_rift_portal）
+-- 另附一份示例区域（暴风峭壁，map_id=571，area_id=67），默认 enabled=0。
+--
+-- 运行机制（对应 src/server/scripts/HeroicDungeonRift/rift_spawn.cpp）：
+--   - 入口外观取自卡拉赞虚空幽龙（Netherspite）的三个陷阱传送门，模板字段为显式字面量：
+--       T1 = 绿色（Serenity / 平静）   门体特效光环 30490
+--       T2 = 蓝色（Dominance / 统御） 门体特效光环 30491
+--       T3 = 红色（Perseverence / 坚韧）门体特效光环 30487
+--   - 服务器按区域配置在各刷新点里随机挑选点位生成入口，每个点位同一时刻最多一个入口；
+--   - 每档数量有 min/max 两个阈值：
+--       * 有效入口数 低于 min  → 立即补齐到 min；
+--       * 其余时候            → 每 5 分钟向 max 补齐一次；
+--   - 每周时间表控制是否刷新：窗口开启瞬间直接按 max 刷满；窗口关闭那一刻按区域
+--     清空该区域已刷新的全部入口（只在状态切换时清理一次）。
+--     时间表每秒评估一次，关闭窗口时放宽到每 5 秒一次（节流）。
+--     开启前 10 分钟起依次播报“还剩10/5/1分钟开启”；开启与结束各连发两条相同通知
+--     （“已开启”/“已关闭”）；所有全服通知都会带上启用区域的 region_name。
+--     表中没有“启用”的窗口时视为未配置，裂隙全天可刷新；
+--   - 玩家点击入口选择“进入 Tn 裂隙”，成功进入后该入口立即失效，并在 5 秒后移除；
+--   - 运行态只存内存，不写入数据库。
+-- 执行前请确认：本次只执行本文件，不要与旧的裂隙 SQL 重复叠加。
+-- ============================================================================
+
+-- ============================================================================
+-- 1. 区域入口刷新主表
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_spawn_region` (
+  `region_id` INT UNSIGNED NOT NULL COMMENT '区域配置ID',
+  `region_name` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '区域名称（用于全服通知）',
+  `map_id` SMALLINT UNSIGNED NOT NULL COMMENT '地图ID',
+  `area_id` INT UNSIGNED NOT NULL COMMENT '区域(Zone/Area)ID',
+  `center_x` FLOAT NOT NULL DEFAULT 0 COMMENT '区域参考中心X（仅用于定位与运维核对）',
+  `center_y` FLOAT NOT NULL DEFAULT 0 COMMENT '区域参考中心Y（仅用于定位与运维核对）',
+  `center_z` FLOAT NOT NULL DEFAULT 0 COMMENT '区域参考中心Z（仅用于定位与运维核对）',
+  `t1_min_count` TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'T1最小数量：低于该值立即补齐',
+  `t1_max_count` TINYINT UNSIGNED NOT NULL DEFAULT 20 COMMENT 'T1最大数量：常规补充上限',
+  `t2_min_count` TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT 'T2最小数量：低于该值立即补齐',
+  `t2_max_count` TINYINT UNSIGNED NOT NULL DEFAULT 10 COMMENT 'T2最大数量：常规补充上限',
+  `t3_min_count` TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT 'T3最小数量：低于该值立即补齐',
+  `t3_max_count` TINYINT UNSIGNED NOT NULL DEFAULT 5 COMMENT 'T3最大数量：常规补充上限',
+  `enabled` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '是否启用该区域的入口刷新',
+  `remark` VARCHAR(255) NULL DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`region_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙区域入口刷新配置';
+
+-- ============================================================================
+-- 2. 区域入口刷新点子表
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_spawn_point` (
+  `point_id` INT UNSIGNED NOT NULL COMMENT '刷新点ID',
+  `region_id` INT UNSIGNED NOT NULL COMMENT '所属区域配置ID（对应主表 region_id）',
+  `x` FLOAT NOT NULL COMMENT 'X',
+  `y` FLOAT NOT NULL COMMENT 'Y',
+  `z` FLOAT NOT NULL COMMENT 'Z',
+  `o` FLOAT NOT NULL DEFAULT 0 COMMENT '朝向',
+  `enabled` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否启用该点位',
+  `remark` VARCHAR(255) NULL DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`point_id`),
+  KEY `idx_rift_spawn_point_region` (`region_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙区域入口刷新点';
+
+-- ============================================================================
+-- 3. 每周开启时段表
+--    week_day：0=周日，1=周一，2=周二，3=周三，4=周四，5=周五，6=周六
+--    start/end 为当日时间；当 end <= start 时视为跨零点窗口（延续到次日）。
+--    可以配置多行，取并集；表中没有任何 enabled=1 的行时，裂隙全天可刷新。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_schedule` (
+  `schedule_id` INT UNSIGNED NOT NULL COMMENT '时段ID',
+  `week_day` TINYINT UNSIGNED NOT NULL COMMENT '星期：0=周日,1=周一..6=周六',
+  `start_hour` TINYINT UNSIGNED NOT NULL COMMENT '开始小时 [0,23]',
+  `start_minute` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '开始分钟 [0,59]',
+  `end_hour` TINYINT UNSIGNED NOT NULL COMMENT '结束小时 [0,23]',
+  `end_minute` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '结束分钟 [0,59]',
+  `enabled` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否启用该窗口',
+  `remark` VARCHAR(255) NULL DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`schedule_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙每周开启时段';
+
+-- ============================================================================
+-- 4. 三档入口生物模板（外观复用虚空幽龙三色虚空门）
+--    三个模板全部使用显式字面量，不再从 17367/17368/17369 复制字段，
+--    避免把虚空幽龙（Netherspite）专用的非默认值（HealthModifier 0.007、
+--    CreatureImmunitiesId 128 等）带进来；未列出的列一律使用表默认值。
+--    关键取值：faction=35（友好，玩家无法攻击）、npcflag=1（可对话）、
+--             unit_flags/unit_flags2=0（可选可点）、flags_extra=0（非触发器不隐藏）、
+--             type=10（NOT_SPECIFIED，非生物物件）、AIName=''（无 AI，原地不动）、
+--             ScriptName=npc_rift_portal。
+--    模型统一使用较大的共享门体 16946（原有 Idx=0 分色模型体积过小、不便点击），
+--    三档颜色与特效完全由 C++ 生成时附加的门体光环决定：T1=30490(绿)，T2=30491(蓝)，T3=30487(红)。
+-- ============================================================================
+SET @RIFT_ENTRANCE_ENTRY_BASE := 100510;
+SET @RIFT_ENTRANCE_MODEL := 16946;
+
+DELETE FROM `creature_template`
+WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
+INSERT INTO `creature_template` (
+  `entry`,`name`,`subname`,`exp`,`faction`,`npcflag`,`unit_class`,`unit_flags`,`unit_flags2`,`dynamicflags`,
+  `type`,`BaseAttackTime`,`RangeAttackTime`,`AIName`,`MovementType`,
+  `HealthModifier`,`CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`)
+VALUES
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,'英雄裂隙 T1 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,'英雄裂隙 T2 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,'英雄裂隙 T3 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340);
+
+DELETE FROM `creature_template_model`
+WHERE `CreatureID` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
+INSERT INTO `creature_template_model` (`CreatureID`,`Idx`,`CreatureDisplayID`,`DisplayScale`,`Probability`,`VerifiedBuild`)
+VALUES
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,@RIFT_ENTRANCE_MODEL,1,1,12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,@RIFT_ENTRANCE_MODEL,1,1,12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,@RIFT_ENTRANCE_MODEL,1,1,12340);
+
+-- visibilityDistanceType=3（Large）：入口在较远处也能被看到，便于玩家寻找。
+DELETE FROM `creature_template_addon`
+WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
+INSERT INTO `creature_template_addon` (`entry`,`path_id`,`mount`,`bytes1`,`bytes2`,`emote`,`visibilityDistanceType`,`auras`)
+VALUES
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,0,0,0,0,3,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,0,0,0,0,3,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,0,0,0,0,3,NULL);
+
+-- ============================================================================
+-- 5. 示例区域：暴风峭壁（The Storm Peaks）
+--    数量区间：T1 10~20，T2 5~10，T3 2~5（最大合计 35，因此该区域至少需要 35 个可用点位）。
+--    坐标未实地测量前保持 enabled=0，避免入口生成在无效位置。
+-- ============================================================================
+DELETE FROM `heroic_dungeon_rift_spawn_point` WHERE `region_id`=1;
+DELETE FROM `heroic_dungeon_rift_spawn_region` WHERE `region_id`=1;
+INSERT INTO `heroic_dungeon_rift_spawn_region`
+  (`region_id`,`region_name`,`map_id`,`area_id`,`center_x`,`center_y`,`center_z`,
+   `t1_min_count`,`t1_max_count`,`t2_min_count`,`t2_max_count`,`t3_min_count`,`t3_max_count`,`enabled`,`remark`)
+VALUES
+  (1,'暴风峭壁',571,67,0,0,0,10,20,5,10,2,5,0,'暴风峭壁示例：填入实测坐标并设为 enabled=1 后生效');
+
+-- ----------------------------------------------------------------------------
+-- 刷新点录入模板（取消注释并替换为实测坐标；每个点一行，point_id 全局唯一）。
+-- 所有点位都属于 region_id=1，因此 x/y/z 必须落在 map_id=571 的有效范围内。
+-- 建议每个点都先以 enabled=0 录入，进服实测地面高度、碰撞与可达性后再逐个启用。
+-- ----------------------------------------------------------------------------
+-- DELETE FROM `heroic_dungeon_rift_spawn_point` WHERE `region_id`=1;
+-- INSERT INTO `heroic_dungeon_rift_spawn_point`
+--   (`point_id`,`region_id`,`x`,`y`,`z`,`o`,`enabled`,`remark`)
+-- VALUES
+--   (1,1,0,0,0,0,0,'暴风峭壁 点位1 待实测'),
+--   (2,1,0,0,0,0,0,'暴风峭壁 点位2 待实测');
+--   ... 依次补足至少 35 个可用点位后，把主表 enabled 置 1。
+
+-- ============================================================================
+-- 6. 示例每周开启时段（默认 enabled=0，确认后再启用）
+--    启用任意一行后，裂隙只在窗口内刷新；窗口开启瞬间按最大数量刷满并全服通知。
+--    示例1：每周三 20:00 - 22:00
+--    示例2：每周六 14:00 - 次日 02:00（跨零点）
+-- ============================================================================
+DELETE FROM `heroic_dungeon_rift_schedule` WHERE `schedule_id` IN (1,2);
+INSERT INTO `heroic_dungeon_rift_schedule`
+  (`schedule_id`,`week_day`,`start_hour`,`start_minute`,`end_hour`,`end_minute`,`enabled`,`remark`)
+VALUES
+  (1,3,20,0,22,0,0,'示例：每周三 20:00-22:00 开启'),
+  (2,6,14,0,2,0,0,'示例：每周六 14:00 至次日 02:00 开启（跨零点）');
+
+-- ============================================================================
+-- 7. 审核查询
+-- ============================================================================
+SELECT `entry`,`name`,`subname`,`faction`,`npcflag`,`unit_flags`,`unit_flags2`,`flags_extra`,`ScriptName`
+FROM `creature_template`
+WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2)
+ORDER BY `entry`;
+SELECT `CreatureID`,`Idx`,`CreatureDisplayID` FROM `creature_template_model`
+WHERE `CreatureID` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2)
+ORDER BY `CreatureID`,`Idx`;
+SELECT * FROM `heroic_dungeon_rift_spawn_region` ORDER BY `region_id`;
+SELECT * FROM `heroic_dungeon_rift_spawn_point` ORDER BY `region_id`,`point_id`;
+SELECT * FROM `heroic_dungeon_rift_schedule` ORDER BY `schedule_id`;

@@ -25,11 +25,18 @@ public:
     void OnBeforeWorldInitialized() override
     {
         ConfigStore::Instance().Load();
+        RiftSpawnManager::Instance().Load();
+    }
+
+    void OnUpdate(uint32 diff) override
+    {
+        RiftSpawnManager::Instance().Update(diff);
     }
 
     void OnShutdown() override
     {
         RunManager::Instance().Clear();
+        RiftSpawnManager::Instance().Clear();
     }
 };
 

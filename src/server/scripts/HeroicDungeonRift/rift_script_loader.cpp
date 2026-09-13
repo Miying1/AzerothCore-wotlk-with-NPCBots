@@ -6,6 +6,7 @@ namespace HeroicDungeonRift
 {
 void AddSC_rift_entry();
 void AddSC_rift_exit_portal();
+void AddSC_rift_entrance();
 void AddSC_rift_hooks();
 }
 
@@ -45,6 +46,7 @@ void AddHeroicDungeonRiftScripts()
 {
     HeroicDungeonRift::AddSC_rift_entry();
     HeroicDungeonRift::AddSC_rift_exit_portal();
+    HeroicDungeonRift::AddSC_rift_entrance();
     HeroicDungeonRift::AddSC_rift_hooks();
     AddSC_rift_deadmines();
     AddSC_rift_gnomeregan();
