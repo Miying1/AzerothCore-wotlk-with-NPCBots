@@ -1879,7 +1879,7 @@ void BotDataMgr::LoadWanderMap(bool reload, bool force_all_maps)
 
 void BotDataMgr::GenerateWanderingBots()
 {
-    const uint32 wandering_bots_desired = BotCfg::GetDesiredWanderingBotsCount();
+    uint32 wandering_bots_desired = BotCfg::GetDesiredWanderingBotsCount();
 
     if (wandering_bots_desired == 0)
         return;
@@ -1891,18 +1891,26 @@ void BotDataMgr::GenerateWanderingBots()
     uint32 maxbots = sBotGen->GetSpareBotsCount();
     uint32 enabledbots = sBotGen->GetEnabledBotsCount();
 
+    // 可用模板不足时不再终止服务器，只告警并下调到实际可用数量
     if (maxbots < wandering_bots_desired)
     {
-        BOT_LOG_FATAL("server.loading", "Only {} out of {} bots of enabled classes aren't spawned. Desired amount of wandering bots ({}) cannot be created. Aborting!",
-            maxbots, enabledbots, wandering_bots_desired);
-        ASSERT(false);
+        BOT_LOG_ERROR("server.loading", "Only {} out of {} bots of enabled classes aren't spawned. Desired amount of wandering bots ({}) cannot be created, reducing to {}!",
+            maxbots, enabledbots, wandering_bots_desired, maxbots);
+        wandering_bots_desired = maxbots;
+    }
+
+    // 一个可用的 bot 模板都没有，直接跳过（例如所有 bot 都已被创建为世界生物）
+    if (wandering_bots_desired == 0)
+    {
+        BOT_LOG_ERROR("server.loading", "No non-spawned bots of enabled classes left, wandering bots will not be spawned!");
+        return;
     }
 
     uint32 spawned_count = 0;
     if (!sBotGen->GenerateWanderingBotsToSpawn(wandering_bots_desired, -1, -1, false, nullptr, nullptr, spawned_count))
     {
-        BOT_LOG_FATAL("server.loading", "Failed to spawn all {} bots ({} succeeded)!", wandering_bots_desired, spawned_count);
-        ASSERT(false);
+        BOT_LOG_ERROR("server.loading", "Failed to spawn all {} bots ({} succeeded)!", wandering_bots_desired, spawned_count);
+        return;
     }
 
     BOT_LOG_INFO("server.loading", ">> Set up spawning of {} wandering bots in {} ms", spawned_count, GetMSTimeDiffToNow(oldMSTime));

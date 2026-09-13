@@ -4,7 +4,7 @@
  *   1. 欢迎语（窗口正文）：多条问候文本随机显示（npc_text 表 ID 101000~101022，由 data/小宠物生物_101000_白虎.sql 维护）
  *   2. 宝物商店：选择后打开售卖窗口
  *   3. 航班：选择后打开飞行点地图
- *   4. 我的金币倍率：选择后由 NPC 悄悄话告知玩家真实倍率（100% + VIP 金币加成）
+ *   4. 我的金币倍率：选择后由 NPC 悄悄话告知玩家的金币拾取额外加成（取 PlayerVipBenefits.gold_loot_bonus）
  *   5. 幻化：选择后打开 Lua 幻化界面
  * 配套 SQL：data/小宠物生物_101000_白虎.sql（需在 acore_world 库执行）
  */
@@ -39,8 +39,8 @@ constexpr char const* TXT_FLIGHT = "航班";                       // 航班选�
 constexpr char const* TXT_GOLD_RATE = "我的金币倍率";             // 悄悄话告知选项
 constexpr char const* TXT_TRANSMOGRIFICATION = "幻化";            // 打开幻化界面
 
-// 悄悄话模板：{} 为真实金币倍率（基础 100% + 玩家 VIP 金币加成，取自 PlayerVipBenefits）
-constexpr char const* TXT_GOLD_RATE_WHISPER = "你的金币倍率为:{}%";
+// 悄悄话模板：{} 为玩家的金币拾取额外加成百分比（取自 PlayerVipBenefits.gold_loot_bonus）
+constexpr char const* TXT_GOLD_RATE_WHISPER = "你的金币拾取额外提高：{}%";
 
 // ===== 欢迎语正文（npc_text 表）=====
 constexpr uint32 TEXT_ID_BASE = 101000;          // 与生物入口一致，避开官方文本 ID 段
@@ -80,6 +80,15 @@ std::string GetFlightDenyReason(Player* player)
         return "你已死亡，无法使用航班。";
     if (player->IsInCombat())
         return "你正处于战斗中，无法使用航班。";
+    return {};
+}
+
+// 节点传送（记录位置 / 传送）使用条件校验：返回空字符串表示允许，否则返回拒绝原因
+// 战场与竞技场属于 PvP 地图，直接禁用该功能，避免利用节点脱离战斗或获取位置优势
+std::string GetNodeDenyReason(Player* player)
+{
+    if (player->GetMap()->IsBattlegroundOrArena())
+        return "战场/竞技场中无法使用传送节点。";
     return {};
 }
 
@@ -197,7 +206,7 @@ void DoSetTeleportNode(Player* player, uint32 slot)
     ChatHandler(player->GetSession()).PSendSysMessage("已记录节点{}的位置。", slot + 1);
 }
 
-// 按记录的坐标传送指定槽位：野外位置允许跨地图传送，副本位置必须匹配地图和实例
+// 按记录的坐标传送指定槽位：野外位置允许跨地图传送；涉及副本时必须与当前副本实例一致
 void DoTeleportToNode(Player* player, uint32 slot)
 {
     if (!player->IsAlive() || player->IsInCombat())
@@ -217,6 +226,15 @@ void DoTeleportToNode(Player* player, uint32 slot)
     Map* curMap = player->GetMap();
     if (!curMap)
         return;
+
+    // 玩家当前处于副本（5 人本/团队本）中时，只允许传送到当前副本实例内记录的节点：
+    // 节点记录在其它副本实例（同地图不同实例、不同副本）或大世界中，一律给出提示并拒绝
+    if (curMap->IsDungeon() &&
+        (curMap->GetId() != info.mapId || curMap->GetInstanceId() != info.instanceId))
+    {
+        ChatHandler(player->GetSession()).PSendSysMessage("你正处于副本中，只能传送到当前副本实例内记录的节点，无法传送到其它副本实例或大世界。");
+        return;
+    }
 
     // 记录点位于副本内时，必须与玩家当前所处的地图和副本实例一致
     if (info.instanceId != 0)
@@ -264,8 +282,9 @@ public:
         // 小宠物的其他功能仅对宠物主人开放
         if (creature->GetCharmerOrOwnerPlayerOrPlayerItself() == player)
         {
-            // 节点传送（打开子级对话菜单，可设置节点 / 传送到节点）
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_TELEPORT_NODE, GOSSIP_SENDER_MAIN, ACTION_OPEN_NODE_MENU);
+            // 节点传送（打开子级对话菜单，可设置节点 / 传送到节点）：战场/竞技场中不显示
+            if (GetNodeDenyReason(player).empty())
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_TELEPORT_NODE, GOSSIP_SENDER_MAIN, ACTION_OPEN_NODE_MENU);
             // 航班（打开飞行点地图）：仅在满足使用条件（大世界 + 存活 + 非战斗）时显示
             if (GetFlightDenyReason(player).empty())
                 AddGossipItemFor(player, GOSSIP_ICON_TAXI, TXT_FLIGHT, GOSSIP_SENDER_MAIN, ACTION_FLIGHT);
@@ -292,6 +311,21 @@ public:
         {
             CloseGossipMenuFor(player);
             return true;
+        }
+
+        // 节点传送相关动作的防御性校验：菜单项在战场/竞技场中已隐藏，仍需拦截伪造的动作
+        if (action == ACTION_OPEN_NODE_MENU ||
+            (action >= ACTION_NODE_SLOT_BASE && action < ACTION_NODE_SLOT_BASE + MAX_NODE_SLOTS) ||
+            (action >= ACTION_NODE_SET_BASE && action < ACTION_NODE_SET_BASE + MAX_NODE_SLOTS) ||
+            (action >= ACTION_NODE_TELEPORT_BASE && action < ACTION_NODE_TELEPORT_BASE + MAX_NODE_SLOTS))
+        {
+            std::string denyReason = GetNodeDenyReason(player);
+            if (!denyReason.empty())
+            {
+                ChatHandler(player->GetSession()).PSendSysMessage("{}", denyReason);
+                CloseGossipMenuFor(player);
+                return true;
+            }
         }
 
         // 节点槽位菜单：点击「节点1/2/3」→ 打开该节点的操作菜单
@@ -335,10 +369,10 @@ public:
             SendTaxiMapFor(player, creature);
             break;
         }
-        case ACTION_GOLD_RATE: // 我的金币倍率：由 NPC 悄悄话告知真实倍率
+        case ACTION_GOLD_RATE: // 我的金币倍率：由 NPC 悄悄话告知玩家的金币拾取额外加成
         {
-            uint32 goldRate = 100 + player->GetVipBenefits().gold_loot_bonus;
-            ChatHandler(player->GetSession()).PSendSysMessage("{}", Acore::StringFormat(TXT_GOLD_RATE_WHISPER, goldRate));
+            uint32 goldBonus = player->GetVipBenefits().gold_loot_bonus;
+            ChatHandler(player->GetSession()).PSendSysMessage("{}", Acore::StringFormat(TXT_GOLD_RATE_WHISPER, goldBonus));
             CloseGossipMenuFor(player);
             break;
         }
