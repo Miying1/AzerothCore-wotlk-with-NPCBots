@@ -4,7 +4,7 @@
 -- 本脚本只新增以下内容，不修改任何既有裂隙数据：
 --   1) 区域入口刷新主表 `heroic_dungeon_rift_spawn_region`（含每档 min/max 数量）
 --   2) 区域入口刷新点子表 `heroic_dungeon_rift_spawn_point`
---   3) 每周开启时段表 `heroic_dungeon_rift_schedule`
+--   3) 每周开启时段表 `heroic_dungeon_rift_schedule`（按区域，含 region_id）
 --   4) 三档入口生物模板 100510/100511/100512（ScriptName=npc_rift_portal）
 -- 另附一份示例区域（暴风峭壁，map_id=571，area_id=67），默认 enabled=0。
 --
@@ -14,15 +14,16 @@
 --       T2 = 蓝色（Dominance / 统御） 门体特效光环 30491
 --       T3 = 红色（Perseverence / 坚韧）门体特效光环 30487
 --   - 服务器按区域配置在各刷新点里随机挑选点位生成入口，每个点位同一时刻最多一个入口；
---   - 每档数量有 min/max 两个阈值：
---       * 有效入口数 低于 min  → 立即补齐到 min；
+--   - 每档数量有 min/max 两个阈值（“有效入口”指生物仍在内存中的入口，幽灵记录不计入）：
+--       * 有效入口数 低于 min  → 立即补齐到 min；一次补齐不成功（点位不足）则退避 30 秒再试；
 --       * 其余时候            → 每 5 分钟向 max 补齐一次；
---   - 每周时间表控制是否刷新：窗口开启瞬间直接按 max 刷满；窗口关闭那一刻按区域
---     清空该区域已刷新的全部入口（只在状态切换时清理一次）。
---     时间表每秒评估一次，关闭窗口时放宽到每 5 秒一次（节流）。
+--   - 每个区域按各自的时间表独立开关（时间表是区域级的，不是全服统一的）：
+--     窗口开启瞬间该区域直接按 max 刷满；窗口关闭那一刻清空该区域已刷新的全部入口
+--     （只在状态切换时清理一次，其余时间不重复清理）。
+--     时间表每秒评估一次；若所有启用区域都处于关闭状态，则放宽到每 5 秒一次（节流）。
 --     开启前 10 分钟起依次播报“还剩10/5/1分钟开启”；开启与结束各连发两条相同通知
---     （“已开启”/“已关闭”）；所有全服通知都会带上启用区域的 region_name。
---     表中没有“启用”的窗口时视为未配置，裂隙全天可刷新；
+--     （“已开启”/“已关闭”）；通知文案使用该区域的 region_name。
+--     某区域没有“启用”的窗口时视为该区域未配置时间表，该区域全天可刷新；
 --   - 玩家点击入口选择“进入 Tn 裂隙”，成功进入后该入口立即失效，并在 5 秒后移除；
 --   - 运行态只存内存，不写入数据库。
 -- 执行前请确认：本次只执行本文件，不要与旧的裂隙 SQL 重复叠加。
@@ -67,13 +68,16 @@ CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_spawn_point` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙区域入口刷新点';
 
 -- ============================================================================
--- 3. 每周开启时段表
+-- 3. 每周开启时段表（按区域）
+--    region_id：所属区域，对应主表 `heroic_dungeon_rift_spawn_region`.`region_id`
 --    week_day：0=周日，1=周一，2=周二，3=周三，4=周四，5=周五，6=周六
 --    start/end 为当日时间；当 end <= start 时视为跨零点窗口（延续到次日）。
---    可以配置多行，取并集；表中没有任何 enabled=1 的行时，裂隙全天可刷新。
+--    同一区域可配置多行取并集，各区域的时间表互相独立；
+--    某个区域没有任何 enabled=1 的行时，该区域全天可刷新（不参与开启/关闭通知）。
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_schedule` (
   `schedule_id` INT UNSIGNED NOT NULL COMMENT '时段ID',
+  `region_id` INT UNSIGNED NOT NULL COMMENT '所属区域配置ID（对应主表 region_id）',
   `week_day` TINYINT UNSIGNED NOT NULL COMMENT '星期：0=周日,1=周一..6=周六',
   `start_hour` TINYINT UNSIGNED NOT NULL COMMENT '开始小时 [0,23]',
   `start_minute` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '开始分钟 [0,59]',
@@ -81,8 +85,9 @@ CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_schedule` (
   `end_minute` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '结束分钟 [0,59]',
   `enabled` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否启用该窗口',
   `remark` VARCHAR(255) NULL DEFAULT NULL COMMENT '备注',
-  PRIMARY KEY (`schedule_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙每周开启时段';
+  PRIMARY KEY (`schedule_id`),
+  KEY `idx_rift_schedule_region` (`region_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='五人英雄裂隙每周开启时段（按区域）';
 
 -- ============================================================================
 -- 4. 三档入口生物模板（外观复用虚空幽龙三色虚空门）
@@ -155,16 +160,16 @@ VALUES
 
 -- ============================================================================
 -- 6. 示例每周开启时段（默认 enabled=0，确认后再启用）
---    启用任意一行后，裂隙只在窗口内刷新；窗口开启瞬间按最大数量刷满并全服通知。
---    示例1：每周三 20:00 - 22:00
---    示例2：每周六 14:00 - 次日 02:00（跨零点）
+--    启用任意一行后，该区域只在窗口内刷新；窗口开启瞬间按最大数量刷满并全服通知。
+--    示例1：区域1 每周三 20:00 - 22:00
+--    示例2：区域1 每周六 14:00 - 次日 02:00（跨零点）
 -- ============================================================================
 DELETE FROM `heroic_dungeon_rift_schedule` WHERE `schedule_id` IN (1,2);
 INSERT INTO `heroic_dungeon_rift_schedule`
-  (`schedule_id`,`week_day`,`start_hour`,`start_minute`,`end_hour`,`end_minute`,`enabled`,`remark`)
+  (`schedule_id`,`region_id`,`week_day`,`start_hour`,`start_minute`,`end_hour`,`end_minute`,`enabled`,`remark`)
 VALUES
-  (1,3,20,0,22,0,0,'示例：每周三 20:00-22:00 开启'),
-  (2,6,14,0,2,0,0,'示例：每周六 14:00 至次日 02:00 开启（跨零点）');
+  (1,1,3,20,0,22,0,0,'示例：区域1 每周三 20:00-22:00 开启'),
+  (2,1,6,14,0,2,0,0,'示例：区域1 每周六 14:00 至次日 02:00 开启（跨零点）');
 
 -- ============================================================================
 -- 7. 审核查询

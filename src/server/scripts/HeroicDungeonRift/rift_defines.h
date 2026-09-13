@@ -46,6 +46,8 @@ constexpr uint32 EntranceAuraTier3 = 30487;
 constexpr uint32 EntrancePurgeGraceMilliseconds = 5 * IN_MILLISECONDS;
 // 常规补充间隔：入口数量不低于最小值时，每隔该时间向最大值补齐一次。
 constexpr uint32 EntranceRefillIntervalMilliseconds = 5 * MINUTE * IN_MILLISECONDS;
+// 低于最小值但一次补齐未能达标（点位不足等）时的重试退避间隔，避免每个世界帧反复尝试。
+constexpr uint32 EntranceRefillRetryIntervalMilliseconds = 30 * IN_MILLISECONDS;
 // 时间表评估间隔：开启窗口内每秒一次（保证到点即刷），关闭窗口时放宽以节流。
 constexpr uint32 SchedulePollIntervalOpenMilliseconds = 1 * IN_MILLISECONDS;
 constexpr uint32 SchedulePollIntervalClosedMilliseconds = 5 * IN_MILLISECONDS;
@@ -376,7 +378,22 @@ private:
     uint64 _nextRunToken = 1;
 };
 
+// 每周开启时段：一行代表某个区域的一个允许刷新入口的时间窗口，可配置多行取并集。
+// WeekDay: 0=周日, 1=周一, ... 6=周六；Start/EndMinuteOfDay 为当日分钟数 [0, 1440)。
+// 当 EndMinuteOfDay <= StartMinuteOfDay 时视为跨零点窗口（延续到次日）。
+struct RiftScheduleWindow
+{
+    uint32 ScheduleId = 0;
+    uint32 RegionId = 0; // 归属区域，对应 heroic_dungeon_rift_spawn_region.region_id
+    uint8 WeekDay = 0;
+    uint16 StartMinuteOfDay = 0;
+    uint16 EndMinuteOfDay = 0;
+    bool Enabled = false;
+    std::string Remark;
+};
+
 // 区域配置：一行代表一个允许刷新裂隙入口的开放区域。
+// 除配置字段外还保存该区域独立的运行态（时间表开关、补充计时等）。
 struct RiftSpawnRegion
 {
     uint32 RegionId = 0;
@@ -389,6 +406,15 @@ struct RiftSpawnRegion
     bool Enabled = false;
     std::string Remark;
     std::vector<uint32> PointIds; // 该区域全部可用刷新点
+
+    // 该区域启用的开启时段；为空表示该区域未配置时间表，全天可刷新。
+    std::vector<RiftScheduleWindow> Windows;
+    bool WindowOpen = true;                                  // 该区域当前是否处于开启窗口
+    bool WindowInitialized = false;                          // 是否已完成首次评估
+    uint32 RefillTimer = EntranceRefillIntervalMilliseconds; // 该区域常规补充计时
+    uint32 RetryCountdown = 0;                               // 立即补齐失败后的退避倒计时：到期前不再重试
+    int64 CachedNextOpenTime = 0;                            // 已播报过的下次开启时刻，用于重置倒计时阶段
+    uint32 OpenReminderStage = 0;                            // 0=未播报, 1=已播报10分钟, 2=已播报5分钟, 3=已播报1分钟
 };
 
 // 刷新点：区域内的一个固定候选刷新坐标。
@@ -397,19 +423,6 @@ struct RiftSpawnPoint
     uint32 PointId = 0;
     uint32 RegionId = 0;
     Position Pos;
-    bool Enabled = false;
-    std::string Remark;
-};
-
-// 每周开启时段：一行代表一个允许刷新入口的时间窗口，可配置多行取并集。
-// WeekDay: 0=周日, 1=周一, ... 6=周六；Start/EndMinuteOfDay 为当日分钟数 [0, 1440)。
-// 当 EndMinuteOfDay <= StartMinuteOfDay 时视为跨零点窗口（延续到次日）。
-struct RiftScheduleWindow
-{
-    uint32 ScheduleId = 0;
-    uint8 WeekDay = 0;
-    uint16 StartMinuteOfDay = 0;
-    uint16 EndMinuteOfDay = 0;
     bool Enabled = false;
     std::string Remark;
 };
@@ -447,43 +460,38 @@ private:
 
     RiftSpawnManager() = default;
 
-    // 根据每周时间表切换开启/关闭状态，并在切换时刷满/清空入口与发送全服通知。
-    void PollSchedule();
-    bool EvaluateSchedule() const;
+    // 逐区域评估每周时间表：开启瞬间按 max 刷满，关闭那一刻清空该区域入口。
+    void PollSchedules();
+    void PollRegionSchedule(RiftSpawnRegion& region);
+    bool EvaluateSchedule(RiftSpawnRegion const& region) const;
     bool IsWithinWindow(RiftScheduleWindow const& window, uint32 weekDay, uint32 minuteOfDay) const;
-    // 距离下一次开启的剩余秒数（epoch）；没有可用窗口时返回 0。
-    int64 ComputeNextOpenTime() const;
-    // 开启前播报：还剩 10/5/1 分钟各一次。
-    void UpdateOpenReminders(bool announce);
-    std::string BuildRegionNames() const;
-    bool HasEnabledRegion() const;
+    // 距离该区域下一次开启的剩余秒数（epoch）；没有可用窗口时返回 0。
+    int64 ComputeNextOpenTime(RiftSpawnRegion const& region) const;
+    // 该区域开启前播报：还剩 10/5/1 分钟各一次。
+    void UpdateRegionOpenReminders(RiftSpawnRegion& region);
+    // 通知里显示的区域名；未配置名称时回退为“区域{id}”。
+    std::string GetRegionDisplayName(RiftSpawnRegion const& region) const;
+    // 是否存在任一启用区域当前处于开启窗口（用于决定时间表评估间隔）。
+    bool IsAnyRegionOpen() const;
     // 清空指定区域已刷新的全部入口（含已消耗待移除的），并释放其点位。
     void RemoveRegionEntrances(uint32 regionId);
-    // 清空所有存在入口的区域；关闭窗口时调用。
-    void RemoveAllEntrances();
     void BroadcastNotice(std::string const& message) const;
     // 开启/结束连发两条相同通知。
     void BroadcastOpenCloseNotice(std::string const& message) const;
 
-    // 是否存在任一启用区域的有效入口数低于最小数量（用于触发立即补充）。
-    bool HasRegionBelowMin() const;
+    // 该区域「生物仍然存在」的有效入口数是否低于最小数量（用于触发立即补充）。
+    bool IsRegionBelowMin(RiftSpawnRegion const& region) const;
 
-    void RefreshAll(bool fillToMax);
-    void RefreshRegion(RiftSpawnRegion const& region, bool fillToMax);
+    // 把该区域补齐到目标数量；返回是否所有档位都达到了本次目标。
+    // 返回 false 表示点位不足等原因未能补齐，调用方应退避后再重试。
+    bool RefreshRegion(RiftSpawnRegion const& region, bool fillToMax);
     bool SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 tier, std::vector<uint32>& freePoints);
     RiftSpawnPoint const* GetPoint(uint32 pointId) const;
 
     std::map<uint32, RiftSpawnRegion> _regions;
     std::map<uint32, RiftSpawnPoint> _points;
     std::map<ObjectGuid, EntranceEntry> _entrances;
-    std::vector<RiftScheduleWindow> _schedule;
-    bool _hasSchedule = false;
-    bool _windowOpen = true;
-    bool _windowInitialized = false;
-    uint32 _refillTimer = EntranceRefillIntervalMilliseconds;
-    uint32 _scheduleTimer = 0;     // 时间表评估计时器：避免每帧计算时间
-    int64 _cachedNextOpenTime = 0; // 已播报过的下次开启时刻，用于重置倒计时阶段
-    uint32 _openReminderStage = 0; // 0=未播报, 1=已播报10分钟, 2=已播报5分钟, 3=已播报1分钟
+    uint32 _scheduleTimer = 0; // 时间表评估计时器：避免每帧计算时间
     uint64 _nextToken = 1;
 };
 
