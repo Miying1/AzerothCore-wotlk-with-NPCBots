@@ -217,7 +217,7 @@ class spell_world_boss_illidan_parasitic_shadowfiend_aura : public AuraScript
             return;
 
         if (Creature* boss = caster->ToCreature())
-            boss->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_PARASITIC_SHADOWFIEND, *GetTarget(), TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
+            boss->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_PARASITIC_SHADOWFIEND, *GetTarget(), TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
     }
 
     void Register() override
@@ -339,7 +339,7 @@ struct boss_world_illidan : public WorldBossGuardAI
                 scheduler.Schedule(30s, [this](TaskContext context)
                 {
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
-                        me->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_SHADOW_DEMON, *target, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
+                        me->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_SHADOW_DEMON, *target, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
                     context.Repeat(100s);
                 });
                 // 恶魔形态 60 秒后变回

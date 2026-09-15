@@ -133,7 +133,7 @@ struct boss_world_bloodboil : public WorldBossGuardAI
             DoCast(target, SPELL_FEL_RAGE_SIZE, true);
             target->CastSpell(me, SPELL_TAUNT_GURTOGG, true);
             // 在目标脚下召唤自定义邪能间歇泉，由其自身施放间歇泉伤害（经召唤物 AI 缩放）。
-            me->SummonCreature(NPC_WORLD_BOSS_BLOODBOIL_GEYSER, *target, TEMPSUMMON_TIMED_DESPAWN, 30s);
+            me->SummonCreature(NPC_WORLD_BOSS_BLOODBOIL_GEYSER, *target, TEMPSUMMON_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
             DoCastSelf(SPELL_FEL_GEYSER_STUN, true);
             DoCastSelf(SPELL_INSIGNIFICANCE, true);
 

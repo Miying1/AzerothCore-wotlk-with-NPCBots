@@ -39,7 +39,8 @@ enum AlarEvents
     EVENT_SUMMON_EMBER = 3,
     EVENT_REBIRTH      = 4,
     EVENT_MELT_ARMOR   = 5,
-    EVENT_CHARGE       = 6,
+    // 注意：不能直接叫 EVENT_CHARGE，SharedDefines.h 的 EventId 枚举里已有同名枚举数（值 1003），会重定义冲突。
+    EVENT_ALAR_CHARGE  = 6,
     EVENT_FLAME_PATCH  = 7,
     EVENT_DIVE_BOMB    = 8,
     EVENT_BERSERK      = 9,
@@ -167,7 +168,7 @@ struct boss_world_alar : public WorldBossGuardAI
     void SchedulePhaseTwo()
     {
         events.ScheduleEvent(EVENT_MELT_ARMOR, 57s);
-        events.ScheduleEvent(EVENT_CHARGE, 10s);
+        events.ScheduleEvent(EVENT_ALAR_CHARGE, 10s);
         events.ScheduleEvent(EVENT_FLAME_PATCH, 20s);
         events.ScheduleEvent(EVENT_DIVE_BOMB, 34s);
         events.ScheduleEvent(EVENT_BERSERK, 10min);
@@ -218,7 +219,7 @@ struct boss_world_alar : public WorldBossGuardAI
                 events.Repeat(60s);
                 break;
 
-            case EVENT_CHARGE:
+            case EVENT_ALAR_CHARGE:
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 50.0f, true))
                     DoCast(target, SPELL_CHARGE, true);
                 events.Repeat(30s);
@@ -245,7 +246,7 @@ struct boss_world_alar : public WorldBossGuardAI
     {
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 50.0f, true))
             for (uint8 i = 0; i < 2; ++i)
-                me->SummonCreature(NPC_WORLD_BOSS_ALAR_EMBER, *target, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
+                me->SummonCreature(NPC_WORLD_BOSS_ALAR_EMBER, *target, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
     }
 
     void DoDiveBomb()

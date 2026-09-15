@@ -119,7 +119,7 @@ struct boss_world_supremus : public WorldBossGuardAI
     void CastMoltenPunch()
     {
         Position pos = me->GetNearPosition(frand(0.0f, 18.0f), frand(0.0f, 6.2831853f));
-        me->SummonCreature(NPC_WORLD_BOSS_SUPREMUS_PUNCH_STALKER, pos, TEMPSUMMON_TIMED_DESPAWN, 30s);
+        me->SummonCreature(NPC_WORLD_BOSS_SUPREMUS_PUNCH_STALKER, pos, TEMPSUMMON_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
     }
 
     // 憎恨打击目标：近战范围内血量最高的目标。
@@ -157,7 +157,7 @@ struct boss_world_supremus : public WorldBossGuardAI
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                 {
                     // 在随机目标脚下召唤自定义火山，由其自身施放火山喷发触发（间歇泉伤害经召唤物 AI 缩放）。
-                    me->SummonCreature(NPC_WORLD_BOSS_SUPREMUS_VOLCANO, target->GetPosition(), TEMPSUMMON_TIMED_DESPAWN, 30s);
+                    me->SummonCreature(NPC_WORLD_BOSS_SUPREMUS_VOLCANO, target->GetPosition(), TEMPSUMMON_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
                     Talk(EMOTE_GROUND_CRACK);
                 }
                 events.Repeat(10s, 18s);

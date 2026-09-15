@@ -51,6 +51,8 @@ constexpr uint32 EntranceRefillRetryIntervalMilliseconds = 30 * IN_MILLISECONDS;
 // 时间表评估间隔：开启窗口内每秒一次（保证到点即刷），关闭窗口时放宽以节流。
 constexpr uint32 SchedulePollIntervalOpenMilliseconds = 1 * IN_MILLISECONDS;
 constexpr uint32 SchedulePollIntervalClosedMilliseconds = 5 * IN_MILLISECONDS;
+// week_day 取值：-1 表示该窗口每天（0~6）都生效。
+constexpr int8 RiftWeekDayEveryDay = -1;
 constexpr uint32 RunTimeoutMilliseconds = 2 * HOUR * IN_MILLISECONDS;
 constexpr uint32 RollbackGraceMilliseconds = 30 * IN_MILLISECONDS;
 constexpr uint32 CreatureSummonLifetimeMilliseconds = 2 * HOUR * IN_MILLISECONDS;
@@ -379,13 +381,13 @@ private:
 };
 
 // 每周开启时段：一行代表某个区域的一个允许刷新入口的时间窗口，可配置多行取并集。
-// WeekDay: 0=周日, 1=周一, ... 6=周六；Start/EndMinuteOfDay 为当日分钟数 [0, 1440)。
+// WeekDay: -1=每天（0~6 全部生效）, 0=周日, 1=周一, ... 6=周六；Start/EndMinuteOfDay 为当日分钟数 [0, 1440)。
 // 当 EndMinuteOfDay <= StartMinuteOfDay 时视为跨零点窗口（延续到次日）。
 struct RiftScheduleWindow
 {
     uint32 ScheduleId = 0;
     uint32 RegionId = 0; // 归属区域，对应 heroic_dungeon_rift_spawn_region.region_id
-    uint8 WeekDay = 0;
+    int8 WeekDay = RiftWeekDayEveryDay;
     uint16 StartMinuteOfDay = 0;
     uint16 EndMinuteOfDay = 0;
     bool Enabled = false;

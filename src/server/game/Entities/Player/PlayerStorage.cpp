@@ -2733,17 +2733,11 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
             m_items[slot] = pItem;
             SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), pItem->GetGUID());
 
-            // 账号银行扩展：银行顶层槽位物品归属置空（owner=0），与公会银行一致；个人银行保持原样
-            if (IsBankPos(INVENTORY_SLOT_BAG_0, slot) && _bankMode == BANK_MODE_ACCOUNT)
-            {
-                pItem->SetGuidValue(ITEM_FIELD_CONTAINED, ObjectGuid::Empty);
-                pItem->SetGuidValue(ITEM_FIELD_OWNER, ObjectGuid::Empty);
-            }
-            else
-            {
-                pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetGUID());
-                pItem->SetGuidValue(ITEM_FIELD_OWNER, GetGUID());
-            }
+            // 账号银行扩展：内存中物品必须归属当前玩家，否则 Item::AddToUpdateQueueOf 的归属校验会失败，
+            // 物品无法进入更新队列（位置/数据永不落库），且 CanBankItem 的 IsBindedNotWith 会误判为「不是我的物品」。
+            // 账号银行物品在 DB 中的 owner_guid=0 由 _SaveInventory 落库时临时处理。
+            pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetGUID());
+            pItem->SetGuidValue(ITEM_FIELD_OWNER, GetGUID());
 
             pItem->SetSlot(slot);
             pItem->SetContainer(nullptr);
@@ -6200,13 +6194,15 @@ void Player::_LoadPersonalBank()
     _LoadBank(result, GetGUID(), false);
 }
 
-// 账号银行扩展：从 account_bank_item 同步加载账号银行物品（owner 置空）
+// 账号银行扩展：从 account_bank_item 同步加载账号银行物品
+// 注意：owner 必须传当前玩家。传 ObjectGuid::Empty 会导致绑定校验（IsBindedNotWith）失败，
+// 灵魂绑定物品会被 CanBankItem 返回 EQUIP_ERR_DONT_OWN_THAT_ITEM 并当作脏数据删除。
 void Player::_LoadAccountBank()
 {
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BANK_ITEM);
     stmt->SetData(0, GetSession()->GetAccountId());
     PreparedQueryResult result = CharacterDatabase.Query(stmt);
-    _LoadBank(result, ObjectGuid::Empty, true);
+    _LoadBank(result, GetGUID(), true);
 }
 
 // 账号银行扩展：加载银行物品到 m_items[39~74]（切换模式时复用）
@@ -7767,13 +7763,15 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
             }
         }
 
+        // 账号银行扩展：判断当前物品是否处于账号银行（位置分流与 owner_guid 落库处理共用）
+        bool const isAccountBankItem = (_bankMode == BANK_MODE_ACCOUNT && IsBankPos(item->GetBagSlot(), item->GetSlot()));
+
         switch (item->GetState())
         {
             case ITEM_NEW:
             case ITEM_CHANGED:
             {
                 // 账号银行扩展：银行物品按当前模式分流写入对应表，并清理另一张表的跨表残留
-                bool isAccountBankItem = (_bankMode == BANK_MODE_ACCOUNT && IsBankPos(item->GetBagSlot(), item->GetSlot()));
                 if (isAccountBankItem)
                 {
                     stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_BANK_ITEM);
@@ -7816,7 +7814,18 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
                 break;
         }
 
-        item->SaveToDB(trans);                                   // item have unchanged inventory record and can be save standalone
+        // 账号银行扩展：落库时把账号银行物品的 owner_guid 写为 0（与公会银行一致），避免删除角色时被
+        // CHAR_DEL_ITEM_INSTANCE_BY_OWNER 误删共享物品；内存中仍保留玩家归属，保证更新队列与绑定校验正常。
+        // 注意：ITEM_REMOVED 的 SaveToDB 会 delete this，不能在其后再访问 item。
+        if (isAccountBankItem && item->GetState() != ITEM_REMOVED)
+        {
+            ObjectGuid const ownerGuid = item->GetOwnerGUID();
+            item->SetGuidValue(ITEM_FIELD_OWNER, ObjectGuid::Empty);
+            item->SaveToDB(trans);                               // item have unchanged inventory record and can be save standalone
+            item->SetGuidValue(ITEM_FIELD_OWNER, ownerGuid);
+        }
+        else
+            item->SaveToDB(trans);                               // item have unchanged inventory record and can be save standalone
     }
     m_itemUpdateQueue.clear();
 }

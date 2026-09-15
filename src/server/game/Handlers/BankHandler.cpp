@@ -16,13 +16,40 @@
  */
 
 #include "BankPackets.h"
+#include "Config.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "Item.h"
 #include "Log.h"
 #include "Player.h"
+#include "StringConvert.h"
+#include "StringFormat.h"
+#include "Tokenize.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+
+namespace
+{
+    // 账号银行扩展：读取账号银行背包槽价格（单位：铜币）
+    // AccountBank.SlotPrices 为按槽位（1 起）逗号分隔的价格列表；未配置、越界或解析失败时回退到 DBC 价格
+    uint32 GetAccountBankSlotPrice(uint32 slot, uint32 dbcPrice)
+    {
+        std::string const priceList = sConfigMgr->GetOption<std::string>("AccountBank.SlotPrices", "");
+        if (priceList.empty() || slot == 0)
+            return dbcPrice;
+
+        std::vector<std::string_view> const tokens = Acore::Tokenize(priceList, ',', false);
+        if (slot > tokens.size())
+            return dbcPrice;
+
+        std::string const token = Acore::String::Trim(std::string(tokens[slot - 1]), std::locale());
+        if (auto price = Acore::StringTo<uint32>(token))
+            return *price;
+
+        LOG_WARN("server", "AccountBank.SlotPrices: invalid price '{}' for bank bag slot {}, using default {}.", token, slot, dbcPrice);
+        return dbcPrice;
+    }
+}
 
 bool WorldSession::CanUseBank(ObjectGuid bankerGUID) const
 {
@@ -167,6 +194,10 @@ void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyB
     }
 
     uint32 price = slotEntry->price;
+
+    // 账号银行扩展：账号银行背包槽价格可由配置覆盖（个人银行仍沿用 DBC 价格）
+    if (_player->GetBankMode() == BANK_MODE_ACCOUNT)
+        price = GetAccountBankSlotPrice(slot, price);
 
     if (!_player->HasEnoughMoney(price))
     {

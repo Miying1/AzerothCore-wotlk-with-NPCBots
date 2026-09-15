@@ -208,7 +208,8 @@ void RiftSpawnManager::Load()
             RiftScheduleWindow window;
             window.ScheduleId = fields[0].Get<uint32>();
             window.RegionId = fields[1].Get<uint32>();
-            window.WeekDay = fields[2].Get<uint8>();
+            // week_day = -1 表示每天（0~6）都生效，其余取值必须落在 0~6。
+            window.WeekDay = fields[2].Get<int8>();
             uint8 startHour = fields[3].Get<uint8>();
             uint8 startMinute = fields[4].Get<uint8>();
             uint8 endHour = fields[5].Get<uint8>();
@@ -216,7 +217,8 @@ void RiftSpawnManager::Load()
             window.Enabled = fields[7].Get<uint8>() != 0;
             window.Remark = fields[8].IsNull() ? std::string() : fields[8].Get<std::string>();
 
-            if (!window.ScheduleId || window.WeekDay > 6 || startHour > 23 || endHour > 23 || startMinute > 59 || endMinute > 59)
+            if (!window.ScheduleId || window.WeekDay < RiftWeekDayEveryDay || window.WeekDay > 6 ||
+                startHour > 23 || endHour > 23 || startMinute > 59 || endMinute > 59)
             {
                 LOG_ERROR("sql.sql", "Five-player heroic rift schedule {} has invalid weekday/time and was ignored.", window.ScheduleId);
                 continue;
@@ -267,14 +269,17 @@ bool RiftSpawnManager::IsWithinWindow(RiftScheduleWindow const& window, uint32 w
     if (window.StartMinuteOfDay == window.EndMinuteOfDay)
         return false;
 
+    // week_day = -1 表示每天（0~6）都生效。
+    bool const everyDay = window.WeekDay == RiftWeekDayEveryDay;
+
     if (window.StartMinuteOfDay < window.EndMinuteOfDay)
-        return weekDay == window.WeekDay &&
+        return (everyDay || weekDay == uint32(window.WeekDay)) &&
             minuteOfDay >= window.StartMinuteOfDay && minuteOfDay < window.EndMinuteOfDay;
 
     // 跨零点窗口：当天 start 之后，或次日 end 之前。
-    uint32 nextDay = (uint32(window.WeekDay) + 1) % 7;
-    return (weekDay == window.WeekDay && minuteOfDay >= window.StartMinuteOfDay) ||
-        (weekDay == nextDay && minuteOfDay < window.EndMinuteOfDay);
+    uint32 nextDay = everyDay ? weekDay : (uint32(window.WeekDay) + 1) % 7;
+    return ((everyDay || weekDay == uint32(window.WeekDay)) && minuteOfDay >= window.StartMinuteOfDay) ||
+        ((everyDay || weekDay == nextDay) && minuteOfDay < window.EndMinuteOfDay);
 }
 
 bool RiftSpawnManager::EvaluateSchedule(RiftSpawnRegion const& region) const
@@ -326,9 +331,18 @@ int64 RiftSpawnManager::ComputeNextOpenTime(RiftSpawnRegion const& region) const
         if (window.StartMinuteOfDay == window.EndMinuteOfDay)
             continue;
 
-        uint32 daysAhead = (uint32(window.WeekDay) + 7 - currentWeekDay) % 7;
-        if (daysAhead == 0 && window.StartMinuteOfDay <= currentMinuteOfDay)
-            daysAhead = 7;
+        uint32 daysAhead = 0;
+        if (window.WeekDay == RiftWeekDayEveryDay)
+        {
+            // 每天生效：今天尚未到点则今天开启，否则顺延到明天。
+            daysAhead = window.StartMinuteOfDay <= currentMinuteOfDay ? 1 : 0;
+        }
+        else
+        {
+            daysAhead = (uint32(window.WeekDay) + 7 - currentWeekDay) % 7;
+            if (daysAhead == 0 && window.StartMinuteOfDay <= currentMinuteOfDay)
+                daysAhead = 7;
+        }
 
         std::tm target = local;
         target.tm_hour = int(window.StartMinuteOfDay / 60);

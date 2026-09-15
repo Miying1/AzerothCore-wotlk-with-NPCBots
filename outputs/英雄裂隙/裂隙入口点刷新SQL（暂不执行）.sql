@@ -70,15 +70,18 @@ CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_spawn_point` (
 -- ============================================================================
 -- 3. 每周开启时段表（按区域）
 --    region_id：所属区域，对应主表 `heroic_dungeon_rift_spawn_region`.`region_id`
---    week_day：0=周日，1=周一，2=周二，3=周三，4=周四，5=周五，6=周六
+--    week_day：-1=每天（0~6 全部生效），0=周日，1=周一，2=周二，3=周三，4=周四，5=周五，6=周六
 --    start/end 为当日时间；当 end <= start 时视为跨零点窗口（延续到次日）。
 --    同一区域可配置多行取并集，各区域的时间表互相独立；
 --    某个区域没有任何 enabled=1 的行时，该区域全天可刷新（不参与开启/关闭通知）。
+--    若该表此前已按 `week_day` TINYINT UNSIGNED 建过，需先改列类型以支持 -1：
+--    ALTER TABLE `heroic_dungeon_rift_schedule` MODIFY `week_day`
+--      TINYINT NOT NULL COMMENT '星期：-1=每天(0~6),0=周日,1=周一..6=周六';
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_schedule` (
   `schedule_id` INT UNSIGNED NOT NULL COMMENT '时段ID',
   `region_id` INT UNSIGNED NOT NULL COMMENT '所属区域配置ID（对应主表 region_id）',
-  `week_day` TINYINT UNSIGNED NOT NULL COMMENT '星期：0=周日,1=周一..6=周六',
+  `week_day` TINYINT NOT NULL COMMENT '星期：-1=每天(0~6),0=周日,1=周一..6=周六',
   `start_hour` TINYINT UNSIGNED NOT NULL COMMENT '开始小时 [0,23]',
   `start_minute` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '开始分钟 [0,59]',
   `end_hour` TINYINT UNSIGNED NOT NULL COMMENT '结束小时 [0,23]',
@@ -163,13 +166,15 @@ VALUES
 --    启用任意一行后，该区域只在窗口内刷新；窗口开启瞬间按最大数量刷满并全服通知。
 --    示例1：区域1 每周三 20:00 - 22:00
 --    示例2：区域1 每周六 14:00 - 次日 02:00（跨零点）
+--    示例3：区域1 每天 20:00 - 22:00（week_day = -1）
 -- ============================================================================
-DELETE FROM `heroic_dungeon_rift_schedule` WHERE `schedule_id` IN (1,2);
+DELETE FROM `heroic_dungeon_rift_schedule` WHERE `schedule_id` IN (1,2,3);
 INSERT INTO `heroic_dungeon_rift_schedule`
   (`schedule_id`,`region_id`,`week_day`,`start_hour`,`start_minute`,`end_hour`,`end_minute`,`enabled`,`remark`)
 VALUES
   (1,1,3,20,0,22,0,0,'示例：区域1 每周三 20:00-22:00 开启'),
-  (2,1,6,14,0,2,0,0,'示例：区域1 每周六 14:00 至次日 02:00 开启（跨零点）');
+  (2,1,6,14,0,2,0,0,'示例：区域1 每周六 14:00 至次日 02:00 开启（跨零点）'),
+  (3,1,-1,20,0,22,0,0,'示例：区域1 每天 20:00-22:00 开启（-1=每天）');
 
 -- ============================================================================
 -- 7. 审核查询

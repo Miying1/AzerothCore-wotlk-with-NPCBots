@@ -171,12 +171,12 @@ struct boss_world_archimonde : public WorldBossGuardAI
         me->GetClosePoint(x, y, z, me->GetObjectSize(), 15.0f, angle);
 
         // 毁灭之火灵魂生成时面向阿克蒙德（原版朝向），之后由自身 AI 转向并蔓延。
-        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, Position::NormalizeOrientation(angle + 3.1415927f), TEMPSUMMON_TIMED_DESPAWN, 27s))
+        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, Position::NormalizeOrientation(angle + 3.1415927f), TEMPSUMMON_TIMED_DESPAWN, 27 * IN_MILLISECONDS))
         {
             // 被动状态：避免野外环境下触发型召唤物（敌对阵营）主动攻击玩家。
             doomfireSpirit->SetReactState(REACT_PASSIVE);
 
-            if (Creature* doomfire = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 27s))
+            if (Creature* doomfire = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 27 * IN_MILLISECONDS))
             {
                 doomfire->SetReactState(REACT_PASSIVE);
                 doomfire->GetMotionMaster()->MoveFollow(doomfireSpirit, 0.0f, 0.0f);

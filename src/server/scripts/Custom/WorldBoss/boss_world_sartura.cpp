@@ -153,7 +153,7 @@ struct boss_world_sartura : public WorldBossGuardAI
         for (uint8 i = 0; i < 3; ++i)
         {
             Position pos = me->GetNearPosition(frand(3.0f, 6.0f), frand(0.0f, 6.2831853f));
-            me->SummonCreature(NPC_WORLD_BOSS_SARTURA_GUARD, pos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30s);
+            me->SummonCreature(NPC_WORLD_BOSS_SARTURA_GUARD, pos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
         }
     }
 

@@ -228,7 +228,7 @@ struct boss_world_leotheras : public WorldBossGuardAI
 
             case EVENT_FINAL_FORM:
                 // 在 BOSS 身边召唤莱欧瑟拉斯之影（15% 血量）
-                me->SummonCreature(NPC_WORLD_BOSS_LEOTHERAS_SHADOW, me->GetPosition(), TEMPSUMMON_DEAD_DESPAWN, 0s);
+                me->SummonCreature(NPC_WORLD_BOSS_LEOTHERAS_SHADOW, me->GetPosition(), TEMPSUMMON_DEAD_DESPAWN, 0);
                 break;
 
             case EVENT_RESUME_COMBAT:
@@ -448,7 +448,7 @@ class spell_world_boss_leotheras_insidious_whisper_aura : public AuraScript
         // 世界BOSS：直接召唤自定义内心的恶灵（120513），伤害经 WorldBossSummonAI 统一缩放
         // 原版毒蛇神殿：施放 37735 召唤原版内心的恶灵（21857），保持原版副本行为不变
         if (caster->GetEntry() == NPC_WORLD_BOSS_LEOTHERAS)
-            owner->SummonCreature(NPC_WORLD_BOSS_INNER_DEMON, *owner, TEMPSUMMON_TIMED_DESPAWN, 20s);
+            owner->SummonCreature(NPC_WORLD_BOSS_INNER_DEMON, *owner, TEMPSUMMON_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
         else
             owner->CastSpell(owner, SPELL_SUMMON_INNER_DEMON, true);
     }

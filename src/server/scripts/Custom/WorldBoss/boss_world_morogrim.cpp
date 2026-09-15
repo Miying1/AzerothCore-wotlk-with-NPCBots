@@ -87,7 +87,7 @@ struct boss_world_morogrim : public WorldBossGuardAI
         for (uint8 i = 0; i < 11; ++i)
         {
             Position pos = me->GetNearPosition(6.0f, TAU * float(i) / 11.0f);
-            me->SummonCreature(NPC_WORLD_BOSS_MURLOC, pos, TEMPSUMMON_DEAD_DESPAWN, 0s);
+            me->SummonCreature(NPC_WORLD_BOSS_MURLOC, pos, TEMPSUMMON_DEAD_DESPAWN, 0);
         }
     }
 
@@ -98,7 +98,7 @@ struct boss_world_morogrim : public WorldBossGuardAI
         for (uint8 i = 0; i < 4; ++i)
         {
             Position pos = me->GetNearPosition(8.0f, TAU * float(i) / 4.0f);
-            me->SummonCreature(NPC_WORLD_BOSS_WATER_GLOBULE, pos, TEMPSUMMON_DEAD_DESPAWN, 0s);
+            me->SummonCreature(NPC_WORLD_BOSS_WATER_GLOBULE, pos, TEMPSUMMON_DEAD_DESPAWN, 0);
         }
     }
 
