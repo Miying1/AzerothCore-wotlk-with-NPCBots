@@ -49,3 +49,10 @@ INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
     (0, 120510, 8, 42052, 2, 2000, '世界BOSS-苏普雷姆斯：火山（间歇泉地板）');
+
+-- 4. 阿克蒙德（120110）：毁灭之火 120516
+--    施放 31945 -> 31943（区域光环，半径约 8 码）-> 31944 火焰伤害，持续地面火焰。
+INSERT INTO `npcbot_creature_hazard`
+    (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+    (0, 120516, 8, 31944, 2, 2000, '世界BOSS-阿克蒙德：毁灭之火（火焰地板）');

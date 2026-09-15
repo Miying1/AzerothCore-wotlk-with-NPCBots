@@ -1,12 +1,14 @@
 -- =====================================================================
 -- 世界BOSS：奥 / 伊利丹 / 拉格纳罗斯 / 勒什雷尔 / 战争守卫沙尔图拉 / 库林纳克斯
 --           / 苏普雷姆斯 / 古尔图格·血沸 / 盲眼者莱欧瑟拉斯 / 莫洛格里·踏潮者
+--           / 阿克蒙德 / 阿兹加洛
 --           复刻，83 级，10 人奥杜尔强度
 -- 用于世界地图随机刷新（临时召唤），无副本实例环境。
 -- 对应脚本：本目录 boss_world_alar.cpp / boss_world_illidan.cpp / boss_world_ragnaros.cpp
 --           / boss_world_broodlord.cpp / boss_world_sartura.cpp / boss_world_kurinnaxx.cpp
 --           / boss_world_supremus.cpp / boss_world_bloodboil.cpp
 --           / boss_world_leotheras.cpp / boss_world_morogrim.cpp
+--           / boss_world_archimonde.cpp / boss_world_azgalor.cpp
 --           / world_boss_guard.cpp（统一战斗机制 + 伤害缩放）
 -- 导入方式（手动）：mysql -u<用户> -p<密码> acore_world < "世界BOSS数据库.sql"
 -- 详见「世界BOSS设计与实现.md」第七章
@@ -205,3 +207,46 @@ INSERT INTO `creature_text` (`CreatureID`,`GroupID`,`ID`,`Text`,`Type`,`Language
 DELETE FROM `spell_script_names` WHERE `spell_id` = 37676;
 INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
 (37676,'spell_world_boss_leotheras_insidious_whisper');
+
+-- ---------------------------------------------------------------------
+-- 8. 阿克蒙德 / 阿兹加洛（海加尔山之战复刻）
+-- ---------------------------------------------------------------------
+
+-- 8.1 生物模板
+DELETE FROM `creature_template` WHERE `entry` IN (120110,120111,120516,120517);
+INSERT INTO `creature_template` (`entry`,`difficulty_entry_1`,`difficulty_entry_2`,`difficulty_entry_3`,`KillCredit1`,`KillCredit2`,`name`,`subname`,`IconName`,`gossip_menu_id`,`minlevel`,`maxlevel`,`exp`,`faction`,`npcflag`,`speed_walk`,`speed_run`,`speed_swim`,`speed_flight`,`detection_range`,`rank`,`dmgschool`,`DamageModifier`,`BaseAttackTime`,`RangeAttackTime`,`BaseVariance`,`RangeVariance`,`unit_class`,`unit_flags`,`unit_flags2`,`dynamicflags`,`family`,`type`,`type_flags`,`lootid`,`pickpocketloot`,`skinloot`,`PetSpellDataId`,`VehicleId`,`mingold`,`maxgold`,`AIName`,`MovementType`,`HoverHeight`,`HealthModifier`,`ManaModifier`,`ArmorModifier`,`ExperienceModifier`,`RacialLeader`,`movementId`,`RegenHealth`,`CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`) VALUES
+-- 阿克蒙德（Archimonde）—— 海加尔山之战复刻
+(120110,0,0,0,0,0,'阿克蒙德','污染者',NULL,0,83,83,2,16,0,1,2.14286,1,1,20,3,0,110,1500,2000,1,1,2,0,2048,0,0,3,108,0,0,0,0,0,2500000,2500000,'',0,1,550,1,1,2.25,0,204,1,-361,2147483657,'boss_world_archimonde',12340),
+-- 阿兹加洛（Azgalor）—— 海加尔山之战复刻
+(120111,0,0,0,0,0,'阿兹加洛',NULL,NULL,0,83,83,2,16,0,1,2.14286,1,1,20,3,0,85,2000,2000,1,1,2,0,2048,0,0,3,108,0,0,0,0,0,2500000,2500000,'',0,1,490,1,1,2.25,0,192,1,-361,2147483657,'boss_world_azgalor',12340),
+-- 阿克蒙德的毁灭之火（触发型召唤物，携带 31945 光环触发火焰伤害链）
+(120516,0,0,0,0,0,'阿克蒙德的毁灭之火',NULL,NULL,0,83,83,2,1720,0,1,1.14286,1,1,20,0,0,1,2000,2000,1,1,1,33587200,2048,0,0,10,1024,0,0,0,0,0,0,0,'',0,1,1,1,1,1,0,118,1,0,128,'npc_world_boss_archimonde_doomfire',12340),
+-- 阿克蒙德的毁灭之火灵魂（移动引导者，友好阵营，不参与战斗）
+(120517,0,0,0,0,0,'阿克蒙德的毁灭之火灵魂',NULL,NULL,0,83,83,2,35,0,1,1.14286,1,1,20,0,0,1,2000,2000,1,1,1,33587968,2048,0,0,10,1024,0,0,0,0,0,0,0,'',0,1,1,1,1,1,0,0,1,0,128,'npc_world_boss_archimonde_doomfire_spirit',12340);
+
+-- 8.2 生物模型（沿用海加尔山之战原版模型 ID）
+--    阿克蒙德 20939 / 阿兹加洛 18526 / 毁灭之火 11686+1126 / 毁灭之火灵魂 11686+169
+DELETE FROM `creature_template_model` WHERE `CreatureID` IN (120110,120111,120516,120517);
+INSERT INTO `creature_template_model` (`CreatureID`,`Idx`,`CreatureDisplayID`,`DisplayScale`,`Probability`,`VerifiedBuild`) VALUES
+(120110,0,20939,1,1,12340),
+(120111,0,18526,1,1,12340),
+(120516,0,11686,1,1,12340),
+(120516,1,1126,1,1,12340),
+(120517,0,11686,1,1,12340),
+(120517,1,169,1,1,12340);
+
+-- 8.3 生物喊话（直接使用中文文本，BroadcastTextId 置 0 以禁用客户端本地化覆盖）
+DELETE FROM `creature_text` WHERE `CreatureID` IN (120110,120111);
+INSERT INTO `creature_text` (`CreatureID`,`GroupID`,`ID`,`Text`,`Type`,`Language`,`Probability`,`Emote`,`Duration`,`Sound`,`BroadcastTextId`,`TextRange`,`comment`) VALUES
+-- 阿克蒙德
+(120110,0,0,'你们的反抗毫无意义！',14,0,100,0,0,0,0,0,'阿克蒙德 - 开战'),
+(120110,1,0,'这个世界将化为灰烬！',14,0,100,0,0,0,0,0,'阿克蒙德 - 击杀'),
+(120110,2,0,'%s 召唤了毁灭之火！',16,0,100,0,0,0,0,0,'阿克蒙德 - 毁灭之火'),
+(120110,3,0,'%s 进入了狂暴状态！',16,0,100,0,0,0,0,0,'阿克蒙德 - 狂暴'),
+(120110,4,0,'不！这不可能！',14,0,100,0,0,0,0,0,'阿克蒙德 - 死亡'),
+-- 阿兹加洛
+(120111,0,0,'燃烧军团必将碾碎你们！',14,0,100,0,0,0,0,0,'阿兹加洛 - 开战'),
+(120111,1,0,'又一个凡人倒下了！',14,0,100,0,0,0,0,0,'阿兹加洛 - 击杀'),
+(120111,2,0,'末日降临到你们头上！',14,0,100,0,0,0,0,0,'阿兹加洛 - 末日诅咒'),
+(120111,3,0,'%s 进入了狂暴状态！',16,0,100,0,0,0,0,0,'阿兹加洛 - 狂暴'),
+(120111,4,0,'你们……将付出代价……',14,0,100,0,0,0,0,0,'阿兹加洛 - 死亡');

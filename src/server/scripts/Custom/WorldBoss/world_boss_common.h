@@ -60,6 +60,14 @@ constexpr uint32 NPC_WORLD_BOSS_MOROGRIM      = 120109; // 莫洛格里·踏潮�
 constexpr uint32 NPC_WORLD_BOSS_MURLOC        = 120514; // 潮行者潜伏者
 constexpr uint32 NPC_WORLD_BOSS_WATER_GLOBULE = 120515; // 水晶体
 
+// ---- 阿克蒙德（Archimonde，海加尔山之战复刻，83级） ----
+constexpr uint32 NPC_WORLD_BOSS_ARCHIMONDE                  = 120110; // 阿克蒙德（污染者）
+constexpr uint32 NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE         = 120516; // 阿克蒙德的毁灭之火
+constexpr uint32 NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT  = 120517; // 阿克蒙德的毁灭之火灵魂
+
+// ---- 阿兹加洛（Azgalor，海加尔山之战复刻，83级） ----
+constexpr uint32 NPC_WORLD_BOSS_AZGALOR = 120111; // 阿兹加洛
+
 // 判断 entry 是否为自定义世界BOSS本体（不含召唤物）。
 // 归属锁定与脱战距离只对本体生效，召唤物跟随本体仇恨，无需单独处理。
 constexpr bool IsWorldBossBodyEntry(uint32 entry)
@@ -68,7 +76,8 @@ constexpr bool IsWorldBossBodyEntry(uint32 entry)
         || entry == NPC_WORLD_BOSS_RAGNAROS || entry == NPC_WORLD_BOSS_BROODLORD
         || entry == NPC_WORLD_BOSS_SARTURA || entry == NPC_WORLD_BOSS_KURINNAXX
         || entry == NPC_WORLD_BOSS_SUPREMUS || entry == NPC_WORLD_BOSS_BLOODBOIL
-        || entry == NPC_WORLD_BOSS_LEOTHERAS || entry == NPC_WORLD_BOSS_MOROGRIM;
+        || entry == NPC_WORLD_BOSS_LEOTHERAS || entry == NPC_WORLD_BOSS_MOROGRIM
+        || entry == NPC_WORLD_BOSS_ARCHIMONDE || entry == NPC_WORLD_BOSS_AZGALOR;
 }
 
 // 世界BOSS脱战距离（码）：进入战斗后移动超过该距离即脱战，防止风筝拉脱。

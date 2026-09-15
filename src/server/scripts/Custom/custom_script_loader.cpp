@@ -29,6 +29,8 @@ void AddSC_boss_world_supremus();
 void AddSC_boss_world_bloodboil();
 void AddSC_boss_world_leotheras();
 void AddSC_boss_world_morogrim();
+void AddSC_boss_world_archimonde();
+void AddSC_boss_world_azgalor();
 void AddSC_world_boss_guard();
 // 账号银行：个人银行 / 账号银行切换 NPC
 void AddSC_npc_account_bank();
@@ -59,6 +61,10 @@ void AddCustomScripts()
     AddSC_boss_world_leotheras();
     // 世界BOSS：莫洛格里·踏潮者（Morogrim Tidewalker，毒蛇神殿复刻）
     AddSC_boss_world_morogrim();
+    // 世界BOSS：阿克蒙德（Archimonde，海加尔山之战复刻）
+    AddSC_boss_world_archimonde();
+    // 世界BOSS：阿兹加洛（Azgalor，海加尔山之战复刻）
+    AddSC_boss_world_azgalor();
     // 账号银行：个人银行 / 账号银行切换 NPC
     AddSC_npc_account_bank();
 }
