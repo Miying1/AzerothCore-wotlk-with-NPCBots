@@ -80,7 +80,11 @@ struct boss_world_kurinnaxx : public WorldBossGuardAI
             Position pos = target->GetPosition();
             if (GameObject* go = me->SummonGameObject(GO_SAND_TRAP, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(),
                     pos.GetOrientation(), 0.0f, 0.0f, 0.0f, 0.0f, 15))
+            {
                 _sandTraps.push_back({ go->GetGUID(), 5 });
+                // 首次启动/刷新沙陷阱计时器（EventMap 对同一事件去重，重复调度安全）。
+                events.ScheduleEvent(EVENT_SAND_TRAP_TICK, 1s);
+            }
         }
     }
 

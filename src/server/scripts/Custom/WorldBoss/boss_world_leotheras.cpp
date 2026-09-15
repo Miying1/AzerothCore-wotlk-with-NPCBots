@@ -418,6 +418,10 @@ class spell_world_boss_leotheras_insidious_whisper : public SpellScript
     {
         if (Unit* victim = GetCaster()->GetVictim())
             unitList.remove_if(Acore::ObjectGUIDCheck(victim->GetGUID(), true));
+
+        // 野外化：疯狂低语只作用于玩家。内心的恶灵仅对召唤者可见/可伤害，
+        // NPCBot 被选中后无法由其他玩家协助击杀心魔，故排除，避免其被疯狂吞噬魅惑。
+        unitList.remove_if([](WorldObject* obj) { return !obj->IsPlayer(); });
     }
 
     void Register() override

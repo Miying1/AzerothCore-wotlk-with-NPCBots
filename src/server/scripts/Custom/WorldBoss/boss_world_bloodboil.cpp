@@ -4,7 +4,7 @@
  * 复刻黑暗神庙·古尔图格·血沸的核心战斗逻辑，强度对齐 10 人奥杜尔（Ulduar 10N）。
  * 相比原版（Outland/BlackTemple/boss_bloodboil.cpp）：
  *  - 保留核心战斗：血沸（对最近 5 个目标的 DOT）、邪酸吐息、击退、弧光粉碎、迷惑打击，
- *    以及每 90 秒一次的邪能狂怒（随机非近战目标、转移仇恨、召唤邪能间歇泉）；
+ *    以及每 90 秒一次的邪能狂怒（随机非坦克目标、转移仇恨、召唤邪能间歇泉）；
  *  - 邪能间歇泉（120511）为自定义召唤物（继承 WorldBossSummonAI），由召唤物自身施放间歇泉伤害，
  *    使其伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
  *  - 血沸的目标筛选与击退减仇恨复用原版法术脚本（spell_gurtogg_bloodboil / spell_gurtogg_eject）。
@@ -119,7 +119,7 @@ struct boss_world_bloodboil : public WorldBossGuardAI
         return !who->IsImmunedToDamage(SPELL_SCHOOL_MASK_ALL) && !who->HasUnitState(UNIT_STATE_CONFUSED);
     }
 
-    // 邪能狂怒：随机非近战目标，转移仇恨并召唤邪能间歇泉。
+    // 邪能狂怒：随机非坦克玩家（withTank=false），转移仇恨并召唤邪能间歇泉。
     void CastFelRage()
     {
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true, false))

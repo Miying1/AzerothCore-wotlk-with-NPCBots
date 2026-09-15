@@ -166,13 +166,19 @@ struct boss_world_archimonde : public WorldBossGuardAI
     {
         Talk(SAY_DOOMFIRE);
 
+        float angle = frand(0.0f, 6.2831853f); // 2π 随机角度
         float x, y, z;
-        me->GetClosePoint(x, y, z, me->GetObjectSize(), 15.0f, frand(0.0f, 6.2831853f)); // 2π 随机角度
+        me->GetClosePoint(x, y, z, me->GetObjectSize(), 15.0f, angle);
 
-        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 27s))
+        // 毁灭之火灵魂生成时面向阿克蒙德（原版朝向），之后由自身 AI 转向并蔓延。
+        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, Position::NormalizeOrientation(angle + 3.1415927f), TEMPSUMMON_TIMED_DESPAWN, 27s))
         {
+            // 被动状态：避免野外环境下触发型召唤物（敌对阵营）主动攻击玩家。
+            doomfireSpirit->SetReactState(REACT_PASSIVE);
+
             if (Creature* doomfire = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 27s))
             {
+                doomfire->SetReactState(REACT_PASSIVE);
                 doomfire->GetMotionMaster()->MoveFollow(doomfireSpirit, 0.0f, 0.0f);
             }
         }
@@ -283,9 +289,8 @@ struct npc_world_boss_archimonde_doomfire : public WorldBossSummonAI
 
     void IsSummonedBy(WorldObject* /*summoner*/) override
     {
-        // 31945 为触发链入口（周期触发 31943->31944 火焰直伤），
-        // 预置施法记录以覆盖触发伤害时施法记录仍停留在 31945 的时序。
-        SetLastCastSpellId(SPELL_DOOMFIRE);
+        // 施放 31945 触发链入口（周期触发 31943->31944 火焰直伤），
+        // 伤害由 31943/31944 触发链提供，经本 AI 的 DamageDealt 按 31943/31944 缩放。
         DoCastSelf(SPELL_DOOMFIRE_SPAWN, true);
         DoCastSelf(SPELL_DOOMFIRE, true);
     }

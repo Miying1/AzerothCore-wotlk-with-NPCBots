@@ -75,10 +75,10 @@ struct npc_world_boss_illidan_parasitic_shadowfiend : public ScriptedAI
         me->SetCorpseDelay(2);
         me->SetReactState(REACT_DEFENSIVE);
 
+        // 野外化：SetInCombatWithZone 在野外地图不生效，切换主动后由 UpdateVictim 搜索附近敌对目标进战。
         scheduler.Schedule(2400ms, [this](TaskContext)
         {
             me->SetReactState(REACT_AGGRESSIVE);
-            me->SetInCombatWithZone();
         });
     }
 
@@ -116,7 +116,6 @@ struct npc_world_boss_illidan_blade : public ScriptedAI
         {
             me->SetCombatMovement(true);
             me->SetReactState(REACT_AGGRESSIVE);
-            me->SetInCombatWithZone();
         });
     }
 
@@ -144,7 +143,6 @@ struct npc_world_boss_illidan_flame : public WorldBossSummonAI
         scheduler.Schedule(2s, [this](TaskContext)
         {
             me->SetReactState(REACT_AGGRESSIVE);
-            me->SetInCombatWithZone();
         });
 
         // 烈焰冲击（40631）
@@ -187,7 +185,6 @@ struct npc_world_boss_illidan_shadow_demon : public ScriptedAI
     {
         me->SetCorpseDelay(2);
         me->SetReactState(REACT_AGGRESSIVE);
-        me->SetInCombatWithZone();
 
         scheduler.Schedule(2s, [this](TaskContext context)
         {

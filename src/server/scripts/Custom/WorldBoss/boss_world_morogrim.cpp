@@ -162,14 +162,20 @@ struct boss_world_morogrim : public WorldBossGuardAI
     }
 };
 
-// 潮行者潜伏者（召唤物）：普通近战，进入战斗后攻击附近玩家
+// 潮行者鱼人（召唤物）：普通近战，进入战斗后攻击附近玩家
 struct npc_world_boss_murloc : public WorldBossSummonAI
 {
     npc_world_boss_murloc(Creature* creature) : WorldBossSummonAI(creature) { }
 
-    void IsSummonedBy(WorldObject* /*summoner*/) override
+    void IsSummonedBy(WorldObject* summoner) override
     {
-        me->SetInCombatWithZone(); // 鱼人进入战斗，攻击附近玩家
+        // 野外化：SetInCombatWithZone 在野外地图不生效（CreatureAI::DoZoneInCombat 对非副本直接返回），
+        // 改为主动状态并显式攻击 BOSS 当前目标，其余目标由 UpdateVictim 兜底。
+        me->SetReactState(REACT_AGGRESSIVE);
+        if (summoner)
+            if (Unit* boss = summoner->ToUnit())
+                if (Unit* victim = boss->GetVictim())
+                    AttackStart(victim);
     }
 };
 

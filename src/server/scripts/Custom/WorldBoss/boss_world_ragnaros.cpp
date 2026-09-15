@@ -52,8 +52,8 @@ struct npc_world_boss_ragnaros_son_of_flame : public ScriptedAI
     void IsSummonedBy(WorldObject* /*summoner*/) override
     {
         me->SetCorpseDelay(2);
+        // 野外化：SetInCombatWithZone 在野外地图不生效，REACT_AGGRESSIVE 下由 UpdateVictim 搜索敌对目标进战。
         me->SetReactState(REACT_AGGRESSIVE);
-        me->SetInCombatWithZone();
     }
 
     void UpdateAI(uint32 diff) override

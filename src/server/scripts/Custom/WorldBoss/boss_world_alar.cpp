@@ -61,10 +61,11 @@ struct npc_world_boss_alar_ember : public ScriptedAI
         me->SetReactState(REACT_PASSIVE);
         DoCastSelf(SPELL_EMBER_BIRTH, true);
 
+        // 野外化：SetInCombatWithZone 在野外地图不生效（CreatureAI::DoZoneInCombat 对非副本直接返回），
+        // 改为切换主动状态后由 UpdateVictim 搜索附近敌对目标进战。
         scheduler.Schedule(3s, [this](TaskContext)
         {
             me->SetReactState(REACT_AGGRESSIVE);
-            me->SetInCombatWithZone();
         });
     }
 

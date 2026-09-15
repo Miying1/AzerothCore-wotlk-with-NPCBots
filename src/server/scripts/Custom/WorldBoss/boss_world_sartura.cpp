@@ -49,8 +49,8 @@ struct npc_world_boss_sartura_guard : public WorldBossSummonAI
     void IsSummonedBy(WorldObject*) override
     {
         me->SetCorpseDelay(2);
+        // 野外化：SetInCombatWithZone 在野外地图不生效，REACT_AGGRESSIVE 下由 UpdateVictim 搜索敌对目标进战。
         me->SetReactState(REACT_AGGRESSIVE);
-        me->SetInCombatWithZone();
     }
 
     void Reset() override
