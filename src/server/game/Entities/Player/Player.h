@@ -660,6 +660,13 @@ enum PlayerSlots
 
 #define INVENTORY_SLOT_BAG_0    255
 
+// 银行模式：个人银行（原版，角色维度）与账号银行（扩展，账号维度）切换
+enum BankMode : uint8
+{
+    BANK_MODE_PERSONAL           = 0,   // 个人银行（默认，角色私有）
+    BANK_MODE_ACCOUNT            = 1    // 账号银行（同账号所有角色共享）
+};
+
 enum EquipmentSlots                                         // 19 slots
 {
     EQUIPMENT_SLOT_START        = 0,
@@ -1299,8 +1306,11 @@ public:
     static bool IsBankPos(uint8 bag, uint8 slot);
     bool IsValidPos(uint16 pos, bool explicit_pos) { return IsValidPos(pos >> 8, pos & 255, explicit_pos); }
     bool IsValidPos(uint8 bag, uint8 slot, bool explicit_pos);
-    [[nodiscard]] uint8 GetBankBagSlotCount() const { return GetByteValue(PLAYER_BYTES_2, 2); }
-    void SetBankBagSlotCount(uint8 count) { SetByteValue(PLAYER_BYTES_2, 2, count); }
+    [[nodiscard]] uint8 GetBankBagSlotCount() const { return _bankMode == BANK_MODE_ACCOUNT ? _accountBankSlots : _personalBankSlots; }
+    void SetBankBagSlotCount(uint8 count);
+    // 账号银行扩展：模式查询与切换
+    [[nodiscard]] BankMode GetBankMode() const { return _bankMode; }
+    bool SwitchBankMode(BankMode newMode);
     [[nodiscard]] bool HasItemCount(uint32 item, uint32 count = 1, bool inBankAlso = false) const;
     bool HasItemFitToSpellRequirements(SpellInfo const* spellInfo, Item const* ignoreItem = nullptr) const;
     bool CanNoReagentCast(SpellInfo const* spellInfo) const;
@@ -2797,6 +2807,11 @@ protected:
     void _LoadAuras(PreparedQueryResult result, uint32 timediff);
     void _LoadGlyphAuras();
     void _LoadInventory(PreparedQueryResult result, uint32 timeDiff);
+    // 账号银行扩展：切换模式时按需加载个人银行 / 账号银行物品
+    void _LoadPersonalBank();
+    void _LoadAccountBank();
+    void _LoadBank(PreparedQueryResult result, ObjectGuid const& owner, bool accountBank);
+    void _UnloadBank();
     void _LoadMail(PreparedQueryResult mailsResult, PreparedQueryResult mailItemsResult);
     static Item* _LoadMailedItem(ObjectGuid const& playerGuid, Player* player, uint32 mailId, Mail* mail, Field* fields);
     void _LoadQuestStatus(PreparedQueryResult result);
@@ -2880,6 +2895,11 @@ protected:
 
     std::vector<Item*> m_itemUpdateQueue;
     bool m_itemUpdateQueueBlocked;
+
+    // 账号银行扩展：当前银行模式及两种模式各自的背包槽缓存
+    BankMode _bankMode;
+    uint8 _personalBankSlots;
+    uint8 _accountBankSlots;
 
     uint32 m_ExtraFlags;
 
@@ -3031,7 +3051,7 @@ private:
     InventoryResult CanStoreItem_InBag(uint8 bag, ItemPosCountVec& dest, ItemTemplate const* pProto, uint32& count, bool merge, bool non_specialized, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
     InventoryResult CanStoreItem_InInventorySlots(uint8 slot_begin, uint8 slot_end, ItemPosCountVec& dest, ItemTemplate const* pProto, uint32& count, bool merge, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const;
     Item* _StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool update);
-    Item* _LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint32 timeDiff, Field* fields);
+    Item* _LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint32 timeDiff, Field* fields, ObjectGuid const& owner);
 
     CinematicMgr _cinematicMgr;
 

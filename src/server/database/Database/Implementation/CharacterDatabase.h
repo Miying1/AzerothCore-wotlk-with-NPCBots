@@ -572,6 +572,16 @@ enum CharacterDatabaseStatements : uint32
     CHAR_SEL_NPCBOT_ACC_BOT_COUNT,
     // End NPCBot
 
+    // 账号银行扩展
+    CHAR_SEL_CHARACTER_BANK,                // 仅查询个人银行物品（切换模式时使用）
+    CHAR_SEL_ACCOUNT_BANK_ITEM,
+    CHAR_REP_ACCOUNT_BANK_ITEM,
+    CHAR_DEL_ACCOUNT_BANK_ITEM,
+    CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM,
+    CHAR_SEL_ACCOUNT_BANK_SLOTS,
+    CHAR_REP_ACCOUNT_BANK_SLOTS,
+    // End 账号银行扩展
+
     MAX_CHARACTERDATABASE_STATEMENTS
 };
 

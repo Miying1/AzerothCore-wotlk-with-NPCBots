@@ -89,6 +89,17 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SEL_CHARACTER_REPUTATION, "SELECT faction, standing, flags FROM character_reputation WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_INVENTORY, "SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, bag, slot, "
                      "item, itemEntry FROM character_inventory ci JOIN item_instance ii ON ci.item = ii.guid WHERE ci.guid = ? ORDER BY bag, slot", CONNECTION_ASYNC);
+    // 账号银行扩展：字段顺序与 CHAR_SEL_CHARACTER_INVENTORY 保持一致，便于复用 _LoadItem
+    PrepareStatement(CHAR_SEL_CHARACTER_BANK, "SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, bag, slot, "
+                     "item, itemEntry FROM character_inventory ci JOIN item_instance ii ON ci.item = ii.guid WHERE ci.guid = ? AND (ci.bag = 0 AND ci.slot >= 39 AND ci.slot < 74 "
+                     "OR ci.bag IN (SELECT item FROM character_inventory WHERE guid = ? AND bag = 0 AND slot >= 67 AND slot < 74)) ORDER BY bag, slot", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_ACCOUNT_BANK_ITEM, "SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, bag, slot, "
+                     "item, itemEntry FROM account_bank_item abi JOIN item_instance ii ON abi.item = ii.guid WHERE abi.account_id = ? ORDER BY bag, slot", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_ACCOUNT_BANK_ITEM, "REPLACE INTO account_bank_item (account_id, bag, slot, item) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ACCOUNT_BANK_ITEM, "DELETE FROM account_bank_item WHERE account_id = ? AND bag = ? AND slot = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM, "DELETE FROM account_bank_item WHERE item = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_BANK_SLOTS, "SELECT slot_count FROM account_bank_slots WHERE account_id = ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_ACCOUNT_BANK_SLOTS, "REPLACE INTO account_bank_slots (account_id, slot_count) VALUES (?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_ACTIONS, "SELECT a.button, a.action, a.type FROM character_action as a, characters as c WHERE a.guid = c.guid AND a.spec = c.activeTalentGroup AND a.guid = ? ORDER BY button", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_MAILCOUNT_UNREAD, "SELECT COUNT(id) FROM mail WHERE receiver = ? AND (checked & 1) = 0 AND deliver_time <= ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_MAILCOUNT_UNREAD_SYNCH, "SELECT COUNT(id) FROM mail WHERE receiver = ? AND (checked & 1) = 0 AND deliver_time <= ?", CONNECTION_SYNCH);

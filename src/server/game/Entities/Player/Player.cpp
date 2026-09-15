@@ -212,6 +212,11 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
 
     memset(m_items, 0, sizeof(Item*)*PLAYER_SLOTS_COUNT);
 
+    // 账号银行扩展：默认个人银行模式
+    _bankMode = BANK_MODE_PERSONAL;
+    _personalBankSlots = 0;
+    _accountBankSlots = 0;
+
     m_social = nullptr;
 
     // group is initialized in the reference constructor
@@ -15419,7 +15424,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, GetByteValue(PLAYER_BYTES, 2));
         stmt->SetData(index++, GetByteValue(PLAYER_BYTES, 3));
         stmt->SetData(index++, GetByteValue(PLAYER_BYTES_2, 0));
-        stmt->SetData(index++, GetByteValue(PLAYER_BYTES_2, 2));
+        // 账号银行扩展：characters.bankSlots 始终存个人银行槽数，避免账号银行槽数污染个人银行
+        stmt->SetData(index++, _personalBankSlots);
         stmt->SetData(index++, GetByteValue(PLAYER_BYTES_2, 3));
         stmt->SetData(index++, GetPlayerFlags());
 

@@ -2124,6 +2124,17 @@ InventoryResult Player::CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest
     if (!pProto)
         return swap ? EQUIP_ERR_ITEMS_CANT_BE_SWAPPED : EQUIP_ERR_ITEM_NOT_FOUND;
 
+    // 账号银行扩展：账号银行按物品等级限制存入（个人银行不受限制，加载过程跳过校验）
+    if (_bankMode == BANK_MODE_ACCOUNT && !m_itemUpdateQueueBlocked)
+    {
+        uint32 maxItemLevel = sConfigMgr->GetOption<uint32>("AccountBank.MaxItemLevel", 232);
+        if (pProto->ItemLevel > maxItemLevel)
+        {
+            ChatHandler(GetSession()).SendNotification("物品等级 {} 超过账号银行上限 {}，无法存入账号银行", pProto->ItemLevel, maxItemLevel);
+            return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+        }
+    }
+
     // Xinef: Removed next loot generated check
     if (pItem->GetGUID() == GetLootGUID())
         return EQUIP_ERR_ALREADY_LOOTED;
@@ -2721,8 +2732,18 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
         {
             m_items[slot] = pItem;
             SetGuidValue(PLAYER_FIELD_INV_SLOT_HEAD + (slot * 2), pItem->GetGUID());
-            pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetGUID());
-            pItem->SetGuidValue(ITEM_FIELD_OWNER, GetGUID());
+
+            // 账号银行扩展：银行顶层槽位物品归属置空（owner=0），与公会银行一致；个人银行保持原样
+            if (IsBankPos(INVENTORY_SLOT_BAG_0, slot) && _bankMode == BANK_MODE_ACCOUNT)
+            {
+                pItem->SetGuidValue(ITEM_FIELD_CONTAINED, ObjectGuid::Empty);
+                pItem->SetGuidValue(ITEM_FIELD_OWNER, ObjectGuid::Empty);
+            }
+            else
+            {
+                pItem->SetGuidValue(ITEM_FIELD_CONTAINED, GetGUID());
+                pItem->SetGuidValue(ITEM_FIELD_OWNER, GetGUID());
+            }
 
             pItem->SetSlot(slot);
             pItem->SetContainer(nullptr);
@@ -5101,6 +5122,15 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     SetByteValue(PLAYER_BYTES_2, 0, fields[13].Get<uint8>());
     SetByteValue(PLAYER_BYTES_2, 2, fields[14].Get<uint8>());
     SetByteValue(PLAYER_BYTES_2, 3, fields[15].Get<uint8>());
+
+    // 账号银行扩展：缓存个人银行槽数，并同步读取账号银行槽数
+    _personalBankSlots = fields[14].Get<uint8>();
+    CharacterDatabasePreparedStatement* accountBankSlotsStmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BANK_SLOTS);
+    accountBankSlotsStmt->SetData(0, GetSession()->GetAccountId());
+    if (PreparedQueryResult accountBankSlotsResult = CharacterDatabase.Query(accountBankSlotsStmt))
+        _accountBankSlots = (*accountBankSlotsResult)[0].Get<uint8>();
+    else
+        _accountBankSlots = 0;
     SetByteValue(PLAYER_BYTES_3, 0, fields[5].Get<uint8>());
     SetByteValue(PLAYER_BYTES_3, 1, fields[54].Get<uint8>());
     ReplaceAllPlayerFlags((PlayerFlags)fields[16].Get<uint32>());
@@ -5957,7 +5987,7 @@ void Player::_LoadInventory(PreparedQueryResult result, uint32 timeDiff)
         do
         {
             Field* fields = result->Fetch();
-            if (Item* item = _LoadItem(trans, zoneId, timeDiff, fields))
+            if (Item* item = _LoadItem(trans, zoneId, timeDiff, fields, GetGUID()))
             {
                 ObjectGuid::LowType bagGuid  = fields[11].Get<uint32>();
                 uint8  slot     = fields[12].Get<uint8>();
@@ -6067,7 +6097,227 @@ void Player::_LoadInventory(PreparedQueryResult result, uint32 timeDiff)
     _ApplyAllItemMods();
 }
 
-Item* Player::_LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint32 timeDiff, Field* fields)
+// 账号银行扩展：设置银行背包槽数，按当前模式同步更新对应缓存与客户端显示字段
+void Player::SetBankBagSlotCount(uint8 count)
+{
+    SetByteValue(PLAYER_BYTES_2, 2, count);
+    if (_bankMode == BANK_MODE_ACCOUNT)
+        _accountBankSlots = count;
+    else
+        _personalBankSlots = count;
+}
+
+// 账号银行扩展：切换银行模式（个人银行 <-> 账号银行）
+bool Player::SwitchBankMode(BankMode mode)
+{
+    // 目标模式与当前一致，无需切换
+    if (_bankMode == mode)
+        return true;
+
+    // 1. 保存当前银行未落库的改动（按当前 _bankMode 写对应表）
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    _SaveInventory(trans);
+    CharacterDatabase.CommitTransaction(trans);
+
+    // 2. 卸载当前银行（客户端销毁 + 释放内存，数据已由第 1 步持久化）
+    _UnloadBank();
+
+    // 3. 切换模式并按目标模式加载对应银行到 m_items[39~74]
+    _bankMode = mode;
+    if (mode == BANK_MODE_PERSONAL)
+        _LoadPersonalBank();
+    else
+        _LoadAccountBank();
+
+    // 4. 刷新背包槽数显示（客户端依赖 PLAYER_BYTES_2 第 2 字节）
+    SetByteValue(PLAYER_BYTES_2, 2, GetBankBagSlotCount());
+
+    return true;
+}
+
+// 账号银行扩展：卸载当前银行（客户端销毁 + 释放内存，不删 DB）
+void Player::_UnloadBank()
+{
+    // 清理物品在本玩家身上的副作用引用（附魔持续时间 / 限时 / 灵魂绑定可交易 / 可退款），
+    // 避免 delete 后残留悬空指针。这里仅清内存引用，不删 DB 数据（物品数据已由 _SaveInventory
+    // 持久化，切换模式后可按需重新加载）。
+    auto cleanupItemRefs = [this](Item* item)
+    {
+        RemoveTradeableItem(item);
+        RemoveEnchantmentDurationsReferences(item);
+        RemoveItemDurations(item);
+        DeleteRefundReference(item->GetGUID());
+    };
+
+    // 卸载顶层银行槽位（物品槽 39~66 + 背包槽 67~73）
+    for (uint8 slot = BANK_SLOT_ITEM_START; slot < BANK_SLOT_BAG_END; ++slot)
+    {
+        Item* item = m_items[slot];
+        if (!item)
+            continue;
+
+        // 银行背包：递归卸载内部物品（客户端销毁 + 释放内存，并清空背包槽避免 Bag 析构 double free）
+        if (Bag* pBag = item->ToBag())
+        {
+            for (uint8 i = 0; i < MAX_BAG_SIZE; ++i)
+            {
+                Item* innerItem = pBag->GetItemByPos(i);
+                if (!innerItem)
+                    continue;
+
+                pBag->RemoveItem(i, false);
+                innerItem->RemoveFromUpdateQueueOf(this);
+                if (innerItem->IsInWorld())
+                {
+                    innerItem->RemoveFromWorld();
+                    innerItem->DestroyForPlayer(this);
+                }
+                cleanupItemRefs(innerItem);
+                delete innerItem;
+            }
+        }
+
+        // 卸载顶层物品/背包
+        RemoveItem(INVENTORY_SLOT_BAG_0, slot, false);
+        item->RemoveFromUpdateQueueOf(this);
+        if (item->IsInWorld())
+        {
+            item->RemoveFromWorld();
+            item->DestroyForPlayer(this);
+        }
+        cleanupItemRefs(item);
+        delete item;
+    }
+}
+
+// 账号银行扩展：从 character_inventory 同步加载个人银行物品（仅银行部分）
+void Player::_LoadPersonalBank()
+{
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_BANK);
+    stmt->SetData(0, GetGUID().GetRawValue());
+    stmt->SetData(1, GetGUID().GetRawValue());
+    PreparedQueryResult result = CharacterDatabase.Query(stmt);
+    _LoadBank(result, GetGUID(), false);
+}
+
+// 账号银行扩展：从 account_bank_item 同步加载账号银行物品（owner 置空）
+void Player::_LoadAccountBank()
+{
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_ACCOUNT_BANK_ITEM);
+    stmt->SetData(0, GetSession()->GetAccountId());
+    PreparedQueryResult result = CharacterDatabase.Query(stmt);
+    _LoadBank(result, ObjectGuid::Empty, true);
+}
+
+// 账号银行扩展：加载银行物品到 m_items[39~74]（切换模式时复用）
+void Player::_LoadBank(PreparedQueryResult result, ObjectGuid const& owner, bool accountBank)
+{
+    if (!result)
+        return;
+
+    uint32 zoneId = GetZoneId();
+
+    std::map<ObjectGuid::LowType, Bag*> bagMap;                 // 背包 GUID -> Bag 指针（先加载背包再装内部物品）
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+    // 加载期间阻止物品进入更新队列
+    m_itemUpdateQueueBlocked = true;
+    do
+    {
+        Field* fields = result->Fetch();
+        if (Item* item = _LoadItem(trans, zoneId, 0, fields, owner))
+        {
+            ObjectGuid::LowType bagGuid = fields[11].Get<uint32>();
+            uint8 slot = fields[12].Get<uint8>();
+
+            uint8 err = EQUIP_ERR_OK;
+            if (!bagGuid)
+            {
+                // 仅处理银行顶层槽位（39~74）；装备/主背包/普通背包登录时已加载，此处跳过
+                if (!IsBankPos(INVENTORY_SLOT_BAG_0, slot))
+                {
+                    delete item;
+                    continue;
+                }
+
+                item->SetContainer(nullptr);
+                item->SetSlot(slot);
+
+                ItemPosCountVec dest;
+                err = CanBankItem(INVENTORY_SLOT_BAG_0, slot, dest, item, false, false);
+                if (err == EQUIP_ERR_OK)
+                    item = BankItem(dest, item, true);
+            }
+            else
+            {
+                // 银行背包内部物品
+                item->SetSlot(NULL_SLOT);
+                std::map<ObjectGuid::LowType, Bag*>::iterator itr = bagMap.find(bagGuid);
+                if (itr == bagMap.end())
+                {
+                    // 账号银行：无效背包属于数据损坏，报错并清理；个人银行：普通背包内部物品登录时已加载，静默跳过
+                    if (accountBank)
+                    {
+                        LOG_ERROR("entities.player", "Player::_LoadBank: player ({}, name: '{}') has account bank item ({}, entry: {}) which doesnt have a valid bag (Bag GUID: {}, slot: {}). Deleting.",
+                                  GetGUID().ToString(), GetName(), item->GetGUID().ToString(), item->GetEntry(), bagGuid, slot);
+                        item->DeleteFromInventoryDB(trans);
+                        CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
+                        delStmt->SetData(0, item->GetGUID().GetCounter());
+                        trans->Append(delStmt);
+                    }
+                    delete item;
+                    continue;
+                }
+
+                ItemPosCountVec dest;
+                err = CanStoreItem(itr->second->GetSlot(), slot, dest, item);
+                if (err == EQUIP_ERR_OK)
+                    item = StoreItem(dest, item, true);
+            }
+
+            // 记录银行背包（顶层背包槽 67~74），供内部物品查找
+            if (err == EQUIP_ERR_OK)
+            {
+                if (IsBagPos(item->GetPos()))
+                    if (Bag* pBag = item->ToBag())
+                        bagMap[item->GetGUID().GetCounter()] = pBag;
+            }
+
+            if (err == EQUIP_ERR_OK)
+                item->SetState(ITEM_UNCHANGED, this);
+            else
+            {
+                LOG_ERROR("entities.player", "Player::_LoadBank: player ({}, name: '{}') has item ({}, entry: {}) which can't be loaded into bank (Bag GUID: {}, slot: {}) by reason {}.",
+                          GetGUID().ToString(), GetName(), item->GetGUID().ToString(), item->GetEntry(), bagGuid, slot, err);
+                item->DeleteFromInventoryDB(trans);
+                if (accountBank)
+                {
+                    CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
+                    delStmt->SetData(0, item->GetGUID().GetCounter());
+                    trans->Append(delStmt);
+                }
+                delete item;
+            }
+        }
+        else
+        {
+            // _LoadItem 返回 nullptr：物品无效或已被删除，清理账号银行表残留记录
+            if (accountBank)
+            {
+                ObjectGuid::LowType itemGuid = fields[13].Get<uint32>();
+                CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
+                delStmt->SetData(0, itemGuid);
+                trans->Append(delStmt);
+            }
+        }
+    } while (result->NextRow());
+
+    m_itemUpdateQueueBlocked = false;
+    CharacterDatabase.CommitTransaction(trans);
+    _ApplyAllItemMods();
+}
+
+Item* Player::_LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint32 timeDiff, Field* fields, ObjectGuid const& owner)
 {
     Item* item = nullptr;
     ObjectGuid::LowType itemGuid  = fields[13].Get<uint32>();
@@ -6076,7 +6326,7 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint3
     {
         bool remove = false;
         item = NewItemOrBag(proto);
-        if (item->LoadFromDB(itemGuid, GetGUID(), fields, itemEntry))
+        if (item->LoadFromDB(itemGuid, owner, fields, itemEntry))
         {
             CharacterDatabasePreparedStatement* stmt = nullptr;
 
@@ -7521,15 +7771,45 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
         {
             case ITEM_NEW:
             case ITEM_CHANGED:
-                stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_INVENTORY_ITEM);
-                stmt->SetData(0, guid);
-                stmt->SetData(1, bag_guid);
-                stmt->SetData (2, item->GetSlot());
-                stmt->SetData(3, item->GetGUID().GetCounter());
-                trans->Append(stmt);
+            {
+                // 账号银行扩展：银行物品按当前模式分流写入对应表，并清理另一张表的跨表残留
+                bool isAccountBankItem = (_bankMode == BANK_MODE_ACCOUNT && IsBankPos(item->GetBagSlot(), item->GetSlot()));
+                if (isAccountBankItem)
+                {
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_BANK_ITEM);
+                    stmt->SetData(0, GetSession()->GetAccountId());
+                    stmt->SetData(1, bag_guid);
+                    stmt->SetData(2, item->GetSlot());
+                    stmt->SetData(3, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+
+                    // 物品从个人库存/背包移入账号银行，清理旧表残留
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INVENTORY_BY_ITEM);
+                    stmt->SetData(0, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+                }
+                else
+                {
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_INVENTORY_ITEM);
+                    stmt->SetData(0, guid);
+                    stmt->SetData(1, bag_guid);
+                    stmt->SetData(2, item->GetSlot());
+                    stmt->SetData(3, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+
+                    // 物品从账号银行取出到个人库存，清理账号银行表残留
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
+                    stmt->SetData(0, item->GetGUID().GetCounter());
+                    trans->Append(stmt);
+                }
                 break;
+            }
             case ITEM_REMOVED:
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INVENTORY_BY_ITEM);
+                stmt->SetData(0, item->GetGUID().GetCounter());
+                trans->Append(stmt);
+                // 账号银行扩展：同时清理账号银行表残留
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
                 stmt->SetData(0, item->GetGUID().GetCounter());
                 trans->Append(stmt);
             case ITEM_UNCHANGED:

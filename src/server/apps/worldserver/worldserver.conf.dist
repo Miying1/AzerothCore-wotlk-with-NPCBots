@@ -3659,6 +3659,15 @@ Guild.BankTabCost4 = 25000000
 Guild.BankTabCost5 = 50000000
 
 #
+#    AccountBank.MaxItemLevel
+#        Description: Maximum item level allowed to be deposited into the account bank.
+#                     Items with item level above this value can not be stored in the
+#                     account bank. The personal bank is not affected by this limit.
+#        Default:     232
+
+AccountBank.MaxItemLevel = 232
+
+#
 #    Guild.MemberLimit
 #        Description: Do not allow inviting new players to the guild if the member limit is met or exceeded.
 #        Default:     0 - Disabled

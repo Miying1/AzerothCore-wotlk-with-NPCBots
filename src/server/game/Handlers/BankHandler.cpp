@@ -16,6 +16,7 @@
  */
 
 #include "BankPackets.h"
+#include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "Item.h"
 #include "Log.h"
@@ -176,6 +177,15 @@ void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyB
 
     _player->SetBankBagSlotCount(slot);
     _player->ModifyMoney(-int32(price));
+
+    // 账号银行扩展：账号银行背包槽数持久化到账号表（个人银行仍存于 characters 表，由 SaveToDB 落库）
+    if (_player->GetBankMode() == BANK_MODE_ACCOUNT)
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_ACCOUNT_BANK_SLOTS);
+        stmt->SetData(0, GetAccountId());
+        stmt->SetData(1, uint8(slot));
+        CharacterDatabase.Execute(stmt);
+    }
 
     packet.Result = ERR_BANKSLOT_OK;
     SendPacket(packet.Write());
