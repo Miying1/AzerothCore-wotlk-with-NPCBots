@@ -21,12 +21,12 @@ UPDATE `quest_template` SET `RewardItem1` = 47241, `RewardAmount1` = 5  WHERE `I
 -- ---------- 三、恢复寒冰纹章掉落 ----------
 DELETE FROM `disables` WHERE `sourceType` = 10 AND `entry` = 49426;
 
--- ---------- 四、恢复被剥离的寒冰纹章任务奖励（20 个，原值已核对）----------
--- 槽位2 的 47241 当时未被改动，无需恢复
+-- ---------- 四、恢复被降级的任务奖励纹章（20 个，原值已核对）----------
+-- 撤销第四部分的降级：凯旋纹章(47241) -> 冰霜纹章(49426)，征服纹章(45624) -> 凯旋纹章(47241)，数量不变
 UPDATE `quest_template` SET `RewardItem1` = 49426, `RewardAmount1` = 2  WHERE `ID` IN (24499, 24500, 24511, 24710, 24712, 24802);
-UPDATE `quest_template` SET `RewardItem1` = 49426, `RewardAmount1` = 5  WHERE `ID` BETWEEN 24579 AND 24590;
-UPDATE `quest_template` SET `RewardItem1` = 49426, `RewardAmount1` = 5  WHERE `ID` = 26034;
+UPDATE `quest_template` SET `RewardItem1` = 49426, `RewardAmount1` = 5  WHERE `ID` IN (24579, 24580, 24581, 24582, 24583, 24584, 24585, 24586, 24587, 24588, 24589, 24590, 26034);
 UPDATE `quest_template` SET `RewardItem1` = 49426, `RewardAmount1` = 10 WHERE `ID` = 65000;
+UPDATE `quest_template` SET `RewardItem2` = 47241, `RewardAmount2` = 5  WHERE `ID` IN (24579, 24580, 24581, 24582, 24583, 24584, 24585, 24586, 24587, 24588, 24589, 24590);
 
 -- ---------- 五、恢复寒冰纹章军需官 ----------
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` IN (37941, 37942, 38858);

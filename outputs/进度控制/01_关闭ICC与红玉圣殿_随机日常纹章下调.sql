@@ -25,13 +25,11 @@ UPDATE `dungeon_access_template` SET `min_level` = 81 WHERE `map_id` IN (631, 72
 --   24789  47241 凯旋纹章 x8  (槽2) -> 45624 征服纹章 x8
 --   24790  47241 凯旋纹章 x15 (槽1) -> 45624 征服纹章 x15
 --   24791  47241 凯旋纹章 x5  (槽1) -> 45624 征服纹章 x5
--- 用 CASE 一次完成，避免 49426 先变成 47241、随后又被二次降级成 45624
-UPDATE `quest_template`
-SET `RewardItem1` = CASE `RewardItem1` WHEN 49426 THEN 47241 WHEN 47241 THEN 45624 ELSE `RewardItem1` END,
-    `RewardItem2` = CASE `RewardItem2` WHEN 49426 THEN 47241 WHEN 47241 THEN 45624 ELSE `RewardItem2` END,
-    `RewardItem3` = CASE `RewardItem3` WHEN 49426 THEN 47241 WHEN 47241 THEN 45624 ELSE `RewardItem3` END,
-    `RewardItem4` = CASE `RewardItem4` WHEN 49426 THEN 47241 WHEN 47241 THEN 45624 ELSE `RewardItem4` END
-WHERE `ID` IN (24788, 24789, 24790, 24791);
+-- 精准 ID 匹配，逐条显式设置物品与数量（数量保持不变）
+UPDATE `quest_template` SET `RewardItem1` = 47241, `RewardAmount1` = 12 WHERE `ID` = 24788;
+UPDATE `quest_template` SET `RewardItem2` = 45624, `RewardAmount2` = 8  WHERE `ID` = 24789;
+UPDATE `quest_template` SET `RewardItem1` = 45624, `RewardAmount1` = 15 WHERE `ID` = 24790;
+UPDATE `quest_template` SET `RewardItem1` = 45624, `RewardAmount1` = 5  WHERE `ID` = 24791;
 
 -- ---------- 三、寒冰纹章(49426)不再掉落 ----------
 -- 命中 LootMgr::AllowedForPlayer，该物品会被从所有掉落中过滤掉：
@@ -40,13 +38,14 @@ DELETE FROM `disables` WHERE `sourceType` = 10 AND `entry` = 49426;
 INSERT INTO `disables` (`sourceType`, `entry`, `flags`, `params_0`, `params_1`, `comment`) VALUES
 (10, 49426, 0, '', '', 'Emblem of Frost 暂时不掉落');
 
--- ---------- 四、剥离其余任务奖励中的寒冰纹章（20 个任务，均在槽位1）----------
--- 必须放在第二步之后：第二步已把 24788 的 49426 换成 47241，这里不会再命中它
--- 只清奖励、不禁任务，避免破坏地下城准入链（24499/24511/24710/24712 是萨隆矿坑/映像大厅的前置）
-UPDATE `quest_template` SET `RewardItem1` = 0, `RewardAmount1` = 0 WHERE `RewardItem1` = 49426;
-UPDATE `quest_template` SET `RewardItem2` = 0, `RewardAmount2` = 0 WHERE `RewardItem2` = 49426;
-UPDATE `quest_template` SET `RewardItem3` = 0, `RewardAmount3` = 0 WHERE `RewardItem3` = 49426;
-UPDATE `quest_template` SET `RewardItem4` = 0, `RewardAmount4` = 0 WHERE `RewardItem4` = 49426;
+-- ---------- 四、其余任务奖励纹章降级（20 个任务）----------
+-- 冰霜纹章(49426) -> 凯旋纹章(47241)，凯旋纹章(47241) -> 征服纹章(45624)，数量不变
+-- 只降奖励、不禁任务，避免破坏地下城准入链（24499/24511/24710/24712 是萨隆矿坑/映像大厅的前置）
+-- 精准 ID 匹配，逐组显式设置物品与数量（数量保持不变）
+UPDATE `quest_template` SET `RewardItem1` = 47241, `RewardAmount1` = 2  WHERE `ID` IN (24499, 24500, 24511, 24710, 24712, 24802);
+UPDATE `quest_template` SET `RewardItem1` = 47241, `RewardAmount1` = 5  WHERE `ID` IN (24579, 24580, 24581, 24582, 24583, 24584, 24585, 24586, 24587, 24588, 24589, 24590, 26034);
+UPDATE `quest_template` SET `RewardItem1` = 47241, `RewardAmount1` = 10 WHERE `ID` = 65000;
+UPDATE `quest_template` SET `RewardItem2` = 45624, `RewardAmount2` = 5  WHERE `ID` IN (24579, 24580, 24581, 24582, 24583, 24584, 24585, 24586, 24587, 24588, 24589, 24590);
 
 -- ---------- 五、关闭寒冰纹章军需官的商品 ----------
 -- 37941 博学者亚兰 / 37942 秘法师乌弗瑞 / 38858 『关闭者』古德曼（共 390 条商品）

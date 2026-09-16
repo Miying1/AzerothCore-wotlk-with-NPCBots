@@ -92,8 +92,8 @@ void ChallengeDifficulty::LoadIntiData()
     {
         LOG_ERROR("module", "zone_diffculty_activemap: Query error");
     }
-    //挑战难度等级
-    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score,award1,award2,award3  FROM zone_difficulty_level"))
+    //挑战难度等级（status=1 表示该挑战等级启用，0 表示禁用）
+    if (QueryResult result = WorldDatabase.Query("SELECT difflevel,enhance,diff_player,global_spell_num,boss_score,award1,award2,award3  FROM zone_difficulty_level WHERE status = 1"))
     {
         do
         {
