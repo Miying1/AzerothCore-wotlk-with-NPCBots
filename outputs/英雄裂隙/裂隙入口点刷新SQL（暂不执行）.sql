@@ -95,45 +95,87 @@ CREATE TABLE IF NOT EXISTS `heroic_dungeon_rift_schedule` (
 -- ============================================================================
 -- 4. 三档入口生物模板（外观复用虚空幽龙三色虚空门）
 --    三个模板全部使用显式字面量，不再从 17367/17368/17369 复制字段，
---    避免把虚空幽龙（Netherspite）专用的非默认值（HealthModifier 0.007、
---    CreatureImmunitiesId 128 等）带进来；未列出的列一律使用表默认值。
+--    避免把虚空幽龙（Netherspite）专用的非默认值带进来，例如：
+--      unit_flags=33554496（含 UNIT_FLAG_NOT_SELECTABLE 0x02000000）、
+--      flags_extra=128（CREATURE_FLAG_EXTRA_TRIGGER，触发器）、
+--      HealthModifier=0.007、CreatureImmunitiesId=128 等。
 --    关键取值：faction=35（友好，玩家无法攻击）、npcflag=1（可对话）、
---             unit_flags/unit_flags2=0（可选可点）、flags_extra=0（非触发器不隐藏）、
+--             unit_flags/unit_flags2/dynamicflags=0（可选可点）、
+--             type_flags/flags_extra=0（非触发器、不隐藏、不免疫）、
+--             family/VehicleId/PetSpellDataId=0（非宠物、非载具）、
 --             type=10（NOT_SPECIFIED，非生物物件）、AIName=''（无 AI，原地不动）、
 --             ScriptName=npc_rift_portal。
---    模型统一使用较大的共享门体 16946（原有 Idx=0 分色模型体积过小、不便点击），
---    三档颜色与特效完全由 C++ 生成时附加的门体光环决定：T1=30490(绿)，T2=30491(蓝)，T3=30487(红)。
+--    交互硬性要求（否则右键完全没反应、客户端连对话光标都不给）：
+--      * unit_flags 绝不能带 UNIT_FLAG_NOT_SELECTABLE(0x02000000)；
+--      * flags_extra 绝不能带 CREATURE_FLAG_EXTRA_TRIGGER(0x80)，否则核心会在
+--        Creature::Create 里强制把生物追加为不可选，且对玩家不可见。
+--    因此下面把所有可能影响“可选/可点/可交互”的标志列显式写成 0，不依赖表默认值。
+--    模型与缩放：@RIFT_ENTRANCE_MODEL_T1/T2/T3 分别是三档的 displayID（当前同为 25683
+--    元素裂隙 / 28452 Elemental Rift）；@RIFT_ENTRANCE_SCALE 是模型放大倍数，默认 1。
+--    远程辨识度主要靠“放大倍数 + visibilityDistanceType=3”。
+--    注意最终尺寸 = CreatureDisplayInfo.CreatureModelScale × 本变量：
+--      25683 自带 CreatureModelScale=3（16946 是 2），所以这里给 1 已经比原来(2×1.3)略大，
+--      再往上加会成倍放大，配合 visibilityDistanceType=3 通常够用了。
+--    三档颜色：与模型无关，由 C++ 生成时附加的门体光环决定
+--    （T1=30490 绿，T2=30491 蓝，T3=30487 红），所以三档用同一个 displayID 照样分色。
+--    已核对客户端 CreatureDisplayInfo.dbc：25683 属于 ModelID 2411，其 7 个 display
+--    (18402/18996/20011/20841/25683/27964/31069) 的 TextureVariation_1~3 全为空、
+--    ParticleColorID 全为 0，只是 CreatureModelScale 不同，即“同一皮肤、没有颜色变体”；
+--    传送门主模型族 ModelID 1731（11686/16946/19595/25206/17612... 数十个 display）
+--    与 ModelID 1271（9510/23422）也同样没有皮肤变体。原版卡拉赞三色虚空门本就是靠
+--    光环/法术视觉分色、不是靠模型皮肤，所以这里也只能靠光环分色。
+--    若要三档在远处更好区分，可给三档各设不同 @RIFT_ENTRANCE_SCALE（尺寸差），
+--    或直接换成形状本身不同的模型（如 T1=25206 虚空漩涡 / T2=18877 时光裂隙 / T3=23422 邪能门）。
+--    备选外观：下面这些都是库里现成的传送门类生物模型，可直接填进上述变量；
+--    进服可用 `.morph target <displayID>` 在已刷出的入口上即时预览（门体光环会一起叠加，
+--    正好能看出“该模型 + 该档颜色”的实际观感），`.morph reset` 还原，不用改库也不用重启。
+--      25683  元素裂隙（28452 Elemental Rift，当前默认）
+--      16946  虚空门拱门（19224 Void Portal / 20663，体量中等）
+--      11686  黑暗之门（18625 Dark Portal Dummy，体量最大、最显眼）
+--       9510  恶魔/虚空传送门漩涡（9707 焦痕传送门、14081 恶魔传送门、15141 疯狂之门、
+--              16420 暗影之门、17265 恶魔火传送门、24961 圣所裂隙）
+--      18877  时光裂隙（17838 Time Rift，青铜色漩涡）
+--      25206  混沌裂隙（26918 Chaotic Rift / 30522，虚空漩涡）
+--      23422  邪能火传送门（25603 Felfire Portal，绿色邪能）
+--      23719  沙塔斯传送门（26255 Shattrath Portal）
+--      18783  酋长之门（17611 Warchief's Portal）
+--      19595  太阳井/鸦神传送门（25156 / 23046）
 -- ============================================================================
 SET @RIFT_ENTRANCE_ENTRY_BASE := 100510;
-SET @RIFT_ENTRANCE_MODEL := 16946;
+SET @RIFT_ENTRANCE_MODEL_T1 := 25683;
+SET @RIFT_ENTRANCE_MODEL_T2 := 25683;
+SET @RIFT_ENTRANCE_MODEL_T3 := 25683;
+SET @RIFT_ENTRANCE_SCALE := 0.5;
 
 DELETE FROM `creature_template`
 WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
 INSERT INTO `creature_template` (
-  `entry`,`name`,`subname`,`exp`,`faction`,`npcflag`,`unit_class`,`unit_flags`,`unit_flags2`,`dynamicflags`,
+  `entry`,`name`,`subname`,`exp`,`faction`,`npcflag`,`unit_class`,
+  `unit_flags`,`unit_flags2`,`dynamicflags`,`type_flags`,`flags_extra`,
+  `family`,`VehicleId`,`PetSpellDataId`,
   `type`,`BaseAttackTime`,`RangeAttackTime`,`AIName`,`MovementType`,
-  `HealthModifier`,`CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`)
+  `HealthModifier`,`CreatureImmunitiesId`,`ScriptName`,`VerifiedBuild`)
 VALUES
-  (@RIFT_ENTRANCE_ENTRY_BASE + 0,'英雄裂隙 T1 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 1,'英雄裂隙 T2 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 2,'英雄裂隙 T3 入口','虚空之门',1,35,1,1,0,0,0,10,2000,2000,'',0,1,0,0,'npc_rift_portal',12340);
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,'T1裂隙','虚空之门',1,35,1,1,0,0,0,0,0,0,0,0,10,2000,2000,'',0,1,0,'npc_rift_portal',12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,'T2裂隙','虚空之门',1,35,1,1,0,0,0,0,0,0,0,0,10,2000,2000,'',0,1,0,'npc_rift_portal',12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,'T3裂隙','虚空之门',1,35,1,1,0,0,0,0,0,0,0,0,10,2000,2000,'',0,1,0,'npc_rift_portal',12340);
 
 DELETE FROM `creature_template_model`
 WHERE `CreatureID` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
 INSERT INTO `creature_template_model` (`CreatureID`,`Idx`,`CreatureDisplayID`,`DisplayScale`,`Probability`,`VerifiedBuild`)
 VALUES
-  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,@RIFT_ENTRANCE_MODEL,1,1,12340),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,@RIFT_ENTRANCE_MODEL,1,1,12340),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,@RIFT_ENTRANCE_MODEL,1,1,12340);
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,@RIFT_ENTRANCE_MODEL_T1,@RIFT_ENTRANCE_SCALE,1,12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,@RIFT_ENTRANCE_MODEL_T2,@RIFT_ENTRANCE_SCALE,1,12340),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,@RIFT_ENTRANCE_MODEL_T3,@RIFT_ENTRANCE_SCALE,1,12340);
 
 -- visibilityDistanceType=3（Large）：入口在较远处也能被看到，便于玩家寻找。
 DELETE FROM `creature_template_addon`
 WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
 INSERT INTO `creature_template_addon` (`entry`,`path_id`,`mount`,`bytes1`,`bytes2`,`emote`,`visibilityDistanceType`,`auras`)
 VALUES
-  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,0,0,0,0,3,NULL),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,0,0,0,0,3,NULL),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,0,0,0,0,3,NULL);
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,0,0,0,0,2,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,0,0,0,0,2,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,0,0,0,0,2,NULL);
 
 -- ============================================================================
 -- 5. 示例区域：暴风峭壁（The Storm Peaks）
@@ -179,7 +221,11 @@ VALUES
 -- ============================================================================
 -- 7. 审核查询
 -- ============================================================================
-SELECT `entry`,`name`,`subname`,`faction`,`npcflag`,`unit_flags`,`unit_flags2`,`flags_extra`,`ScriptName`
+-- 可选/可交互审核：unit_flags、unit_flags2、dynamicflags、type_flags、flags_extra、
+-- family、VehicleId、PetSpellDataId 必须全部为 0，faction=35，npcflag=1，ScriptName=npc_rift_portal。
+SELECT `entry`,`name`,`subname`,`faction`,`npcflag`,`unit_class`,
+       `unit_flags`,`unit_flags2`,`dynamicflags`,`type_flags`,`flags_extra`,
+       `family`,`VehicleId`,`PetSpellDataId`,`type`,`ScriptName`
 FROM `creature_template`
 WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2)
 ORDER BY `entry`;

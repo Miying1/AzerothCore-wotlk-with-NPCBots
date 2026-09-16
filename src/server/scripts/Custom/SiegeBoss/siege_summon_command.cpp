@@ -139,10 +139,16 @@ public:
             { "list", HandleMobPresetListCommand, rbac::RBAC_PERM_COMMAND_NPC_ADD, Console::No },
             { "",     HandleMobPresetCommand,     rbac::RBAC_PERM_COMMAND_NPC_ADD, Console::No }
         };
-        static ChatCommandTable commandTable =
+        // 注意：空名字命令只能出现在「非顶层」的具名命令下，作为该命令的默认处理器。
+        // 顶层命令必须全部有名字，否则 ChatCommandNode::LoadCommandsIntoMap 会直接断言崩溃。
+        static ChatCommandTable mobCommandTable =
         {
             { "preset", presetCommandTable },
             { "",       HandleMobSummonCommand, rbac::RBAC_PERM_COMMAND_NPC_ADD, Console::No }
+        };
+        static ChatCommandTable commandTable =
+        {
+            { "mob", mobCommandTable }
         };
         return commandTable;
     }

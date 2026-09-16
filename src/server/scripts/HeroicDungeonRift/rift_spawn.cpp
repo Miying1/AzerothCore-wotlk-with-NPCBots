@@ -629,6 +629,12 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     if (uint32 aura = GetEntranceAuraForTier(tier))
         creature->AddAura(aura, creature);
 
+    // 入口只做展示与对话，覆写服务端判定球：判定球取自 creature_model_info[displayID]
+    // 再乘模型缩放，大门类模型自带值偏大（25683 是 3/3，16946 是 1/2），不覆写会随
+    // 换模型把交互/点击范围一起放大。取值见 rift_defines.h 的 EntranceBoundingRadius/EntranceCombatReach。
+    creature->SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, EntranceBoundingRadius);
+    creature->SetFloatValue(UNIT_FIELD_COMBATREACH, EntranceCombatReach);
+
     EntranceEntry record;
     record.Token = _nextToken++;
     record.Guid = creature->GetGUID();

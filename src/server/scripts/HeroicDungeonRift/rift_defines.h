@@ -42,6 +42,12 @@ constexpr uint32 EntranceEntryTier3 = 100512; // 红
 constexpr uint32 EntranceAuraTier1 = 30490;
 constexpr uint32 EntranceAuraTier2 = 30491;
 constexpr uint32 EntranceAuraTier3 = 30487;
+// 入口只做展示与对话、不参与战斗，服务端判定球（bounding radius / combat reach）统一覆写。
+// 原因：判定球取自 creature_model_info[displayID] 再乘以模型缩放，不同外观差异极大
+// （25683 元素裂隙是 3/3，16946 虚空门是 1/2），不覆写会随换模型一起把交互范围放大。
+// 参考值：玩家 bounding radius = DEFAULT_WORLD_OBJECT_SIZE(0.389)，combat reach = 1.5。
+constexpr float EntranceBoundingRadius = 1.0f;
+constexpr float EntranceCombatReach = 1.5f;
 // 玩家进入裂隙后，入口停止提供对话并保留一段时间再移除。
 constexpr uint32 EntrancePurgeGraceMilliseconds = 5 * IN_MILLISECONDS;
 // 常规补充间隔：入口数量不低于最小值时，每隔该时间向最大值补齐一次。
