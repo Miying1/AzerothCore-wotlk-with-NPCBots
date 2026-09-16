@@ -80,8 +80,8 @@ public:
                 }
                 else
                 {
-                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 你当前的经验倍率为 {}。", player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
-                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 最大倍率限制为 {}。", individualXp.MaxRate);
+                    // 合并为一条信息，并附带命令使用说明
+                    ChatHandler(player->GetSession()).PSendSysMessage("[XP] 你当前的经验倍率为 {}，最大倍率限制为 {}。使用 .xp set 倍率 可修改（例如：.xp set 20）。", player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate, individualXp.MaxRate);
                 }
             }
         }
