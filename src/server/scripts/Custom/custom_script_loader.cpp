@@ -34,6 +34,10 @@ void AddSC_boss_world_azgalor();
 void AddSC_world_boss_guard();
 // 账号银行：个人银行 / 账号银行切换 NPC
 void AddSC_npc_account_bank();
+// 攻城BOSS：通用召唤命令（.mob <entry> [count] / .mob preset <id>）
+void AddSC_siege_summon_command();
+// 攻城BOSS：化身技能（判断 GUID 修改血量/伤害/模型/放大）
+void AddSC_real_boss_transform();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
@@ -67,4 +71,8 @@ void AddCustomScripts()
     AddSC_boss_world_azgalor();
     // 账号银行：个人银行 / 账号银行切换 NPC
     AddSC_npc_account_bank();
+    // 攻城BOSS：通用召唤命令
+    AddSC_siege_summon_command();
+    // 攻城BOSS：化身技能（判断 GUID 修改血量/伤害/模型/放大）
+    AddSC_real_boss_transform();
 }
