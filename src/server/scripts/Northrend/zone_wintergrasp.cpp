@@ -295,8 +295,8 @@ public:
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
-        if (!sWorld->getBoolConfig(CONFIG_MINIGOB_MANABONK))
-            return false;
+        // if (!sWorld->getBoolConfig(CONFIG_MINIGOB_MANABONK))
+        //     return false;
 
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());

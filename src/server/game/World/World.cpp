@@ -843,9 +843,16 @@ void World::SetInitialWorldSettings()
     // pussywizard:
     LOG_INFO("server.loading", "Deleting Invalid Mail Items...");
     LOG_INFO("server.loading", " ");
-    CharacterDatabase.Execute("DELETE mi FROM mail_items mi LEFT JOIN item_instance ii ON mi.item_guid = ii.guid WHERE ii.guid IS NULL");
-    CharacterDatabase.Execute("DELETE mi FROM mail_items mi LEFT JOIN mail m ON mi.mail_id = m.id WHERE m.id IS NULL");
-    CharacterDatabase.Execute("UPDATE mail m LEFT JOIN mail_items mi ON m.id = mi.mail_id SET m.has_items=0 WHERE m.has_items<>0 AND mi.mail_id IS NULL");
+    // 这三条语句都会锁 mail / mail_items / item_instance，且加锁顺序可能相反，
+    // 当 CharacterDatabase.WorkerThreads > 1 时会在异步线程间互相死锁（MySQL 1213）。
+    // 合并进同一事务后改为单连接顺序执行，并自动获得事务层的死锁重试。
+    {
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        trans->Append("DELETE mi FROM mail_items mi LEFT JOIN item_instance ii ON mi.item_guid = ii.guid WHERE ii.guid IS NULL");
+        trans->Append("DELETE mi FROM mail_items mi LEFT JOIN mail m ON mi.mail_id = m.id WHERE m.id IS NULL");
+        trans->Append("UPDATE mail m LEFT JOIN mail_items mi ON m.id = mi.mail_id SET m.has_items=0 WHERE m.has_items<>0 AND mi.mail_id IS NULL");
+        CharacterDatabase.CommitTransaction(trans);
+    }
 
     ///- Handle outdated emails (delete/return)
     LOG_INFO("server.loading", "Returning Old Mails...");
