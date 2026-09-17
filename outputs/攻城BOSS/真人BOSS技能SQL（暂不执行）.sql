@@ -2,12 +2,11 @@
 -- 真人BOSS：数据库表部分 SQL（暂不执行，先人工审阅）
 -- ---------------------------------------------------------------------
 -- 说明：
---   1. 技能本体（93001~93010）的 DBC 定义已改由独立 CSV 承载：
+--   1. 技能本体（93000~93005）的 DBC 定义已改由独立 CSV 承载：
 --        「真人BOSS技能_Spell.csv」（232 列，表头与 G:\wow\dbc_csv\Spell.csv 一致）
 --      因此本文件【不再重复定义技能】，只保留无法放进 DBC 的数据库表部分。
 --   2. 本文件包含：
---        - creature_template / creature_template_model ：召唤物
---        - spell_bonus_data                             ：锁定"固定伤害"（不吃法伤/攻强）
+--        - creature_template / creature_template_model ：召唤物（由 .mob 命令召唤）
 --   3. 个人掉落需要 C++ 脚本配合（见 src/server/scripts/Custom/SiegeBoss/real_boss_transform.cpp）。
 --   4. 召唤物模型请按需替换 creature_template_model 里的 CreatureDisplayID。
 -- 导入方式（手动）：mysql -u<用户> -p<密码> acore_world < "真人BOSS技能SQL（暂不执行）.sql"
@@ -15,7 +14,7 @@
 
 -- 【重要】若之前执行过"含 spell_dbc 的旧版本 SQL"，请先执行下面这行清理，
 -- 否则数据库里的 spell_dbc 记录会覆盖 DBC 文件中的同名技能。
--- DELETE FROM `spell_dbc` WHERE `ID` IN (93001,93002,93003,93004,93005,93006,93007,93009,93010);
+-- DELETE FROM `spell_dbc` WHERE `ID` IN (93000,93001,93002,93003,93004,93005);
 
 -- ---------------------------------------------------------------------
 -- 一、召唤物定义（creature_template + creature_template_model）
@@ -23,7 +22,7 @@
 DELETE FROM `creature_template` WHERE `entry` IN (910101,910102,910103);
 DELETE FROM `creature_template_model` WHERE `CreatureID` IN (910101,910102,910103);
 
--- 召唤物基础属性（80 级，faction=16 与 BOSS 同阵营，攻击其他玩家）
+-- 召唤物基础属性（80 级，faction=16 与 BOSS 同阵营，攻击其他玩家；由 .mob 命令召唤）
 INSERT INTO `creature_template`
 (`entry`,`difficulty_entry_1`,`difficulty_entry_2`,`difficulty_entry_3`,`KillCredit1`,`KillCredit2`,`name`,`subname`,`IconName`,`gossip_menu_id`,`minlevel`,`maxlevel`,`exp`,`faction`,`npcflag`,`speed_walk`,`speed_run`,`speed_swim`,`speed_flight`,`detection_range`,`rank`,`dmgschool`,`DamageModifier`,`BaseAttackTime`,`RangeAttackTime`,`BaseVariance`,`RangeVariance`,`unit_class`,`unit_flags`,`unit_flags2`,`dynamicflags`,`family`,`type`,`type_flags`,`lootid`,`pickpocketloot`,`skinloot`,`PetSpellDataId`,`VehicleId`,`mingold`,`maxgold`,`AIName`,`MovementType`,`HoverHeight`,`HealthModifier`,`ManaModifier`,`ArmorModifier`,`ExperienceModifier`,`RacialLeader`,`movementId`,`RegenHealth`,`CreatureImmunitiesId`,`flags_extra`,`ScriptName`,`VerifiedBuild`) VALUES
 -- 910101 蛮兵（近战）
@@ -40,19 +39,7 @@ INSERT INTO `creature_template_model` (`CreatureID`,`Idx`,`CreatureDisplayID`,`D
 (910103,0,1281, 1.0,1.0);  -- 精英：憎恶模型（示例，可替换）
 
 -- ---------------------------------------------------------------------
--- 二、固定伤害锁定（spell_bonus_data）
--- ---------------------------------------------------------------------
--- 93010 攻城炮击：技能本体在 DBC CSV 中（EffectBonusMultiplier 已为 0），
--- 这里再用 spell_bonus_data 显式全 0，锁定"固定伤害"，使其不吃法伤、不吃攻强。
-DELETE FROM `spell_bonus_data` WHERE `entry` = 93010;
-INSERT INTO `spell_bonus_data` (`entry`,`direct_bonus`,`dot_bonus`,`ap_bonus`,`ap_dot_bonus`,`comments`) VALUES
-(93010, 0, 0, 0, 0, 'Real Boss - Siege Bombardment (fixed damage)');
-
--- 提示：每个 BOSS 伤害技能都要在 spell_bonus_data 里显式插入全 0 条目（攻强系数归零），
---       并在 DBC CSV 中把 EffectBonusMultiplier_1/2/3 保持为 0（法伤系数归零）。
-
--- ---------------------------------------------------------------------
--- 三、召唤物 AI（可选）：用 SmartAI 让爪牙主动放技能
+-- 二、召唤物 AI（可选）：用 SmartAI 让爪牙主动放技能
 -- ---------------------------------------------------------------------
 -- 机制：召唤物的 AI 由 creature_template.AIName / ScriptName 决定
 --       （Guardian 不是 Pet，不会被强制成 PetAI，可正常使用 SmartAI）。
@@ -60,9 +47,8 @@ INSERT INTO `spell_bonus_data` (`entry`,`direct_bonus`,`dot_bonus`,`ap_bonus`,`a
 --   · ScriptName 有值      → 走注册的 C++ CreatureScript
 --   · AIName 为空          → 默认 AI，只会普攻（当前的爪牙就是这种）
 --
--- 目标类型注意：爪牙是"玩家召唤的守卫者"，没有仇恨列表，因此
---   ✅ 用 1（自身）、2（当前目标，me->GetVictim()）
---   ❌ 不要用 5（仇恨随机）等依赖仇恨列表的目标类型
+-- 目标类型注意：爪牙由 .mob 命令创建（纯 TempSummon，有完整仇恨列表），因此
+--   ✅ 用 1（自身）、2（当前目标，me->GetVictim()）、5（仇恨随机）等常规目标类型均可
 --
 -- 启用步骤：
 --   1) UPDATE `creature_template` SET `AIName` = 'SmartAI' WHERE `entry` IN (910101,910102,910103);

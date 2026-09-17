@@ -2,12 +2,12 @@
  * 真人BOSS：化身技能 + 参与掉落脚本（按角色 GUID 配置）
  *
  * 玩法：
- *   玩家释放技能 93001「化身攻城BOSS」——该技能在 DBC 里【只负责加免疫光环 BUFF（免控）】，
+ *   玩家释放技能 93000「化身攻城BOSS」——该技能在 DBC 里【只负责加免疫光环 BUFF（免控）】，
  *   模型 / 放大 / 血量 / 伤害 / 掉落全部由本脚本按「施法者 GUID」配置并在代码中直接设置。
  *
  * 结构：
  *   1. 内置配置表 g_RealBossConfigs：GUID → { 模型, 放大, 血量, 伤害, 掉落 }
- *   2. SpellScript  spell_real_boss_transform：挂 93001，OnCast 判定 GUID 并修改属性
+ *   2. SpellScript  spell_real_boss_transform：挂 93000，OnCast 判定 GUID 并修改属性
  *   3. UnitScript   RealBossCombatTracker：OnDamage 记录所有参与战斗的玩家
  *   4. PlayerScript RealBossDeathLootPlayerScript：OnPlayerJustDied 恢复变身 + 给所有参与者发战利品
  *
@@ -18,10 +18,10 @@
  * 部署：
  *   1. 重新 CMake configure + 编译 worldserver（本文件已由 custom_script_loader.cpp 注册）。
  *   2. 数据库挂载法术脚本（spell_script_names）：
- *        DELETE FROM spell_script_names WHERE spell_id = 93001;
- *        INSERT INTO spell_script_names (spell_id, ScriptName) VALUES (93001, 'spell_real_boss_transform');
- *   3. 技能 DBC：93001 的 Effect_1 设为 DUMMY(3)（挂本脚本），
- *      免控光环仍由 DBC 光环链实现（93011 → 93004 → 93005/93006/93007）。
+ *        DELETE FROM spell_script_names WHERE spell_id = 93000;
+ *        INSERT INTO spell_script_names (spell_id, ScriptName) VALUES (93000, 'spell_real_boss_transform');
+ *   3. 技能 DBC：93000 的 Effect_1 设为 DUMMY(3)（挂本脚本），
+ *      免控光环仍由 DBC 光环链实现（93005 → 93001 → 93002/93003/93004）。
  *
  * 说明：
  *   - GUID 是角色的唯一标识（characters 表 guid，游戏内 .guid 可查）。
@@ -120,11 +120,11 @@ static RealBossConfig const* GetRealBossConfig(Unit* unit)
 // 阵营 16 = 怪物（全敌对）：所有真人BOSS 共用的公共设置，不进配置表
 static constexpr uint32 REAL_BOSS_FACTION = 16;
 
-// 变身标志光环：主技能 93001 触发链施加的光环（攻城BOSS·破甲威势 93011），
+// 变身标志光环：主技能 93000 触发链施加的光环（攻城BOSS·破甲威势 93005），
 // 变身期间持续存在，作为「是否处于化身BOSS 形态」的判断依据。
 // 注意：该光环必须设置「死亡保留」属性（DBC AttributesEx3 的 SPELL_ATTR3_ALLOW_AURA_WHILE_DEAD），
 //       否则玩家死亡时会被引擎 RemoveAllAurasOnDeath 提前移除，导致 OnPlayerJustDied 无法据此判断。
-static constexpr uint32 REAL_BOSS_TRANSFORM_AURA_SPELL = 93011;
+static constexpr uint32 REAL_BOSS_TRANSFORM_AURA_SPELL = 93005;
 
 // 背包满时改发邮件（附件为战利品）
 static void SendLootByMail(Player* receiver, RealBossLootEntry const& entry, std::string_view bossName)
