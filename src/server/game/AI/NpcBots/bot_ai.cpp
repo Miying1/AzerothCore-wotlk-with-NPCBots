@@ -18610,25 +18610,17 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         }
         //end DEBUG
 
-        //Check if moving through air
-        //if (me->IsInWorld() && !JumpingFlyingOrFalling() &&
-        //    !me->HasUnitMovementFlag((MOVEMENTFLAG_ONTRANSPORT)|(MOVEMENTFLAG_DISABLE_GRAVITY)|(MOVEMENTFLAG_ROOT)|(MOVEMENTFLAG_SWIMMING)))
-        //{
-        //    //skip case such as moving back up from abyss (movement glitches)
-        //    float x,y,z;
-        //    if (!me->GetMotionMaster()->GetDestination(x,y,z) || z < me->GetPositionZ())
-        //    {
-        //        float groundz = me->GetMap()->GetHeight(me->GetPhaseMask(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), true, MAX_FALL_DISTANCE);
-        //        if (groundz > INVALID_HEIGHT)
-        //        {
-        //            me->GetMotionMaster()->MoveFall();
-        //        }
-        //        else if (GetBotCommandState() != BOT_COMMAND_STAY && !me->isMoving())
-        //        {
-        //            SetBotCommandState(BOT_COMMAND_ABANDON); //reset movement after
-        //        }
-        //    }
-        //}
+        // 修复：bot 被击飞(knockback)后卡在空中不落地的问题
+        // 击飞走抛物线 spline（不设置 MOVEMENTFLAG_FALLING），spline 被中断或终点高度异常时
+        // bot 会悬在半空，此时 JumpingFlyingOrFalling() 已返回 false，AI 会直接在空中攻击而不落地。
+        // 这里周期性检测 bot 是否明显高于地面，若是则强制 MoveFall 落地。
+        if (me->IsInWorld() && !JumpingFlyingOrFalling() && !me->GetVehicle() && !me->CanFly() &&
+            !me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_ROOT | MOVEMENTFLAG_SWIMMING))
+        {
+            float groundz = me->GetMap()->GetHeight(me->GetPhaseMask(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), true, MAX_FALL_DISTANCE);
+            if (groundz > INVALID_HEIGHT && me->GetPositionZ() > groundz + 4.0f)
+                me->GetMotionMaster()->MoveFall();
+        }
 
         //Zone / Area / WMOArea
         if (me->IsInWorld())
