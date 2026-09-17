@@ -118,7 +118,7 @@ public:
         // 消耗一个礼包
         player->DestroyItemCount(item->GetEntry(), 1, true);
 
-        ChatHandler(player->GetSession()).PSendSysMessage("你使用了随机坐骑礼包，学会了新坐骑「{}」！", mountName);
+        ChatHandler(player->GetSession()).PSendSysMessage("你学会了新坐骑「{}」！", mountName);
 
         return true; // 已自行处理，阻止默认施法（spellid_1 18282）
     }
