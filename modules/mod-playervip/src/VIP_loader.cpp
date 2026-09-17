@@ -7,10 +7,12 @@ void AddPlayerItemScripts();
 void Addworldboss_list();
 void AddPlayerVipBenefitsScripts();
 void AddNpcBaihuGossipScripts();
+void AddSC_item_mount_gift_box();
 void Addmod_playervipScripts()
 {
     AddPlayerItemScripts();
     Addworldboss_list();
     AddPlayerVipBenefitsScripts();
     AddNpcBaihuGossipScripts();
+    AddSC_item_mount_gift_box();
 }
