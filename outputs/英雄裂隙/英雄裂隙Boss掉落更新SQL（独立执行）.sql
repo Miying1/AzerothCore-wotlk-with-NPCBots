@@ -24,6 +24,23 @@ SET @RIFT_LOOT_REF_230 := 914000;         -- 230装等装备池
 SET @RIFT_LOOT_REF_240 := 924000;         -- 240装等装备池
 SET @RIFT_LOOT_REF_250 := 934000;         -- 250装等装备池
 
+SET @RIFT_BOSS_ENTRY_BASE := 100100;      -- 与 60级基础SQL 的 @RIFT_BOSS_ENTRY_BASE 保持一致
+SET @RIFT_BOSS_ENTRY_LAST := 100306;      -- 最后一个裂隙Boss entry（100100 + 206）
+
+-- ============================================================================
+-- 0. 修正裂隙Boss的 lootid
+--    引擎只把「creature_template.lootid 指向的 entry」当作有效掉落宿主，
+--    lootid 未指向自身时，写入 creature_loot_template 的掉落行不会被读取，
+--    服务器启动会打印 ERROR：
+--      Table 'creature_loot_template' Entry X isn't creature entry and
+--      not referenced from loot, and thus useless.
+--    故先把范围内所有 Boss 的 lootid 强制指回自身 Entry。
+-- ============================================================================
+UPDATE `creature_template`
+SET `lootid` = `entry`
+WHERE `entry` BETWEEN @RIFT_BOSS_ENTRY_BASE AND @RIFT_BOSS_ENTRY_LAST
+  AND `lootid` <> `entry`;
+
 -- ============================================================================
 -- 1. 清理所有裂隙Boss的旧掉落
 -- ============================================================================
