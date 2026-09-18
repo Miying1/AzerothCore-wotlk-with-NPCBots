@@ -14,6 +14,10 @@
 -- 关闭外键检查，避免跨表清理时因约束报错
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- === 账号数据 ===
+TRUNCATE TABLE `account_data`;
+TRUNCATE TABLE `account_instance_times`;
+TRUNCATE TABLE `account_tutorial`; 
 -- ----------------------------------------------------------------------------
 -- 一、角色本体与角色级数据
 -- ----------------------------------------------------------------------------
@@ -53,7 +57,8 @@ TRUNCATE TABLE `character_spell_cooldown`;
 TRUNCATE TABLE `character_stats`;
 TRUNCATE TABLE `character_talent`;
 TRUNCATE TABLE `character_transmog`;
-
+TRUNCATE TABLE `account_bank_item`;
+TRUNCATE TABLE `account_bank_slots`;
 -- ----------------------------------------------------------------------------
 -- 二、物品 / 邮件 / 宠物 / 尸体 / 拍卖行
 -- ----------------------------------------------------------------------------
