@@ -4,8 +4,9 @@
  *   1. 欢迎语（窗口正文）：多条问候文本随机显示（npc_text 表 ID 101000~101022，由 data/小宠物生物_101000_白虎.sql 维护）
  *   2. 宝物商店：选择后打开售卖窗口
  *   3. 航班：选择后打开飞行点地图
- *   4. 我的金币倍率：选择后由 NPC 悄悄话告知玩家的金币拾取额外加成（取 PlayerVipBenefits.gold_loot_bonus）
- *   5. 幻化：选择后打开 Lua 幻化界面
+ *   4. 账号银行：选择后切换到账号银行模式并打开银行窗口（同账号角色共享，见 AccountBank/npc_account_bank.cpp）
+ *   5. 我的金币倍率：选择后由 NPC 悄悄话告知玩家的金币拾取额外加成（取 PlayerVipBenefits.gold_loot_bonus）
+ *   6. 幻化：选择后打开 Lua 幻化界面
  * 配套 SQL：data/小宠物生物_101000_白虎.sql（需在 acore_world 库执行）
  */
 
@@ -36,6 +37,7 @@ constexpr uint32 NPC_BAIHU_ENTRY = 101000; // 白虎生物入口
 // ===== 对话文本（硬编码于脚本头部）=====  
 constexpr char const* TXT_SHOP = "宝物商店";                     // 宝物商店选项
 constexpr char const* TXT_FLIGHT = "航班";                       // 航班选项
+constexpr char const* TXT_ACCOUNT_BANK = "账号银行";               // 打开账号银行（同账号角色共享）
 constexpr char const* TXT_GOLD_RATE = "我的金币倍率";             // 悄悄话告知选项
 constexpr char const* TXT_TRANSMOGRIFICATION = "幻化";            // 打开幻化界面
 
@@ -53,6 +55,7 @@ constexpr uint32 ACTION_SHOP = GOSSIP_ACTION_INFO_DEF + 1;                 // �
 constexpr uint32 ACTION_FLIGHT = GOSSIP_ACTION_INFO_DEF + 2;               // 航班
 constexpr uint32 ACTION_GOLD_RATE = GOSSIP_ACTION_INFO_DEF + 3;            // 我的金币倍率
 constexpr uint32 ACTION_TRANSMOGRIFICATION = GOSSIP_ACTION_INFO_DEF + 4;   // 幻化
+constexpr uint32 ACTION_ACCOUNT_BANK = GOSSIP_ACTION_INFO_DEF + 5;         // 账号银行
 constexpr uint32 ACTION_OPEN_NODE_MENU = GOSSIP_ACTION_INFO_DEF + 10;      // 节点传送（打开节点槽位菜单）
 constexpr uint32 ACTION_NODE_SLOT_BASE = GOSSIP_ACTION_INFO_DEF + 20;      // 节点槽位（+槽位索引：打开该节点的操作菜单）
 constexpr uint32 ACTION_NODE_TELEPORT_BASE = GOSSIP_ACTION_INFO_DEF + 30;  // 传送（+槽位索引）
@@ -290,6 +293,8 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_TAXI, TXT_FLIGHT, GOSSIP_SENDER_MAIN, ACTION_FLIGHT);
             // 幻化（打开 Lua 幻化界面）
             AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_TRANSMOGRIFICATION, GOSSIP_SENDER_MAIN, ACTION_TRANSMOGRIFICATION);
+            // 账号银行（切换到账号银行模式并打开银行窗口，同账号角色共享）
+            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, TXT_ACCOUNT_BANK, GOSSIP_SENDER_MAIN, ACTION_ACCOUNT_BANK);
             // 我的金币倍率（NPC 悄悄话告知）
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, TXT_GOLD_RATE, GOSSIP_SENDER_MAIN, ACTION_GOLD_RATE);
         }
@@ -369,6 +374,11 @@ public:
             SendTaxiMapFor(player, creature);
             break;
         }
+        case ACTION_ACCOUNT_BANK: // 账号银行：切换到账号银行模式并打开银行窗口（同账号角色共享）
+            CloseGossipMenuFor(player);
+            player->SwitchBankMode(BANK_MODE_ACCOUNT);
+            player->GetSession()->SendShowBank(creature->GetGUID());
+            break;
         case ACTION_GOLD_RATE: // 我的金币倍率：由 NPC 悄悄话告知玩家的金币拾取额外加成
         {
             uint32 goldBonus = player->GetVipBenefits().gold_loot_bonus;
