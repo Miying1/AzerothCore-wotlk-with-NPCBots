@@ -8,6 +8,7 @@ void Addworldboss_list();
 void AddPlayerVipBenefitsScripts();
 void AddNpcBaihuGossipScripts();
 void AddSC_item_mount_gift_box();
+void AddSC_item_tameable_summon();
 void Addmod_playervipScripts()
 {
     AddPlayerItemScripts();
@@ -15,4 +16,5 @@ void Addmod_playervipScripts()
     AddPlayerVipBenefitsScripts();
     AddNpcBaihuGossipScripts();
     AddSC_item_mount_gift_box();
+    AddSC_item_tameable_summon();
 }
