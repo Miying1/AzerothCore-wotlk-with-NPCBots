@@ -3668,19 +3668,6 @@ Guild.BankTabCost5 = 50000000
 AccountBank.MaxItemLevel = 232
 
 #
-#    AccountBank.SlotPrices
-#        Description: Prices (in copper) for purchasing account bank bag slots,
-#                     comma separated, starting from the 1st slot, up to 7 entries.
-#                     Leave empty to use the default prices from the client's
-#                     BankBagSlotPrices.dbc.
-#                     Note that the client will still show the default values, only
-#                     the amount actually charged by the server is changed.
-#        Example:     100000,200000,500000,1000000,2000000,5000000,10000000
-#        Default:     "" - use the default (DBC) prices
-
-AccountBank.SlotPrices = ""
-
-#
 #    Guild.MemberLimit
 #        Description: Do not allow inviting new players to the guild if the member limit is met or exceeded.
 #        Default:     0 - Disabled

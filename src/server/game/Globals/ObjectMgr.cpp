@@ -1846,6 +1846,14 @@ uint32 ObjectMgr::GetModelForTotem(SummonSlot totemSlot, Races race) const
     if (itr != _playerTotemModel.end())
         return itr->second;
 
+    // 该种族没有定义图腾模型时，回退到牛头人作为默认（牛头人图腾为部落通用外观）
+    if (race != RACE_TAUREN)
+    {
+        itr = _playerTotemModel.find(std::make_pair(totemSlot, RACE_TAUREN));
+        if (itr != _playerTotemModel.end())
+            return itr->second;
+    }
+
     LOG_ERROR("misc", "TotemSlot {} with RaceID ({}) have no totem model data defined, set to default model.", totemSlot, race);
     return 0;
 }
