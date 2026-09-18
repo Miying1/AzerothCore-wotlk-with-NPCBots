@@ -1153,8 +1153,9 @@ void World::Update(uint32 diff)
         _timers[WUPDATE_5_SECS].Reset();
 
         // moved here from HandleCharEnumOpcode
+        // 异步执行，避免同步查询阻塞世界主循环（CHAR_DEL_EXPIRED_BANS 已声明为 CONNECTION_ASYNC）
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_EXPIRED_BANS);
-        CharacterDatabase.Execute(stmt);
+        CharacterDatabase.AsyncQuery(stmt);
     }
 
     ///- Update Who List Cache
