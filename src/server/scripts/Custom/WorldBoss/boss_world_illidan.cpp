@@ -4,7 +4,8 @@
  * 复刻黑暗神庙·伊利丹的核心战斗逻辑，强度对齐 10 人奥杜尔（Ulduar 10N）。
  * 相比原版（Outland/BlackTemple/boss_illidan.cpp）：
  *  - 省去副本实例环境与剧情相关 NPC（阿卡玛、玛维、暗影牢笼、笼子陷阱、开场/结局动画、任务）；
- *  - 保留核心战斗：火焰碰撞、吸取灵魂、寄生暗影魔、飞行阶段（投掷战刃/火球/眼棱/召唤烈焰）、
+ *  - 省去飞行阶段的「投掷战刃」机制（不再召唤阿兹诺斯之刃，着陆条件相应简化）；
+ *  - 保留核心战斗：火焰碰撞、吸取灵魂、寄生暗影魔、飞行阶段（火球/眼棱/召唤烈焰）、
  *    痛苦烈焰、恶魔形态（暗影冲击/烈焰爆发/召唤暗影魔）、狂暴。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
  * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标（飞行阶段原地升空）。
@@ -86,37 +87,6 @@ struct npc_world_boss_illidan_parasitic_shadowfiend : public ScriptedAI
     {
         // 不攻击携带寄生暗影魔 DOT 的目标（该目标由暗影魔吞噬）。
         return !target->HasAura(SPELL_PARASITIC_SHADOWFIEND);
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        scheduler.Update(diff);
-
-        if (!UpdateVictim())
-            return;
-
-        DoMeleeAttackIfReady();
-    }
-};
-
-// 阿兹诺斯之刃（召唤物）：出生后插地，短暂停顿后作为近战目标攻击玩家（需集火摧毁）。
-struct npc_world_boss_illidan_blade : public ScriptedAI
-{
-    npc_world_boss_illidan_blade(Creature* creature) : ScriptedAI(creature)
-    {
-        me->SetCombatMovement(false);
-    }
-
-    void IsSummonedBy(WorldObject* /*summoner*/) override
-    {
-        me->SetCorpseDelay(2);
-        me->SetReactState(REACT_PASSIVE);
-
-        scheduler.Schedule(2700ms, [this](TaskContext)
-        {
-            me->SetCombatMovement(true);
-            me->SetReactState(REACT_AGGRESSIVE);
-        });
     }
 
     void UpdateAI(uint32 diff) override
@@ -364,11 +334,10 @@ struct boss_world_illidan : public WorldBossGuardAI
         me->SetDisableGravity(true);
         me->SetHover(true);
 
-        // 延迟后投掷战刃 + 召唤烈焰 + 卸下武器
+        // 延迟后召唤烈焰 + 卸下武器
         scheduler.Schedule(4s, [this](TaskContext)
         {
             me->LoadEquipment(EQUIPMENT_UNARMED, true);
-            ThrowGlaives();
             SummonFlames();
         });
 
@@ -387,11 +356,11 @@ struct boss_world_illidan : public WorldBossGuardAI
                 context.Repeat(20s);
         });
 
-        // 着陆检查：战刃与烈焰均被摧毁后着陆
+        // 着陆检查：阿兹诺斯烈焰被摧毁后着陆
         scheduler.Schedule(10s, [this](TaskContext context)
         {
             summons.RemoveNotExisting();
-            if (!summons.HasEntry(NPC_WORLD_BOSS_ILLIDAN_BLADE_OF_AZZINOTH) && !summons.HasEntry(NPC_WORLD_BOSS_ILLIDAN_FLAME_OF_AZZINOTH))
+            if (!summons.HasEntry(NPC_WORLD_BOSS_ILLIDAN_FLAME_OF_AZZINOTH))
                 LandIllidan();
             else
                 context.Repeat(3s);
@@ -403,15 +372,6 @@ struct boss_world_illidan : public WorldBossGuardAI
             if (_phase == PHASE_FLYING)
                 LandIllidan();
         });
-    }
-
-    void ThrowGlaives()
-    {
-        Position left = me->GetNearPosition(14.0f, -1.5708f);
-        Position right = me->GetNearPosition(14.0f, 1.5708f);
-
-        me->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_BLADE_OF_AZZINOTH, left, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2 * MINUTE * IN_MILLISECONDS);
-        me->SummonCreature(NPC_WORLD_BOSS_ILLIDAN_BLADE_OF_AZZINOTH, right, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 2 * MINUTE * IN_MILLISECONDS);
     }
 
     void SummonFlames()
@@ -508,7 +468,6 @@ void AddSC_boss_world_illidan()
 {
     RegisterCreatureAI(boss_world_illidan);
     RegisterCreatureAI(npc_world_boss_illidan_parasitic_shadowfiend);
-    RegisterCreatureAI(npc_world_boss_illidan_blade);
     RegisterCreatureAI(npc_world_boss_illidan_flame);
     RegisterCreatureAI(npc_world_boss_illidan_shadow_demon);
     RegisterSpellScript(spell_world_boss_illidan_parasitic_shadowfiend_aura);

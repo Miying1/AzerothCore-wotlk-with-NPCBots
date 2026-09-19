@@ -164,7 +164,9 @@ struct boss_world_supremus : public WorldBossGuardAI
                 break;
 
             case EVENT_FIXATE:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                // 凝视只点名真实玩家（不包含 NPCBot）；仇恨列表内没有真实玩家时
+                // SelectPlayerTarget 会回退为普通选取，避免点名落空（仇恨已被清空）导致无目标。
+                if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                 {
                     DoResetThreatList();
                     me->AddThreat(target, 5000000.0f);
