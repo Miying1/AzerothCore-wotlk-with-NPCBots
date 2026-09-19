@@ -752,3 +752,35 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES (11, 11, 2, 28880, 0);
 INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES (11, 11, 72, 6603, 0);
 INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES (11, 11, 96, 6603, 0);
+
+-- ---------- 枪械技能对所有种族的猎人开放 ----------
+-- 新开放的人类/亡灵/侏儒猎人缺少 SkillRaceClassInfo.dbc 的枪械行，
+-- 导致武器大师不提供枪械（亡灵猎人无法在雷霆崖学习枪械）。
+-- 该表会在启动时按 ID 覆盖/追加 DBC 文件数据。
+
+DELETE FROM `skillraceclassinfo_dbc` WHERE `ID` = 1002;
+INSERT INTO `skillraceclassinfo_dbc`
+(`ID`, `SkillID`, `RaceMask`, `ClassMask`, `Flags`, `MinLevel`, `SkillTierID`, `SkillCostIndex`)
+VALUES
+(1002, 46, 32767, 4, 128, 0, 0, 0);
+
+-- ---------- 德莱尼德鲁伊开放匕首 ----------
+-- 匕首（173）的德鲁伊行缺少德莱尼，导致德莱尼德鲁伊在武器大师处学不到匕首。
+
+DELETE FROM `skillraceclassinfo_dbc` WHERE `ID` = 1003;
+INSERT INTO `skillraceclassinfo_dbc`
+(`ID`, `SkillID`, `RaceMask`, `ClassMask`, `Flags`, `MinLevel`, `SkillTierID`, `SkillCostIndex`)
+VALUES
+(1003, 173, 1024, 1024, 128, 0, 0, 0);
+
+-- ---------- 新猎人出生弓技能 ----------
+-- 人类/亡灵/侏儒猎人出生没有任何远程武器技能，却发到了传家宝弓（42946），1 级无法装备。
+
+DELETE FROM `playercreateinfo_skills` WHERE `raceMask` = 1 AND `classMask` = 4 AND `skill` = 45;
+INSERT INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (1, 4, 45, 0, 'Bows');
+
+DELETE FROM `playercreateinfo_skills` WHERE `raceMask` = 16 AND `classMask` = 4 AND `skill` = 45;
+INSERT INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (16, 4, 45, 0, 'Bows');
+
+DELETE FROM `playercreateinfo_skills` WHERE `raceMask` = 64 AND `classMask` = 4 AND `skill` = 45;
+INSERT INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (64, 4, 45, 0, 'Bows');
