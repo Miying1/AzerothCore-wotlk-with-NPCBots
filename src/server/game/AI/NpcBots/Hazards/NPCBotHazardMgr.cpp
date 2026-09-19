@@ -131,17 +131,20 @@ void NPCBotHazardMgr::LoadFromDB()
             float spellRadius = 0.0f;
             if (!damageSpell || damageSpell->IsPositive())
             {
-                // 按配置回退到 radius 而非丢弃该危险区域规则。
-                LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} references positive or missing damage spell {}; falling back to configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
+                // 取不到法术半径时按配置的 radius 处理，不丢弃该危险区域规则。
+                LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} references positive or missing damage spell {}; using configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
             }
             else
             {
                 spellRadius = GetDamageSpellRadius(damageSpellId);
-                if (spellRadius > 0.0f)
-                    radius = spellRadius;
-                else
+                if (spellRadius <= 0.0f)
                     LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} cannot get radius from spell {}; using configured radius {}", mapId, creatureEntry, damageSpellId, configuredRadius);
             }
+
+            // 配置的 radius 作为下限：法术半径取不到或小于配置值时用配置值。
+            // 否则危险区可能小于实际伤害范围（例如火山 42052 的法术半径大于配置值），
+            // 出现“BOT 站在伤害边缘却不躲”的现象。
+            radius = std::max(configuredRadius, spellRadius);
         }
 
         if (radius <= 0.0f)

@@ -9,7 +9,7 @@
  *    其中水晶体的冻结伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
  *  - 水之墓复用原版法术脚本（spell_morogrim_tidewalker_watery_grave）。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

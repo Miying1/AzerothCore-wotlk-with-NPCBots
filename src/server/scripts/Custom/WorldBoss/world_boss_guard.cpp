@@ -16,11 +16,16 @@
 
 #include "Creature.h"
 #include "Group.h"
+#include "MotionMaster.h"
+#include "MovementGenerator.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
+#include "ThreatManager.h"
 #include "Unit.h"
+#include "World.h"
 
 #include <limits>
 #include <unordered_map>
@@ -180,37 +185,77 @@ namespace
     std::unordered_map<ObjectGuid, WorldBossLockState> g_worldBossLocks;
 
     // 扫描目标身上由 caster 施加、且在缩放表内的周期伤害法术，返回其 spellId。
-    uint32 GetWorldBossPeriodicSpellId(Unit* caster, Unit* victim)
+    // 同一目标身上可能同时存在多条缩放表内的 DOT（如血沸 42005 为物理、邪酸吐息 40508/40595 为火焰），
+    // 仅按“命中缩放表”取第一条会套用错误倍数，故再按本次结算的法术学派过滤。
+    uint32 GetWorldBossPeriodicSpellId(Unit* caster, Unit* victim, SpellSchoolMask schoolMask)
     {
         if (!victim)
             return 0;
 
         for (AuraEffect const* auraEffect : victim->GetAuraEffectsByType(SPELL_AURA_PERIODIC_DAMAGE))
-            if (auraEffect && auraEffect->GetCasterGUID() == caster->GetGUID())
-                if (GetWorldBossSpellScale(auraEffect->GetSpellInfo()->Id))
-                    return auraEffect->GetSpellInfo()->Id;
+        {
+            if (!auraEffect || auraEffect->GetCasterGUID() != caster->GetGUID())
+                continue;
+
+            SpellInfo const* auraSpell = auraEffect->GetSpellInfo();
+            if (auraSpell->GetSchoolMask() != schoolMask)
+                continue;
+
+            if (GetWorldBossSpellScale(auraSpell->Id))
+                return auraSpell->Id;
+        }
+
+        return 0;
+    }
+
+    // 查询某法术在指定伤害类型下的倍率；未登记或该侧不缩放（0）时返回 0。
+    float GetWorldBossSpellMultiplier(uint32 spellId, DamageEffectType damageType)
+    {
+        WorldBossSpellScale const* scale = GetWorldBossSpellScale(spellId);
+        if (!scale)
+            return 0.0f;
+
+        return (damageType == DOT) ? scale->periodic : scale->direct;
+    }
+
+    // 施法者当前正在结算的法术（读条 / 引导 / 非触发型瞬发均会登记，触发型瞬发不会）。
+    uint32 GetWorldBossCastingSpellId(Unit* caster)
+    {
+        for (CurrentSpellTypes spellType : { CURRENT_GENERIC_SPELL, CURRENT_CHANNELED_SPELL })
+            if (Spell const* spell = caster->GetCurrentSpell(spellType))
+                if (SpellInfo const* spellInfo = spell->GetSpellInfo())
+                    return spellInfo->Id;
 
         return 0;
     }
 
     // 共享缩放：按倍率表对一次伤害结算统一放大（参考裂隙 BossAIBase::DamageDealt）。
     void ScaleWorldBossSpellDamage(Unit* caster, Unit* victim, uint32& damage,
-        DamageEffectType damageType, uint32 lastCastSpellId)
+        DamageEffectType damageType, SpellSchoolMask schoolMask, uint32 lastCastSpellId)
     {
         // 近战（DIRECT_DAMAGE）不缩放。
         if (damageType == DIRECT_DAMAGE)
             return;
 
-        // DOT 通过扫描目标身上的周期伤害光环识别；直伤通过最近施放的法术识别。
-        uint32 spellId = (damageType == DOT) ? GetWorldBossPeriodicSpellId(caster, victim) : lastCastSpellId;
-        if (!spellId)
-            return;
+        float multiplier = 0.0f;
 
-        WorldBossSpellScale const* scale = GetWorldBossSpellScale(spellId);
-        if (!scale)
-            return;
+        if (damageType == DOT)
+        {
+            // DOT 通过扫描目标身上的周期伤害光环识别。
+            multiplier = GetWorldBossSpellMultiplier(GetWorldBossPeriodicSpellId(caster, victim, schoolMask), damageType);
+        }
+        else
+        {
+            // 直伤通过最近施放的法术识别。
+            multiplier = GetWorldBossSpellMultiplier(lastCastSpellId, damageType);
 
-        float multiplier = (damageType == DOT) ? scale->periodic : scale->direct;
+            // 瞬发法术不触发 OnSpellStart，且 OnSpellCast 在伤害结算之后才更新记录，
+            // 故结算时记录到的仍是上一个法术（如邪酸吐息 40595 结算时记录停在血沸 42005）。
+            // 技能直伤在记录法术上取不到倍率时，回退用施法者当前正在结算的法术。
+            if (multiplier <= 0.0f && damageType == SPELL_DIRECT_DAMAGE)
+                multiplier = GetWorldBossSpellMultiplier(GetWorldBossCastingSpellId(caster), damageType);
+        }
+
         if (multiplier <= 0.0f)
             return;
 
@@ -246,9 +291,18 @@ void WorldBossGuardAI::JustDied(Unit* killer)
     Unlock();
 }
 
-void WorldBossGuardAI::DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*schoolMask*/)
+void WorldBossGuardAI::EnterEvadeMode(EvadeReason why)
 {
-    ScaleWorldBossSpellDamage(me, victim, damage, damageType, _lastCastSpellId);
+    // 必须在基类的 MoveTargetedHome() 之前还原回家基准（CheckLeash() 在战斗中会临时改写它），
+    // 否则“走回家”的目标点会变成最后一个战斗位置。
+    RestoreCoreHome();
+
+    WorldBossAI::EnterEvadeMode(why);
+}
+
+void WorldBossGuardAI::DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask schoolMask)
+{
+    ScaleWorldBossSpellDamage(me, victim, damage, damageType, schoolMask, _lastCastSpellId);
 }
 
 void WorldBossGuardAI::OnSpellCast(SpellInfo const* spell)
@@ -265,6 +319,48 @@ void WorldBossGuardAI::OnSpellStart(SpellInfo const* spell)
 
 bool WorldBossGuardAI::CheckLeash()
 {
+    // 脱战防护：核心 CanCreatureAttack 存在若干「对全体目标同时生效」的 BOSS 侧否决条件，
+    // 任一命中都会让所有仇恨引用被置为 OFFLINE（ThreatReference::ShouldBeOffline），
+    // GetCurrentVictim() 因此返回 nullptr，Unit::SelectVictim 走到末尾用 EVADE_REASON_OTHER 兜底脱战
+    // （本框架BOSS带 CREATURE_FLAG_EXTRA_HARD_RESET，脱战即消失，观感就是“打着打着BOSS没了”）。
+    // 本体不使用这些状态表达机制（需要“打不到”时用 UNIT_FLAG_NOT_SELECTABLE + REACT_PASSIVE），
+    // 因此锁定期间直接清理；正常脱战会走 Reset()→Unlock()，_locked 先变 false，不会干扰退场流程。
+    if (_locked)
+    {
+        // 1) 核心回家距离判定（CreatureLeashRadius，默认 30 码）：
+        //    本体保留 CREATURE_TYPE_FLAG_BOSS_MOB（“??”等级与免疫击退），核心因此不对其启用
+        //    「近期受伤即可离开刷新点」豁免，该判定恒定生效。化解分两层，缺一不可：
+        //    ① 基准点：CanCreatureAttack 优先取 IDLE 运动生成器的 GetResetPosition()，
+        //       返回 false 时才回落到 m_homePosition。本体 MovementType=1（随机漫游），IDLE 槽里的
+        //       RandomMovementGenerator 返回的是漫游目标点/初始点（≈刷新点），
+        //       故先把它换成默认 idle（IdleMovementGenerator 未重写该方法，基类返回 false）。
+        //    ② 基准值：让 m_homePosition 跟随 BOSS 自身，使 30 码判定恒为真。
+        //    脱战/退场前 RestoreCoreHome() 还原真实出生点；IDLE 槽由核心 MotionMaster::InitDefault() 自动重建。
+        MovementGenerator* idleSlot = me->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE);
+        float rx, ry, rz;
+        if (idleSlot && idleSlot->GetResetPosition(rx, ry, rz))
+            me->GetMotionMaster()->MoveIdle();
+
+        if (me->GetDistance(me->GetHomePosition()) > 1.0f)
+            me->SetHomePosition(me->GetPosition());
+
+        // 2) 仇恨列表缓存：核心只在构造时算一次，为 false 时 Unit::AddThreat 会被拒、
+        //    SelectVictim 不再调用 GetCurrentVictim()，已有引用会永久停在 OFFLINE 并最终兜底脱战。
+        if (!me->GetThreatMgr().CanHaveThreatList())
+            me->GetThreatMgr().Initialize();
+
+        // 3) 免PC/免NPC 旗标：Unit::_IsValidAttackTarget 双向拦截，ThreatReference::FlagsAllowFighting 也会拦。
+        if (me->IsImmuneToPC() || me->IsImmuneToNPC())
+        {
+            me->SetImmuneToPC(false, false);
+            me->SetImmuneToNPC(false, false);
+        }
+
+        // 4) 残留 UNIT_STATE_EVADE：Creature::CanCreatureAttack 开头的 IsInEvadeMode() 直接返回 false。
+        if (me->IsInEvadeMode())
+            me->ClearUnitState(UNIT_STATE_EVADE);
+    }
+
     if (_locked && me->IsInCombat() && me->GetDistance(_homePosition) > WORLD_BOSS_LEASH_RANGE)
     {
         EnterEvadeMode(EVADE_REASON_BOUNDARY);
@@ -276,6 +372,8 @@ bool WorldBossGuardAI::CheckLeash()
 void WorldBossGuardAI::LockToGroup(Unit* who)
 {
     _homePosition = me->GetPosition();
+    _savedHomePosition = me->GetHomePosition(); // 保存真实出生点，脱战/退场前还原（见 RestoreCoreHome）
+    _hasSavedHome = true;
     _locked = true;
     _ownerGuid.Clear();
     _groupGuid.Clear();
@@ -299,15 +397,26 @@ void WorldBossGuardAI::Unlock()
     _ownerGuid.Clear();
     _groupGuid.Clear();
     g_worldBossLocks.erase(me->GetGUID());
+
+    RestoreCoreHome();
+}
+
+void WorldBossGuardAI::RestoreCoreHome()
+{
+    if (!_hasSavedHome)
+        return;
+
+    me->SetHomePosition(_savedHomePosition);
+    _hasSavedHome = false;
 }
 
 // ===================== WorldBossSummonAI =====================
 
 WorldBossSummonAI::WorldBossSummonAI(Creature* creature) : ScriptedAI(creature) { }
 
-void WorldBossSummonAI::DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*schoolMask*/)
+void WorldBossSummonAI::DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask schoolMask)
 {
-    ScaleWorldBossSpellDamage(me, victim, damage, damageType, _lastCastSpellId);
+    ScaleWorldBossSpellDamage(me, victim, damage, damageType, schoolMask, _lastCastSpellId);
 }
 
 void WorldBossSummonAI::OnSpellCast(SpellInfo const* spell)

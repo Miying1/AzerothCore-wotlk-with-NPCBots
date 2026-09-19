@@ -9,7 +9,7 @@
  *    使其伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
  *  - 血沸的目标筛选与击退减仇恨复用原版法术脚本（spell_gurtogg_bloodboil / spell_gurtogg_eject）。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

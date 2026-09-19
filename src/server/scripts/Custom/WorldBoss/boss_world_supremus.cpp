@@ -7,7 +7,7 @@
  *  - 火山（120510）与熔岩拳隐形巡者（120509）均为自定义召唤物（继承 WorldBossSummonAI），
  *    由召唤物自身施放触发型法术，使熔岩烈焰 / 火山间歇泉伤害经 WorldBossSummonAI::DamageDealt 统一缩放。
  * 技能伤害统一由 WorldBossGuardAI / WorldBossSummonAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

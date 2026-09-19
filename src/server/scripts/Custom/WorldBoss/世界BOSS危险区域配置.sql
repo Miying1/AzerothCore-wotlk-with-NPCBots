@@ -8,8 +8,9 @@
 --   地板型危险区域，NPCBot 依赖本表识别并自动避让。
 --
 --   map_id = 0：世界BOSS 在世界地图随机刷新，无固定地图，故全地图通用。
---   damage_spell_id 非 0 时，系统优先读取该法术的伤害效果半径；
---   radius 仅作为法术半径读取失败时的回退值。
+--   damage_spell_id 非 0 时，系统会读取该法术的伤害效果半径；
+--   radius 为半径下限：与法术半径取较大值（法术半径取不到时即用 radius）。
+--   若希望危险区比法术伤害范围更大，直接调大 radius 即可生效。
 -- ============================================================================
 
 -- 确保表存在（表结构来自危险区域配置说明.md）
@@ -28,6 +29,10 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
 -- ============================================================================
 -- 危险区域配置
 -- ============================================================================
+
+-- 幂等：重复导入本文件时先清掉本项目配置的条目，避免主键冲突导致后续语句中断
+DELETE FROM `npcbot_creature_hazard`
+WHERE `creature_entry` IN (120501, 120509, 120510, 120516, 23336);
 
 -- 1. 奥（120100）：烈焰之痕 120501
 --    俯冲轰炸后留下的地面火焰，周期触发 35380 -> 35383 火焰伤害（DBC 2188-2812）。
@@ -48,7 +53,7 @@ VALUES
 INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-    (0, 120510, 8, 42052, 2, 2000, '世界BOSS-苏普雷姆斯：火山（间歇泉地板）');
+    (0, 120510, 12, 42052, 2, 2000, '世界BOSS-苏普雷姆斯：火山（间歇泉地板）');
 
 -- 4. 阿克蒙德（120110）：毁灭之火 120516
 --    施放 31945 -> 31943（区域光环，半径约 8 码）-> 31944 火焰伤害，持续地面火焰。
@@ -56,3 +61,12 @@ INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
     (0, 120516, 8, 31944, 2, 2000, '世界BOSS-阿克蒙德：毁灭之火（火焰地板）');
+
+-- 5. 伊利丹（120101）：烈焰碰撞 23336（原版生物）
+--    40832（烈焰碰撞）除直伤外还召唤 23336，该生物经 creature_template_addon 自带光环 40836，
+--    每 2 秒触发 40841 火焰伤害，形成落点地面火焰；伤害以生物当前位置为圆心，属生物型危险区域。
+--    注：23336 为原版生物，黑暗神庙原版伊利丹同样使用，故 map_id = 0 全地图生效。
+INSERT INTO `npcbot_creature_hazard`
+    (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+    (0, 23336, 6, 40841, 2, 2000, '世界BOSS-伊利丹：烈焰碰撞（火焰地板，原版生物 23336）');

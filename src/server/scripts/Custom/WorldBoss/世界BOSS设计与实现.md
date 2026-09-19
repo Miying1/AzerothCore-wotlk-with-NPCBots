@@ -5,7 +5,7 @@
 ## 一、概述
 
 本框架用于将副本首领复刻为 83 级世界BOSS，强度对齐 10人奥杜尔，
-在世界地图上随机刷新（临时召唤），无副本实例环境。
+在世界地图上随机刷新（普通生物，非召唤物/无 owner），无副本实例环境。
 
 所有自定义世界BOSS共享一套统一战斗机制，由继承 `WorldBossAI` 的基类 `WorldBossGuardAI` 实现，
 召唤物继承 `WorldBossSummonAI`，从而避免为每个 BOSS 重复编写公共逻辑。
@@ -48,14 +48,37 @@ ScriptedAI
 - 战斗中每帧检查（子类在 `UpdateAI` 开头调用 `CheckLeash()`），
   移动超过 `WORLD_BOSS_LEASH_RANGE`（150 码）即触发 `EnterEvadeMode(EVADE_REASON_BOUNDARY)` 脱战，
   防止风筝拉脱。
+- **与核心回家距离判定的关系（重要）**：`Creature::CanCreatureAttack` 末段会检查「与刷新点/复位点的距离 ≤
+  `CreatureLeashRadius`（默认 30 码）」，且对 `isWorldBoss()`（`type_flags` 含 `CREATURE_TYPE_FLAG_BOSS_MOB`）
+  的单位**取消了「近期受伤即可离开刷新点」的豁免** —— 一旦被拉开 30 码，全部仇恨引用会同时被判为
+  offline，`SelectVictim` 随即以 `EVADE_REASON_OTHER` 兜底脱战（配合 `HARD_RESET` 就是“打着打着BOSS消失”）。
+  `BOSS_MOB` 位**刻意保留**（它提供“??”等级显示与免疫击退），因此不改数据，而在代码侧化解：
+  `WorldBossGuardAI::CheckLeash()` 在锁定期间做两件事 ——
+  ① 把 `IDLE` 运动生成器换成默认 idle：核心的距离基准优先取 `IDLE` 槽的 `GetResetPosition()`，
+     而 `MovementType=1` 的 `RandomMovementGenerator` 返回的是漫游目标点/初始点（≈刷新点）而非
+     `m_homePosition`；换成 `IdleMovementGenerator`（未重写该方法，基类返回 `false`）后判定才回落到 `m_homePosition`；
+  ② 让 `m_homePosition` 跟随 BOSS 自身，使核心的距离判定恒为 0。
+  本框架的 `WORLD_BOSS_LEASH_RANGE`（150 码）因此成为唯一脱战距离；
+  进入战斗时保存真实出生点（`_savedHomePosition`），脱战/退场前（`EnterEvadeMode` → `RestoreCoreHome()`）还原，
+  以免影响“走回家”的目标点；`IDLE` 槽则由核心 `MotionMaster::InitDefault()` 在脱战后自动重建。
+
+- **副本地图没有该限制（与 `BOSS_MOB` 无关）**：`Creature::CanCreatureAttack` 在
+  `if (GetMap()->IsDungeon())` 处直接 `return true`，副本/团队副本内的非玩家控制单位
+  **完全不做**可见距离与回家距离判定；`isWorldBoss()` 的「近期受伤豁免」也只存在于非副本分支，
+  所以开放世界里的 `BOSS_MOB` 单位反而更严格。本框架的 150 码脱战规则是脚本层实现，副本内外都生效。
 
 ### 3. 技能伤害缩放
 
 参考裂隙 BOSS（`HeroicDungeonRift::BossAIBase`）的实现，在 AI 的 `DamageDealt` 回调中按倍率表统一放大：
 
 - **直接伤害**：`OnSpellCast` / `OnSpellStart` 记录 `_lastCastSpellId`，按 `direct` 倍率放大。
-- **DOT 周期伤害**：扫描目标身上 `SPELL_AURA_PERIODIC_DAMAGE` 光环（施法者为 BOSS 且命中缩放表），
-  按 `periodic` 倍率放大。
+  该记录在本侧取不到倍率时，回退用施法者当前正在结算的法术（`GetCurrentSpell`）——
+  瞬发法术不触发 `OnSpellStart`，且 `OnSpellCast` 在伤害结算**之后**才更新记录，
+  否则会错用上一个法术的倍率（例：邪酸吐息 `40595` 结算时记录仍停在血沸 `42005`）。
+- **DOT 周期伤害**：扫描目标身上 `SPELL_AURA_PERIODIC_DAMAGE` 光环（施法者为 BOSS、命中缩放表
+  **且法术学派与本次结算一致**），按 `periodic` 倍率放大。
+  同一目标身上同时存在多条缩放表内的 DOT 时（如血沸 `42005` 为物理、邪酸吐息 `40508/40595` 为火焰），
+  学派过滤可避免取到先生效的那条并套用错误倍率。
 - **近战（`DIRECT_DAMAGE`）不缩放**。
 - 缩放结果用 `std::numeric_limits<uint32>::max()` 封顶，防止溢出。
 
@@ -139,7 +162,7 @@ mysql -u<用户> -p<密码> acore_world < "世界BOSS数据库.sql"
 |------|-----|------|
 | 1 | `creature_template` | 生物模板（BOSS 本体 + 召唤物） |
 | 2 | `creature_equip_template` | BOSS 装备（如埃辛诺斯战刃） |
-| 3 | `creature_template_addon` | 召唤物附加光环（由 AI 主动施放的光环不再走此表） |
+| 3 | `creature_template_addon` | BOSS 本体可见距离（`visibilityDistanceType = 1`，25 码）；召唤物附加光环由 AI 主动施放，不走此表 |
 | 4 | `spell_script_names` | 需要自定义逻辑的法术脚本绑定 |
 | 5 | `creature_template_model` | 全部生物的模型（沿用各副本原版模型 ID） |
 | 6 | `creature_text` | BOSS 喊话（沿用原版 `BroadcastTextId`，客户端按语言本地化） |
@@ -206,6 +229,10 @@ NPCBot 依赖 World 表 `npcbot_creature_hazard` 识别并自动避让「生物�
 2. 该生物**在其位置周围持续或周期性造成范围伤害**（地板技能，典型为「触发光环 → 直伤 AOE」链）；
 3. 伤害以生物当前位置为圆心，且持续一段时间。
 
+> 危险生物不限于自定义召唤物：BOSS 技能召唤的**原版生物**同样适用
+> （如伊利丹「烈焰碰撞」`40832` 召唤的原版 Flame Crash `23336`），直接填其原版 Entry 即可。
+> 若该原版生物在其他内容中也被使用，`map_id` 填 `0` 会一并生效。
+
 **不需要**配置：
 
 - 纯近战召唤物（火焰之子、皇家守卫、奥的余烬等），走正常近战处理；
@@ -242,9 +269,12 @@ CREATE TABLE `npcbot_creature_hazard` (
 ### 半径读取优先级
 
 ```
-damage_spell_id 有效伤害效果半径  >  radius（回退）  >  跳过并记日志
+基础半径 = max(radius, damage_spell_id 的有效伤害效果半径)
 最终危险半径 = 基础半径 + safety_distance + BOT 体积补偿
 ```
+
+即 `radius` 是**下限**而非回退值：法术半径取不到或比配置值小时用 `radius`；
+若危险区需要比实际伤害范围更大（例如火山 `42052`），调大 `radius` 即可生效。
 
 ### 当前已配置的危险区域
 
@@ -254,6 +284,7 @@ damage_spell_id 有效伤害效果半径  >  radius（回退）  >  跳过并记
 | 120509 | 熔岩拳隐形巡者 | 苏普雷姆斯 | 40265 | 8 | 熔岩烈焰地板（区域光环） |
 | 120510 | 火山 | 苏普雷姆斯 | 42052 | 8 | 间歇泉地板（周期触发） |
 | 120516 | 毁灭之火 | 阿克蒙德 | 31944 | 8 | 火焰地板（区域光环） |
+| 23336 | 烈焰碰撞（原版生物） | 伊利丹 | 40841 | 10 | 地面火焰（周期触发） |
 
 > 配置 SQL 见 `世界BOSS危险区域配置.sql`。新增 BOSS 时，若其召唤物符合判定标准，
 > 需同步补充本表配置并更新上述清单。

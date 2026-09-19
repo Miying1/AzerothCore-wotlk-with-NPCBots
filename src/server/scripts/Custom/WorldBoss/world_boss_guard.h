@@ -44,6 +44,9 @@ public:
     void Reset() override;
     void JustDied(Unit* killer) override;
 
+    // 脱战：先还原被 CheckLeash() 临时改写的核心回家基准，再交给基类执行（保证“走回家”目标点正确）。
+    void EnterEvadeMode(EvadeReason why) override;
+
     // 技能伤害缩放：按倍率表对直伤与 DOT 统一放大。
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask schoolMask) override;
 
@@ -62,12 +65,17 @@ protected:
     // 清除锁定状态。
     void Unlock();
 
+    // 还原战斗中临时改写的核心回家基准（见 CheckLeash）。
+    void RestoreCoreHome();
+
 private:
     Position _homePosition;        // 进入战斗时的位置（脱战距离基准）
     ObjectGuid _ownerGuid;         // 开怪玩家
     ObjectGuid _groupGuid;         // 开怪玩家所在队伍/团队（单独玩家时为空）
     bool _locked = false;          // 是否已锁定（战斗中）
     uint32 _lastCastSpellId = 0;   // 最近施放的法术
+    Position _savedHomePosition;   // 进入战斗时的核心回家基准（战斗中会被临时改写，脱战/退场前还原）
+    bool _hasSavedHome = false;    // 是否已保存上述基准
 };
 
 // 世界BOSS召唤物基类：共享技能伤害缩放（按倍率表统一放大）。

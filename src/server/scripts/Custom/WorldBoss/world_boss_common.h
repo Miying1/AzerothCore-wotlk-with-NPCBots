@@ -1,8 +1,8 @@
 /*
- * 世界BOSS公共定义（自定义临时召唤内容）
+ * 世界BOSS公共定义（自定义世界刷新内容；本体为普通生物，非召唤物/无 owner）
  *
  * 本文件定义自定义世界BOSS（83级，强度对齐 10 人冰冠堡垒）的 entry 常量。
- * 这些BOSS用于在世界地图上随机刷新（临时召唤），没有副本实例环境。
+ * 这些BOSS用于在世界地图上随机刷新（普通生物，非召唤物/无 owner），没有副本实例环境。
  *
  * 技能伤害缩放由 world_boss_guard.cpp 的基类（WorldBossGuardAI / WorldBossSummonAI）
  * 在 DamageDealt 里按施法者身份实现，天然隔离原版内容，避免污染复用同一法术的原版 70 级技能。
@@ -21,7 +21,6 @@ constexpr uint32 NPC_WORLD_BOSS_ALAR_FLAME_PATCH = 120501; // 烈焰之痕
 // ---- 伊利丹（Illidan，黑暗神庙复刻，83级） ----
 constexpr uint32 NPC_WORLD_BOSS_ILLIDAN                     = 120101; // 伊利丹·怒风
 constexpr uint32 NPC_WORLD_BOSS_ILLIDAN_PARASITIC_SHADOWFIEND = 120502; // 寄生暗影魔
-constexpr uint32 NPC_WORLD_BOSS_ILLIDAN_BLADE_OF_AZZINOTH      = 120503; // 阿兹诺斯之刃
 constexpr uint32 NPC_WORLD_BOSS_ILLIDAN_FLAME_OF_AZZINOTH      = 120504; // 阿兹诺斯烈焰
 constexpr uint32 NPC_WORLD_BOSS_ILLIDAN_SHADOW_DEMON           = 120505; // 暗影魔
 

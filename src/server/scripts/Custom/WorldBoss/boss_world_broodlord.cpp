@@ -6,7 +6,7 @@
  *  - 省去抑制装置（Suppression Device）房间机制与相关游戏对象脚本；
  *  - 保留核心战斗：顺劈斩、冲击波、致死打击、击退。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

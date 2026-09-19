@@ -6,7 +6,7 @@
  *  - 皇家守卫由沙尔图拉开战时召唤（原版在世界刷新时即存在）；
  *  - 保留核心战斗：旋风斩、破甲顺劈、激怒、狂暴，以及皇家守卫的旋风斩与击退。
  * 技能伤害统一由 WorldBossGuardAI / WorldBossSummonAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

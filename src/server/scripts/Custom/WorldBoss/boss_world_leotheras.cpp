@@ -12,7 +12,7 @@
  *  - 疯狂低语改用自定义法术脚本（spell_world_boss_leotheras_insidious_whisper[_aura]），
  *    以替代依赖副本实例的原版脚本（原版通过 InstanceScript 获取 BOSS 施放疯狂吞噬）。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "GridNotifiers.h"

@@ -10,7 +10,7 @@
  *    31945 光环触发伤害链（31945->31943->31944 火焰直伤），伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
  *  - 毁灭之火灵魂（120517）为移动引导者，复刻原版"转向 + 传送"的蔓延移动，使毁灭之火沿途留下火焰区域。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"

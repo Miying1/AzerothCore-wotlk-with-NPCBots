@@ -9,7 +9,7 @@
  *    原版的"末日降临 31348"在 DBC 中不存在，spell_azgalor_doom_aura 触发它会静默失败，故不影响）；
  *  - 移除副本剧情专属：开场巡逻路径、死亡后唤醒阿克蒙德的剧情联动。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
- * 该BOSS用于世界地图随机刷新（临时召唤），无固定房间坐标。
+ * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
 
 #include "ScriptedCreature.h"
