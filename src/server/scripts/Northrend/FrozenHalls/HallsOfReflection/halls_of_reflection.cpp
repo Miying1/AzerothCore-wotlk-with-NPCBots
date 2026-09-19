@@ -1496,6 +1496,7 @@ enum eFightEvents
     EVENT_LK_SUMMON_LA,
     EVENT_LK_SUMMON_NEXT_ICE_WALL,
     EVENT_SAY_OPENING,
+    EVENT_LK_CHECK_SUMMONS,
 };
 
 struct npc_hor_lich_king : public NullCreatureAI
@@ -1510,17 +1511,20 @@ struct npc_hor_lich_king : public NullCreatureAI
     InstanceScript* instance;
     EventMap events;
     SummonList summons;
+    GuidSet pendingSummons;   // 当前冰墙刷出、尚未被清除的小怪（死亡或中途消失后移除）
     uint8 currentWall;
-    uint8 summonsCount;
     uint8 div2;
+    bool chaseFailed;         // 领队被巫妖王抓住（收割灵魂）后不再推进冰墙进度
 
     void Reset() override
     {
         currentWall = 0;
-        summonsCount = 0;
         div2 = 0;
+        chaseFailed = false;
+        pendingSummons.clear();
         events.Reset();
         events.RescheduleEvent(EVENT_LK_CHECK_COMBAT, 1s);
+        events.RescheduleEvent(EVENT_LK_CHECK_SUMMONS, 2s);
     }
     void DoAction(int32 action) override
     {
@@ -1541,6 +1545,40 @@ struct npc_hor_lich_king : public NullCreatureAI
             me->RemoveAura(SPELL_REMORSELESS_WINTER);
         if (Creature* c = instance->GetCreature(NPC_SYLVANAS_PART2))
             c->AI()->DoAction(ACTION_INFORM_WALL_DESTROYED);
+    }
+
+    // 只有当前冰墙刷出的小怪全部被清除（死亡或中途消失）后，冰墙才会被摧毁
+    void CheckWallProgress()
+    {
+        // 追击尚未开始或已经结束时（例如灭团清场）不判定冰墙
+        if (chaseFailed || !me->isActiveObject() || currentWall > 3 || !pendingSummons.empty())
+            return;
+        WallCompleted();
+    }
+
+    // 兜底核对：小怪已经不在世界里、或者已经死亡时，就不应该再拦着冰墙。
+    // 核心只在 TempSummon::UnSummon（以及 TempSummon::RemoveFromWorld 的 npcbot 分支）里回调
+    // SummonedCreatureDies / SummonedCreatureDespawn，若某条移除路径没有回调，这里补上，避免冰墙永久卡住
+    void CheckPendingSummons()
+    {
+        if (pendingSummons.empty() || chaseFailed || !me->isActiveObject())
+            return;
+
+        bool changed = false;
+        for (GuidSet::iterator itr = pendingSummons.begin(); itr != pendingSummons.end();)
+        {
+            Creature* summon = instance->instance->GetCreature(*itr);
+            if (!summon || !summon->IsAlive())
+            {
+                itr = pendingSummons.erase(itr);
+                changed = true;
+            }
+            else
+                ++itr;
+        }
+
+        if (changed)
+            CheckWallProgress();
     }
 
     void MovementInform(uint32 type, uint32  /*id*/) override
@@ -1570,7 +1608,6 @@ struct npc_hor_lich_king : public NullCreatureAI
 
     void JustSummoned(Creature* s) override
     {
-        ++summonsCount;
         summons.Summon(s);
         s->SetHomePosition(PathWaypoints[WP_STOP[currentWall + 1]]);
         s->GetMotionMaster()->MovePoint(0, PathWaypoints[WP_STOP[currentWall + 1]]);
@@ -1581,19 +1618,32 @@ struct npc_hor_lich_king : public NullCreatureAI
             s->AI()->AttackStart(target);
         }
         s->SetHomePosition(PathWaypoints[WP_STOP[currentWall + 1]]);
+        // 冰墙全部摧毁后出现的小怪不再影响进度
+        if (currentWall <= 3)
+            pendingSummons.insert(s->GetGUID());
     }
 
-    void SummonedCreatureDies(Creature* /*summon*/, Unit* /*killer*/) override
+    void SummonedCreatureDies(Creature* s, Unit* /*killer*/) override
     {
-        if (!summonsCount)
-            return;
-        if (--summonsCount == 0)
-            WallCompleted();
+        if (pendingSummons.erase(s->GetGUID()))
+            CheckWallProgress();
     }
 
     void SummonedCreatureDespawn(Creature* s) override
     {
         summons.Despawn(s);
+        // SummonedCreatureDespawn 是核心在小怪离开世界时（TempSummon::UnSummon）触发的"召唤物消失"回调，
+        // 旧代码只把它从 SummonList 里摘掉、不参与冰墙计数：只要有一只小怪消失却没走 SummonedCreatureDies，
+        // 计数就再也回不到 0，本面以及后面所有冰墙都不会塌。这里同样算作已清除
+        if (pendingSummons.erase(s->GetGUID()))
+        {
+            // 记录存活小怪被移出世界的现场（召唤类型 + 剩余计时），用于确认是谁把它撤掉的
+            if (s->IsAlive())
+                if (TempSummon* summon = s->ToTempSummon())
+                    LOG_WARN("scripts", "HoR: alive summon {} ({}) left the world, summon type {}, timer {}, counted as cleared.",
+                        s->GetEntry(), s->GetGUID().ToString().c_str(), uint32(summon->GetSummonType()), summon->GetTimer());
+            CheckWallProgress();
+        }
     }
 
     void SpellHitTarget(Unit* target, SpellInfo const* spell) override
@@ -1622,7 +1672,7 @@ struct npc_hor_lich_king : public NullCreatureAI
                         {
                             me->GetMotionMaster()->MovementExpired();
                             me->StopMoving();
-                            summonsCount = 255;
+                            chaseFailed = true;
                             leader->InterruptNonMeleeSpells(true);
                             me->CastSpell(leader, SPELL_HARVEST_SOUL);
                             events.ScheduleEvent(EVENT_LK_KILL_LEADER, 3s);
@@ -1648,11 +1698,19 @@ struct npc_hor_lich_king : public NullCreatureAI
                     }
                     else
                     {
+                        // 先关闭冰墙判定：DespawnAll 会同步回调 SummonedCreatureDespawn，
+                        // 而此时 me 仍是 active object，若不提前置位，最后一个回调会把清场
+                        // 误判成“小怪已清光”从而错误推进冰墙
+                        chaseFailed = true;
                         summons.DespawnAll();
                         instance->SetData(ACTION_STOP_LK_FIGHT, 1);
                     }
                 }
                 events.ScheduleEvent(EVENT_LK_CHECK_COMBAT, 1s);
+                break;
+            case EVENT_LK_CHECK_SUMMONS:
+                CheckPendingSummons();
+                events.ScheduleEvent(EVENT_LK_CHECK_SUMMONS, 2s);
                 break;
             case EVENT_LK_KILL_LEADER:
                 if (Creature* leader = instance->GetCreature(NPC_SYLVANAS_PART2))
@@ -1661,6 +1719,22 @@ struct npc_hor_lich_king : public NullCreatureAI
                     Unit::Kill(me, leader);
                     me->InterruptNonMeleeSpells(true);
                     DoCastAOE(SPELL_FURY_OF_FROSTMOURNE);
+                    // 领队被抓住即代表追击失败：和冰冠堡垒的巫妖王结局一样用霜之哀伤之怒清场
+                    Map::PlayerList const& players = instance->instance->GetPlayers();
+                    for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
+                        if (Player* player = itr->GetSource())
+                            if (!player->IsGameMaster() && player->IsAlive())
+                                Unit::Kill(me, player);
+                    // 先置位再清场：DespawnAll 会同步回调 SummonedCreatureDespawn，
+                    // chaseFailed 为 true 时这些回调不会推进冰墙（本事件也只由领队被抓分支调度）
+                    chaseFailed = true;
+                    // 失败重置不会 despawn 召唤物，这里主动撤掉当前冰墙仍存活的小怪，
+                    // 避免它们继续攻击复活归位的领队和跑尸回来的玩家
+                    summons.DespawnAll();
+                    // 只清场无法结束战斗：玩家跑尸复活后 Map::HavePlayers() 依旧为 true，
+                    // 追击失败状态会让冰墙永不摧毁、队伍彻底卡死。这里显式走失败重置流程
+                    // （复活并归位领队、归位巫妖王、置 DATA_LICH_KING 为 FAIL），让队伍可以重新开始
+                    instance->SetData(ACTION_STOP_LK_FIGHT, 1);
                 }
                 break;
             case EVENT_LK_START_FOLLOWING:
