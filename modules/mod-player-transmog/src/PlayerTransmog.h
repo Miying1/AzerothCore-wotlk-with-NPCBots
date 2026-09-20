@@ -84,6 +84,8 @@ class PlayerTransmog
     void SetBotTransmog(uint32 characterId, uint32 botEntry, uint32 modelId, std::string const& modelName);
     void RemoveBotTransmog(uint32 characterId, uint32 botEntry);
     void RestoreBotTransmog(Creature* bot);
+    // 判断 BOT 当前是否已正确套用幻形（显示ID + 非角色模型时的 race 字节），供兜底巡检使用
+    bool IsBotTransmogApplied(Creature* bot, uint32 modelId) const;
 
     //玩家幻形状态读写：记录/读取/清除当前幻形（用于被其他变形覆盖后恢复）
     void SetPlayerTransmog(Player* player, uint32 modelid, float scale);

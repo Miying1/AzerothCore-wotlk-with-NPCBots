@@ -12,6 +12,39 @@
 //    ReRandChance = sConfigMgr->GetOption<float>("RandomEnchants.ReRandChance", 80.0f);
 //}
 
+// 某个 DisplayId 的"真实尺寸系数"：
+//   客户端最终体积 = ObjectScale × CreatureModelData.Scale × CreatureDisplayInfo.scale
+//                    × 模型几何尺寸
+// 几何尺寸取 CreatureModelData 的 GeoBoxMin/MaxZ（顶点包围盒**高度**）：很多导入模型
+// （伊利丹 2548：高 7.05，对牛头人 59：2.26）的 ModelScale 与 DisplayInfo.scale 都是 1，
+// 只按 Scale 相乘是归一不掉的。
+// 不取三轴最大值：伊利丹的 X/Y 包围盒包含武器与张臂姿态（Y 9.92），按最大轴归一会把它
+// 缩得比 BOT 原模型还小；按高度归一保证"高度 = BOT 原高度"，其它轴只会更大。
+// 返回 0 表示该 DisplayId 缺几何数据，调用方退化为 GetDisplayModelScaleFactor()。
+static float GetDisplayModelSizeFactor(uint32 displayId)
+{
+    CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
+    if (!info)
+        return 0.f;
+    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
+    if (!modelData)
+        return 0.f;
+    float size = modelData->GeoBoxMax[2] - modelData->GeoBoxMin[2];
+    if (size <= 0.f)
+        return 0.f;
+    return size * modelData->Scale * info->scale;
+}
+
+// 退化用的体积系数：拿不到包围盒时只按 DBC 的 ModelScale × DisplayInfo.scale 归一
+static float GetDisplayModelScaleFactor(uint32 displayId)
+{
+    CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
+    if (!info)
+        return 0.f;
+    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
+    return (modelData ? modelData->Scale : 1.f) * info->scale;
+}
+
 void PlayerTransmog::InitData()
 {
     QueryResult result = CharacterDatabase.Query("SELECT account_id,modelid,modelname,ccflag,quality FROM mod_player_transmog ");
@@ -73,12 +106,45 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
     CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
     if (!tmpl) return false;
 
-    // 3) 体积归一：目标 ObjectScale = 模板模型 DisplayScale / 幻形模型固有 scale
-    if (minfo->scale <= 0.f)
-        return false;
-    float scale = tmpl->DisplayScale / minfo->scale;
+    // 3) 体积归一：让幻形后的最终体积等于 BOT 原体积
+    //    (原) = tmpl->DisplayScale × 原模型尺寸系数
+    //    (新) = scale             × 幻形模型尺寸系数
+    //    两者相等 => scale = tmpl->DisplayScale × 原尺寸系数 / 新尺寸系数
+    float scale;
+    float srcSize = GetDisplayModelSizeFactor(tmpl->CreatureDisplayID);
+    float dstSize = GetDisplayModelSizeFactor(modelId);
+    if (srcSize > 0.f && dstSize > 0.f)
+    {
+        scale = tmpl->DisplayScale * srcSize / dstSize;
+    }
+    else
+    {
+        // 退化：拿不到包围盒时只按 DBC 的 ModelScale × DisplayInfo.scale 归一
+        float srcFactor = GetDisplayModelScaleFactor(tmpl->CreatureDisplayID);
+        if (srcFactor <= 0.f)
+            srcFactor = 1.f;
+        float dstFactor = GetDisplayModelScaleFactor(modelId);
+        if (dstFactor <= 0.f)
+            return false;                     // 幻形模型数据异常，放弃幻形
+        srcSize = srcFactor;
+        dstSize = dstFactor;
+        scale = tmpl->DisplayScale * srcFactor / dstFactor;
+    }
 
-    // 4) 直接写原生显示 ID + 显示 ID + 缩放（不挂任何光环，从根上保证死亡/复活/被覆盖后仍恢复幻形）
+    // 目标模型比 BOT 原模型大时，归一后的缩放再增加 10%：
+    // 大模型按高度对齐后视觉上会显小，补一点体量
+    if (dstSize > srcSize)
+        scale *= 1.1f;
+
+    // 4) 关键：需要展示角色外观的 BOT 条目在 creature_outfits 里，核心会打上
+    //    UNIT_FLAG2_MIRROR_IMAGE（ObjectMgr.cpp:9799 "Needed so client requests mirror packet"）。
+    //    客户端据此向服务端请求 SMSG_MIRRORIMAGE_DATA，并用**BOT 自己的**种族/肤色/脸/发型
+    //    + 装备外观去渲染当前的 displayId —— 于是幻形目标模型被 BOT 的角色贴图覆盖（纯白/错贴图）。
+    //    幻形期间清除该标记，让客户端按普通生物走 CreatureDisplayInfo 的 TextureVariation 渲染；
+    //    恢复原形时由 RestoreBotTransmog() 依据模板还原该标记。
+    bot->RemoveUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE);
+
+    // 5) 直接写原生显示 ID + 显示 ID + 缩放（不挂任何光环，从根上保证死亡/复活/被覆盖后仍恢复幻形）
     bot->SetNativeDisplayId(modelId);
     bot->SetDisplayId(modelId, scale);
 
@@ -326,6 +392,25 @@ void PlayerTransmog::RestoreBotTransmog(Creature* bot)
 
     bot->SetNativeDisplayId(tmpl->CreatureDisplayID);
     bot->SetDisplayId(tmpl->CreatureDisplayID, tmpl->DisplayScale);
+
+    // 还原"角色外观（镜像）"标记：登记在 creature_outfits 的 BOT 需要在客户端显示角色外观+装备
+    if (bot->GetCreatureTemplate()->unit_flags2 & UNIT_FLAG2_MIRROR_IMAGE)
+        bot->SetUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE);
+}
+
+bool PlayerTransmog::IsBotTransmogApplied(Creature* bot, uint32 modelId) const
+{
+    if (!bot)
+        return false;
+
+    if (bot->GetDisplayId() != modelId || bot->GetNativeDisplayId() != modelId)
+        return false;
+
+    // 幻形期间必须清掉 UNIT_FLAG2_MIRROR_IMAGE，否则客户端仍按角色（镜像）管线渲染
+    if (bot->HasUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE))
+        return false;
+
+    return true;
 }
 
 void PlayerTransmog::SetPlayerTransmog(Player* player, uint32 modelid, float scale)

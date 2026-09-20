@@ -38,7 +38,11 @@ char constexpr CinematicSequencesEntryfmt[] = "nxixxxxxxx";
 char constexpr CreatureDisplayInfofmt[] = "nixifxxxxxxxxxxx";
 char constexpr CreatureDisplayInfoExtrafmt[] = "dixxxxxxxxxxxxxxxxxxx";
 char constexpr CreatureFamilyfmt[] = "nfifiiiiixssssssssssssssssxx";
-char constexpr CreatureModelDatafmt[] = "nixxfxxxxxxxxxfffxxxxxxxxxxx";
+// id, flags, modelPath(x), sizeClass(x), modelScale, 9个跳过(bloodID..soundID),
+// CollisionWidth, CollisionHeight, MountHeight,
+// GeoBoxMinXYZ, GeoBoxMaxXYZ（模型顶点包围盒，用于体积归一）,
+// 5个跳过(worldEffectScale..missileCollisionRaise)
+char constexpr CreatureModelDatafmt[] = "nixxf" "xxxxxxxxx" "fffffffff" "xxxxx";
 char constexpr CreatureSpellDatafmt[] = "niiiixxxx";
 char constexpr CreatureTypefmt[] = "nxxxxxxxxxxxxxxxxxx";
 char constexpr CurrencyTypesfmt[] = "xnxi";

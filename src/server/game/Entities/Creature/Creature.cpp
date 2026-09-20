@@ -3726,8 +3726,60 @@ float Creature::GetNativeObjectScale() const
         CreatureModel const* tmpl = GetCreatureTemplate()->GetFirstValidModel();
         if (tmpl && GetNativeDisplayId() != tmpl->CreatureDisplayID)
         {
-            if (CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(GetNativeDisplayId()))
-                return tmpl->DisplayScale / info->scale;
+            // 客户端最终体积 = ObjectScale × CreatureModelData.Scale × CreatureDisplayInfo.scale
+            // × 模型几何尺寸；几何尺寸取 GeoBoxMin/MaxZ（顶点包围盒高度），保证"高度 = BOT 原高度"。
+            // 不取三轴最大值：伊利丹等模型的 X/Y 包围盒含武器与张臂姿态，按最大轴归一会把它
+            // 缩得比原模型还小。（与 PlayerTransmog::CastTransmogBot 保持同一公式）
+            auto modelSizeFactor = [](uint32 displayId) -> float
+            {
+                CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
+                if (!info)
+                    return 0.f;
+                CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
+                if (!modelData)
+                    return 0.f;
+                float size = modelData->GeoBoxMax[2] - modelData->GeoBoxMin[2];
+                if (size <= 0.f)
+                    return 0.f;
+                return size * modelData->Scale * info->scale;
+            };
+            auto modelScaleFactor = [](uint32 displayId) -> float
+            {
+                CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
+                if (!info)
+                    return 0.f;
+                CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
+                return (modelData ? modelData->Scale : 1.f) * info->scale;
+            };
+
+            float srcSize = modelSizeFactor(tmpl->CreatureDisplayID);
+            float dstSize = modelSizeFactor(GetNativeDisplayId());
+            float scale = 0.f;
+            if (srcSize > 0.f && dstSize > 0.f)
+            {
+                scale = tmpl->DisplayScale * srcSize / dstSize;
+            }
+            else
+            {
+                float dstFactor = modelScaleFactor(GetNativeDisplayId());
+                if (dstFactor > 0.f)
+                {
+                    float srcFactor = modelScaleFactor(tmpl->CreatureDisplayID);
+                    if (srcFactor <= 0.f)
+                        srcFactor = 1.f;
+                    srcSize = srcFactor;
+                    dstSize = dstFactor;
+                    scale = tmpl->DisplayScale * srcFactor / dstFactor;
+                }
+            }
+
+            if (scale > 0.f)
+            {
+                // 目标模型比 BOT 原模型大时，归一后的缩放再增加 10%（与 PlayerTransmog::CastTransmogBot 一致）
+                if (dstSize > srcSize)
+                    scale *= 1.1f;
+                return scale;
+            }
         }
     }
 

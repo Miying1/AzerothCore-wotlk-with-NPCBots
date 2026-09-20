@@ -620,17 +620,34 @@ public:
         // resetType 是位掩码，核心存在组合值（如 LOGOUT | DISMISS），必须用位运算判断
         bool isDismiss = (resetType & BOTAI_RESET_DISMISS) != 0;
         bool isLogout  = (resetType & BOTAI_RESET_LOGOUT)  != 0;
-        if (!isDismiss && !isLogout) return;
 
-        pTransmog->RestoreBotTransmog(bot);
-
-        if (isDismiss)
+        if (isDismiss || isLogout)
         {
-            // 此时 owner 尚未清零（清零发生在 ResetBotAI 返回之后），直接读取即可
-            uint32 ownerLow = (bot->GetBotAI() && bot->GetBotAI()->GetBotData()) ? bot->GetBotAI()->GetBotData()->owner : 0;
-            if (ownerLow)
-                pTransmog->RemoveBotTransmog(ownerLow, bot->GetEntry());
+            pTransmog->RestoreBotTransmog(bot);
+
+            if (isDismiss)
+            {
+                // 此时 owner 尚未清零（清零发生在 ResetBotAI 返回之后），直接读取即可
+                uint32 ownerLow = (bot->GetBotAI() && bot->GetBotAI()->GetBotData()) ? bot->GetBotAI()->GetBotData()->owner : 0;
+                if (ownerLow)
+                    pTransmog->RemoveBotTransmog(ownerLow, bot->GetEntry());
+            }
+            return;
         }
+
+        // 其它重置（如 FORCERECALL / UNBIND）：ResetBotAI 末尾附近会用模板重新套用 unit_flags2，
+        // 把 UNIT_FLAG2_MIRROR_IMAGE 加回来，导致幻形贴图被 BOT 角色外观覆盖，这里立即重新套用幻形。
+        // INIT 阶段 BOT 尚未归属玩家，跳过。
+        if (resetType == BOTAI_RESET_INIT)
+            return;
+
+        uint32 ownerLow = (bot->GetBotAI() && bot->GetBotAI()->GetBotData()) ? bot->GetBotAI()->GetBotData()->owner : 0;
+        if (!ownerLow)
+            return;
+
+        auto d = pTransmog->GetBotTransmog(ownerLow, bot->GetEntry());
+        if (d && d->model_id)
+            pTransmog->CastTransmogBot(bot, d->model_id);
     }
 };
 
@@ -679,7 +696,7 @@ public:
                 for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
                 {
                     if (bot && bot->GetEntry() == entry && bot->IsInWorld() && bot->IsAlive()
-                        && (bot->GetDisplayId() != model_id || bot->GetNativeDisplayId() != model_id))
+                        && !pTransmog->IsBotTransmogApplied(bot, model_id))
                         pTransmog->CastTransmogBot(bot, model_id);
                 }
             }

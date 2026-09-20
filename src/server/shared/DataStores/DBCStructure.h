@@ -791,12 +791,8 @@ struct CreatureModelDataEntry
     float CollisionWidth;
     float CollisionHeight;
     float MountHeight;                                       // Used in calculation of unit collision data when mounted
-    //float geoBoxMinX
-    //float geoBoxMinY
-    //float geoBoxMinZ
-    //float geoBoxMaxX
-    //float geoBoxMaxY
-    //float geoBoxMaxZ
+    float GeoBoxMin[3];                                      // 模型顶点包围盒最小坐标（各版本导入模型的实际几何尺寸，用于体积归一）
+    float GeoBoxMax[3];                                      // 模型顶点包围盒最大坐标
     //float worldEffectScale
     //float attachedEffectScale
     //float missileCollisionRadius
