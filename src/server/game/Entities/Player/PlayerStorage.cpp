@@ -6318,7 +6318,16 @@ void Player::_LoadBank(PreparedQueryResult result, ObjectGuid const& owner, bool
 
     m_itemUpdateQueueBlocked = false;
     CharacterDatabase.CommitTransaction(trans);
-    _ApplyAllItemMods();
+
+    // 注意：此处不能调用 _ApplyAllItemMods()。
+    // 该函数用于「登录时首次把全部已装备物品的加成应用一遍」（见 _LoadInventory 末尾），
+    // 而银行槽位（39~74）并不在它的遍历范围内，因此在这里调用它对银行毫无作用，
+    // 只会把玩家「已装备物品」的加成（属性/套装/附魔）以及装备触发法术再应用一次：
+    // 1) 物品与附魔加成被重复叠加，属性面板直接虚高；
+    // 2) 装备触发法术属于被动光环（SpellInfo::IsMultiSlotAura() 返回 true，
+    //    Unit::_TryStackingOrRefreshingExistingAura 会跳过“查找旧实例并刷新”的逻辑），
+    //    每次调用都会新建一份 Aura 实例且旧的永不刷新、永不覆盖。
+    // 结果就是每切换一次银行模式，属性与被动光环实例都再叠一层（重登才会清空）。
 }
 
 Item* Player::_LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint32 timeDiff, Field* fields, ObjectGuid const& owner)
