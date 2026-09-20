@@ -58,6 +58,10 @@ constexpr uint32 BOT_TRANSMOG_GOSSIP_TEXT_ID = 60701;  // 佣兵幻形 BOT 列�
 // 多级状态携带：哈哈镜是无状态 gossip，用模块级瞬态缓存记录当前选中 BOT
 std::unordered_map<ObjectGuid, uint32> BotTransmogSelectedEntry; // player guid -> 当前选中 bot_entry
 
+// 登录后短时提速补齐：BOT 与主人的绑定/幻形套用可能晚于客户端首次看到 BOT，
+// 期间 BOT 会先以原形（或角色镜像外观）渲染。登录后若干秒内按秒补齐，不必等 30 秒兜底巡检。
+std::unordered_map<ObjectGuid, uint32> BotTransmogLoginWatch;    // player guid -> 剩余监听毫秒
+
 class TransmogItemScript : public ItemScript
 {
 private:
@@ -651,56 +655,101 @@ public:
     }
 };
 
-// 玩家下线清理瞬态缓存
+// 玩家登录/下线：登录开启短时补齐窗口，下线清理瞬态缓存
 class TransmogBot_PlayerScript : public PlayerScript
 {
 public:
     TransmogBot_PlayerScript() : PlayerScript("TransmogBot_PlayerScript") { }
 
+    void OnPlayerLogin(Player* player) override
+    {
+        if (player)
+            BotTransmogLoginWatch[player->GetGUID()] = 20000;   // 登录后 10 秒内每 2 秒快检
+    }
+
     void OnPlayerLogout(Player* player) override
     {
         BotTransmogSelectedEntry.erase(player->GetGUID());
+        BotTransmogLoginWatch.erase(player->GetGUID());
         pTransmog->ClearPlayerTransmog(player);
     }
 };
 
-// 在线期间低频兜底巡检，覆盖极少数直接改 DISPLAYID 而未走 RestoreDisplayId 的路径
+// 在线期间巡检：登录后 10 秒内每 2 秒快检 + 60 秒兜底
 class TransmogBot_WorldScript : public WorldScript
 {
 private:
-    uint32 _checkTimer = 30000;   // 30 秒巡检周期
+    uint32 _checkTimer = 60000;   // 60 秒兜底巡检周期
+    uint32 _fastTimer = 2000;     // 登录窗口内的快检周期：2 秒
+
+    // 给该玩家所有已在场的 BOT 补齐幻形（未套用才写字段）
+    static void _applyPlayerBots(Player* pl)
+    {
+        if (!pl || !pl->GetBotMgr())
+            return;
+
+        uint32 cid = pl->GetGUID().GetCounter();
+        auto entries = pTransmog->GetBotTransmogEntries(cid);
+
+        for (auto const& [entry, model_id] : entries)
+        {
+            for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
+            {
+                if (bot && bot->GetEntry() == entry && bot->IsInWorld() && bot->IsAlive()
+                    && !pTransmog->IsBotTransmogApplied(bot, model_id))
+                    pTransmog->CastTransmogBot(bot, model_id);
+            }
+        }
+    }
 
 public:
     TransmogBot_WorldScript() : WorldScript("TransmogBot_WorldScript") { }
 
     void OnUpdate(uint32 diff) override
     {
+        // ① 登录后 10 秒窗口：每 2 秒快检一次（主人绑定/进入世界可能晚于客户端首次看到 BOT）
+        if (BotTransmogLoginWatch.empty())
+        {
+            _fastTimer = 2000;
+        }
+        else
+        {
+            _fastTimer = _fastTimer > diff ? _fastTimer - diff : 0;
+
+            // 窗口剩余时间倒计时，过期的先摘除
+            for (auto itr = BotTransmogLoginWatch.begin(); itr != BotTransmogLoginWatch.end();)
+            {
+                if (itr->second <= diff)
+                    itr = BotTransmogLoginWatch.erase(itr);
+                else
+                {
+                    itr->second -= diff;
+                    ++itr;
+                }
+            }
+
+            if (_fastTimer == 0 && !BotTransmogLoginWatch.empty())
+            {
+                _fastTimer = 2000;
+                for (auto const& entry : BotTransmogLoginWatch)
+                {
+                    if (Player* pl = ObjectAccessor::FindConnectedPlayer(entry.first))
+                        _applyPlayerBots(pl);
+                }
+            }
+        }
+
+        // ② 60 秒兜底巡检
         if (_checkTimer > diff)
         {
             _checkTimer -= diff;
             return;
         }
-        _checkTimer = 30000;   // 30 秒
+        _checkTimer = 60000;
 
         // 只遍历在线玩家，避免扫描全部（含离线角色）的幻形记录
         for (auto const& [_, session] : sWorldSessionMgr->GetAllSessions())
-        {
-            Player* pl = session->GetPlayer();
-            if (!pl || !pl->GetBotMgr()) continue;
-
-            uint32 cid = pl->GetGUID().GetCounter();
-            auto entries = pTransmog->GetBotTransmogEntries(cid);
-
-            for (auto const& [entry, model_id] : entries)
-            {
-                for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
-                {
-                    if (bot && bot->GetEntry() == entry && bot->IsInWorld() && bot->IsAlive()
-                        && !pTransmog->IsBotTransmogApplied(bot, model_id))
-                        pTransmog->CastTransmogBot(bot, model_id);
-                }
-            }
-        }
+            _applyPlayerBots(session->GetPlayer());
     }
 };
 

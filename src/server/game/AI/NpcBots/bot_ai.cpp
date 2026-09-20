@@ -15675,8 +15675,10 @@ void bot_ai::InitEquips()
         if (CanChangeEquip(i) && _equips[i])
         {
             NpcBotTransmogData const* transmogData = BotDataMgr::SelectNpcBotTransmogs(me->GetEntry());
-            if (einfo->ItemEntry[i] != _equips[i]->GetEntry() && transmogData && BotCfg::IsTransmogEnabled() && (transmogData->transmogs[i].first == _equips[i]->GetEntry() || BotCfg::TransmogUseEquipmentSlots()))
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i, uint32(std::max<int32>(transmogData->transmogs[i].second, 0)));
+            if (einfo->ItemEntry[i] != _equips[i]->GetEntry() && transmogData && BotCfg::IsTransmogEnabled() &&
+                (transmogData->transmogs[i].first == _equips[i]->GetEntry() || BotCfg::TransmogUseEquipmentSlots()) &&
+                transmogData->transmogs[i].second >= 0)
+                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i, uint32(transmogData->transmogs[i].second));
             else
                 me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i, _equips[i]->GetEntry());
         }

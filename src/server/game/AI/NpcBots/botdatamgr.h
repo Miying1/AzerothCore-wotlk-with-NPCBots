@@ -135,6 +135,14 @@ struct NpcBotExtras
 struct NpcBotTransmogData
 {
     std::array<std::pair<uint32 /*item_id*/, int32 /*fake_id*/>, BOT_TRANSMOG_INVENTORY_SIZE> transmogs;
+
+    // Unregistered slots must mean 'no transmog' (fake_id = -1, same as ResetNpcBotTransmogData),
+    // otherwise they are treated as 'hide this slot' and bots lose their equipment visuals
+    NpcBotTransmogData()
+    {
+        for (auto& transmog : transmogs)
+            transmog = { 0, -1 };
+    }
 };
 
 struct NpcBotStats
