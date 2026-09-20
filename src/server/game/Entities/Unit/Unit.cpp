@@ -13934,7 +13934,7 @@ void Unit::RecalculateObjectScale()
         scale = GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras);
     }
     //float scale = scale + CalculatePct(GetObjectScale(), scaleAuras);
-    float scaleMin = IsPlayer() ? 0.1f : 0.01f;
+    float scaleMin = IsPlayer() ? 0.05f : 0.01f;
     SetObjectScale(std::max(scale, scaleMin));
 }
 

@@ -9,6 +9,11 @@
 #include "SpellAuraEffects.h"
 #include <SpellScript.h>
 #include "bot_ai.h"
+#include "botmgr.h"
+#include "botdatamgr.h"
+#include "ObjectAccessor.h"
+#include "WorldSession.h"
+#include "WorldSessionMgr.h"
 
 class TransmogItem_WorldScript : public WorldScript
 {
@@ -35,9 +40,23 @@ enum TransmogItemEnum
     GOSSIP_SENDER_FLAG_OK = 2000,
     GOSSIP_SENDER_FLAG_NONE = 2100,
     GOSSIP_SENDER_DEL = 3000,
-    GOSSIP_SENDER_USE = 4000
+    GOSSIP_SENDER_USE = 4000,
+
+    // 佣兵幻形菜单
+    GOSSIP_SENDER_BOT_MAIN     = 5000,   // 点击「佣兵幻形」入口
+    GOSSIP_SENDER_BOT_SELECT   = 5100,   // 选中某个 BOT（action = bot_entry）
+    GOSSIP_SENDER_BOT_CATEGORY = 5200,   // 选中分类（action = quality）
+    GOSSIP_SENDER_BOT_MODEL    = 5300,   // 选中幻象（action = model_id）
+    GOSSIP_SENDER_BOT_BACK     = 5400    // 返回上一级
 
 };
+
+// 佣兵幻形：消耗品与问候语文本 ID
+constexpr uint32 BOT_TRANSMOG_COIN_ENTRY     = 63000;  // 幸运币 item entry（每次幻形消耗 1 枚）
+constexpr uint32 BOT_TRANSMOG_GOSSIP_TEXT_ID = 60701;  // 佣兵幻形 BOT 列表菜单问候语 npc_text ID
+
+// 多级状态携带：哈哈镜是无状态 gossip，用模块级瞬态缓存记录当前选中 BOT
+std::unordered_map<ObjectGuid, uint32> BotTransmogSelectedEntry; // player guid -> 当前选中 bot_entry
 
 class TransmogItemScript : public ItemScript
 {
@@ -67,6 +86,7 @@ public:
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_JY, 1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "稀有幻象", GOSSIP_SENDER_XY, 2);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "史诗幻象", GOSSIP_SENDER_BOSS, 3);
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "佣兵幻形", GOSSIP_SENDER_BOT_MAIN, 0);
         SendGossipMenuFor(player, textId, item->GetGUID());
     }
 
@@ -122,10 +142,10 @@ public:
             break;
         case GOSSIP_SENDER_USE://变身
             CloseGossipMenuFor(player); 
-            if (target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
-               pTransmog->CastTransmogBot(target, action);
-               return;
-            } 
+            // if (target && target->IsNPCBot() && target->ToCreature()->GetBotAI()->GetBotOwner()==player) {
+            //    pTransmog->CastTransmogBot(target, action);
+            //    return;
+            // } 
             pTransmog->CastTransmog(player, action); 
             return;
         case GOSSIP_SENDER_USE + GOSSIP_SENDER_MODEL_INFO + GOSSIP_SENDER_PT:
@@ -135,6 +155,25 @@ public:
             pTransmog->CastTransmog(player, action);
             OnGossipSelect(player, item, sender - GOSSIP_SENDER_USE, action);
             break;
+        //==================== 佣兵幻形 ====================
+        case GOSSIP_SENDER_BOT_MAIN:
+            ShowBotList(player, item);
+            return;
+        case GOSSIP_SENDER_BOT_SELECT:
+            BotTransmogSelectedEntry[player->GetGUID()] = action;   // 记住选中的 bot_entry
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "普通幻象", GOSSIP_SENDER_BOT_CATEGORY, 0);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_BOT_CATEGORY, 1);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "稀有幻象", GOSSIP_SENDER_BOT_CATEGORY, 2);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "史诗幻象", GOSSIP_SENDER_BOT_CATEGORY, 3);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
+            SendGossipMenuFor(player, textId, item->GetGUID());
+            return;
+        case GOSSIP_SENDER_BOT_CATEGORY:
+            ShowBotModelList(player, item, account_id, action);
+            return;
+        case GOSSIP_SENDER_BOT_MODEL:
+            ApplyBotTransmog(player, action);
+            return;
         }
 
         SendGossipMenuFor(player, textId, item->GetGUID());
@@ -174,6 +213,82 @@ public:
             str << "是否确定删除 " << pTransmog->GetModelNameText(mData) << " 幻象?";
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "删除", GOSSIP_SENDER_DEL + (sender - GOSSIP_SENDER_MODEL_INFO), modelId, str.str(), 0, false);
         }
+    }
+
+    //==================== 佣兵幻形菜单 ====================
+    // 列出当前雇佣的 BOT
+    void ShowBotList(Player* player, Item* item)
+    {
+        player->PlayerTalkClass->ClearMenus();
+        BotMap const* bots = player->GetBotMgr()->GetBotMap();
+        for (auto const& [_, bot] : *bots)
+        {
+            if (!bot) continue;
+            std::ostringstream str;
+            str << "[" << bot->GetEntry() << "]" << bot->GetName();
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, str.str(), GOSSIP_SENDER_BOT_SELECT, bot->GetEntry());
+        }
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BACK_HOME, 0);
+        // 用专属问候语 textId，说明「幻形需消耗 1 枚幸运币」
+        SendGossipMenuFor(player, BOT_TRANSMOG_GOSSIP_TEXT_ID, item->GetGUID());
+    }
+
+    // 列出所选分类下的幻象（选中即弹确认框）
+    void ShowBotModelList(Player* player, Item* item, uint32 account_id, uint32 quality)
+    {
+        uint32 bot_entry = BotTransmogSelectedEntry[player->GetGUID()];
+        QualityGroupMap* qg = pTransmog->GetAccountQualityGroupMap(account_id);
+        auto it = qg->find(quality);
+        if (it != qg->end())
+        {
+            for (auto& m : it->second)
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_INTERACT_2, pTransmog->GetModelNameText(&m),
+                                 GOSSIP_SENDER_BOT_MODEL, m.modelid,
+                                 "给佣兵幻形需要消耗 1 枚幸运币，是否确定？", 0, false);
+            }
+        }
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_SELECT, bot_entry);
+        SendGossipMenuFor(player, textId, item->GetGUID());
+    }
+
+    // 应用幻形：校验 BOT 在场、幸运币充足，成功后消耗并持久化
+    void ApplyBotTransmog(Player* player, uint32 model_id)
+    {
+        uint32 bot_entry  = BotTransmogSelectedEntry[player->GetGUID()];
+        uint16 account_id = player->GetSession()->GetAccountId();
+
+        Creature* bot = nullptr;
+        for (auto const& [_, b] : *player->GetBotMgr()->GetBotMap())
+        {
+            if (b && b->GetEntry() == bot_entry)
+            {
+                bot = b;
+                break;
+            }
+        }
+
+        if (!bot || !bot->IsInWorld() || !bot->IsAlive())
+        {
+            ChatHandler(player->GetSession()).SendSysMessage("该 BOT 当前不在场，无法幻形。");
+        }
+        else if (!player->HasItemCount(BOT_TRANSMOG_COIN_ENTRY, 1))
+        {
+            ChatHandler(player->GetSession()).SendSysMessage("幸运币不足，无法给佣兵幻形。");
+        }
+        else if (pTransmog->CastTransmogBot(bot, model_id))
+        {
+            player->DestroyItemCount(BOT_TRANSMOG_COIN_ENTRY, 1, true);   // 幻形成功后消耗 1 枚幸运币
+            ModelData* m = pTransmog->GetModelDataById(account_id, model_id);
+            std::string name = m ? m->modelname : std::to_string(model_id);
+            pTransmog->SetBotTransmog(player->GetGUID().GetCounter(), bot_entry, model_id, name); // 持久化
+            ChatHandler(player->GetSession()).SendSysMessage("BOT 幻形成功。");
+        }
+        else
+        {
+            ChatHandler(player->GetSession()).SendSysMessage("幻形失败。");
+        }
+        CloseGossipMenuFor(player);
     }
 };
  
@@ -442,14 +557,121 @@ public:
                 target->SetObjectScale(1);
             }
         }
+
+        //变形光环重新应用时（含被其他变形覆盖后由 RestoreDisplayId 恢复），还原为玩家选择的幻形模型
+        void OnAfterApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+        {
+            Unit* target = GetTarget();
+            if (!target || !target->IsPlayer())
+                return;
+            if (std::optional<PlayerTransmogState> state = pTransmog->GetPlayerTransmog(target->ToPlayer()))
+                target->SetDisplayId(state->modelid, state->scale);
+        }
+
         void Register() override
         {
             OnEffectRemove += AuraEffectRemoveFn(spell_player_transmog_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
+            AfterEffectApply += AuraEffectApplyFn(spell_player_transmog_AuraScript::OnAfterApply, EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_SEND_FOR_CLIENT_MASK);
         }
     };
     AuraScript* GetAuraScript() const override
     {
         return new spell_player_transmog_AuraScript();
+    }
+};
+
+//==================== 佣兵幻形：生命周期钩子 ====================
+
+// 核心 NPCBot 生命周期（setowner / reset）通知模块应用/恢复幻形
+class TransmogBot_UnitScript : public UnitScript
+{
+public:
+    TransmogBot_UnitScript() : UnitScript("TransmogBot_UnitScript") { }
+
+    // ① setowner 成功：应用幻形
+    void OnBotSetOwner(Unit* unit, Player* owner) override
+    {
+        Creature* bot = unit->ToCreature();
+        if (!bot || !owner) return;
+        uint32 cid = owner->GetGUID().GetCounter();
+        auto d = pTransmog->GetBotTransmog(cid, bot->GetEntry());
+        if (d && d->model_id)
+            pTransmog->CastTransmogBot(bot, d->model_id);
+    }
+
+    // ③④ 下线/解雇：恢复原形；解雇额外清理 DB
+    void OnBotReset(Unit* unit, uint8 resetType) override
+    {
+        Creature* bot = unit->ToCreature();
+        if (!bot) return;
+
+        // resetType 是位掩码，核心存在组合值（如 LOGOUT | DISMISS），必须用位运算判断
+        bool isDismiss = (resetType & BOTAI_RESET_DISMISS) != 0;
+        bool isLogout  = (resetType & BOTAI_RESET_LOGOUT)  != 0;
+        if (!isDismiss && !isLogout) return;
+
+        pTransmog->RestoreBotTransmog(bot);
+
+        if (isDismiss)
+        {
+            // 此时 owner 尚未清零（清零发生在 ResetBotAI 返回之后），直接读取即可
+            uint32 ownerLow = (bot->GetBotAI() && bot->GetBotAI()->GetBotData()) ? bot->GetBotAI()->GetBotData()->owner : 0;
+            if (ownerLow)
+                pTransmog->RemoveBotTransmog(ownerLow, bot->GetEntry());
+        }
+    }
+};
+
+// 玩家下线清理瞬态缓存
+class TransmogBot_PlayerScript : public PlayerScript
+{
+public:
+    TransmogBot_PlayerScript() : PlayerScript("TransmogBot_PlayerScript") { }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        BotTransmogSelectedEntry.erase(player->GetGUID());
+        pTransmog->ClearPlayerTransmog(player);
+    }
+};
+
+// 在线期间低频兜底巡检，覆盖极少数直接改 DISPLAYID 而未走 RestoreDisplayId 的路径
+class TransmogBot_WorldScript : public WorldScript
+{
+private:
+    uint32 _checkTimer = 30000;   // 30 秒巡检周期
+
+public:
+    TransmogBot_WorldScript() : WorldScript("TransmogBot_WorldScript") { }
+
+    void OnUpdate(uint32 diff) override
+    {
+        if (_checkTimer > diff)
+        {
+            _checkTimer -= diff;
+            return;
+        }
+        _checkTimer = 30000;   // 30 秒
+
+        // 只遍历在线玩家，避免扫描全部（含离线角色）的幻形记录
+        for (auto const& [_, session] : sWorldSessionMgr->GetAllSessions())
+        {
+            Player* pl = session->GetPlayer();
+            if (!pl || !pl->GetBotMgr()) continue;
+
+            uint32 cid = pl->GetGUID().GetCounter();
+            auto entries = pTransmog->GetBotTransmogEntries(cid);
+
+            for (auto const& [entry, model_id] : entries)
+            {
+                for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
+                {
+                    if (bot && bot->GetEntry() == entry && bot->IsInWorld() && bot->IsAlive()
+                        && (bot->GetDisplayId() != model_id || bot->GetNativeDisplayId() != model_id))
+                        pTransmog->CastTransmogBot(bot, model_id);
+                }
+            }
+        }
     }
 };
 
@@ -464,4 +686,7 @@ void AddSC_TransmogItemScript()
     new TransmogCcJewel_PTScript();
     new PlayerTransmog_ItemScript();
     new spell_player_transmog();
+    new TransmogBot_UnitScript();
+    new TransmogBot_PlayerScript();
+    new TransmogBot_WorldScript();
 }

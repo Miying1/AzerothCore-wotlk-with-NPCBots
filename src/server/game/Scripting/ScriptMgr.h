@@ -569,6 +569,8 @@ public: /* UnitScript */
     void OnUnitExitCombat(Unit* unit);
     void OnUnitDeath(Unit* unit, Unit* killer);
     void OnUnitSetShapeshiftForm(Unit* unit, uint8 form);
+    void OnBotSetOwner(Unit* bot, Player* owner);
+    void OnBotReset(Unit* bot, uint8 resetType);
 
 public: /* MovementHandlerScript */
     void OnPlayerMove(Player* player, MovementInfo movementInfo, uint32 opcode);

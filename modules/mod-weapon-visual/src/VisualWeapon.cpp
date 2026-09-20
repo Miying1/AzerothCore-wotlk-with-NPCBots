@@ -20,7 +20,9 @@ enum VisualWeaponsGossip
     VIS_GOSSIP_MAIN_MENU_ACTION = 100,
     VIS_GOSSIP_MAIN_HAND_ACTION = 200,
     VIS_GOSSIP_OFF_HAND_ACTION  = 300,
-    VIS_GOSSIP_CLOSE_ACTION     = 400
+    VIS_GOSSIP_CLOSE_ACTION     = 400,
+    // 副手菜单项的 action 偏移量，用于与主手菜单项区分（消除共享成员变量带来的并发隐患）
+    VIS_GOSSIP_OFFHAND_OFFSET   = 1000
 };
 
 struct VisualData
@@ -93,11 +95,9 @@ class VisualWeaponNPC : public CreatureScript
 public:
     VisualWeaponNPC() : CreatureScript("npc_visualweapon") { }
 
-    bool MainHand;
-
-    void SetVisual(Player* player, uint32 visual_id)
+    void SetVisual(Player* player, uint32 visual_id, bool mainHand)
     {
-        uint8 slot = MainHand ? EQUIPMENT_SLOT_MAINHAND : EQUIPMENT_SLOT_OFFHAND;
+        uint8 slot = mainHand ? EQUIPMENT_SLOT_MAINHAND : EQUIPMENT_SLOT_OFFHAND;
 
         Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
 
@@ -131,17 +131,20 @@ public:
         player->ModifyMoney(-1500000);
     }
 
-    void GetMenu(Player* player, Creature* creature, uint32 menuId)
+    void GetMenu(Player* player, Creature* creature, uint32 menuId, bool mainHand)
     {
+        // 主手与副手使用不同的 action 偏移，从而在回调中区分主副手，无需共享成员变量
+        uint32 actionOffset = mainHand ? 0 : VIS_GOSSIP_OFFHAND_OFFSET;
+
         for (uint8 i = 0; i < (sizeof(vData) / sizeof(*vData)); i++)
         {
             if (vData[i].Menu == menuId) {
                 if (vData[i].Id == 0) {
-                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i);
+                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i + actionOffset);
                 }
                 else
                 { 
-                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i, "支付金币", 1500000, false);
+                    AddGossipItemFor(player, vData[i].Icon, vData[i].Name, GOSSIP_SENDER_MAIN, i + actionOffset, "支付金币", 1500000, false);
                 }
             }
         }
@@ -171,13 +174,11 @@ public:
         switch (action)
         {
             case VIS_GOSSIP_MAIN_HAND_ACTION:
-                MainHand = true;
-                GetMenu(player, creature, 1);
+                GetMenu(player, creature, 1, true);
                 return true;
 
             case VIS_GOSSIP_OFF_HAND_ACTION:
-                MainHand = false;
-                GetMenu(player, creature, 1);
+                GetMenu(player, creature, 1, false);
                 return true;
 
             case VIS_GOSSIP_CLOSE_ACTION:
@@ -185,7 +186,11 @@ public:
                 return false;
         }
 
-        uint32 menuData = vData[action].Submenu;
+        // 根据 action 偏移还原当前是主手还是副手菜单，并得到 vData 索引
+        bool mainHand = action < VIS_GOSSIP_OFFHAND_OFFSET;
+        uint32 index = mainHand ? action : action - VIS_GOSSIP_OFFHAND_OFFSET;
+
+        uint32 menuData = vData[index].Submenu;
 
         if (menuData == VIS_GOSSIP_MAIN_MENU_ACTION)
         {
@@ -194,11 +199,11 @@ public:
         }
         else if (menuData == 0)
         {
-            SetVisual(player, vData[action].Id);
-            menuData = vData[action].Menu;
+            SetVisual(player, vData[index].Id, mainHand);
+            menuData = vData[index].Menu;
         }
 
-        GetMenu(player, creature, menuData);
+        GetMenu(player, creature, menuData, mainHand);
         return true;
     }
 };

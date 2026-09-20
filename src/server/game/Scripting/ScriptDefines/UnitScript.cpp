@@ -139,6 +139,16 @@ void ScriptMgr::OnUnitSetShapeshiftForm(Unit* unit, uint8 form)
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM, script->OnUnitSetShapeshiftForm(unit, form));
 }
 
+void ScriptMgr::OnBotSetOwner(Unit* bot, Player* owner)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_BOT_SET_OWNER, script->OnBotSetOwner(bot, owner));
+}
+
+void ScriptMgr::OnBotReset(Unit* bot, uint8 resetType)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_BOT_RESET, script->OnBotReset(bot, resetType));
+}
+
 UnitScript::UnitScript(char const* name, bool addToScripts, std::vector<uint16> enabledHooks)
     : ScriptObject(name, UNITHOOK_END)
 {

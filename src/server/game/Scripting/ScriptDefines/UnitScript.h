@@ -44,6 +44,8 @@ enum UnitHook
     UNITHOOK_ON_UNIT_EXIT_COMBAT,
     UNITHOOK_ON_UNIT_DEATH,
     UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM,
+    UNITHOOK_ON_BOT_SET_OWNER,   // NPCBot 设置主人成功
+    UNITHOOK_ON_BOT_RESET,       // NPCBot 重置（解雇/下线/解除绑定等）
     UNITHOOK_END
 };
 
@@ -110,6 +112,11 @@ public:
     virtual void OnUnitExitCombat(Unit* /*unit*/) { }
     virtual void OnUnitDeath(Unit* /*unit*/, Unit* /*killer*/) { }
     virtual void OnUnitSetShapeshiftForm(Unit* /*unit*/, uint8 /*form*/) { }
+
+    // NPCBot 设置主人成功时触发，模块可据此应用幻形等效果
+    virtual void OnBotSetOwner(Unit* /*bot*/, Player* /*owner*/) { }
+    // NPCBot 重置时触发（resetType 见 BotAIResetType），模块可据此恢复原形/清理数据
+    virtual void OnBotReset(Unit* /*bot*/, uint8 /*resetType*/) { }
 };
 
 #endif

@@ -3720,6 +3720,17 @@ void Creature::UpdateMovementFlags()
 
 float Creature::GetNativeObjectScale() const
 {
+    // NPCBot 幻形：原生显示 ID 已被改成幻形模型，返回体积归一后的 scale
+    if (IsNPCBot())
+    {
+        CreatureModel const* tmpl = GetCreatureTemplate()->GetFirstValidModel();
+        if (tmpl && GetNativeDisplayId() != tmpl->CreatureDisplayID)
+        {
+            if (CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(GetNativeDisplayId()))
+                return tmpl->DisplayScale / info->scale;
+        }
+    }
+
     return ObjectMgr::ChooseDisplayId(GetCreatureTemplate())->DisplayScale;
 }
 

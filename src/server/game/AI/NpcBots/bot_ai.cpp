@@ -418,6 +418,8 @@ bool bot_ai::SetBotOwner(Player* newowner)
     master = newowner;
     _checkOwershipTimer = BotCfg::GetOwnershipExpireTime() ? CalculateOwnershipCheckTime() : 0;
 
+    sScriptMgr->OnBotSetOwner(me, newowner);   // 通知模块：BOT 已绑定新主人，应用幻形
+
     return true;
 }
 //Check if should totally unlink from owner
@@ -608,6 +610,8 @@ void bot_ai::ResetBotAI(uint8 resetType)
         spawned = false;
         ResetContestedPvP();
     }
+
+    sScriptMgr->OnBotReset(me, resetType);   // 通知模块：BOT 已重置（解雇/下线等），恢复原形/清理数据
 }
 
 bool bot_ai::_checkImmunities(Unit const* target, SpellInfo const* spellInfo) const
@@ -18585,8 +18589,16 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         //Model size / Combat reach
         if (me->GetDisplayId() == me->GetNativeDisplayId())
         {
-            me->SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, DEFAULT_WORLD_OBJECT_SIZE * me->GetObjectScale());
-            me->SetFloatValue(UNIT_FIELD_COMBATREACH,  DEFAULT_COMBAT_REACH * me->GetObjectScale());
+            // 幻形 BOT：object scale 为体积归一 scale（模板DisplayScale/幻形模型scale），
+            // 若直接用会使 bounding radius/combat reach 失真（体积不一致）；
+            // 改用模板 DisplayScale 保持与幻形前一致的命中体积/攻击距离。
+            float baseScale = me->GetObjectScale();
+            if (CreatureModel const* tmpl = me->GetCreatureTemplate()->GetFirstValidModel())
+                if (me->GetNativeDisplayId() != tmpl->CreatureDisplayID)
+                    baseScale = tmpl->DisplayScale;
+
+            me->SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, DEFAULT_WORLD_OBJECT_SIZE * baseScale);
+            me->SetFloatValue(UNIT_FIELD_COMBATREACH,  DEFAULT_COMBAT_REACH * baseScale);
 
             //debug: restore offhand visual if needed
             if (me->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + uint32(BOT_SLOT_OFFHAND)) == 0 && _canUseOffHand())

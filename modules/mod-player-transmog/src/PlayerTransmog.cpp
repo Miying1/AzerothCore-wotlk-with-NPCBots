@@ -57,22 +57,31 @@ void PlayerTransmog::InitData()
             CollectionDataStore[account_id].push_back(mdata); 
         }
     } while (result->NextRow());
+
+    // 追加加载佣兵幻形数据（角色级）
+    LoadBotTransmogData();
 }
-bool PlayerTransmog::CastTransmogBot(Unit* target, int modelid)
+bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
 {
-    target->RemoveAurasByType(SPELL_AURA_TRANSFORM);
-    CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.AssertEntry(modelid);
+    if (!bot || !bot->IsNPCBot()) return false;
+
+    // 1) 校验幻形模型（用 LookupEntry，避免无效 DisplayId 触发断言崩溃）
+    CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.LookupEntry(modelId);
     if (!minfo) return false;
-    CreatureDisplayInfoEntry const* pminfo = sCreatureDisplayInfoStore.AssertEntry(target->GetNativeDisplayId());
 
-    if (target->CastSpell(target, 100004, false) == SPELL_CAST_OK) {
-        target->SetDisplayId(modelid);
+    // 2) 取 BOT 模板唯一模型作为体积基准（BOT 单模型，entry 唯一对应一个生物）
+    CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
+    if (!tmpl) return false;
 
-        if (minfo->scale > (pminfo->scale * 1.1)) {
-            float scale = pminfo->scale / (minfo->scale);
-            target->SetObjectScale(scale);
-        }
-    }
+    // 3) 体积归一：目标 ObjectScale = 模板模型 DisplayScale / 幻形模型固有 scale
+    if (minfo->scale <= 0.f)
+        return false;
+    float scale = tmpl->DisplayScale / minfo->scale;
+
+    // 4) 直接写原生显示 ID + 显示 ID + 缩放（不挂任何光环，从根上保证死亡/复活/被覆盖后仍恢复幻形）
+    bot->SetNativeDisplayId(modelId);
+    bot->SetDisplayId(modelId, scale);
+
     return true;
 }
 bool PlayerTransmog::CastTransmog(Player* player, int modelid)
@@ -81,15 +90,19 @@ bool PlayerTransmog::CastTransmog(Player* player, int modelid)
     CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.AssertEntry(modelid);
     if (!minfo) return false;
     CreatureDisplayInfoEntry const* pminfo = sCreatureDisplayInfoStore.AssertEntry(player->GetNativeDisplayId()); 
- 
-    if (player->CastSpell(player->ToUnit(), 100004, false) == SPELL_CAST_OK) {
-        player->SetDisplayId(modelid);
 
-        if (minfo->scale > (pminfo->scale * 1.1)) {
-            float scale = pminfo->scale  / (minfo->scale); 
-            player->SetObjectScale(scale);
-        } 
-    } 
+    // 体积归一缩放：幻形模型比原生模型大时按比例缩小，保持原身体积
+    float scale = 1.0f;
+    if (minfo->scale > (pminfo->scale * 1.1)) {
+        scale = pminfo->scale / (minfo->scale);
+    }
+
+    // 先记录本次幻形（模型 + 缩放），供 100004 光环在「被其他变形覆盖后恢复」时还原为所选幻形
+    SetPlayerTransmog(player, static_cast<uint32>(modelid), scale);
+
+    if (player->CastSpell(player->ToUnit(), 100004, false) == SPELL_CAST_OK) {
+        player->SetDisplayId(modelid, scale);
+    }
     return true;
 }
 
@@ -221,7 +234,120 @@ std::string PlayerTransmog::GetModelNameText(ModelData* data)
     return str.str();
 }
 
+//==================== 佣兵幻形：数据读写与恢复 ====================
 
+void PlayerTransmog::LoadBotTransmogData()
+{
+    std::lock_guard<std::mutex> lock(_botTransmogMutex);
+    BotTransmogStore.clear();
+    QueryResult result = CharacterDatabase.Query(
+        "SELECT character_id, bot_entry, model_id, model_name FROM mod_player_bot_transmog");
+    if (!result) return;
+    do
+    {
+        Field* f = result->Fetch();
+        BotTransmogData d;
+        uint32 cid = f[0].Get<uint32>();
+        d.bot_entry  = f[1].Get<uint32>();
+        d.model_id   = f[2].Get<uint32>();
+        d.model_name = f[3].Get<std::string>();
+        BotTransmogStore[cid][d.bot_entry] = d;
+    } while (result->NextRow());
+}
+
+std::optional<BotTransmogData> PlayerTransmog::GetBotTransmog(uint32 characterId, uint32 botEntry)
+{
+    std::lock_guard<std::mutex> lock(_botTransmogMutex);
+    auto cit = BotTransmogStore.find(characterId);
+    if (cit == BotTransmogStore.end()) return std::nullopt;
+    auto it = cit->second.find(botEntry);
+    if (it == cit->second.end()) return std::nullopt;
+    return it->second;   // 返回副本，避免锁释放后指针悬垂
+}
+
+void PlayerTransmog::SetBotTransmog(uint32 cid, uint32 botEntry, uint32 modelId, std::string const& modelName)
+{
+    {
+        std::lock_guard<std::mutex> lock(_botTransmogMutex);
+        BotTransmogData d{ botEntry, modelId, modelName };
+        BotTransmogStore[cid][botEntry] = d;
+    }
+
+    // DB 写入较慢，放到锁外执行，避免长时间持有锁
+    std::string escapedName = modelName;
+    CharacterDatabase.EscapeString(escapedName);
+    std::string sql = Acore::StringFormat(
+        "INSERT INTO mod_player_bot_transmog (character_id, bot_entry, model_id, model_name) "
+        "VALUES ({}, {}, {}, '{}') ON DUPLICATE KEY UPDATE model_id=VALUES(model_id), model_name=VALUES(model_name)",
+        cid, botEntry, modelId, escapedName);
+    CharacterDatabase.AsyncQuery(sql);
+}
+
+void PlayerTransmog::RemoveBotTransmog(uint32 cid, uint32 botEntry)
+{
+    {
+        std::lock_guard<std::mutex> lock(_botTransmogMutex);
+        auto cit = BotTransmogStore.find(cid);
+        if (cit != BotTransmogStore.end())
+        {
+            cit->second.erase(botEntry);
+            if (cit->second.empty())
+                BotTransmogStore.erase(cit);
+        }
+    }
+
+    // DB 删除放到锁外执行
+    std::string sql = Acore::StringFormat(
+        "DELETE FROM mod_player_bot_transmog WHERE character_id={} AND bot_entry={}", cid, botEntry);
+    CharacterDatabase.AsyncQuery(sql);
+}
+
+std::vector<std::pair<uint32, uint32>> PlayerTransmog::GetBotTransmogEntries(uint32 characterId) const
+{
+    std::lock_guard<std::mutex> lock(_botTransmogMutex);
+    std::vector<std::pair<uint32, uint32>> entries;
+    auto cit = BotTransmogStore.find(characterId);
+    if (cit != BotTransmogStore.end())
+    {
+        for (auto const& [entry, d] : cit->second)
+            if (d.model_id)
+                entries.emplace_back(entry, d.model_id);
+    }
+    return entries;
+}
+
+void PlayerTransmog::RestoreBotTransmog(Creature* bot)
+{
+    if (!bot) return;
+
+    // 恢复到模板唯一模型的显示 ID 与 scale（BOT 单模型，直接取模板）
+    CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
+    if (!tmpl) return;
+
+    bot->SetNativeDisplayId(tmpl->CreatureDisplayID);
+    bot->SetDisplayId(tmpl->CreatureDisplayID, tmpl->DisplayScale);
+}
+
+void PlayerTransmog::SetPlayerTransmog(Player* player, uint32 modelid, float scale)
+{
+    if (!player) return;
+    PlayerTransmogState state{ modelid, scale };
+    PlayerTransmogStore[player->GetGUID()] = state;
+}
+
+std::optional<PlayerTransmogState> PlayerTransmog::GetPlayerTransmog(Player* player) const
+{
+    if (!player) return std::nullopt;
+    auto it = PlayerTransmogStore.find(player->GetGUID());
+    if (it == PlayerTransmogStore.end()) return std::nullopt;
+    return it->second;   // 返回副本，避免引用悬垂
+}
+
+void PlayerTransmog::ClearPlayerTransmog(Player* player)
+{
+    if (!player) return;
+    PlayerTransmogStore.erase(player->GetGUID());
+}
 
 
 
