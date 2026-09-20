@@ -8,4 +8,4 @@ SET NAMES utf8mb4;
 
 DELETE FROM `npc_text` WHERE `ID` = 60701;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `VerifiedBuild`) VALUES
-(60701, '给佣兵幻形需要消耗 1 枚幸运币。请选择要幻形的佣兵：', -1);
+(60701, '给佣兵幻形需要消耗 1 枚幸运币,会长久保持,直到你解雇他。请选择要幻形的佣兵：', -1);

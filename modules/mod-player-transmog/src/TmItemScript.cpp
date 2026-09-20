@@ -226,6 +226,18 @@ public:
             if (!bot) continue;
             std::ostringstream str;
             str << "[" << bot->GetEntry() << "]" << bot->GetName();
+
+            // 已幻形：在名称后追加幻形模型名，按品质颜色显示
+            uint32 cid = player->GetGUID().GetCounter();
+            if (auto d = pTransmog->GetBotTransmog(cid, bot->GetEntry()))
+            {
+                if (d->model_id)
+                {
+                    ModelData* m = pTransmog->GetModelDataById(player->GetSession()->GetAccountId(), d->model_id);
+                    str << "(幻:" << (m ? pTransmog->GetModelNameText(m) : d->model_name) << ")";
+                }
+            }
+
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, str.str(), GOSSIP_SENDER_BOT_SELECT, bot->GetEntry());
         }
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BACK_HOME, 0);
@@ -270,7 +282,7 @@ public:
 
         if (!bot || !bot->IsInWorld() || !bot->IsAlive())
         {
-            ChatHandler(player->GetSession()).SendSysMessage("该 BOT 当前不在场，无法幻形。");
+            ChatHandler(player->GetSession()).SendSysMessage("该佣兵当前不在场，无法幻形。");
         }
         else if (!player->HasItemCount(BOT_TRANSMOG_COIN_ENTRY, 1))
         {
@@ -282,11 +294,11 @@ public:
             ModelData* m = pTransmog->GetModelDataById(account_id, model_id);
             std::string name = m ? m->modelname : std::to_string(model_id);
             pTransmog->SetBotTransmog(player->GetGUID().GetCounter(), bot_entry, model_id, name); // 持久化
-            ChatHandler(player->GetSession()).SendSysMessage("BOT 幻形成功。");
+            ChatHandler(player->GetSession()).SendSysMessage("佣兵幻形成功。");
         }
         else
         {
-            ChatHandler(player->GetSession()).SendSysMessage("幻形失败。");
+            ChatHandler(player->GetSession()).SendSysMessage("佣兵幻形失败。");
         }
         CloseGossipMenuFor(player);
     }
