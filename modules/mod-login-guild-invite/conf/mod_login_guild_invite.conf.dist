@@ -1,0 +1,47 @@
+[worldserver]
+
+###################################################################################################
+# LOGIN GUILD INVITE
+#
+#    角色登录进入世界后，若尚未加入任何公会，则由系统向其发送加入「指定公会」的邀请。
+#    若登录时等级未达到 MinLevel 门槛，则在之后升级达标时补发邀请。
+#    同一角色每次在线期间最多只邀请一次：玩家拒绝后本次在线不会再重复弹出，重新上线后可再次收到。
+#    玩家在客户端确认后才会真正入会；拒绝则维持现状。
+#
+#    LoginGuildInvite.Enable
+#        Description: 是否启用「上线自动公会邀请」功能。
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+LoginGuildInvite.Enable = 0
+
+#
+#    LoginGuildInvite.GuildId
+#        Description: 目标公会的 ID（characters 库 guild 表的 guildid）。
+#                     该值优先于 GuildName；为 0 时改用 GuildName 按名称匹配。
+#        Default:     0 - (Disabled)
+
+LoginGuildInvite.GuildId = 0
+
+#
+#    LoginGuildInvite.GuildName
+#        Description: 目标公会的名称，仅在 GuildId 为 0 时生效。
+#        Default:     "" - (Disabled)
+
+LoginGuildInvite.GuildName = ""
+
+#
+#    LoginGuildInvite.MinLevel
+#        Description: 最低角色等级，等级低于该值的角色不会被邀请。
+#                     例如填 10，则只有 10 级及以上的角色才会收到邀请。
+#        Default:     1
+
+LoginGuildInvite.MinLevel = 1
+
+#
+#    LoginGuildInvite.MaxLevel
+#        Description: 最高角色等级，等级高于该值的角色不会被邀请。
+#                     0 表示不设上限（任意等级都可被邀请）。
+#        Default:     0 - (Disabled)
+
+LoginGuildInvite.MaxLevel = 0
