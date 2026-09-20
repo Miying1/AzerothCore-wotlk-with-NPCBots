@@ -358,21 +358,25 @@ uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
 
     if (inBankAlso)
     {
-        // checking every item from 39 to 74 (including bank bags)
-        for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_BAG_END; ++i)
-            if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-                if (pItem != skipItem && pItem->GetEntry() == item)
-                    count += pItem->GetCount();
-
-        for (uint8 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-            if (Bag* pBag = GetBagByPos(i))
-                count += pBag->GetItemCount(item, skipItem);
-
-        if (skipItem && skipItem->GetTemplate()->GemProperties)
-            for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
+        // 账号银行扩展：账号银行物品（账号级共享空间，owner 为空）不参与唯一统计
+        if (_bankMode != BANK_MODE_ACCOUNT)
+        {
+            // checking every item from 39 to 74 (including bank bags)
+            for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_BAG_END; ++i)
                 if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-                    if (pItem != skipItem && pItem->HasSocket())
-                        count += pItem->GetGemCountWithID(item);
+                    if (pItem != skipItem && pItem->GetEntry() == item)
+                        count += pItem->GetCount();
+
+            for (uint8 i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
+                if (Bag* pBag = GetBagByPos(i))
+                    count += pBag->GetItemCount(item, skipItem);
+
+            if (skipItem && skipItem->GetTemplate()->GemProperties)
+                for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
+                    if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                        if (pItem != skipItem && pItem->HasSocket())
+                            count += pItem->GetGemCountWithID(item);
+        }
     }
 
     return count;
@@ -399,16 +403,20 @@ uint32 Player::GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipIte
         if (Bag* pBag = GetBagByPos(i))
             count += pBag->GetItemCountWithLimitCategory(limitCategory, skipItem);
 
-    for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_BAG_END; ++i)
-        if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-            if (pItem != skipItem)
-                if (ItemTemplate const* pProto = pItem->GetTemplate())
-                    if (pProto->ItemLimitCategory == limitCategory)
-                        count += pItem->GetCount();
+    // 账号银行扩展：账号银行物品（账号级共享空间，owner 为空）不参与唯一统计
+    if (_bankMode != BANK_MODE_ACCOUNT)
+    {
+        for (int i = BANK_SLOT_ITEM_START; i < BANK_SLOT_BAG_END; ++i)
+            if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                if (pItem != skipItem)
+                    if (ItemTemplate const* pProto = pItem->GetTemplate())
+                        if (pProto->ItemLimitCategory == limitCategory)
+                            count += pItem->GetCount();
 
-    for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
-        if (Bag* pBag = GetBagByPos(i))
-            count += pBag->GetItemCountWithLimitCategory(limitCategory, skipItem);
+        for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
+            if (Bag* pBag = GetBagByPos(i))
+                count += pBag->GetItemCountWithLimitCategory(limitCategory, skipItem);
+    }
 
     return count;
 }
