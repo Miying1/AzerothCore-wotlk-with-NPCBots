@@ -22,6 +22,8 @@ script made by talamortis
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "Chat.h"
+#include <utility>
+#include <vector>
 
 class reward_shop : public CreatureScript
 {
@@ -106,7 +108,7 @@ public:
             return false;
 
         // check for code
-        QueryResult result = CharacterDatabase.Query("SELECT action, action_data, quantity, status,isonly FROM reward_shop WHERE code = '{}'", rewardcode.c_str());
+        QueryResult result = CharacterDatabase.Query("SELECT action, action_data, quantity, action_data2, quantity2, action_data3, quantity3, status, isonly FROM reward_shop WHERE code = '{}'", rewardcode.c_str());
 
         if (!result)
         {
@@ -124,8 +126,12 @@ public:
         uint32 action = fields[0].Get<uint32>();
         uint32 action_data = fields[1].Get<uint32>();
         uint32 quantity = fields[2].Get<uint32>();
-        uint32 status = fields[3].Get<int32>();
-        uint32 isonly = fields[4].Get<int32>();
+        uint32 action_data2 = fields[3].Get<uint32>();
+        uint32 quantity2 = fields[4].Get<uint32>();
+        uint32 action_data3 = fields[5].Get<uint32>();
+        uint32 quantity3 = fields[6].Get<uint32>();
+        uint32 status = fields[7].Get<int32>();
+        uint32 isonly = fields[8].Get<int32>();
         if (status == 1)
         {
             player->PlayDirectSound(9638); // No
@@ -144,28 +150,46 @@ public:
                 return false;
             }
         }
-        int count = 1;
-        uint32 noSpaceForCount = 0;
-        ItemPosCountVec dest;
-        InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, action_data, quantity, &noSpaceForCount);  
         switch (action)
         {
-
         case 1: /* Item */
-            if (msg != EQUIP_ERR_OK)
-                count -= noSpaceForCount;
+        {
+            // 收集需要发放的物品列表（最多支持三件物品）
+            std::vector<std::pair<uint32, uint32>> items;
+            if (action_data && quantity)
+                items.emplace_back(action_data, quantity);
+            if (action_data2 && quantity2)
+                items.emplace_back(action_data2, quantity2);
+            if (action_data3 && quantity3)
+                items.emplace_back(action_data3, quantity3);
 
-            if (count == 0 || dest.empty())
+            if (items.empty())
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，你的背包满了或你已拥有相同的唯一物品!");
+                ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，配置的物品数据无效!");
                 ChatHandler(player->GetSession()).SetSentErrorMessage(true);
                 return false;
-            } 
-            if (count > 0 && action_data)
+            }
+
+            // 先检查背包空间是否足够存放所有物品
+            for (auto const& item : items)
             {
-                player->AddItem(action_data, quantity);
+                uint32 noSpaceForCount = 0;
+                ItemPosCountVec dest;
+                if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, item.first, item.second, &noSpaceForCount) != EQUIP_ERR_OK)
+                {
+                    ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，你的背包满了或你已拥有相同的唯一物品!");
+                    ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+                    return false;
+                }
+            }
+
+            // 全部检查通过后统一发放
+            for (auto const& item : items)
+            {
+                player->AddItem(item.first, item.second);
             }
             break;
+        }
         case 2: /* Gold */
             player->ModifyMoney(action_data * 10000);
             ChatHandler(player->GetSession()).PSendSysMessage("成功发送G币: [%u G]", action_data);
