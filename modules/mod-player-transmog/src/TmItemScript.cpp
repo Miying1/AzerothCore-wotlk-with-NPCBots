@@ -43,11 +43,13 @@ enum TransmogItemEnum
     GOSSIP_SENDER_USE = 4000,
 
     // 佣兵幻形菜单
-    GOSSIP_SENDER_BOT_MAIN     = 5000,   // 点击「佣兵幻形」入口
-    GOSSIP_SENDER_BOT_SELECT   = 5100,   // 选中某个 BOT（action = bot_entry）
-    GOSSIP_SENDER_BOT_CATEGORY = 5200,   // 选中分类（action = quality）
-    GOSSIP_SENDER_BOT_MODEL    = 5300,   // 选中幻象（action = model_id）
-    GOSSIP_SENDER_BOT_BACK     = 5400    // 返回上一级
+    GOSSIP_SENDER_BOT_MAIN       = 5000,   // 点击「佣兵幻形」入口
+    GOSSIP_SENDER_BOT_SELECT     = 5100,   // 选中某个 BOT（action = bot_entry）-> 变形/取消变形/返回
+    GOSSIP_SENDER_BOT_CATEGORY   = 5200,   // 选中分类（action = quality）
+    GOSSIP_SENDER_BOT_MODEL      = 5300,   // 选中幻象（action = model_id）
+    GOSSIP_SENDER_BOT_BACK       = 5400,   // 返回上一级
+    GOSSIP_SENDER_BOT_TRANSFORM  = 5500,   // 点击「变形」-> 进入分类菜单
+    GOSSIP_SENDER_BOT_UNTRANSFORM = 5600   // 点击「取消变形」-> 取消幻形
 
 };
 
@@ -165,11 +167,18 @@ public:
             return;
         case GOSSIP_SENDER_BOT_SELECT:
             BotTransmogSelectedEntry[player->GetGUID()] = action;   // 记住选中的 bot_entry
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "选择幻象", GOSSIP_SENDER_BOT_TRANSFORM, 0);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "取消变形", GOSSIP_SENDER_BOT_UNTRANSFORM, 0,
+                             "是否取消该佣兵的变形？", 0, false);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
+            SendGossipMenuFor(player, textId, item->GetGUID());
+            return;
+        case GOSSIP_SENDER_BOT_TRANSFORM:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "普通幻象", GOSSIP_SENDER_BOT_CATEGORY, 0);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_BOT_CATEGORY, 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "稀有幻象", GOSSIP_SENDER_BOT_CATEGORY, 2);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "史诗幻象", GOSSIP_SENDER_BOT_CATEGORY, 3);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_SELECT, BotTransmogSelectedEntry[player->GetGUID()]);
             SendGossipMenuFor(player, textId, item->GetGUID());
             return;
         case GOSSIP_SENDER_BOT_CATEGORY:
@@ -177,6 +186,9 @@ public:
             return;
         case GOSSIP_SENDER_BOT_MODEL:
             ApplyBotTransmog(player, action);
+            return;
+        case GOSSIP_SENDER_BOT_UNTRANSFORM:
+            CancelBotTransmog(player);
             return;
         }
 
@@ -229,7 +241,7 @@ public:
         {
             if (!bot) continue;
             std::ostringstream str;
-            str << "[" << bot->GetEntry() << "]" << bot->GetName();
+            str << bot->GetName();
 
             // 已幻形：在名称后追加幻形模型名，按品质颜色显示
             uint32 cid = player->GetGUID().GetCounter();
@@ -252,7 +264,6 @@ public:
     // 列出所选分类下的幻象（选中即弹确认框）
     void ShowBotModelList(Player* player, Item* item, uint32 account_id, uint32 quality)
     {
-        uint32 bot_entry = BotTransmogSelectedEntry[player->GetGUID()];
         QualityGroupMap* qg = pTransmog->GetAccountQualityGroupMap(account_id);
         auto it = qg->find(quality);
         if (it != qg->end())
@@ -264,7 +275,7 @@ public:
                                  "给佣兵幻形需要消耗 1 枚幸运币，是否确定？", 0, false);
             }
         }
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_SELECT, bot_entry);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_TRANSFORM, 0);
         SendGossipMenuFor(player, textId, item->GetGUID());
     }
 
@@ -306,8 +317,33 @@ public:
         }
         CloseGossipMenuFor(player);
     }
+
+    // 取消幻形：恢复 BOT 原形并删除持久化数据
+    void CancelBotTransmog(Player* player)
+    {
+        uint32 bot_entry = BotTransmogSelectedEntry[player->GetGUID()];
+        uint32 cid       = player->GetGUID().GetCounter();
+
+        // 找到在场 BOT 并恢复原形（不在场则仅清理持久化，等其出现时不会再幻形）
+        Creature* bot = nullptr;
+        for (auto const& [_, b] : *player->GetBotMgr()->GetBotMap())
+        {
+            if (b && b->GetEntry() == bot_entry)
+            {
+                bot = b;
+                break;
+            }
+        }
+        if (bot)
+            pTransmog->RestoreBotTransmog(bot);
+
+        pTransmog->RemoveBotTransmog(cid, bot_entry);   // 删除持久化数据
+        BotTransmogSelectedEntry.erase(player->GetGUID());
+        ChatHandler(player->GetSession()).SendSysMessage("已取消该佣兵的幻形。");
+        CloseGossipMenuFor(player);
+    }
 };
- 
+
 class TransmogCcJewel_ALLScript : public ItemScript
 {
 public:

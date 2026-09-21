@@ -760,7 +760,8 @@ void WorldSession::HandleForceSpeedChangeAck(WorldPacket& recvData)
             return;
     }
 
-    if (!_player->GetTransport() && std::fabs(_player->GetSpeed(move_type) - newspeed) > 0.01f)
+    // 幽灵(死亡)状态的玩家，客户端会硬编码 0.4 倍移速，服务端未同步该减速，跳过校验避免误报
+    if (!_player->GetTransport() && !_player->HasGhostAura() && std::fabs(_player->GetSpeed(move_type) - newspeed) > 0.1f)
     {
         if (_player->GetSpeed(move_type) > newspeed)         // must be greater - just correct
         {

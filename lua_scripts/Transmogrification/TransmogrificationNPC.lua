@@ -8,6 +8,7 @@ local AIO_NAMESPACE = "TransmogrificationServer"
 local AIO_HANDLER = "TransmogrificationFrame"
 local GOSSIP_ACTION_OPEN = 1
 local GOSSIP_ACTION_CLOSE = 2
+local GOSSIP_ACTION_SHOP = 3
 local BAIHU_GOSSIP_ACTION_OPEN = 1004
 
 local function OpenTransmogrification(player)
@@ -18,12 +19,16 @@ end
 local function OnTransmogrificationNpcHello(event, player, creature)
     player:GossipClearMenu()
     player:GossipMenuAddItem(0, "打开幻化界面", 0, GOSSIP_ACTION_OPEN)
+    player:GossipMenuAddItem(1, "幻象商店", 0, GOSSIP_ACTION_SHOP)
     player:GossipSendMenu(1, creature)
 end
 
 local function OnTransmogrificationNpcSelect(event, player, creature, sender, action)
     if action == GOSSIP_ACTION_OPEN then
         OpenTransmogrification(player)
+    elseif action == GOSSIP_ACTION_SHOP then
+        player:GossipComplete()
+        player:SendListInventory(creature)
     else
         player:GossipComplete()
     end
