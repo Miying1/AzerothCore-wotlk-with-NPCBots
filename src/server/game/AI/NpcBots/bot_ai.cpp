@@ -562,6 +562,7 @@ void bot_ai::ResetBotAI(uint8 resetType)
     _stayTactical = false;
     _stayFoughtInCombat = false;
     _reviveTimer = 0;
+    _forceLandTimer = 0;
 
     if (resetType & BOTAI_RESET_MASK_RESET_MASTER)
         master = reinterpret_cast<Player*>(me);
@@ -18645,13 +18646,42 @@ bool bot_ai::GlobalUpdate(uint32 diff)
         // 击飞走抛物线 spline（不设置 MOVEMENTFLAG_FALLING），spline 被中断或终点高度异常时
         // bot 会悬在半空，此时 JumpingFlyingOrFalling() 已返回 false，AI 会直接在空中攻击而不落地。
         // 这里周期性检测 bot 是否明显高于地面，若是则强制 MoveFall 落地。
-        if (me->IsInWorld() && !JumpingFlyingOrFalling() && !me->GetVehicle() && !me->CanFly() &&
-            !me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_ROOT | MOVEMENTFLAG_SWIMMING))
+        //
+        // 注意 MoveFall() 内部会重新按 MAX_FALL_DISTANCE(250000，"无限"向下找) 取落点，并用一条不做
+        // 碰撞检测的竖直 spline 把单位硬拉过去。一旦这里算出的"地面"不可靠（例如 bot 站在缺 vmap 的
+        // 空中平台上，高度查询只能拿到下方的地形/下层 mesh），bot 就会被穿到平台或地板下面。
+        // 因此这里加了三重保护：
+        //   1) IsForceLandCheckAllowed() 准入校验：只检查有主人的 bot，且与主人高度一致(2 码容差)时跳过；
+        //   2) 有限搜索距离，并与 MoveFall 使用同一个取高入口 WorldObject::GetMapHeight()
+        //      （内部会自动抬高 Z_OFFSET_FIND_HEIGHT，避免出现"判定和落地算到不同的面"）；
+        //   3) 必须连续判定悬空 BOT_FORCE_LAND_DELAY 毫秒才真的落地，过滤单帧位置抖动。
+        if (IsForceLandCheckAllowed() && me->IsInWorld() && !JumpingFlyingOrFalling() && !me->GetVehicle() && !me->CanFly() &&
+            !me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_ROOT |
+                MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_HOVER | MOVEMENTFLAG_WATERWALKING) &&
+            !me->IsHovering() && !IsDuringTeleport())
         {
-            float groundz = me->GetMap()->GetHeight(me->GetPhaseMask(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), true, MAX_FALL_DISTANCE);
-            if (groundz > INVALID_HEIGHT && me->GetPositionZ() > groundz + 4.0f)
-                me->GetMotionMaster()->MoveFall();
+            constexpr float BOT_FORCE_LAND_SEARCH_DIST = 20.0f; // 有限搜索距离，勿改成 MAX_FALL_DISTANCE
+            constexpr float BOT_FORCE_LAND_HEIGHT_DIFF = 4.0f;  // 高于地面多少码才算"悬空"
+            constexpr uint32 BOT_FORCE_LAND_DELAY = 1500;       // 连续悬空多久才强制落地(毫秒)
+
+            float const groundz = me->GetMapHeight(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), true, BOT_FORCE_LAND_SEARCH_DIST);
+            bool const airborne = groundz > INVALID_HEIGHT &&
+                me->GetPositionZ() > groundz + BOT_FORCE_LAND_HEIGHT_DIFF;
+
+            if (airborne)
+            {
+                _forceLandTimer += diff;
+                if (_forceLandTimer >= BOT_FORCE_LAND_DELAY)
+                {
+                    _forceLandTimer = 0;
+                    me->GetMotionMaster()->MoveFall();
+                }
+            }
+            else
+                _forceLandTimer = 0;
         }
+        else
+            _forceLandTimer = 0;
 
         //Zone / Area / WMOArea
         if (me->IsInWorld())
@@ -21537,6 +21567,27 @@ bool bot_ai::IsInContactWithWater() const
     return me->IsInWorld() &&
         (me->GetMap()->GetLiquidData(me->GetPhaseMask(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetCollisionHeight(), MAP_LIQUID_TYPE_WATER | MAP_LIQUID_TYPE_OCEAN)
             .Status & MAP_LIQUID_STATUS_IN_CONTACT);
+}
+//返回 true 表示可以继续做"悬空"判定
+bool bot_ai::IsForceLandCheckAllowed() const
+{
+    constexpr float SAME_LEVEL_TOLERANCE = 2.0f; // 高度差在容差内视为与主人同一层，不做悬空检查
+
+    // 只有隶属于主人的 bot 才做这项检查（自由 bot / 游荡 bot 的 master 不是真正的参照）
+    if (IAmFree())
+        return false;
+
+    // 主人不在线或不在同一张图，没有可靠的高度参照
+    if (!master || !master->IsInWorld() || master->FindMap() != me->FindMap())
+        return false;
+
+    // 主人自己也在空中/水里/载具上时，他的高度不能当作"地面"参照
+    if (master->HasUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR | MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_FLYING |
+        MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_HOVER | MOVEMENTFLAG_ONTRANSPORT) || master->IsFalling())
+        return false;
+
+    // 与主人高度一致（容差内）=> bot 站在和主人相同的地面上，这次高度查询若说它"悬空"就是噪点，跳过
+    return std::fabs(me->GetPositionZ() - master->GetPositionZ()) > SAME_LEVEL_TOLERANCE;
 }
 
 bool bot_ai::IsTempBot() const

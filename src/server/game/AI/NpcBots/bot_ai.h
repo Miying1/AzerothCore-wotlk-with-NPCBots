@@ -472,6 +472,13 @@ protected:
     bool IsOutdoors() const;
     bool IsInContactWithWater() const;
 
+    // 强制落地(MoveFall)判定前的准入校验：
+    // 1) 只有隶属于主人的 bot（!IAmFree()）才做这项检查；
+    // 2) 主人与 bot 的高度差在容差(2 码)以内时，视为双方站在同一层地面上，
+    //    此时高度查询很可能是噪点（缺 vmap 的空中平台/多层结构只会拿到下层地形），跳过本次检查。
+    // 返回 true 表示可以继续做"悬空"判定。
+    bool IsForceLandCheckAllowed() const;
+
     float CalcSpellMaxRange(uint32 spellId, bool enemy = true) const;
 
     static bool IsPeriodicDynObjAOEDamage(SpellInfo const* spellInfo);
@@ -744,6 +751,7 @@ private:
     uint32 _massNoCastTimer{}; // 集合跑位禁读条状态检测计时器（300ms 检测一次）
     uint32 _rentTimer{};
     uint32 _wmoAreaUpdateTimer{};
+    uint32 _forceLandTimer{}; // 强制落地判定：bot 被判定为悬空状态的累计毫秒数（连续满足一段时间才真的 MoveFall）
     uint32 waitTimer{};
     uint32 itemsAutouseTimer{};
     uint32 evadeDelayTimer{};

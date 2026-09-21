@@ -145,7 +145,7 @@ SET @RIFT_ENTRANCE_ENTRY_BASE := 100510;
 SET @RIFT_ENTRANCE_MODEL_T1 := 25683;
 SET @RIFT_ENTRANCE_MODEL_T2 := 25683;
 SET @RIFT_ENTRANCE_MODEL_T3 := 25683;
-SET @RIFT_ENTRANCE_SCALE := 0.5;
+SET @RIFT_ENTRANCE_SCALE := 0.35;
 
 DELETE FROM `creature_template`
 WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
@@ -173,9 +173,9 @@ DELETE FROM `creature_template_addon`
 WHERE `entry` IN (@RIFT_ENTRANCE_ENTRY_BASE + 0,@RIFT_ENTRANCE_ENTRY_BASE + 1,@RIFT_ENTRANCE_ENTRY_BASE + 2);
 INSERT INTO `creature_template_addon` (`entry`,`path_id`,`mount`,`bytes1`,`bytes2`,`emote`,`visibilityDistanceType`,`auras`)
 VALUES
-  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,0,0,0,0,2,NULL),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,0,0,0,0,2,NULL),
-  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,0,0,0,0,2,NULL);
+  (@RIFT_ENTRANCE_ENTRY_BASE + 0,0,0,0,0,0,3,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 1,0,0,0,0,0,3,NULL),
+  (@RIFT_ENTRANCE_ENTRY_BASE + 2,0,0,0,0,0,3,NULL);
 
 -- ============================================================================
 -- 5. 示例区域：暴风峭壁（The Storm Peaks）
