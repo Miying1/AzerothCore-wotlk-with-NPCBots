@@ -134,7 +134,7 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
     // 目标模型比 BOT 原模型大时，归一后的缩放再增加 10%：
     // 大模型按高度对齐后视觉上会显小，补一点体量
     if (dstSize > srcSize)
-        scale *= 1.1f;
+        scale *= 1.2f;
 
     // 4) 关键：需要展示角色外观的 BOT 条目在 creature_outfits 里，核心会打上
     //    UNIT_FLAG2_MIRROR_IMAGE（ObjectMgr.cpp:9799 "Needed so client requests mirror packet"）。

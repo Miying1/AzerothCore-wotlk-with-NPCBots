@@ -15,9 +15,9 @@
 -- 命中 DisableMgr::IsDisabledFor(DISABLE_TYPE_MAP)：
 --   * 直接进本：玩家选英雄难度时提示"副本已关闭"
 --   * 随机地下城(LFG)：LFGMgr::IsDungeonDisabled -> 英雄难度从可排列表中移除
-DELETE FROM `disables` WHERE `sourceType` = 2 AND `entry` IN (542, 658, 668);
+DELETE FROM `disables` WHERE `sourceType` = 2 AND `entry` IN (632, 658, 668);
 INSERT INTO `disables` (`sourceType`, `entry`, `flags`, `params_0`, `params_1`, `comment`) VALUES
-(2, 542, 2, '', '', 'The Blood Furnace 英雄模式暂时关闭'),
+(2, 632, 2, '', '', 'The Blood Furnace 英雄模式暂时关闭'),
 (2, 658, 2, '', '', 'Pit of Saron 英雄模式暂时关闭'),
 (2, 668, 2, '', '', 'Halls of Reflection 英雄模式暂时关闭');
 
