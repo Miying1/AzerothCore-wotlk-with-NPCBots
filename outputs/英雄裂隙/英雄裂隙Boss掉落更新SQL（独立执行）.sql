@@ -78,7 +78,7 @@ UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,10,0,1,2,1,1,'裂隙 T2 - 掉落组 随机坐骑礼包 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,10,0,1,2,1,1,'裂隙 T2 - 掉落组 幸运币 10%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,5,0,1,2,1,1,'裂隙 T2 - 掉落组 幸运币 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2;
 
 -- ============================================================================
@@ -95,16 +95,16 @@ UNION ALL
 SELECT `entry_id`,0,@RIFT_LOOT_REF_250,10,0,1,1,1,1,'裂隙 T3 - 装备组 10% 250装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_ARTIFACT,0,10,0,1,2,1,1,'裂隙 T3 - 材料组 10% 神器材料'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_ARTIFACT,0,5,0,1,2,1,1,'裂隙 T3 - 材料组 10% 神器材料'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,90,0,1,2,1,1,'裂隙 T3 - 材料组 90% 源生萨隆邪铁'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,50,0,1,2,1,1,'裂隙 T3 - 材料组 90% 源生萨隆邪铁'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,50,0,1,3,1,1,'裂隙 T3 - 坐骑/幸运币组 随机坐骑礼包 50%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,25,0,1,3,1,1,'裂隙 T3 - 坐骑/幸运币组 随机坐骑礼包 50%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,50,0,1,3,1,1,'裂隙 T3 - 坐骑/幸运币组 幸运币 50%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,25,0,1,3,1,1,'裂隙 T3 - 坐骑/幸运币组 幸运币 50%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3;
 
 -- ============================================================================

@@ -65,12 +65,12 @@ INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Quest
 -- 普通版（62106）
 DELETE FROM `item_loot_template` WHERE `Entry` = 62106 AND `Reference` > 0;
 INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(62106, 0, 914000, 60, 0, 1, 0, 1, 1, '挑战者奖励4·普通 - 装备池914000');
+(62106, 0, 914000, 25, 0, 1, 0, 1, 1, '挑战者奖励4·普通 - 装备池914000');
 
 -- 英雄版（62107）
 DELETE FROM `item_loot_template` WHERE `Entry` = 62107 AND `Reference` > 0;
 INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(62107, 0, 62108, 70, 0, 1, 0, 1, 1, '挑战者奖励4·英雄 - 装备池62108');
+(62107, 0, 62108, 50, 0, 1, 0, 1, 1, '挑战者奖励4·英雄 - 装备池62108');
 
 -- ============================================================
 -- 袋5
@@ -93,13 +93,13 @@ INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Quest
 -- 普通版（62110）
 DELETE FROM `item_loot_template` WHERE `Entry` = 62110 AND `Reference` > 0;
 INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(62110, 0, 62111, 30, 0, 1, 0, 1, 1, '挑战者奖励6·普通 - 装备池62111'),
-(62110, 1, 62112, 30, 0, 1, 0, 1, 1, '挑战者奖励6·普通 - 装备池62112');
+(62110, 0, 62111, 25, 0, 1, 0, 1, 1, '挑战者奖励6·普通 - 装备池62111'),
+(62110, 1, 62112, 25, 0, 1, 0, 1, 1, '挑战者奖励6·普通 - 装备池62112');
 
 -- 英雄版（62111）
 DELETE FROM `item_loot_template` WHERE `Entry` = 62111 AND `Reference` > 0;
 INSERT INTO `item_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(62111, 0, 934000, 60, 0, 1, 0, 1, 1, '挑战者奖励6·英雄 - 装备池934000');
+(62111, 0, 934000, 50, 0, 1, 0, 1, 1, '挑战者奖励6·英雄 - 装备池934000');
 
 -- ============================================================
 -- 袋7

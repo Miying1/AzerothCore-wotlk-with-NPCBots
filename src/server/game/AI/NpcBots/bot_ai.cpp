@@ -15661,11 +15661,28 @@ void bot_ai::InitEquips()
             } while (iiresult->NextRow());
         }
 
+        // 清理悬空引用：characters_npcbot 中指向已不存在的 item_instance 的装备槽位，直接重置该槽位
+        bool has_dangling_equip = false;
         for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
         {
             if (assigned_item_guids[i] != 0)
-                BOT_LOG_ERROR("npcbots", "InitEquips: bot {} {} owner {} has item guid {} assigned to slot {} which doesn't exist in DB!",
+            {
+                BOT_LOG_ERROR("npcbots", "InitEquips: bot {} {} owner {} has item guid {} assigned to slot {} which doesn't exist in DB! Resetting slot!",
                     me->GetEntry(), me->GetName(), _botData->owner, assigned_item_guids[i], uint32(i));
+                _botData->equips[i] = 0;
+                has_dangling_equip = true;
+            }
+        }
+
+        // 将清理后的装备数据写回数据库（仅更新 characters_npcbot 表，不触碰 item_instance）
+        if (has_dangling_equip)
+        {
+            CharacterDatabasePreparedStatement* upd_stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_NPCBOT_EQUIP);
+            uint8 k = 0;
+            for (; k < BOT_INVENTORY_SIZE; ++k)
+                upd_stmt->SetData(k, _botData->equips[k]);
+            upd_stmt->SetData(k, me->GetEntry());
+            CharacterDatabase.Execute(upd_stmt);
         }
     }
 
