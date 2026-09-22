@@ -26,6 +26,7 @@ struct BotCreatureHazardRule
     float Radius;
     float SafetyDistance;
     uint32 DeactivationDelayMs;
+    uint32 RequiredAuraSpellId; // 非 0 时，要求生物身上存在该技能光环才视为危险源
 };
 
 struct NPCBotCreatureHazardStateKey

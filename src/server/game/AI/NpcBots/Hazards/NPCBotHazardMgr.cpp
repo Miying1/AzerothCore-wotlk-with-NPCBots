@@ -96,7 +96,7 @@ void NPCBotHazardMgr::LoadFromDB()
     CreatureHazardRulesByEntry globalRules;
 
     QueryResult result = WorldDatabase.Query(
-        "SELECT map_id, creature_entry, radius, damage_spell_id, safety_distance, deactivation_delay_ms "
+        "SELECT map_id, creature_entry, radius, damage_spell_id, safety_distance, deactivation_delay_ms, required_aura_spell_id "
         "FROM npcbot_creature_hazard");
     if (!result)
     {
@@ -115,6 +115,7 @@ void NPCBotHazardMgr::LoadFromDB()
         uint32 damageSpellId = fields[3].Get<uint32>();
         float safetyDistance = fields[4].Get<float>();
         uint32 deactivationDelayMs = fields[5].Get<uint32>();
+        uint32 requiredAuraSpellId = fields[6].Get<uint32>();
 
         if ((mapId && !sMapStore.LookupEntry(mapId)) || !sObjectMgr->GetCreatureTemplate(creatureEntry) ||
             configuredRadius < 0.0f || safetyDistance < 0.0f)
@@ -154,7 +155,10 @@ void NPCBotHazardMgr::LoadFromDB()
             continue;
         }
 
-        BotCreatureHazardRule rule{ mapId, creatureEntry, damageSpellId, radius, safetyDistance, deactivationDelayMs };
+        if (requiredAuraSpellId && !sSpellMgr->GetSpellInfo(requiredAuraSpellId))
+            LOG_WARN("sql.sql", "NPCBot creature hazard for map {} and creature {} references missing required aura spell {}; aura check will never match", mapId, creatureEntry, requiredAuraSpellId);
+
+        BotCreatureHazardRule rule{ mapId, creatureEntry, damageSpellId, radius, safetyDistance, deactivationDelayMs, requiredAuraSpellId };
         if (mapId)
             rulesByMap[mapId][creatureEntry] = rule;
         else
@@ -206,8 +210,19 @@ void NPCBotHazardMgr::CollectCreatureHazards(Unit const* unit, AoeSpotsVec& spot
 
     auto check = [this, unit, mapId](Creature const* creature)
     {
-        return creature && creature->IsInWorld() && creature->IsAlive() && unit->InSamePhase(creature) &&
-            unit->IsWithinDistInMap(creature, CREATURE_HAZARD_SCAN_DISTANCE) && HasRule(mapId, creature->GetEntry());
+        if (!creature || !creature->IsInWorld() || !creature->IsAlive() || !unit->InSamePhase(creature) ||
+            !unit->IsWithinDistInMap(creature, CREATURE_HAZARD_SCAN_DISTANCE))
+            return false;
+
+        BotCreatureHazardRule const* rule = GetRule(mapId, creature->GetEntry());
+        if (!rule)
+            return false;
+
+        // 配置了 required_aura_spell_id 时，要求生物身上存在该技能光环才视为危险源
+        if (rule->RequiredAuraSpellId && !creature->HasAura(rule->RequiredAuraSpellId))
+            return false;
+
+        return true;
     };
     Bcore::CreatureListSearcher<decltype(check)> searcher(unit, creatures, check);
     Cell::VisitObjects(unit, searcher, CREATURE_HAZARD_SCAN_DISTANCE);

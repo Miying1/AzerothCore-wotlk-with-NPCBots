@@ -1363,7 +1363,8 @@ public:
     bool operator()(WorldObject* target) const
     {
         if (Unit* unit = target->ToUnit())
-            return unit->HasAura(SPELL_SAFE_AREA_TRIGGERED) || unit->IsPet();
+            //npcbot: 跳过冻结 NPCBot，避免其被快速冻结(61968)困住
+            return unit->HasAura(SPELL_SAFE_AREA_TRIGGERED) || unit->IsPet() || unit->IsNPCBot();
         return true;
     }
 };

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
   `damage_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '伤害法术ID，非0时优先读取法术伤害半径',
   `safety_distance` FLOAT UNSIGNED NOT NULL DEFAULT 0 COMMENT '额外安全距离',
   `deactivation_delay_ms` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '危险源消失后继续保留的时间（毫秒）',
+  `required_aura_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '需同时存在的技能光环ID，非0时仅当生物身上存在该光环才视为危险源',
   `comment` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '配置说明',
   PRIMARY KEY (`map_id`, `creature_entry`),
   KEY `idx_creature_entry` (`creature_entry`)
@@ -14,7 +15,7 @@ DELETE FROM `npcbot_creature_hazard` WHERE `map_id` = 532 AND `creature_entry` =
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(532, 16697, 8, 28865, 2, 1000, '卡拉赞：虚空幽龙的虚空领域');
+(532, 16697, 2, 28865, 2, 1000, '卡拉赞：虚空幽龙的虚空领域');
 
 -- 奥杜尔：米米尔隆硬模式 Flames Spread。
 -- 34121 由火焰扩散机制生成，并由生物自身承载 64561 Flames Aura。
@@ -24,7 +25,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 34121;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 34121, 5.0, 64561, 1.5, 1000, '奥杜尔：米米尔隆硬模式火焰扩散，Flames Aura');
+(603, 34121, 5.0, 64566, 3, 1000, '奥杜尔：米米尔隆硬模式火焰扩散，Flames Aura');
 
 -- 奥杜尔：烈焰巨兽硬模式 Scorched Ground。
 -- 33123 由 Boss 技能触发生成，并由生物自身施放 62548 Scorched Ground。
@@ -34,7 +35,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 33123;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 33123, 8.0, 62548, 1.5, 1000, '奥杜尔：烈焰巨兽硬模式灼热地面，Scorched Ground');
+(603, 33123, 10.0, 62549, 1.5, 1000, '奥杜尔：烈焰巨兽硬模式灼热地面，Scorched Ground');
 
 -- 冰冠堡垒：辛达苟萨 Icy Blast。
 -- 38223 由 Boss 技能链生成，并由生物自身施放 71380 Icy Blast Area。
@@ -44,7 +45,7 @@ WHERE `map_id` = 631 AND `creature_entry` = 38223;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(631, 38223, 8.0, 71380, 1.5, 500, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
+(631, 38223, 8.0, 71380, 1, 500, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
 
 -- 奥杜尔：科拉隆凝视之眼（左眼 33632 / 右眼 33802）。
 -- 眼睛由 63342 召唤后 MoveChase 追人被点名玩家，向前方发射射线 63676/63702。
@@ -81,17 +82,6 @@ INSERT INTO `npcbot_creature_hazard`
 VALUES
 (603, 32953, 8.0, 62169, 1.0, 500, '奥杜尔：奥尔加隆黑洞（持续地板）');
 
--- 奥杜尔：奥尔加隆虚空带（34100）。
--- 由 64470 召唤的环境伤害 stalker，固定位置持续对范围内造成 28（环境伤害）。
--- 64070 半径由法术读取，radius 作为保底下限。
-DELETE FROM `npcbot_creature_hazard`
-WHERE `map_id` = 603 AND `creature_entry` = 34100;
-
-INSERT INTO `npcbot_creature_hazard`
-(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
-VALUES
-(603, 34100, 10.0, 64470, 1.0, 500, '奥杜尔：奥尔加隆虚空带（环境伤害地板）');
-
 -- 奥杜尔：米米尔隆感应地雷（34362）。
 -- 米米尔隆 P2 布设的地雷，靠近约 1.9 码触发 66351 范围爆炸，固定位置。
 -- BOT 应远离地雷本体，避免踩踏引爆。
@@ -113,7 +103,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 33113;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 33113, 15.0, 0, 1.0, 500, '奥杜尔：烈焰巨兽本体（追人碾压，载具战）');
+(603, 33113, 20.0, 0, 1.0, 500, '奥杜尔：烈焰巨兽本体（追人碾压，载具战）');
 
 -- ============================================================================
 -- 十字军试炼（Trial of the Crusader，map 649）
@@ -157,3 +147,32 @@ INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
 (649, 34660, 10.0, 0, 1.0, 0, 'TOC：阿努巴拉克追击尖刺（追人 + 穿刺，危险圈随尖刺移动）');
+
+-- 奥杜尔：霍迪尔冰柱（未打包 33169 / 打包 33173）。
+-- 冰柱落地后施放坠落光环 62236/62460，周期触发冰碎片 62457/65370 范围伤害；
+-- 光环结束后冰柱本体仍留在场上但不再伤害。
+-- 通过 required_aura_spell_id 限定「仅在坠落光环存续期间」视为危险源，避免 BOT 持续绕行已无害的冰柱残留物。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 603 AND `creature_entry` IN (33169, 33173);
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(603, 33169, 4.0, 62457, 2.0, 0, 62236, '奥杜尔：霍迪尔未打包冰柱（坠落光环存续期间危险）'),
+(603, 33173, 7.0, 65370, 2.0, 0, 62460, '奥杜尔：霍迪尔打包冰柱（坠落光环存续期间危险）');
+
+-- ============================================================================
+-- 祖阿曼（Zul'Aman，map 568）
+-- ============================================================================
+-- 加亚莱（龙鹰 BOSS）：火焰之墙（出入口火墙）。
+-- 轰炸阶段 BOSS 在平台四周出入口召唤 Fire Bomb（23920），并对其施放 43113 火焰之墙；
+-- 43113 周期性触发 43114，对火墙附近目标造成约 11000 点火焰伤害（EffectRadiusIndex=15 → 3 码）。
+-- 23920 同时被用作「火球炸弹」（轰炸弹，最终施放 42630 爆炸），但火球炸弹不带 43113 光环，
+-- 故用 required_aura_spell_id = 43113 只圈定「火墙」本体，避免把 40 颗火球炸弹一并识别为危险源。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 568 AND `creature_entry` = 23920;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(568,	23920,	4.0,	42630,	1,	1000,	0,	'祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
