@@ -29,3 +29,10 @@ VALUES
 (@ITEM_ENTRY+12, 0, 0, '[5H灵魂洪炉]重置券', 634, 5, 0, 1, 0, 0, 0, -1, -1, 80, 80, 20, '使用后重置副本CD，MAP:632|5H。', 18282, 0, 'PlayerVipResetInstanceItem'),
 (@ITEM_ENTRY+13, 0, 0, '[5H萨隆矿坑]重置券', 634, 5, 0, 1, 0, 0, 0, -1, -1, 80, 80, 20, '使用后重置副本CD，MAP:658|5H。', 18282, 0, 'PlayerVipResetInstanceItem'),
 (@ITEM_ENTRY+14, 0, 0, '[5H映像大厅]重置券', 634, 5, 0, 1, 0, 0, 0, -1, -1, 80, 80, 20, '使用后重置副本CD，MAP:668|5H。', 18282, 0, 'PlayerVipResetInstanceItem');
+
+-- VIP 等级提升券
+SET @VIP_LEVEL_ITEM_ENTRY := 70100;
+DELETE FROM `item_template` WHERE `entry` = @VIP_LEVEL_ITEM_ENTRY;
+INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
+VALUES
+(@VIP_LEVEL_ITEM_ENTRY, 0, 0, 'VIP等级+1', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 1, 20, '使用后 VIP 等级 +1，账号通用。账号可雇佣佣兵数量上限+8', 18282, 0, 'PlayerVipLevelItem');

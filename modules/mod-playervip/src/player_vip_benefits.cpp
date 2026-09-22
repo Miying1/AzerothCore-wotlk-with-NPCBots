@@ -21,6 +21,7 @@ namespace
 {
 constexpr uint32 GoldLootBonusIncrement = 15;
 constexpr uint32 MaxGoldLootBonus = 150;
+constexpr uint32 MaxVipLevel = 10; // VIP 等级上限
 
 // 物品使用确认弹窗（gossip）的发送者与动作约定
 constexpr uint32 VipItemGossipSender = GOSSIP_SENDER_MAIN;
@@ -310,6 +311,34 @@ private:
         SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, item->GetGUID());
     }
 };
+
+// VIP 等级提升物品：使用后账号 VIP 等级 +1（账号通用）
+class PlayerVipLevelItem : public ItemScript
+{
+public:
+    PlayerVipLevelItem() : ItemScript("PlayerVipLevelItem") { }
+
+    bool OnUse(Player* player, Item* item, SpellCastTargets const& /*targets*/) override
+    {
+        if (!player || !item)
+            return false;
+
+        uint32 currentLevel = player->GetVipBenefits().vip_level;
+        if (currentLevel >= MaxVipLevel)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("你的 VIP 等级已经达到上限（{} 级）。", MaxVipLevel);
+            return true;
+        }
+
+        uint32 newLevel = currentLevel + 1;
+        player->GetVipBenefits().vip_level = newLevel;
+        uint32 accountId = player->GetSession()->GetAccountId();
+        LoginDatabase.Execute("UPDATE `account_vip` SET `vip_level` = {} WHERE `account_id` = {}", newLevel, accountId);
+        player->DestroyItemCount(item->GetEntry(), 1, true);
+        ChatHandler(player->GetSession()).PSendSysMessage("VIP 等级已提升至 {} 级（账号通用）。", newLevel);
+        return true;
+    }
+};
 }
 
 void AddPlayerVipBenefitsScripts()
@@ -317,4 +346,5 @@ void AddPlayerVipBenefitsScripts()
     new PlayerVipBenefitsScript();
     new PlayerVipGoldBonusItem();
     new PlayerVipResetInstanceItem();
+    new PlayerVipLevelItem();
 }
