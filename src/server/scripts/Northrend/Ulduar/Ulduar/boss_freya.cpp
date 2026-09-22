@@ -551,7 +551,7 @@ struct boss_freya : public BossAI
                     break;
                 }
             case EVENT_FREYA_SUNBEAM:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random))
+                if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random))
                     me->CastSpell(target, SPELL_SUNBEAM, false);
                 events.Repeat(15s, 20s);
                 break;
@@ -884,7 +884,7 @@ struct boss_freya_elder_ironbranch : public ScriptedAI
                 events.Repeat(20s);
                 break;
             case EVENT_IRONBRANCH_THORN_SWARM:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0))
                     me->CastSpell(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), SPELL_THORN_SWARM, false);
                 events.Repeat(14s);
                 break;
@@ -1103,7 +1103,7 @@ struct boss_freya_summons : public ScriptedAI
                 me->CastSpell(me, SPELL_TIDAL_WAVE_DAMAGE, false);
                 break;
             case EVENT_STORM_LASHER_LIGHTNING_LASH:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0))
                     me->CastSpell(target, SPELL_LIGHTNING_LASH, false);
                 events.Repeat(10s);
                 break;
@@ -1206,6 +1206,11 @@ class spell_freya_unstable_sun_beam : public SpellScript
     void FilterTargets(std::list<WorldObject*>& targets)
     {
         targets.remove_if(Acore::ObjectTypeIdCheck(TYPEID_PLAYER, false));
+        // 仅真实玩家可被点名，排除 NPCBot
+        targets.remove_if([](WorldObject const* obj)
+        {
+            return obj->IsPlayer() && obj->IsNPCBot();
+        });
         Acore::Containers::RandomResize(targets, GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1);
     }
 

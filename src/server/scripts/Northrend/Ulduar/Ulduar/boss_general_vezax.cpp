@@ -211,7 +211,7 @@ struct boss_vezax : public BossAI
                     for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
                     {
                         Player* temp = itr->GetSource();
-                        if (temp->IsAlive() && temp->GetDistance(me) > 15.0f)
+                        if (temp->IsAlive() && !temp->IsNPCBot() && temp->GetDistance(me) > 15.0f)
                             players.push_back(temp);
                     }
                     if (!players.empty())
@@ -247,7 +247,7 @@ struct boss_vezax : public BossAI
                     Map::PlayerList const& pl = me->GetMap()->GetPlayers();
                     for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
                         if (Player* tmp = itr->GetSource())
-                            if (tmp->IsAlive())
+                            if (tmp->IsAlive() && !tmp->IsNPCBot())
                             {
                                 if (tmp->GetDistance(me) > 15.0f)
                                     outside.push_back(tmp);

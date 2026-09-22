@@ -1098,7 +1098,7 @@ struct npc_ulduar_leviathan_mkii : public ScriptedAI
                     Map::PlayerList const& pl = me->GetMap()->GetPlayers();
                     for( Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr )
                         if (Player* plr = itr->GetSource())
-                            if (plr->IsAlive() && plr->GetDistance2d(me) > 15.0f )
+                            if (plr->IsAlive() && !plr->IsNPCBot() && plr->GetDistance2d(me) > 15.0f )
                                 playerList.push_back(plr);
 
                     if (!playerList.empty())

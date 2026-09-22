@@ -721,6 +721,12 @@ class spell_xt002_searing_light_gravity_bomb : public SpellScript
         if (Unit* victim = GetCaster()->GetVictim())
             targets.remove_if(Acore::ObjectGUIDCheck(victim->GetGUID(), true));
 
+        // 仅真实玩家可被点名，排除 NPCBot
+        targets.remove_if([](WorldObject const* obj)
+        {
+            return obj->IsPlayer() && obj->IsNPCBot();
+        });
+
         Acore::Containers::RandomResize(targets, 1);
     }
 

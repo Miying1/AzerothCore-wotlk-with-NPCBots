@@ -345,7 +345,7 @@ struct boss_ignis : public BossAI
                     for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
                     {
                         temp = itr->GetSource();
-                        if (!temp->IsAlive() || temp->GetExactDist2d(me) > 90.0f)
+                        if (!temp->IsAlive() || temp->IsNPCBot() || temp->GetExactDist2d(me) > 90.0f)
                             continue;
                         if (me->GetVictim() && temp->GetGUID() == me->GetVictim()->GetGUID())
                             continue;

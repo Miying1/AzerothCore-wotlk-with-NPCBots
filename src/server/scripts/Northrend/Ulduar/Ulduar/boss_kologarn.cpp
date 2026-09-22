@@ -636,8 +636,12 @@ class spell_kologarn_focused_eyebeam : public SpellScript
     {
         std::list<Unit*> newTargets;
         Creature* creature = GetCaster()->ToCreature();
-        // Select 3 most distant targets
-        GetCaster()->GetAI()->SelectTargetList(newTargets, 3, SelectTargetMethod::MaxDistance, 0, NonTankTargetSelector(creature, true));
+        NonTankTargetSelector nonTank(creature, true);
+        // Select 3 most distant targets (仅真实玩家，排除 NPCBot)
+        GetCaster()->GetAI()->SelectTargetList(newTargets, 3, SelectTargetMethod::MaxDistance, 0, [&nonTank](Unit const* candidate)
+        {
+            return nonTank(candidate) && !candidate->IsNPCBot();
+        });
 
         // If no distant targets available, get 1 target from original list
         if (newTargets.empty())
