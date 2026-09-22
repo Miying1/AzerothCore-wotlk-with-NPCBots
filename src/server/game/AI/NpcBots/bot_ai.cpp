@@ -6171,19 +6171,49 @@ void bot_ai::MoveBehind(Unit const* target) const
     const bool targetMe = target->GetVictim() == me;
     const bool cced = CCed(target);
     const bool isPlayer = target->IsPlayer();
+    const bool stealthy = (_botclass == BOT_CLASS_ROGUE || GetBotStance() == DRUID_CAT_FORM);
 
-    if ((_botclass == BOT_CLASS_ROGUE || GetBotStance() == DRUID_CAT_FORM) ? (!targetMe || cced || isPlayer) : (!targetMe && (!cced || isPlayer)))
+    if (stealthy ? (!targetMe || cced || isPlayer) : (!targetMe && (!cced || isPlayer)))
     {
         float myangle = Position::NormalizeOrientation(target->GetAbsoluteAngle(me) + float(M_PI));
         float mydist = me->GetCombatReach();
+
+        // 点移动一旦寻路失败会退化成两点直线 spline，把 bot 直接送下悬崖或送进墙里。
+        // 因此在发点之前先确认该点沿 navmesh 可达，排除直线穿行类的路径类型。
+        auto isReachable = [this](Position const& pos) -> bool
+        {
+            PathGenerator path(me);
+            return path.CalculatePath(pos.m_positionX, pos.m_positionY, pos.m_positionZ, false)
+                && !(path.GetPathType() & (PATHFIND_NOPATH | PATHFIND_SHORTCUT | PATHFIND_FARFROMPOLY));
+        };
+
+        // 优先取目标背后的位置
         Position position;
         target->GetNearPoint(me, position.m_positionX, position.m_positionY, position.m_positionZ, 0.f, mydist, myangle);
+        bool reachable = isReachable(position);
+
+        // 背后不可达时（背后是墙壁、悬崖等）退回到目标身边最近的环点，
+        // 放弃背后角度，至少保证 bot 能贴到目标身边
+        if (!reachable)
+        {
+            position.m_positionZ = target->GetPositionZ();
+            target->GetNearPoint2D(me, position.m_positionX, position.m_positionY, 0.f, target->GetAbsoluteAngle(me));
+            me->UpdateAllowedPositionZ(position.m_positionX, position.m_positionY, position.m_positionZ);
+            reachable = isReachable(position);
+        }
+
+        // 两个点都不可达则放弃本次绕背，并节流，避免每帧重复寻路
+        if (!reachable)
+        {
+            const_cast<bot_ai*>(this)->_moveBehindTimer = urand(2000, 5000);
+            return;
+        }
 
         if (IsWithinAoERadius(position))
             return;
 
         BotMovement(BOT_MOVE_POINT, &position);
-        const_cast<bot_ai*>(this)->_moveBehindTimer = urand(1000, (_botclass == BOT_CLASS_ROGUE || GetBotStance() == DRUID_CAT_FORM) ? 2000 : 4000);
+        const_cast<bot_ai*>(this)->_moveBehindTimer = urand(2000, 5000);
     }
 }
 //MOUNT SUPPORT
