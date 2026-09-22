@@ -46,16 +46,17 @@ constexpr uint32 EntranceAuraTier3 = 30487;
 // 原因：判定球取自 creature_model_info[displayID] 再乘以模型缩放，不同外观差异极大
 // （25683 元素裂隙是 3/3，16946 虚空门是 1/2），不覆写会随换模型一起把交互范围放大。
 // 参考值：玩家 bounding radius = DEFAULT_WORLD_OBJECT_SIZE(0.389)，combat reach = 1.5。
-constexpr float EntranceBoundingRadius = 1.0f;
-constexpr float EntranceCombatReach = 1.5f;
+constexpr float EntranceBoundingRadius = 0.8f;
+constexpr float EntranceCombatReach = 1.0f;
 // 玩家进入裂隙后，入口停止提供对话并保留一段时间再移除。
 constexpr uint32 EntrancePurgeGraceMilliseconds = 5 * IN_MILLISECONDS;
-// 常规补充间隔：入口数量不低于最小值时，每隔该时间向最大值补齐一次。
-constexpr uint32 EntranceRefillIntervalMilliseconds = 5 * MINUTE * IN_MILLISECONDS;
-// 低于最小值但一次补齐未能达标（点位不足等）时的重试退避间隔，避免每个世界帧反复尝试。
-constexpr uint32 EntranceRefillRetryIntervalMilliseconds = 30 * IN_MILLISECONDS;
+// 常规补充间隔（按难度等级）：每隔该时间触发一次补充，数量低于最小值时补到最小值，否则每次补一个。
+// T1 4 分钟、T2 6 分钟、T3 8 分钟。
+constexpr uint32 EntranceRefillIntervalTier1Milliseconds = 4 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 EntranceRefillIntervalTier2Milliseconds = 6 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 EntranceRefillIntervalTier3Milliseconds = 8 * MINUTE * IN_MILLISECONDS;
 // 时间表评估间隔：开启窗口内每秒一次（保证到点即刷），关闭窗口时放宽以节流。
-constexpr uint32 SchedulePollIntervalOpenMilliseconds = 1 * IN_MILLISECONDS;
+constexpr uint32 SchedulePollIntervalOpenMilliseconds = 3 * IN_MILLISECONDS;
 constexpr uint32 SchedulePollIntervalClosedMilliseconds = 5 * IN_MILLISECONDS;
 // week_day 取值：-1 表示该窗口每天（0~6）都生效。
 constexpr int8 RiftWeekDayEveryDay = -1;
@@ -273,6 +274,14 @@ enum class EncounterState : uint8
     Cleaning
 };
 
+// 常规补充的补齐模式。
+enum class RefillMode : uint8
+{
+    FillToMin, // 补到该难度最小值
+    FillToMax, // 补到该难度最大值
+    AddOne     // 每次只补一个，向最大值逐步逼近
+};
+
 struct BossConfig
 {
     uint32 BossId = 0;
@@ -419,8 +428,8 @@ struct RiftSpawnRegion
     std::vector<RiftScheduleWindow> Windows;
     bool WindowOpen = true;                                  // 该区域当前是否处于开启窗口
     bool WindowInitialized = false;                          // 是否已完成首次评估
-    uint32 RefillTimer = EntranceRefillIntervalMilliseconds; // 该区域常规补充计时
-    uint32 RetryCountdown = 0;                               // 立即补齐失败后的退避倒计时：到期前不再重试
+    uint32 RefillTimers[MaxTier] = { EntranceRefillIntervalTier1Milliseconds,
+        EntranceRefillIntervalTier2Milliseconds, EntranceRefillIntervalTier3Milliseconds }; // 各难度常规补充计时
     int64 CachedNextOpenTime = 0;                            // 已播报过的下次开启时刻，用于重置倒计时阶段
     uint32 OpenReminderStage = 0;                            // 0=未播报, 1=已播报10分钟, 2=已播报5分钟, 3=已播报1分钟
 };
@@ -487,12 +496,13 @@ private:
     // 开启/结束连发两条相同通知。
     void BroadcastOpenCloseNotice(std::string const& message) const;
 
-    // 该区域「生物仍然存在」的有效入口数是否低于最小数量（用于触发立即补充）。
-    bool IsRegionBelowMin(RiftSpawnRegion const& region) const;
+    // 该区域某难度「生物仍然存在」的有效入口数是否低于最小数量。
+    bool IsTierBelowMin(RiftSpawnRegion const& region, uint8 tier) const;
 
-    // 把该区域补齐到目标数量；返回是否所有档位都达到了本次目标。
-    // 返回 false 表示点位不足等原因未能补齐，调用方应退避后再重试。
-    bool RefreshRegion(RiftSpawnRegion const& region, bool fillToMax);
+    // 把该区域按指定模式补齐全部难度；返回是否所有档位都达到了本次目标。
+    bool RefreshRegion(RiftSpawnRegion const& region, RefillMode mode);
+    // 把该区域某难度按指定模式补齐；返回该档位是否达标。
+    bool RefreshTier(RiftSpawnRegion const& region, uint8 tier, RefillMode mode);
     bool SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 tier, std::vector<uint32>& freePoints);
     RiftSpawnPoint const* GetPoint(uint32 pointId) const;
 
@@ -509,6 +519,7 @@ uint32 GetExitPortalEntryForTier(uint8 tier);
 bool IsExitPortalEntry(uint32 entry);
 uint32 GetEntranceEntryForTier(uint8 tier);
 uint32 GetEntranceAuraForTier(uint8 tier);
+uint32 GetEntranceRefillIntervalMilliseconds(uint8 tier);
 uint8 GetTierForEntranceEntry(uint32 entry);
 uint8 GetTierForCreature(Creature const* creature);
 TierConfig const* GetTierConfigForCreature(Creature const* creature);

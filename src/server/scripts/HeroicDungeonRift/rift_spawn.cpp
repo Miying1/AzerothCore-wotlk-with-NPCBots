@@ -83,6 +83,21 @@ uint32 GetEntranceAuraForTier(uint8 tier)
     }
 }
 
+uint32 GetEntranceRefillIntervalMilliseconds(uint8 tier)
+{
+    switch (tier)
+    {
+        case 1:
+            return EntranceRefillIntervalTier1Milliseconds;
+        case 2:
+            return EntranceRefillIntervalTier2Milliseconds;
+        case 3:
+            return EntranceRefillIntervalTier3Milliseconds;
+        default:
+            return EntranceRefillIntervalTier1Milliseconds;
+    }
+}
+
 RiftSpawnManager& RiftSpawnManager::Instance()
 {
     static RiftSpawnManager instance;
@@ -398,13 +413,16 @@ void RiftSpawnManager::UpdateRegionOpenReminders(RiftSpawnRegion& region)
     switch (stage)
     {
         case 1:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】{} 的裂隙入口将在 10 分钟后开启。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,裂隙入口会随机出现在 {}。", name));
             break;
         case 2:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】{} 的裂隙入口将在 5 分钟后开启。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,裂隙入口会随机出现在 {}。", name));
             break;
         case 3:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】{} 的裂隙入口将在 1 分钟后开启。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,裂隙入口会随机出现在 {}。", name));
             break;
         default:
             break;
@@ -432,12 +450,12 @@ void RiftSpawnManager::PollRegionSchedule(RiftSpawnRegion& region)
     {
         region.WindowInitialized = true;
         region.WindowOpen = open;
-        region.RefillTimer = 0;
-        region.RetryCountdown = 0;
+        for (uint32& timer : region.RefillTimers)
+            timer = 0;
         if (open)
         {
             // 启动时若该区域已处于开启窗口，直接按最大数量刷满。
-            RefreshRegion(region, true);
+            RefreshRegion(region, RefillMode::FillToMax);
             if (announce)
                 BroadcastOpenCloseNotice(Acore::StringFormat("【英雄裂隙】{} 的裂隙入口已开启！", name));
         }
@@ -451,12 +469,12 @@ void RiftSpawnManager::PollRegionSchedule(RiftSpawnRegion& region)
     if (open != region.WindowOpen)
     {
         region.WindowOpen = open;
-        region.RefillTimer = 0;
-        region.RetryCountdown = 0;
+        for (uint32& timer : region.RefillTimers)
+            timer = 0;
 
         if (open)
         {
-            RefreshRegion(region, true);
+            RefreshRegion(region, RefillMode::FillToMax);
             if (announce)
                 BroadcastOpenCloseNotice(Acore::StringFormat("【英雄裂隙】{} 的裂隙入口已开启！", name));
         }
@@ -507,14 +525,14 @@ void RiftSpawnManager::RemoveRegionEntrances(uint32 regionId)
     }
 }
 
-bool RiftSpawnManager::IsRegionBelowMin(RiftSpawnRegion const& region) const
+bool RiftSpawnManager::IsTierBelowMin(RiftSpawnRegion const& region, uint8 tier) const
 {
     // 只统计「生物仍然存在」的入口：网格卸载、被击杀或外部移除留下的幽灵记录不能算数，
-    // 否则该区域的 min 会被虚高的计数满足，导致迟迟不补刷。
-    // 地图不在内存时视为全部缺失（下方计数全为 0），交由 RefreshRegion 重建后再补齐。
+    // 否则该档位的 min 会被虚高的计数满足，导致迟迟不补刷。
+    // 地图不在内存时视为缺失（计数为 0），交由 RefreshTier 重建后再补齐。
     Map* map = sMapMgr->FindMap(region.MapId, 0);
 
-    uint32 activeByTier[MaxTier] = { 0, 0, 0 };
+    uint32 active = 0;
     if (map)
     {
         for (auto const& entrance : _entrances)
@@ -522,25 +540,31 @@ bool RiftSpawnManager::IsRegionBelowMin(RiftSpawnRegion const& region) const
             if (entrance.second.RegionId != region.RegionId || entrance.second.Consumed)
                 continue;
 
+            if (entrance.second.Tier != tier)
+                continue;
+
             if (!map->GetCreature(entrance.second.Guid))
                 continue;
 
-            if (entrance.second.Tier >= 1 && entrance.second.Tier <= MaxTier)
-                ++activeByTier[entrance.second.Tier - 1];
+            ++active;
         }
     }
 
-    for (uint8 tier = 1; tier <= MaxTier; ++tier)
-    {
-        uint32 minCount = std::min<uint32>(region.TierMinCounts[tier - 1], region.TierMaxCounts[tier - 1]);
-        if (activeByTier[tier - 1] < minCount)
-            return true;
-    }
-
-    return false;
+    uint32 const minCount = std::min<uint32>(region.TierMinCounts[tier - 1], region.TierMaxCounts[tier - 1]);
+    return active < minCount;
 }
 
-bool RiftSpawnManager::RefreshRegion(RiftSpawnRegion const& region, bool fillToMax)
+bool RiftSpawnManager::RefreshRegion(RiftSpawnRegion const& region, RefillMode mode)
+{
+    // 按指定模式补齐整个区域：逐个难度补齐，任一档位未达标都视为本次刷新不完整。
+    bool complete = true;
+    for (uint8 tier = 1; tier <= MaxTier; ++tier)
+        if (!RefreshTier(region, tier, mode))
+            complete = false;
+    return complete;
+}
+
+bool RiftSpawnManager::RefreshTier(RiftSpawnRegion const& region, uint8 tier, RefillMode mode)
 {
     Map* map = sMapMgr->CreateBaseMap(region.MapId);
     if (!map || map->Instanceable())
@@ -552,7 +576,7 @@ bool RiftSpawnManager::RefreshRegion(RiftSpawnRegion const& region, bool fillToM
 
     // 统计本区域已占用的点位，并清理已经消失的入口记录（例如网格卸载导致的丢失）。
     std::set<uint32> occupied;
-    uint32 activeByTier[MaxTier] = { 0, 0, 0 };
+    uint32 active = 0;
     for (auto itr = _entrances.begin(); itr != _entrances.end();)
     {
         if (itr->second.RegionId != region.RegionId)
@@ -568,8 +592,8 @@ bool RiftSpawnManager::RefreshRegion(RiftSpawnRegion const& region, bool fillToM
         }
 
         occupied.insert(itr->second.PointId);
-        if (!itr->second.Consumed && itr->second.Tier >= 1 && itr->second.Tier <= MaxTier)
-            ++activeByTier[itr->second.Tier - 1];
+        if (!itr->second.Consumed && itr->second.Tier == tier)
+            ++active;
         ++itr;
     }
 
@@ -579,19 +603,28 @@ bool RiftSpawnManager::RefreshRegion(RiftSpawnRegion const& region, bool fillToM
         if (occupied.find(pointId) == occupied.end())
             freePoints.push_back(pointId);
 
-    bool complete = true;
-    for (uint8 tier = 1; tier <= MaxTier; ++tier)
+    uint32 target = 0;
+    switch (mode)
     {
-        uint32 target = std::min<uint32>(fillToMax ? region.TierMaxCounts[tier - 1] : region.TierMinCounts[tier - 1],
-            region.TierMaxCounts[tier - 1]);
-        for (uint32 count = activeByTier[tier - 1]; count < target; ++count)
+        case RefillMode::FillToMin:
+            target = std::min<uint32>(region.TierMinCounts[tier - 1], region.TierMaxCounts[tier - 1]);
+            break;
+        case RefillMode::FillToMax:
+            target = region.TierMaxCounts[tier - 1];
+            break;
+        case RefillMode::AddOne:
+            target = std::min<uint32>(active + 1, region.TierMaxCounts[tier - 1]);
+            break;
+    }
+
+    bool complete = true;
+    for (uint32 count = active; count < target; ++count)
+    {
+        if (!SpawnOne(region, map, tier, freePoints))
         {
-            if (!SpawnOne(region, map, tier, freePoints))
-            {
-                // 点位耗尽等原因导致该档位未能补齐，交由调用方退避后再试。
-                complete = false;
-                break;
-            }
+            // 点位耗尽等原因导致该档位未能补齐，交由调用方退避后再试。
+            complete = false;
+            break;
         }
     }
 
@@ -687,31 +720,24 @@ void RiftSpawnManager::Update(uint32 diff)
         itr = _entrances.erase(itr);
     }
 
-    // 逐区域维持数量：低于 min 尝试立即补齐到 min，补齐失败则退避重试；
-    // 其余情况每 5 分钟向 max 补齐一次。
+    // 逐区域、逐难度维持数量：每个间隔触发一次补充，数量低于 min 补到 min，否则每次补一个向 max 逼近。
     for (auto& pair : _regions)
     {
         RiftSpawnRegion& region = pair.second;
         if (!region.Enabled || !region.WindowOpen)
             continue;
 
-        if (region.RetryCountdown)
-            region.RetryCountdown = region.RetryCountdown > diff ? region.RetryCountdown - diff : 0;
-
-        if (IsRegionBelowMin(region))
+        for (uint8 tier = 1; tier <= MaxTier; ++tier)
         {
-            region.RefillTimer = 0;
-            // 退避期内不再重试，避免点位不足时每个世界帧反复尝试。
-            if (region.RetryCountdown == 0 && !RefreshRegion(region, false))
-                region.RetryCountdown = EntranceRefillRetryIntervalMilliseconds;
-            continue;
-        }
+            region.RefillTimers[tier - 1] += diff;
+            if (region.RefillTimers[tier - 1] < GetEntranceRefillIntervalMilliseconds(tier))
+                continue;
 
-        region.RefillTimer += diff;
-        if (region.RefillTimer >= EntranceRefillIntervalMilliseconds)
-        {
-            region.RefillTimer = 0;
-            RefreshRegion(region, true);
+            region.RefillTimers[tier - 1] = 0;
+
+            // 数量低于最小值：直接补到最小值数量；否则每次只补一个，逐步向最大值逼近。
+            RefillMode const mode = IsTierBelowMin(region, tier) ? RefillMode::FillToMin : RefillMode::AddOne;
+            RefreshTier(region, tier, mode);
         }
     }
 }
