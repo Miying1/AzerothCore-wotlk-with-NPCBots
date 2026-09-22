@@ -114,3 +114,46 @@ INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
 (603, 33113, 15.0, 0, 1.0, 500, '奥杜尔：烈焰巨兽本体（追人碾压，载具战）');
+
+-- ============================================================================
+-- 十字军试炼（Trial of the Crusader，map 649）
+-- ============================================================================
+-- 注：酸喉粘液池 35176、戈莫克火焰炸弹 34854 已在 bot_ai.cpp 的 CalculateAoeSpots
+-- 硬编码逻辑中处理（map 649 块），无需在此配置。以下补充硬编码未覆盖的技能。
+
+-- 加拉克苏斯大王：军团烈焰（34784）。
+-- 加拉克苏斯点名玩家施放 66197，命中后 66200 在目标位置召唤军团烈焰生物 34784，
+-- 该生物自带 66201 周期伤害光环，形成固定位置持续地面火焰。
+-- 伤害法术 66201 无有效半径（EffectAura=周期触发），故用固定 radius。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 649 AND `creature_entry` = 34784;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+(649, 34784, 8.0, 0, 1.0, 1000, 'TOC：加拉克苏斯军团烈焰（落地持续火焰）');
+
+-- 加拉克苏斯大王：地狱火火山（34813）。
+-- 加拉克苏斯施放 66258 召唤地狱火火山生物 34813（固定位置），
+-- 火山周期性喷发地狱火火球造成范围伤害，属固定地板危险区。
+-- 召唤法术 66258 本身有半径（RadiusIndex=18），火山伤害由生物周期触发。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 649 AND `creature_entry` = 34813;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+(649, 34813, 10.0, 0, 1.0, 1000, 'TOC：加拉克苏斯地狱火火山（固定喷发地板）');
+
+-- 阿努巴拉克：追击尖刺（34660）。
+-- 钻地后 EVENT_SPELL_SUMMON_SPIKE 用 66169 召唤，尖刺 MoveChase 追击被点名真实玩家，
+-- 每次追到时由 spell_pursuing_spikes_aura 周期施放 65919 穿刺（IMPALE，范围伤害）。
+-- 尖刺本体为移动的威胁源，危险圈随其实时位置移动，BOT 应提前躲开追人路线及其穿刺范围。
+-- 65919 为 SCHOOL_DAMAGE（有半径），damage_spell_id 优先读半径，读不到时用固定 radius 兜底。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 649 AND `creature_entry` = 34660;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+VALUES
+(649, 34660, 10.0, 0, 1.0, 0, 'TOC：阿努巴拉克追击尖刺（追人 + 穿刺，危险圈随尖刺移动）');
