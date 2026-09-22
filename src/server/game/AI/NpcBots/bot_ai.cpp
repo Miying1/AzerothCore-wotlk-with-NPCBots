@@ -992,7 +992,14 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
 void bot_ai::_calculatePos(Unit const* followUnit, Position& pos, float* speed/* = nullptr*/) const
 {
     if (!IAmFree() && master && master->GetBotMgr()->GetBotPositionControl()->TryGetMassPosition(*me, *this, followUnit, pos, speed))
+    {
+        // 集合目标点若需穿过危险区域，则改为先朝绕行点移动，避免直穿危险区反复弹回
+        Unit const* detourMover = me->GetVehicle() ? me->GetVehicleBase() : me;
+        Position detour;
+        if (TryGetAoeDetourPoint(detourMover->GetPosition(), pos, detour))
+            pos.Relocate(detour);
         return;
+    }
 
     Player const* player = followUnit->ToPlayer();
     uint8 followdist = !player ? BotMgr::GetBotFollowDistMax() / 2 : player->GetBotMgr()->GetBotFollowDist();
@@ -1109,6 +1116,11 @@ void bot_ai::_calculatePos(Unit const* followUnit, Position& pos, float* speed/*
                 *speed = baserunspeed * 1.25f;
         }
     }
+
+    // 跟随目标点若需穿过危险区域，则先绕行，避免"直穿-躲避-再直穿"的死循环
+    Position detour;
+    if (TryGetAoeDetourPoint(bmover->GetPosition(), mpos, detour))
+        mpos = detour;
 
     pos.Relocate(mpos);
 
@@ -5563,6 +5575,101 @@ bool bot_ai::IsWithinAoERadius(Position const& pos) const
     }
 
     return false;
+}
+
+bool bot_ai::TryGetAoeDetourPoint(Position const& start, Position const& goal, Position& detour) const
+{
+    AoeSpotsVec const& spots = GetAoeSpots();
+    if (spots.empty())
+        return false;
+
+    float const sx = start.GetPositionX();
+    float const sy = start.GetPositionY();
+    float const gx = goal.GetPositionX();
+    float const gy = goal.GetPositionY();
+
+    float const dx = gx - sx;
+    float const dy = gy - sy;
+    float const segLenSq = dx * dx + dy * dy;
+    if (segLenSq < 0.01f) // 起点与终点几乎重合，无需绕行
+        return false;
+
+    float const segLen = std::sqrt(segLenSq);
+    float const ux = dx / segLen;
+    float const uy = dy / segLen;
+
+    // 只处理沿路径方向最靠前（离 bot 最近）的被穿过的危险圆
+    float nearestT = std::numeric_limits<float>::max();
+    Position const* nearestCenter = nullptr;
+    float nearestRadius = 0.0f;
+
+    for (auto const& [apos, aradius] : spots)
+    {
+        float const cx = apos.GetPositionX();
+        float const cy = apos.GetPositionY();
+
+        // 圆心在路径方向上的投影位置
+        float const t = (cx - sx) * ux + (cy - sy) * uy;
+        if (t < 0.0f || t > segLen) // 圆心不在路径区间内（在起点后方或终点前方）
+            continue;
+
+        // 圆心到路径线段的最短距离
+        float const px = sx + t * ux;
+        float const py = sy + t * uy;
+        float const distSq = (cx - px) * (cx - px) + (cy - py) * (cy - py);
+        if (distSq >= aradius * aradius) // 路径不穿过该圆
+            continue;
+
+        if (t < nearestT)
+        {
+            nearestT = t;
+            nearestCenter = &apos;
+            nearestRadius = aradius;
+        }
+    }
+
+    if (!nearestCenter)
+        return false;
+
+    float const cx = nearestCenter->GetPositionX();
+    float const cy = nearestCenter->GetPositionY();
+    float const cz = nearestCenter->GetPositionZ();
+    float const r = nearestRadius;
+
+    // 沿最近的危险圆边界均匀采样候选绕行点（不额外加安全边距）。
+    // 逐个排除仍落在任何危险区内的候选，并按"起点→候选→目标"的绕行路径总长取最短者。
+    // 这样即使首选一侧落入重叠/相邻危险圆，也会自动尝试另一侧及其它方向重新规划，
+    // 而不是直接放弃绕行。
+    constexpr uint8 SAMPLE_COUNT = 16;
+    float bestScore = std::numeric_limits<float>::max();
+    Position bestPos;
+    bool found = false;
+
+    for (uint8 i = 0; i < SAMPLE_COUNT; ++i)
+    {
+        float const ang = (2.0f * float(M_PI) * i) / SAMPLE_COUNT;
+        Position candidate;
+        candidate.Relocate(cx + r * std::cos(ang), cy + r * std::sin(ang), cz);
+
+        // 跳过仍处于某个危险区内的候选（含重叠危险圆）
+        if (IsWithinAoERadius(candidate))
+            continue;
+
+        // 2D 路径长度评分，评分越低说明绕行越短、越靠近目标
+        float const score = start.GetExactDist2d(candidate) + candidate.GetExactDist2d(goal);
+        if (score < bestScore)
+        {
+            bestScore = score;
+            bestPos.Relocate(candidate);
+            found = true;
+        }
+    }
+
+    if (!found)
+        return false;
+
+    detour.Relocate(bestPos);
+    return true;
 }
 //Returns attack range based on given range
 //If mounted: 20%

@@ -483,6 +483,10 @@ protected:
 
     static bool IsPeriodicDynObjAOEDamage(SpellInfo const* spellInfo);
     bool IsWithinAoERadius(Position const& pos) const;
+    // 计算绕过危险区域的绕行点：当 bot 从 start 到 goal 的直线路径穿过危险区域时，
+    // 返回一个位于危险圆外侧的绕行点，引导 bot 沿危险区边缘绕行，避免
+    // "直穿危险区-被弹开-再直穿"的死循环导致 bot 始终无法靠近主人。
+    bool TryGetAoeDetourPoint(Position const& start, Position const& goal, Position& detour) const;
 
     float InitAttackRange(float origRange, bool ranged) const;
     void CalculateAttackPos(Unit* target, Position &pos, bool& force) const;
