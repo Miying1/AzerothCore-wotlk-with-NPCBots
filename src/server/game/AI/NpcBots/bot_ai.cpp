@@ -10877,6 +10877,10 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
                 if (uint32 maxBotsPerAccount = BotCfg::GetMaxAccountBots())
                 {
+                    // VIP 等级每级 +8 账户 BOT 上限
+                    uint32 vipLevel = player->GetVipBenefits().vip_level;
+                    maxBotsPerAccount += vipLevel * 8u;
+
                     uint32 accountBotsCount = BotDataMgr::GetAccountBotsCount(player->GetSession()->GetAccountId());
                     if (accountBotsCount >= maxBotsPerAccount)
                     {

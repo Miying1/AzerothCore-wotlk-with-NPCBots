@@ -483,7 +483,8 @@ private:
     bool EvaluateSchedule(RiftSpawnRegion const& region) const;
     bool IsWithinWindow(RiftScheduleWindow const& window, uint32 weekDay, uint32 minuteOfDay) const;
     // 距离该区域下一次开启的剩余秒数（epoch）；没有可用窗口时返回 0。
-    int64 ComputeNextOpenTime(RiftSpawnRegion const& region) const;
+    // 同时通过 outDurationMinutes 输出该开启窗口的持续分钟数（可选）。
+    int64 ComputeNextOpenTime(RiftSpawnRegion const& region, uint32* outDurationMinutes = nullptr) const;
     // 该区域开启前播报：还剩 10/5/1 分钟各一次。
     void UpdateRegionOpenReminders(RiftSpawnRegion& region);
     // 通知里显示的区域名；未配置名称时回退为“区域{id}”。
