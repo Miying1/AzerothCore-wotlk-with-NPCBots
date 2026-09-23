@@ -86,6 +86,10 @@ public:
 
                     if (uint32 maxBotsPerAccount = BotCfg::GetMaxAccountBots())
                     {
+                        // VIP 等级每级 +8 账户 BOT 上限
+                        uint32 vipLevel = player->GetVipBenefits().vip_level;
+                        maxBotsPerAccount += vipLevel * 8u;
+
                         uint32 accountBotsCount = BotDataMgr::GetAccountBotsCount(player->GetSession()->GetAccountId());
                         if (accountBotsCount >= maxBotsPerAccount)
                         {
@@ -95,14 +99,13 @@ public:
                         }
                     }
 
-                    // IP 限制：每个 IP 最大雇佣 BOT 数量，VIP 等级大于 0 时上限乘以 vip_level
+                    // IP 限制：每个 IP 最大雇佣 BOT 数量，VIP 等级每级 +8 上限
                     if (!player->IsGameMaster())
                     {
-                        // 基础 IP 上限，VIP 玩家按等级放大
                         uint32 ipMaxBots = BotMgr::GetIPMaxBots();
                         uint32 vipLevel = player->GetVipBenefits().vip_level;
-                        if (vipLevel > 0)
-                            ipMaxBots *= vipLevel;
+                        // VIP 等级每级 +8
+                        ipMaxBots += vipLevel * 8u;
 
                         uint32 allcount = BotDataMgr::GetNpcBotCountByIp(player->GetSession()->GetRemoteAddress());
                         if (allcount >= ipMaxBots)

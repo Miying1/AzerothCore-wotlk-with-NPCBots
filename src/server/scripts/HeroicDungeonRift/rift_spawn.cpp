@@ -330,7 +330,7 @@ bool RiftSpawnManager::IsAnyRegionOpen() const
     return false;
 }
 
-int64 RiftSpawnManager::ComputeNextOpenTime(RiftSpawnRegion const& region) const
+int64 RiftSpawnManager::ComputeNextOpenTime(RiftSpawnRegion const& region, uint32* outDurationMinutes) const
 {
     if (region.Windows.empty())
         return 0;
@@ -341,6 +341,7 @@ int64 RiftSpawnManager::ComputeNextOpenTime(RiftSpawnRegion const& region) const
     uint32 currentMinuteOfDay = uint32(local.tm_hour) * 60 + uint32(local.tm_min);
 
     int64 best = 0;
+    uint32 bestDurationMinutes = 0;
     for (RiftScheduleWindow const& window : region.Windows)
     {
         if (window.StartMinuteOfDay == window.EndMinuteOfDay)
@@ -370,8 +371,17 @@ int64 RiftSpawnManager::ComputeNextOpenTime(RiftSpawnRegion const& region) const
             continue;
 
         if (best == 0 || int64(candidate) < best)
+        {
             best = int64(candidate);
+            // 开启窗口持续分钟数：End <= Start 视为跨零点，延续到次日。
+            bestDurationMinutes = window.StartMinuteOfDay < window.EndMinuteOfDay
+                ? uint32(window.EndMinuteOfDay) - uint32(window.StartMinuteOfDay)
+                : uint32(24 * 60) - uint32(window.StartMinuteOfDay) + uint32(window.EndMinuteOfDay);
+        }
     }
+
+    if (outDurationMinutes)
+        *outDurationMinutes = bestDurationMinutes;
 
     return best;
 }
@@ -382,7 +392,8 @@ void RiftSpawnManager::UpdateRegionOpenReminders(RiftSpawnRegion& region)
     if (region.Windows.empty())
         return;
 
-    int64 nextOpen = ComputeNextOpenTime(region);
+    uint32 openDurationMinutes = 0;
+    int64 nextOpen = ComputeNextOpenTime(region, &openDurationMinutes);
     if (nextOpen != region.CachedNextOpenTime)
     {
         region.CachedNextOpenTime = nextOpen;
@@ -410,19 +421,25 @@ void RiftSpawnManager::UpdateRegionOpenReminders(RiftSpawnRegion& region)
     region.OpenReminderStage = stage;
 
     std::string const name = GetRegionDisplayName(region);
+    // 把持续分钟数格式化为更易读的“小时/分钟”文本。
+    std::string const durationText = openDurationMinutes >= 60
+        ? (openDurationMinutes % 60 == 0
+            ? Acore::StringFormat("{}小时", openDurationMinutes / 60)
+            : Acore::StringFormat("{}小时{}分钟", openDurationMinutes / 60, openDurationMinutes % 60))
+        : Acore::StringFormat("{}分钟", openDurationMinutes);
     switch (stage)
     {
         case 1:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,裂隙入口会随机出现在 {}。", name));
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 10 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
             break;
         case 2:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,裂隙入口会随机出现在 {}。", name));
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 5 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
             break;
         case 3:
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,裂隙入口会随机出现在 {}。", name));
-            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,裂隙入口会随机出现在 {}。", name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
+            BroadcastNotice(Acore::StringFormat("【英雄裂隙】将在 1 分钟后开启,持续 {},裂隙入口会随机出现在 {}。", durationText, name));
             break;
         default:
             break;
