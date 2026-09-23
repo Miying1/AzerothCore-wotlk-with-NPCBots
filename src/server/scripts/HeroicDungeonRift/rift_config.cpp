@@ -113,13 +113,11 @@ void ConfigStore::Load()
         if (playerEntryComplete)
             config.PlayerEntry.Relocate(fields[9].Get<float>(), fields[10].Get<float>(), fields[11].Get<float>(), fields[12].Get<float>());
 
+        // 无法使用的Tier行（Boss不存在/未启用、传入点未填、Tier越界、Entry或倍率非法）直接排除出随机池，不再输出警告日志。
         BossConfig const* boss = GetBoss(config.BossId);
         if (!boss || !boss->Enabled || !playerEntryComplete || config.Tier < 1 || config.Tier > MaxTier || !config.EntryId ||
             config.HealthMultiplier <= 0.0f || config.DamageMultiplier <= 0.0f)
-        {
-            LOG_ERROR("sql.sql", "Five-player heroic rift tier boss_id {}, tier {} has invalid keys, player entry, or multipliers and was ignored.", config.BossId, config.Tier);
             continue;
-        }
 
         if (!sObjectMgr->GetCreatureTemplate(config.EntryId))
         {
