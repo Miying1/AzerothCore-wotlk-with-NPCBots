@@ -110,6 +110,7 @@ enum SummonGroups : uint32
 enum Data
 {
     DATA_CRUSHER_PACK_ID        = 1,
+    DATA_DOORS_WEBBED           = 2,
 };
 
 enum Misc
@@ -334,8 +335,10 @@ struct boss_hadronox : public BossAI
 
     uint32 GetData(uint32 data) const override
     {
-         if (data == me->GetEntry()) // 'Hadronox Denied' achievement
-             return _doorsWebbed ? 0 : 1;
+        if (data == me->GetEntry()) // 'Hadronox Denied' achievement
+            return _doorsWebbed ? 0 : 1;
+        if (data == DATA_DOORS_WEBBED)
+            return _doorsWebbed ? 1 : 0;
         return 0;
     }
 
@@ -624,13 +627,12 @@ public:
         if (InstanceScript* instance = owner->GetInstanceScript())
             if (!instance->IsBossDone(DATA_HADRONOX) != NOT_STARTED)
             {
-                // 封门信号(SPELL_WEB_FRONT_DOORS)由哈德诺克斯本体施放，而非 world trigger，
-                // 必须检测 BOSS 实体才能正确停止召唤，否则停止条件恒不成立、小怪一直刷新
+                // 封门状态由 BOSS AI 的 _doorsWebbed 标志确定（到达顶部 MOVE3 时置位、Reset 时复位），
+                // 不依赖 SPELL_WEB_FRONT_DOORS 光环是否残留（该光环为瞬发 dummy，检测不可靠），
+                // 否则停止条件恒不成立、小怪会一直刷新
                 Creature* hadronox = instance->GetCreature(DATA_HADRONOX);
-                if (!hadronox || !hadronox->HasAura(SPELL_WEB_FRONT_DOORS))
+                if (!hadronox || !hadronox->AI()->GetData(DATA_DOORS_WEBBED))
                     owner->CastSpell(owner, _spellEntry, true);
-                else if (!instance->IsEncounterInProgress())
-                    hadronox->RemoveAurasDueToSpell(SPELL_WEB_FRONT_DOORS);
             }
     }
 
