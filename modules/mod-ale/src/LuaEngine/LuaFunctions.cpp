@@ -648,6 +648,7 @@ ALERegister<Player> PlayerMethods[] =
     { "Teleport", &LuaPlayer::Teleport },
     { "AddItem", &LuaPlayer::AddItem },
     { "UpdateNPCBotManagement", &LuaPlayer::UpdateNPCBotManagement },
+    { "SetNPCBotTalent", &LuaPlayer::SetNPCBotTalent },
     { "EquipNPCBotItemFromInventory", &LuaPlayer::EquipNPCBotItemFromInventory },
     { "UnequipNPCBotItem", &LuaPlayer::UnequipNPCBotItem },
     { "IsInArenaTeam", &LuaPlayer::IsInArenaTeam },

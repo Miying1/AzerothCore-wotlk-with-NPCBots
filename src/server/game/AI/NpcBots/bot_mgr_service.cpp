@@ -219,6 +219,31 @@ uint32 GetSupportedManagementRoles(bot_ai const* ai)
     return roles;
 }
 
+// 与 Gossip 天赋菜单保持一致：每个常规职业固定三系天赋，专家职业没有天赋树，返回 0 表示不支持。
+uint8 GetFirstSpecForClass(uint8 botClass)
+{
+    switch (botClass)
+    {
+        case BOT_CLASS_WARRIOR:      return BOT_SPEC_WARRIOR_ARMS;
+        case BOT_CLASS_PALADIN:      return BOT_SPEC_PALADIN_HOLY;
+        case BOT_CLASS_HUNTER:       return BOT_SPEC_HUNTER_BEASTMASTERY;
+        case BOT_CLASS_ROGUE:        return BOT_SPEC_ROGUE_ASSASINATION;
+        case BOT_CLASS_PRIEST:       return BOT_SPEC_PRIEST_DISCIPLINE;
+        case BOT_CLASS_DEATH_KNIGHT: return BOT_SPEC_DK_BLOOD;
+        case BOT_CLASS_SHAMAN:       return BOT_SPEC_SHAMAN_ELEMENTAL;
+        case BOT_CLASS_MAGE:         return BOT_SPEC_MAGE_ARCANE;
+        case BOT_CLASS_WARLOCK:      return BOT_SPEC_WARLOCK_AFFLICTION;
+        case BOT_CLASS_DRUID:        return BOT_SPEC_DRUID_BALANCE;
+        default:                     return 0;
+    }
+}
+
+// 与 Gossip 一致：常规天赋职业且等级不低于 10 级时才可切换天赋。
+bool CanSwitchTalent(Creature const* bot, bot_ai const* ai)
+{
+    return GetFirstSpecForClass(ai->GetBotClass()) != 0 && bot->GetLevel() >= 10;
+}
+
 void BuildManagementSnapshot(Player const* player, Creature const* bot, bot_ai const* ai, BotManagementSnapshot& snapshot)
 {
     snapshot = {};
@@ -236,6 +261,16 @@ void BuildManagementSnapshot(Player const* player, Creature const* bot, bot_ai c
     snapshot.attackAngleMode = player->GetBotMgr()->GetBotAttackAngleMode();
     // 战斗走位为单 Bot 独立设置：-1 = 跟随主人，0 = 禁用，1 = 启用。
     snapshot.combatPositioning = ai->GetCombatPositioningOverride();
+
+    // 天赋专精列表与 Gossip 天赋菜单同源，客户端据此按职业展示可切换项。
+    snapshot.spec = uint8(ai->GetSpec());
+    snapshot.specSwitchSupported = CanSwitchTalent(bot, ai);
+    if (snapshot.specSwitchSupported)
+    {
+        uint8 const firstSpec = GetFirstSpecForClass(ai->GetBotClass());
+        for (uint8 spec = firstSpec; spec != uint8(firstSpec + 3); ++spec)
+            snapshot.specOptions.push_back(spec);
+    }
 }
 
 bool IsAllowedInventoryPosition(uint8 bag, uint8 slot)
@@ -747,6 +782,53 @@ BotEquipmentUiResult bot_mgr_service::UpdateManagement(
     player->SaveToDB(false, false);
 
     BuildManagementSnapshot(player, bot, ai, snapshot);
+    return BotEquipmentUiResult::Ok;
+}
+
+BotEquipmentUiResult bot_mgr_service::SetTalent(
+    Player* player,
+    uint32 botEntry,
+    ObjectGuid::LowType botGuidLow,
+    uint8 spec,
+    BotManagementSnapshot& snapshot)
+{
+    snapshot = {};
+
+    if (IsRateLimited(player, RequestKind::Operation))
+        return BotEquipmentUiResult::RateLimited;
+
+    Creature* bot = nullptr;
+    bot_ai* ai = nullptr;
+    BotEquipmentUiResult const validation = ValidateManagementOperation(player, botEntry, botGuidLow, bot, ai);
+    if (validation != BotEquipmentUiResult::Ok)
+        return validation;
+
+    // 与 Gossip 天赋菜单保持一致的限制：常规天赋职业、10 级以上，且专精必须属于该职业。
+    if (!CanSwitchTalent(bot, ai) || !BotDataMgr::IsValidSpecForClass(ai->GetBotClass(), spec))
+        return BotEquipmentUiResult::InvalidRequest;
+
+    // 管理面板额外要求：玩家与 Bot 都不处于战斗中。
+    if (player->IsInCombat() || bot->IsInCombat())
+        return BotEquipmentUiResult::BusyInCombat;
+
+    // Gossip 同样会拒绝正在施法、被控制或正在执行指令的 Bot，这里保持一致。
+    if (bot->HasUnitState(UNIT_STATE_CASTING) || bot_ai::CCed(bot) ||
+        ai->HasBotCommandState(BOT_COMMAND_ISSUED_ORDER))
+        return BotEquipmentUiResult::BusyInCombat;
+
+    bool const specChanged = ai->GetSpec() != spec;
+    if (specChanged)
+        ai->SwitchSpec(spec, player);
+
+    BuildManagementSnapshot(player, bot, ai, snapshot);
+    // SwitchSpec 只是施放 ACTIVATE_SPEC，_spec 要等施法结束（OnBotSpellGo）后才更新，
+    // 因此这里回传目标专精并标记待生效，避免客户端把仍是旧值的 spec 误判为切换失败。
+    if (specChanged)
+    {
+        snapshot.spec = spec;
+        snapshot.specPending = true;
+    }
+
     return BotEquipmentUiResult::Ok;
 }
 

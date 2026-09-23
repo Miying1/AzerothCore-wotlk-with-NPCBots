@@ -114,6 +114,26 @@ function handlers.UpdateManagement(player, request)
     AIO.Handle(player, NAMESPACE, "ManagementUpdateResult", result)
 end
 
+-- 切换天赋专精：1-30 为各职业三系天赋编号（31 表示未选择，不允许通过面板设置）。
+-- 是否允许切换、职业与等级限制、战斗中校验均由服务端复核。
+function handlers.SetTalent(player, request)
+    if type(request) ~= "table" or not IsRequestId(request.requestId) or
+        not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) or
+        not IsInteger(request.spec, 1, 30) then
+        SendInvalidRequest(
+            player,
+            "TalentResult",
+            type(request) == "table" and request.requestId or 0,
+            type(request) == "table" and request.botEntry or nil,
+            type(request) == "table" and request.botGuidLow or nil)
+        return
+    end
+
+    local result = player:SetNPCBotTalent(request.botEntry, request.botGuidLow, request.spec)
+    CopyResponseContext(result, request)
+    AIO.Handle(player, NAMESPACE, "TalentResult", result)
+end
+
 function handlers.RequestCandidates(player, request)
     if type(request) ~= "table" or not IsRequestId(request.requestId) or
         not IsInteger(request.botEntry, 1, 4294967295) or not IsGuidLow(request.botGuidLow) or

@@ -174,7 +174,7 @@ namespace LuaPlayer
 
         void PushManagement(lua_State* L, BotManagementSnapshot const& snapshot)
         {
-            lua_createtable(L, 0, 11);
+            lua_createtable(L, 0, 14);
             SetField(L, "botEntry", snapshot.botEntry);
             SetField(L, "botGuidLow", std::to_string(snapshot.botGuidLow));
             SetField(L, "canManage", snapshot.canManage);
@@ -185,6 +185,21 @@ namespace LuaPlayer
             SetField(L, "engageDelayMs", snapshot.engageDelayMs);
             SetField(L, "attackAngleMode", int(snapshot.attackAngleMode));
             SetField(L, "combatPositioning", int(snapshot.combatPositioning));
+            SetField(L, "spec", snapshot.spec);
+            // 为 true 时 spec 是切换目标：ACTIVATE_SPEC 施法结束后才会真正生效。
+            SetField(L, "specPending", snapshot.specPending);
+            SetField(L, "specSwitchSupported", snapshot.specSwitchSupported);
+
+            // 可切换专精列表按职业由服务端下发，客户端只负责本地化显示。
+            lua_createtable(L, int(snapshot.specOptions.size()), 0);
+            int const specOptionsTable = lua_gettop(L);
+            int specIndex = 1;
+            for (uint8 spec : snapshot.specOptions)
+            {
+                ALE::Push(L, uint32(spec));
+                lua_rawseti(L, specOptionsTable, specIndex++);
+            }
+            lua_setfield(L, -2, "specOptions");
         }
 
         void PushResultHeader(lua_State* L, BotEquipmentUiResult result)
@@ -5479,6 +5494,34 @@ namespace LuaPlayer
             attackAngleMode,
             combatPositioning,
             snapshot);
+
+        NPCBotEquipment::PushResultHeader(L, result);
+        NPCBotEquipment::PushManagement(L, snapshot);
+        lua_setfield(L, -2, "management");
+        return 1;
+    }
+
+    /**
+     * 切换真正主人的 NPCBot 天赋专精，并返回服务端规范化后的管理数据。
+     *
+     * @param uint32 botEntry
+     * @param string botGuidLow
+     * @param uint8 spec
+     * @return table result
+     */
+    int SetNPCBotTalent(lua_State* L, Player* player)
+    {
+        uint32 botEntry = ALE::CHECKVAL<uint32>(L, 2);
+        std::string botGuidText = ALE::CHECKVAL<std::string>(L, 3);
+        uint8 spec = ALE::CHECKVAL<uint8>(L, 4);
+
+        ObjectGuid::LowType botGuidLow = 0;
+        if (!NPCBotEquipment::ParseGuidLow(botGuidText, botGuidLow))
+            return NPCBotEquipment::PushInvalidGuidResult(L);
+
+        BotManagementSnapshot snapshot;
+        BotEquipmentUiResult const result = bot_mgr_service::SetTalent(
+            player, botEntry, botGuidLow, spec, snapshot);
 
         NPCBotEquipment::PushResultHeader(L, result);
         NPCBotEquipment::PushManagement(L, snapshot);

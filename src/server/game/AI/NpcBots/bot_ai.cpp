@@ -10726,16 +10726,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
 
             if (newSpec != _spec && newSpec >= BOT_SPEC_BEGIN && newSpec <= BOT_SPEC_END)
             {
-                _newspec = newSpec;
-                me->CastSpell(me, ACTIVATE_SPEC, false);
-                BotWhisper(LocalizedNpcText(player, BOT_TEXT_CHANGING_MY_SPEC_TO_) + LocalizedNpcText(player, BotDataMgr::TextForSpec(_newspec)));
-                if ((_botclass == BOT_CLASS_WARRIOR && _newspec != BOT_SPEC_WARRIOR_FURY)
-                    || (_botclass == BOT_CLASS_PALADIN && _newspec == BOT_SPEC_PALADIN_RETRIBUTION))
-                {
-                    //if have incompatible offhand unequip it
-                    if (_equips[BOT_SLOT_OFFHAND] != nullptr)
-                        _unequip(BOT_SLOT_OFFHAND, player->GetGUID(), false);
-                }
+                SwitchSpec(newSpec, player);
                 break;
             }
         }
@@ -15745,6 +15736,27 @@ void bot_ai::SetSpec(uint8 spec, bool activate)
 uint8 bot_ai::GetSpec() const
 {
     return me->GetLevel() < 10 ? uint8(BOT_SPEC_DEFAULT) : _spec;
+}
+
+// 切换天赋：与 Gossip 天赋菜单保持一致，先施放 ACTIVATE_SPEC，
+// 由 OnBotSpellGo 落地为新专精，并同步处理不兼容的副手武器。
+void bot_ai::SwitchSpec(uint8 newSpec, Player* requester)
+{
+    if (newSpec == _spec || newSpec < BOT_SPEC_BEGIN || newSpec > BOT_SPEC_END)
+        return;
+
+    _newspec = newSpec;
+    me->CastSpell(me, ACTIVATE_SPEC, false);
+    BotWhisper(LocalizedNpcText(requester, BOT_TEXT_CHANGING_MY_SPEC_TO_) +
+        LocalizedNpcText(requester, BotDataMgr::TextForSpec(_newspec)), requester);
+
+    if (requester && ((_botclass == BOT_CLASS_WARRIOR && _newspec != BOT_SPEC_WARRIOR_FURY) ||
+        (_botclass == BOT_CLASS_PALADIN && _newspec == BOT_SPEC_PALADIN_RETRIBUTION)))
+    {
+        //if have incompatible offhand unequip it
+        if (_equips[BOT_SLOT_OFFHAND] != nullptr)
+            _unequip(BOT_SLOT_OFFHAND, requester->GetGUID(), false);
+    }
 }
 
 void bot_ai::InitEquips()

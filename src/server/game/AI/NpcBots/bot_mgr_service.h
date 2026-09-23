@@ -130,6 +130,13 @@ struct BotManagementSnapshot
     uint8 attackAngleMode = 1;
     // 战斗走位：-1 = 跟随主人级设置；0 = 禁用；1 = 启用（单 Bot 独立，仅运行时有效）。
     int8 combatPositioning = -1;
+    // 天赋：当前专精与该职业可切换的专精编号（专家职业或 10 级以下时列表为空且不支持切换）。
+    uint8 spec = BOT_SPEC_DEFAULT;
+    // 切换待生效：ACTIVATE_SPEC 施法期间为 true，此时 spec 表示切换目标而非当前专精，
+    // 客户端据此展示"切换中"并在施法结束后重新拉取管理数据。
+    bool specPending = false;
+    bool specSwitchSupported = false;
+    std::vector<uint8> specOptions;
 };
 
 class AC_GAME_API bot_mgr_service
@@ -169,6 +176,13 @@ public:
         uint32 engageDelayMs,
         uint32 attackAngleMode,
         uint32 combatPositioning,
+        BotManagementSnapshot& snapshot);
+
+    static BotEquipmentUiResult SetTalent(
+        Player* player,
+        uint32 botEntry,
+        ObjectGuid::LowType botGuidLow,
+        uint8 spec,
         BotManagementSnapshot& snapshot);
 
     static BotEquipmentUiResult EquipFromInventory(

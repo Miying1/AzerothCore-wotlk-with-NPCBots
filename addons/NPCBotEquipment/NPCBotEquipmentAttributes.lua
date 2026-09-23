@@ -11,14 +11,7 @@ local handlers = UI.handlers or AIO.AddHandlers(NAMESPACE, {})
 local SafeSetShown = UI.SafeSetShown
 local SafeAdjustFontSize = UI.SafeAdjustFontSize
 
-local SPEC_NAMES = {
-    [1] = "武器", [2] = "狂怒", [3] = "防护", [4] = "神圣", [5] = "防护", [6] = "惩戒",
-    [7] = "野兽控制", [8] = "射击", [9] = "生存", [10] = "刺杀", [11] = "战斗", [12] = "敏锐",
-    [13] = "戒律", [14] = "神圣", [15] = "暗影", [16] = "鲜血", [17] = "冰霜", [18] = "邪恶",
-    [19] = "元素", [20] = "增强", [21] = "恢复", [22] = "奥术", [23] = "火焰", [24] = "冰霜",
-    [25] = "痛苦", [26] = "恶魔学识", [27] = "毁灭", [28] = "平衡", [29] = "野性战斗",
-    [30] = "恢复", [31] = "未选择"
-}
+local SPEC_NAMES = UI.SPEC_NAMES or {}
 local CATEGORY_NAMES = {
     MELEE_PHYSICAL = "物理近战", RANGED_PHYSICAL = "物理远程", HEALING = "治疗", RANGED_SPELL = "法系远程"
 }

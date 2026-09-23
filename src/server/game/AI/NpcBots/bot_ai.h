@@ -354,6 +354,8 @@ public:
     void ReInitFaction() { InitFaction(); }
     void SetSpec(uint8 spec, bool activate = true);
     uint8 GetSpec() const;
+    // 请求切换天赋：与 Gossip 天赋菜单行为一致，通过 ACTIVATE_SPEC 施法流程应用新专精。
+    void SwitchSpec(uint8 newSpec, Player* requester = nullptr);
 
     AoeSpotsVec const& GetAoeSpots() const;
     static void CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots, NPCBotCreatureHazardStateMap& creatureHazardStates);

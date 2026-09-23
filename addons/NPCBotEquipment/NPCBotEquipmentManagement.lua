@@ -35,6 +35,26 @@ local CLASS_ROLE_MASKS = {
     DRUID = 1 + 2 + 4 + 8 + 16
 }
 
+-- 天赋专精名称复用属性页的同一份编号表（NPCBotEquipmentUtil.lua 中的 UI.SPEC_NAMES）。
+local SPEC_NAMES = UI.SPEC_NAMES or {}
+
+-- 可切换天赋的最低 Bot 等级（与 Bot Gossip / 服务端校验保持一致）。
+local TALENT_MIN_LEVEL = 10
+
+-- 切换天赋的结果提示：状态类失败单独给出天赋相关文案，其余沿用通用文案。
+local TALENT_RESULT_MESSAGES = {
+    BUSY_IN_COMBAT = "战斗中或处于施法、受控状态，无法切换天赋",
+    NO_PERMISSION = "只有该 Bot 的真正主人才能切换天赋",
+    INVALID_REQUEST = "该 Bot 当前无法切换天赋（需 10 级以上常规职业）",
+    RATE_LIMITED = "切换过于频繁，请稍后重试"
+}
+
+-- 天赋切换由服务端施放 ACTIVATE_SPEC 落地（约 5 秒），服务端返回时会带上 specPending。
+-- 此时列表里的专精只是"切换目标"，需等施法结束后重新拉取管理数据才能拿到真正生效的专精。
+local TALENT_SWITCH_DELAY_SECONDS = 5
+local TALENT_SWITCH_REFRESH_DELAY = TALENT_SWITCH_DELAY_SECONDS + 1
+local TALENT_SWITCH_PENDING_TEXT = ("天赋切换中，约 %d 秒后生效"):format(TALENT_SWITCH_DELAY_SECONDS)
+
 local function HasRole(mask, role)
     mask = tonumber(mask) or 0
     return (math.floor(mask / role) % 2) == 1
@@ -118,7 +138,7 @@ local function CreateManagementPanel(frame)
             UI:SubmitManagementChanges()
         end)
     end
-    local behavior = CreateSection(panel, "战斗设置", -94, 178)
+    local behavior = CreateSection(panel, "战斗设置", -94, 170)
 
     local healLabel = behavior:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     healLabel:SetPoint("TOPLEFT", behavior, "TOPLEFT", 16, -42)
@@ -196,8 +216,26 @@ local function CreateManagementPanel(frame)
         end)
     end
 
+    -- 天赋：按职业列出可切换的专精（选项由服务端下发），默认选中当前专精，点击后直接切换。
+    local talent = CreateSection(panel, "天赋", -274, 72)
+    panel.talentSection = talent
+    panel.specRadios = {}
+    for index = 1, 3 do
+        local radio = CreateRadio(talent, "")
+        radio:SetPoint("TOPLEFT", talent, "TOPLEFT", 16 + (index - 1) * 112, -40)
+        panel.specRadios[index] = radio
+        radio:SetScript("OnClick", function(self)
+            if panel.rendering or not self.specValue then
+                return
+            end
+            UI:SubmitTalentChange(self.specValue)
+        end)
+    end
+    -- 首次渲染前先隐藏整栏，避免出现没有选项的空天赋栏。
+    SafeSetShown(talent, false)
+
     local status = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("TOP", behavior, "BOTTOM", 0, -8)
+    status:SetPoint("TOP", talent, "BOTTOM", 0, -6)
     status:SetText("")
     status:SetTextColor(0.72, 0.65, 0.52)
     panel.status = status
@@ -236,6 +274,8 @@ function UI:ResetManagementModule()
     self.managementRequestId = nil
     self.managementUpdateRequestId = nil
     self.managementCommitQueued = false
+    -- 切换天赋的等待刷新时间：换 Bot / 重置管理模块时一并清除。
+    self.talentRefreshAt = nil
 end
 
 function UI:SetManagementControlsEnabled(enabled)
@@ -253,6 +293,9 @@ function UI:SetManagementControlsEnabled(enabled)
     end
     for _, radio in ipairs(panel.combatPositioningRadios) do
         SafeSetEnabled(radio, enabled)
+    end
+    for _, radio in ipairs(panel.specRadios) do
+        SafeSetEnabled(radio, enabled and panel.talentSupported == true)
     end
     if enabled and panel.healThresholdSupported then
         SafeEditBoxSetEnabled(panel.healThresholdEdit, true)
@@ -312,6 +355,28 @@ function UI:RenderManagement(management)
     for _, radio in ipairs(panel.combatPositioningRadios) do
         radio:SetChecked(radio.positioningMode == combatPositioningMode)
     end
+
+    -- 天赋：服务端给定可切换专精编号，默认绑定当前专精，点击即切换。
+    -- 客户端本地校验：未满 10 级的 Bot 不显示天赋切换功能（等级未知时以服务端结果为准，
+    -- 服务端同样会按等级与职业复核）。
+    local botLevel = tonumber(self.currentBot and self.currentBot.level)
+    panel.talentSupported = management.specSwitchSupported == true and
+        (not botLevel or botLevel >= TALENT_MIN_LEVEL)
+    SafeSetShown(panel.talentSection, panel.talentSupported)
+    local specOptions = type(management.specOptions) == "table" and management.specOptions or {}
+    local currentSpec = tonumber(management.spec)
+    for index, radio in ipairs(panel.specRadios) do
+        local spec = panel.talentSupported and tonumber(specOptions[index]) or nil
+        radio.specValue = spec
+        if spec then
+            radio.label:SetText(SPEC_NAMES[spec] or ("专精 " .. spec))
+            radio:SetChecked(spec == currentSpec)
+            radio:Show()
+        else
+            radio:Hide()
+        end
+    end
+
     panel.rendering = false
     self:SetManagementControlsEnabled(not self.managementPending)
 end
@@ -500,6 +565,111 @@ function handlers.ManagementUpdateResult(player, response)
     UI.frame.managementPanel.status:SetTextColor(0.35, 0.85, 0.35)
 end
 
+-- 切换天赋：点击后立即单独提交一次请求，不与职责 / 战斗设置合并提交。
+function UI:SubmitTalentChange(spec)
+    local panel = self.frame and self.frame.managementPanel
+    if not panel then
+        return
+    end
+    if not self.currentBot or not self.currentBot.canManage or panel.talentSupported ~= true or
+        self.managementPending or self.talentRefreshAt then
+        -- 条件不满足时回退到服务端已知状态，避免单选按钮停留在被点中的状态。
+        self:RenderManagement(self.management)
+        if self.talentRefreshAt then
+            -- 上一次切换仍在落地（服务端正在施放 ACTIVATE_SPEC），此时再提交只会被判定为施法中。
+            panel.status:SetText(TALENT_SWITCH_PENDING_TEXT)
+            panel.status:SetTextColor(0.72, 0.65, 0.52)
+        end
+        return
+    end
+    -- 与当前专精一致时无需请求。
+    if tonumber(spec) == tonumber(self.management and self.management.spec) then
+        return
+    end
+
+    -- 本地先判断玩家自身是否在战斗中：战斗中禁止切换天赋，避免发出无谓请求（服务端仍会复核）。
+    if UnitAffectingCombat and UnitAffectingCombat("player") then
+        self:RenderManagement(self.management)
+        panel.status:SetText("战斗中无法切换天赋")
+        panel.status:SetTextColor(1, 0.25, 0.25)
+        return
+    end
+
+    panel.rendering = true
+    for _, radio in ipairs(panel.specRadios) do
+        radio:SetChecked(radio.specValue == spec)
+    end
+    panel.rendering = false
+
+    local requestId = UI.NextRequestId()
+    self.managementUpdateRequestId = requestId
+    self.managementPending = true
+    self.managementDeadline = GetTime() + 5
+    panel.status:SetText("正在切换天赋...")
+    panel.status:SetTextColor(0.72, 0.65, 0.52)
+    self:SetManagementControlsEnabled(false)
+    AIO.Handle(NAMESPACE, "SetTalent", {
+        requestId = requestId,
+        botEntry = self.currentBot.entry,
+        botGuidLow = self.currentBot.guidLow,
+        spec = spec
+    })
+end
+
+-- 切换天赋失败的提示：状态类错误使用天赋专属文案，其余沿用通用文案。
+function UI:GetTalentResultMessage(response, fallback)
+    local code = type(response) == "table" and response.code or nil
+    if code and TALENT_RESULT_MESSAGES[code] then
+        return TALENT_RESULT_MESSAGES[code]
+    end
+    return self:GetResultMessage(response, fallback)
+end
+
+function handlers.TalentResult(player, response)
+    if type(response) ~= "table" or response.requestId ~= UI.managementUpdateRequestId then
+        return
+    end
+    if not UI.currentBot or response.botGuidLow ~= UI.currentBot.guidLow then
+        return
+    end
+    UI.managementPending = false
+    UI.managementDeadline = nil
+    if not response.ok or type(response.management) ~= "table" then
+        -- 请求被拒绝时不会进入等待刷新流程，避免一直挡住后续操作。
+        UI.talentRefreshAt = nil
+        UI.frame.managementPanel.status:SetText(UI:GetTalentResultMessage(response, "切换天赋失败"))
+        UI.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
+        if UI.management then
+            UI:RenderManagement(UI.management)
+        else
+            UI:SetManagementControlsEnabled(false)
+        end
+        return
+    end
+
+    -- 服务端只有施法被接受时才回传 specPending：此时 snapshot.spec 是切换目标，
+    -- 成败一律以 response.ok 为准（不能用专精是否变化判断，切换要等施法结束才落地）。
+    local pending = response.management.specPending == true
+    UI:RenderManagement(response.management)
+    if UI.InvalidateAttributesModule then
+        UI:InvalidateAttributesModule()
+    end
+    -- 天赋切换可能连带更换装备（例如自动卸下副手），清掉缓存避免展示过期装备。
+    UI:DropSnapshotCache(UI.currentBot.entry, UI.currentBot.guidLow)
+    if UI.activeTab == "装备" then
+        UI:RequestSnapshot()
+    end
+    if pending then
+        UI.talentRefreshAt = GetTime() + TALENT_SWITCH_REFRESH_DELAY
+        UI.frame.managementPanel.status:SetText(TALENT_SWITCH_PENDING_TEXT)
+        UI.frame.managementPanel.status:SetTextColor(0.72, 0.65, 0.52)
+    else
+        UI.talentRefreshAt = nil
+        UI.frame.managementPanel.status:SetText("天赋已切换")
+        UI.frame.managementPanel.status:SetTextColor(0.35, 0.85, 0.35)
+    end
+end
+
 function UI:UpdateManagementModule(now)
     if self.managementCommitQueued then
         self.managementCommitQueued = false
@@ -514,5 +684,11 @@ function UI:UpdateManagementModule(now)
             self.frame.managementPanel.status:SetTextColor(1, 0.25, 0.25)
             self:SetManagementControlsEnabled(true)
         end
+    end
+    -- 天赋切换的 ACTIVATE_SPEC 施法结束后重新拉取管理数据，
+    -- 此时服务端返回的 spec 才是真正生效的专精（请求本身已在 TalentResult 里判过成败）。
+    if self.talentRefreshAt and now >= self.talentRefreshAt then
+        self.talentRefreshAt = nil
+        self:RequestManagement()
     end
 end

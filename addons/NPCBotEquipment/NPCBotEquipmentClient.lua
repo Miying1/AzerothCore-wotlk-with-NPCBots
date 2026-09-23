@@ -371,8 +371,19 @@ local CLASS_LOCALIZED_NAMES = {
 local function GetUnitDisplayInfo(unit)
     local name = unit and UnitName(unit)
     local classToken
-    if unit and UnitClass then
-        classToken = select(2, UnitClass(unit))
+    local level
+    if unit then
+        if UnitClass then
+            classToken = select(2, UnitClass(unit))
+        end
+        -- 等级用于客户端本地校验（例如 10 级以下不显示天赋切换功能）；
+        -- 单位不可见 / 未知等级时 UnitLevel 会返回非正值，此时按“未知”处理。
+        if UnitLevel then
+            local unitLevel = tonumber(UnitLevel(unit))
+            if unitLevel and unitLevel > 0 then
+                level = unitLevel
+            end
+        end
     end
 
     if type(name) ~= "string" or name == "" then
@@ -389,7 +400,7 @@ local function GetUnitDisplayInfo(unit)
             math.floor(classColor.b * 255 + 0.5),
             className)
     end
-    return name, className, classToken
+    return name, className, classToken, level
 end
 
 local function CreateBackdrop(frame)
@@ -1140,13 +1151,15 @@ end
 function UI:Open(botEntry, botGuidLow, unit)
     self:EnsureFrames()
     self:CloseCandidatePanel()
-    local name, className, classToken = GetUnitDisplayInfo(unit)
+    local name, className, classToken, level = GetUnitDisplayInfo(unit)
     self.currentBot = {
         entry = botEntry,
         guidLow = tostring(botGuidLow),
         name = name,
         className = className,
         classToken = classToken,
+        -- Bot 等级（客户端可见时提供），用于本地校验天赋切换等按等级开放的功能。
+        level = level,
         canManage = false,
         equipmentRevision = ""
     }
