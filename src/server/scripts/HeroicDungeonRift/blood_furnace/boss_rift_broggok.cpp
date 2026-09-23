@@ -5,6 +5,7 @@
 #include "../rift_boss_base.h"
 
 #include "Creature.h"
+#include "GameObject.h"
 #include "ScriptMgr.h"
 
 namespace HeroicDungeonRift
@@ -36,6 +37,18 @@ enum RiftEntries : uint32
     RiftEntryBroggokPoisonCloud = 102038
 };
 
+// 鲜血熔炉布洛戈克房间的门：前门（北侧入口）与后门（南侧出口）。
+// 原版需要先击杀牢房囚犯并拉动拉杆才会打开；裂隙版直接开战，这里改为直接打开，
+// 避免玩家被关闭的牢门挡住、无法接触Boss。
+enum BroggokDoors : uint32
+{
+    BroggokDoorFront = 181822,
+    BroggokDoorRear  = 181819
+};
+
+// 门搜索范围：前门距离Boss较远（约150码），取一个足够大的值保证能搜到。
+constexpr float BroggokDoorSearchRange = 200.0f;
+
 constexpr int32 AcidBreathTier1DirectDamage = 3000;
 constexpr int32 AcidBreathTier1DamagePerTick = 1500;
 constexpr int32 PoisonBoltVolleyRaidDirectDamage = 3375;
@@ -62,6 +75,13 @@ struct boss_rift_broggok : public BossAIBase
 {
     explicit boss_rift_broggok(Creature* creature) : BossAIBase(creature) { }
 
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        // 原版牢门/拉杆前置已移除，Boss生成后直接把房间前后门打开，保证玩家可正常进入接触Boss。
+        OpenBroggokDoors();
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         // 原版牢门/拉杆前置已移除，进入战斗立即启用完整技能组。
@@ -81,6 +101,16 @@ protected:
     {
         // TBC 法术基础伤害约数百点，4 倍后适合作为 83 级团队持续毒伤。
         SetRaidSpellDamageMultiplier(4.0f);
+    }
+
+    // 直接打开布洛戈克房间的前后门：裂隙版已移除原版牢房/拉杆前置，
+    // 若门仍处于关闭状态会挡住玩家接近Boss。
+    void OpenBroggokDoors()
+    {
+        if (GameObject* frontDoor = me->FindNearestGameObject(BroggokDoorFront, BroggokDoorSearchRange))
+            frontDoor->SetGoState(GO_STATE_ACTIVE);
+        if (GameObject* rearDoor = me->FindNearestGameObject(BroggokDoorRear, BroggokDoorSearchRange))
+            rearDoor->SetGoState(GO_STATE_ACTIVE);
     }
 
     void ExecuteRiftEvent(uint32 eventId) override
