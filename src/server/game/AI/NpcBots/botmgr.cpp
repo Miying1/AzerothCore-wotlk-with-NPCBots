@@ -8,6 +8,7 @@
 #include "botlog.h"
 #include "botmgr.h"
 #include "Hazards/NPCBotHazardMgr.h"
+#include "Hazards/NPCBotTankSwapMgr.h"
 #include "botpositioncontrol.h"
 #include "botspell.h"
 #include "bottext.h"
@@ -74,6 +75,7 @@ void BotMgr::Initialize()
     BotLogger::Log(NPCBOT_LOG_SYSTEM_START, uint32(0), std::string_view{ GitRevision::GetFileVersionStr() }.substr(0, MAX_BOT_LOG_PARAM_LENGTH));
 
     sNPCBotHazardMgr->LoadFromDB();
+    sNPCBotTankSwapMgr->LoadFromDB();
     BotDataMgr::LoadNpcBots();
     BotDataMgr::LoadWanderMap();
     BotDataMgr::GenerateWanderingBots();

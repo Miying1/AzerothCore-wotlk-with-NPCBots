@@ -235,6 +235,23 @@ public:
             return BOT_STANCE_NONE;
         }
 
+        bool CanCastConfiguredTaunt(uint32 diff) const override
+        {
+            return IsSpellReady(TAUNT_1, diff, false);
+        }
+
+        bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
+        {
+            if (!boss || !CanCastConfiguredTaunt(diff))
+                return false;
+
+            // 需要防御姿态；不在防御姿态时尝试切换，切换失败则放弃
+            if (!_inStance(2) && !stanceChange(diff, 2))
+                return false;
+
+            return doCast(boss, GetSpell(TAUNT_1));
+        }
+
         void StartAttack(Unit* u, bool force = false)
         {
             if (!bot_ai::StartAttack(u, force))

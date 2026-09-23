@@ -242,6 +242,19 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        bool CanCastConfiguredTaunt(uint32 diff) const override
+        {
+            return IsSpellReady(DARK_COMMAND_1, diff, false);
+        }
+
+        bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
+        {
+            if (!boss || !CanCastConfiguredTaunt(diff))
+                return false;
+
+            return doCast(boss, GetSpell(DARK_COMMAND_1));
+        }
+
         void SpendRunes(SpellInfo const* spellInfo, bool didHit) override
         {
             SpellRuneCostEntry const* src = sSpellRuneCostStore.LookupEntry(spellInfo->RuneCostID);

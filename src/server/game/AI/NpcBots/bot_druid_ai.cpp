@@ -253,6 +253,19 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        bool CanCastConfiguredTaunt(uint32 diff) const override
+        {
+            return IsSpellReady(GROWL_1, diff, false);
+        }
+
+        bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
+        {
+            if (!boss || !CanCastConfiguredTaunt(diff))
+                return false;
+
+            return doCast(boss, GetSpell(GROWL_1));
+        }
+
         void JustEngagedWith(Unit* u) override { bot_ai::JustEngagedWith(u); }
         void KilledUnit(Unit* u) override { bot_ai::KilledUnit(u); }
         void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override { bot_ai::EnterEvadeMode(why); }

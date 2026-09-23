@@ -2029,6 +2029,10 @@ bool bot_ai::CanRemoveReflectSpells(Unit const* target, uint32 spellId) const
 
 bool bot_ai::CanTauntTarget(Unit const* target, float dist) const
 {
+    // 配置了坦克换嘲机制的 BOSS 禁止走普通救场/标记嘲讽，改由 UpdateTankSwap 统一处理
+    if (IsConfiguredTankSwapBoss(target))
+        return false;
+
     Unit const* u = target->GetVictim();
 
     if (u && u != me && Rand() < 50 && dist < 30 &&
@@ -2042,6 +2046,9 @@ bool bot_ai::CanTauntTarget(Unit const* target, float dist) const
 }
 bool bot_ai::CanTauntDistantTarget(Unit const* target) const
 {
+    if (IsConfiguredTankSwapBoss(target))
+        return false;
+
     Unit const* u = target->GetVictim();
 
     if (!IAmFree() && u == me && Rand() < 35 && IsTank() &&
@@ -2051,6 +2058,64 @@ bool bot_ai::CanTauntDistantTarget(Unit const* target) const
         return true;
 
     return false;
+}
+// 坦克换嘲机制统一入口，由 GlobalUpdate 每帧调用
+bool bot_ai::UpdateTankSwap(uint32 diff)
+{
+    // 800ms 节流，避免每帧扫描（置于最前，先于一切判断）
+    if (_tankSwapTimer > diff)
+    {
+        _tankSwapTimer -= diff;
+        return false;
+    }
+    _tankSwapTimer = 800;
+
+    // 准入条件：本 BOT 必须是坦克，且嘲讽技能可用（未禁用、未在 CD）
+    if (!IsTank() || !CanCastConfiguredTaunt(diff))
+        return false;
+
+    // 仅存活、在战斗中的 BOT 参与，自由 BOT 不参与
+    if (!me->IsAlive() || !me->IsInCombat() || IAmFree())
+        return false;
+
+    // 本 BOT 正在攻击的必须是配置了换嘲机制的 BOSS（无需地图扫描）
+    Unit* boss = me->GetVictim();
+    if (!boss || !boss->IsCreature())
+        return false;
+
+    // 检查 BOSS 当前攻击目标；目标是自己或不存在时跳过（先于规则查询，尽早短路）
+    Unit* t1 = boss->GetVictim();
+    if (!t1 || t1 == me)
+        return false;
+
+    std::vector<BotTankSwapRule> const* rules = sNPCBotTankSwapMgr->GetRules(me->GetMapId(), boss->ToCreature()->GetCreatureTemplate()->Entry);
+    if (!rules || rules->empty())
+        return false;
+
+    // 遍历该 BOSS 的全部换嘲规则，BOSS 目标身上的换嘲 Aura 达到层数即触发
+    for (BotTankSwapRule const& rule : *rules)
+    {
+        Aura const* aura = t1->GetAura(rule.SpellId);
+        if (!aura || aura->GetStackAmount() < rule.AuraStacks)
+            continue;
+
+        // 由职业 AI 施放对应嘲讽技能。
+        // 嘲讽技能自身有 CD（IsSpellReady 已拦），且换嘲成功后 BOSS 目标切到本 BOT（t1 == me 跳过），
+        // 天然避免重复施法，无需额外冷却。
+        if (CastConfiguredTaunt(boss, diff))
+            return true;
+
+        break;
+    }
+
+    return false;
+}
+// 目标是否为配置了坦克换嘲机制的 BOSS
+bool bot_ai::IsConfiguredTankSwapBoss(Unit const* target) const
+{
+    if (!target || !target->IsCreature())
+        return false;
+    return sNPCBotTankSwapMgr->HasRule(me->GetMapId(), target->ToCreature()->GetCreatureTemplate()->Entry);
 }
 //LIST AURAS
 // Debug: Returns bot's info to called player
@@ -18412,6 +18477,9 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     }
 
     ReduceCD(diff);
+
+    // 坦克换嘲机制（内部自行判断存活/战斗/坦克职责/节流）
+    UpdateTankSwap(diff);
 
     UpdateContestedPvP();
 

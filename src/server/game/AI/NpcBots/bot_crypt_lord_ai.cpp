@@ -159,6 +159,19 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        bool CanCastConfiguredTaunt(uint32 diff) const override
+        {
+            return IsSpellReady(TAUNT_1, diff, false);
+        }
+
+        bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
+        {
+            if (!boss || !CanCastConfiguredTaunt(diff))
+                return false;
+
+            return doCast(boss, GetSpell(TAUNT_1));
+        }
+
         void StartAttack(Unit* u, bool force = false)
         {
             if (!bot_ai::StartAttack(u, force))

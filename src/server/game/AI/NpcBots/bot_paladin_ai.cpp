@@ -263,6 +263,19 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        bool CanCastConfiguredTaunt(uint32 diff) const override
+        {
+            return IsSpellReady(HAND_OF_RECKONING_1, diff, false);
+        }
+
+        bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
+        {
+            if (!boss || !CanCastConfiguredTaunt(diff))
+                return false;
+
+            return doCast(boss, GetSpell(HAND_OF_RECKONING_1));
+        }
+
         void CheckBeacon(uint32 diff)
         {
             if (checkBeaconTimer > diff || !IsSpellReady(BEACON_OF_LIGHT_1, diff) ||

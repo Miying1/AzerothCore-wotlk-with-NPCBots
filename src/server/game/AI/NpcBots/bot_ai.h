@@ -3,6 +3,7 @@
 
 #include "botcommon.h"
 #include "Hazards/NPCBotHazardMgr.h"
+#include "Hazards/NPCBotTankSwapMgr.h"
 
 #include "CreatureAI.h"
 #include "Duration.h"
@@ -458,6 +459,11 @@ protected:
     bool CanTauntTarget(Unit const* target, float dist) const;
     bool CanTauntDistantTarget(Unit const* target) const;
 
+    bool UpdateTankSwap(uint32 diff);
+    bool IsConfiguredTankSwapBoss(Unit const* target) const;
+    virtual bool CanCastConfiguredTaunt(uint32 /*diff*/) const { return false; }
+    virtual bool CastConfiguredTaunt(Unit* /*boss*/, uint32 /*diff*/) { return false; }
+
     bool IsMelee() const;
     bool IsRanged() const;
 
@@ -728,6 +734,9 @@ private:
     Position sendpos[MAX_SEND_POINTS]{};
     AoeSpotsVec _aoeSpots;
     NPCBotCreatureHazardStateMap _creatureHazardStates;
+
+    // 坦克换嘲机制状态
+    uint32 _tankSwapTimer{};       // 换嘲节流计时器（800ms）
 
     uint32 _botCommandState{};
     bool _massNoCastLongSet = false; // 集合跑位期间由集合逻辑自动设置的 NO_CAST_LONG 是否已生效
