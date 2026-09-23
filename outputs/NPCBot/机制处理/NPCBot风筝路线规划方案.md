@@ -40,7 +40,7 @@ target->GetVictim() == me
 | 环形安全点生成 | `bot_ai::CalculateAoeSafeSpots()` |
 | 碰撞位置计算 | `Unit::GetFirstCollisionPosition()` |
 | 视线检查 | `Unit::IsWithinLOS()`、`Unit::IsWithinLOSInMap()` |
-| 团队分散惩罚 | `BotPositionControl::GetSpreadPenalty()` |
+| 团队分散惩罚 | `BotPositionControl::CollectSpreadNeighbors()` + `GetSpreadPenaltyFromNeighbors()` |
 | 攻击站位调整 | `BotPositionControl::TryImproveSpreadPosition()` |
 | 移动执行 | `bot_ai::BotMovement()` |
 | 普通战斗站位 | `bot_ai::CalculateAttackPos()`、`bot_ai::GetInPosition()` |

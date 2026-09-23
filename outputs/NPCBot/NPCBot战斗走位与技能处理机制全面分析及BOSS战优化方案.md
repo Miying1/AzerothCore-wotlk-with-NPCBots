@@ -151,7 +151,7 @@ BotMgr::Update（每帧）
 
 **G. 安全点集生成**：`CalculateAoeSafeSpots(target, followdist)` + 碰撞探测循环（最多 5 次）。
 
-**H. 挑选最优安全点**：遍历安全点，用 `GetSpreadPenalty()` 加"散开惩罚"；优先 `closestAttackPos`（最近且能攻击），否则 `closestPos`，均无则原地 `force=true`。
+**H. 挑选最优安全点**：遍历安全点，用分散惩罚加"散开惩罚"（`CollectSpreadNeighbors()` 先收集一次邻居快照，再用 `GetSpreadPenaltyFromNeighbors()` 逐点计算）；优先 `closestAttackPos`（最近且能攻击），否则 `closestPos`，均无则原地 `force=true`。
 
 **I. 无安全点但被 AoE 威胁**：移动到主人身边。
 

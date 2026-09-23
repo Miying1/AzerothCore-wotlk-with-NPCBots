@@ -4,6 +4,7 @@
 #include "botcommon.h"
 #include "botmgr.h"
 #include "Creature.h"
+#include "Group.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "Player.h"
@@ -309,23 +310,52 @@ bool BotPositionControl::EnableSpread(float distance)
     return true;
 }
 
-float BotPositionControl::GetSpreadPenalty(Creature const& bot, Position const& candidate) const
+void BotPositionControl::CollectSpreadNeighbors(Creature const& bot, std::vector<Creature const*>& neighbors) const
 {
-    if (!IsSpreadEnabled() || !bot.IsInCombat())
-        return 0.0f;
+    neighbors.clear();
 
-    float penalty = 0.0f;
-    for (auto const& [_, other] : *_botMgr.GetBotMap())
+    Player const* owner = _botMgr.GetOwner();
+    if (!owner)
+        return;
+
+    // 局部闭包：把合格的 BOT 追加进邻居集合
+    auto collectBot = [&bot, &neighbors](Creature const* other)
     {
         if (!other || other == &bot || !other->IsInWorld() || !other->IsAlive())
-            continue;
+            return;
         if (!bot.IsInMap(other) || !bot.InSamePhase(other))
-            continue;
+            return;
 
-        float distance = other->GetExactDist2d(candidate);
-        if (distance < _spreadDistance)
+        neighbors.push_back(other);
+    };
+
+    Group const* group = owner->GetGroup();
+    if (group)
+    {
+        // 只把已加入团队的 BOT 作为分散参考，未入组的 BOT（含本 BotMgr 中未入组的）一律不计入
+        for (GroupBotReference const* itr = group->GetFirstBotMember(); itr != nullptr; itr = itr->next())
+            collectBot(itr->GetSource());
+
+        return;
+    }
+
+    // 无团队：退化为本 BotMgr 的 BOT，保持单人 / 无团队时与旧实现一致
+    for (auto const& [_, other] : *_botMgr.GetBotMap())
+        collectBot(other);
+}
+
+float BotPositionControl::GetSpreadPenaltyFromNeighbors(Creature const& bot,
+    std::vector<Creature const*> const& neighbors, Position const& candidate) const
+{
+    float penalty = 0.0f;
+    // 先用平方距离排除圈外邻居，避免每次比较都开方；仅圈内邻居才需要真实距离
+    float const spreadDistanceSq = _spreadDistance * _spreadDistance;
+    for (Creature const* other : neighbors)
+    {
+        float const distanceSq = other->GetExactDist2dSq(candidate);
+        if (distanceSq < spreadDistanceSq)
         {
-            float deficit = _spreadDistance - distance;
+            float deficit = _spreadDistance - std::sqrt(distanceSq);
             penalty += deficit * deficit;
         }
     }
@@ -345,8 +375,12 @@ bool BotPositionControl::TryImproveSpreadPosition(Creature const& bot, bot_ai co
     if (!owner || !bot.IsInMap(owner) || !bot.InSamePhase(owner))
         return false;
 
+    // 邻居快照只收集一次，供本轮所有候选点复用（否则组内 BOT 遍历成本会放大到候选点数倍）
+    std::vector<Creature const*> neighbors;
+    CollectSpreadNeighbors(bot, neighbors);
+
     Position bestPosition = position;
-    float bestPenalty = GetSpreadPenalty(bot, position);
+    float bestPenalty = GetSpreadPenaltyFromNeighbors(bot, neighbors, position);
     float baseAngle = target.GetAbsoluteAngle(position.GetPositionX(), position.GetPositionY());
     for (int8 direction : std::array<int8, 2>{ -1, 1 })
     {
@@ -362,7 +396,7 @@ bool BotPositionControl::TryImproveSpreadPosition(Creature const& bot, bot_ai co
                 !bot.IsWithinMeleeRangeAt(candidate, &target))
                 continue;
 
-            float penalty = GetSpreadPenalty(bot, candidate);
+            float penalty = GetSpreadPenaltyFromNeighbors(bot, neighbors, candidate);
             if (penalty + 0.25f < bestPenalty)
             {
                 bestPosition.Relocate(candidate);

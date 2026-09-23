@@ -5933,10 +5933,18 @@ void bot_ai::CalculateAttackPos(Unit* target, Position& pos, bool& force) const
         float minPosSpreadPenalty = std::numeric_limits<float>::max();
         float minAttackPosSpreadPenalty = std::numeric_limits<float>::max();
         BotPositionControl const* positionControl = IAmFree() ? nullptr : master->GetBotMgr()->GetBotPositionControl();
+        // 邻居快照在本轮全部候选安全点之间共享，只收集一次；
+        // 未启用分散或不在战斗时保持原短路语义（分散惩罚恒为 0）
+        bool const useSpread = positionControl && positionControl->IsSpreadEnabled() && me->IsInCombat();
+        std::vector<Creature const*> spreadNeighbors;
+        if (useSpread)
+            positionControl->CollectSpreadNeighbors(*me, spreadNeighbors);
+
         for (Position const& safepos : safespots)
         {
             float currentDistance = me->GetExactDist2d(safepos);
-            float spreadPenalty = positionControl ? positionControl->GetSpreadPenalty(*me, safepos) : 0.0f;
+            float spreadPenalty = useSpread ?
+                positionControl->GetSpreadPenaltyFromNeighbors(*me, spreadNeighbors, safepos) : 0.0f;
             bool isComparablePos = currentDistance <= minPosDistance + 1.0f;
             if (currentDistance < minPosDistance - 1.0f || (isComparablePos && spreadPenalty < minPosSpreadPenalty))
             {

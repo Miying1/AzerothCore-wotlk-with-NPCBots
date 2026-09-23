@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 class bot_ai;
 class BotMgr;
@@ -46,9 +47,16 @@ public:
     void DisableSpread() { _spreadDistance = 0.0f; }
     bool IsSpreadEnabled() const { return _spreadDistance > 0.0f; }
     float GetSpreadDistance() const { return _spreadDistance; }
-    float GetSpreadPenalty(Creature const& bot, Position const& candidate) const;
     bool TryImproveSpreadPosition(Creature const& bot, bot_ai const& ai, Unit const& target,
         float maxOwnerDistance, float attackDistance, Position& position) const;
+
+    // 以下两个方法供一次调用内需要评估多个候选点的调用方使用（如安全点择优）：
+    // 收集一次邻居快照后在循环内反复复用，避免每个候选点都重新做一次邻居遍历。
+    // 收集分散参考单位：团队中已入组的 BOT（不含未入组的 BOT）；无团队时退化为本 BotMgr 的 BOT
+    void CollectSpreadNeighbors(Creature const& bot, std::vector<Creature const*>& neighbors) const;
+    // 基于预收集的邻居快照计算分散惩罚（不校验是否启用分散，由调用方按需保证）
+    float GetSpreadPenaltyFromNeighbors(Creature const& bot,
+        std::vector<Creature const*> const& neighbors, Position const& candidate) const;
 
     void ForgetBot(ObjectGuid botGuid);
 
