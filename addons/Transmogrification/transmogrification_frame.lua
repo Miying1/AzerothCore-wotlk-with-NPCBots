@@ -271,24 +271,6 @@ function UpdateAllSlotTextures(useTransmogrificationPreview)
 	end
 end
 
--- 卸下物品时清除该栏位的幻化。
-function TransmogrificationHandler.ClearSlotTransmogrification(player, slot)
-	equipmentChangeSerial = equipmentChangeSerial + 1
-	pendingApplyCount = 0
-	-- 从栏位条目 ID 映射表中获取通用栏位名称。
-	local slotName = transmogrificationEquipmentSlotMap[tonumber(slot)]
-
-	-- 如果找到通用栏位名称，则从客户端表中清除它。
-	if slotName then
-		currentTransmogrificationIDs[slotName] = nil
-		originalTransmogrificationIDs[slotName] = nil
-		previewTransmogrificationIDs[slotName] = nil
-
-		-- 更新所有装备图标。
-		UpdateAllSlotTextures(false)
-	end
-end
-
 function OnClickItemTransmogrificationButton(btn, buttonType)
 	if pendingApplyCount > 0 then
 		return
@@ -409,7 +391,9 @@ function LoadTransmogrificationsFromCurrentIDs(useTransmogrificationPreview)
 
 	-- 仅对已幻化（且非恢复）的槽位覆盖为幻化外观；其余槽位保持玩家当前装备（双持时两把武器均正常显示）。
 	for slotName, transmogrificationID in pairs(transmogrificationTable) do
-		if transmogrificationID and transmogrificationID ~= 0 and transmogrificationID ~= -1 then
+		-- 栏位当前没有装备时不渲染任何外观：幻化记录会保留，重新装备后会自动恢复。
+		local hasItem = GetItemIDForEquipmentSlot(slotName) ~= nil
+		if hasItem and transmogrificationID and transmogrificationID ~= 0 and transmogrificationID ~= -1 then
 			if slotName == "SecondaryHand" then
 				-- 通用单手武器（INVTYPE_WEAPON）作为副手时，模型无法在副手栏渲染，
 				-- 若用 TryOn 又会被误塞进主手栏覆盖主手，因此保留玩家当前副手装备显示。

@@ -557,7 +557,9 @@ end
 
 -- TODO: add lua/c++ function for unequip!!
 function TransmogrificationHandler.OnUnequipItem(player)
-	-- 检查所有显示槽位，清理已经卸下装备的幻化。
+	-- 检查所有显示槽位，清除已经卸下装备的可见外观。
+	-- 注意：这里只清除“当前显示”，必须保留幻化记录（state.item），
+	-- 否则重新装备该栏位的物品时会因为记录已丢失而恢复成物品原本的外观。
 	local slots = {
 		PLAYER_VISIBLE_ITEM_1_ENTRYID,  -- Head
 		PLAYER_VISIBLE_ITEM_3_ENTRYID,  -- Shoulder
@@ -576,21 +578,23 @@ function TransmogrificationHandler.OnUnequipItem(player)
 	}
 	
 	for _, slot in ipairs(slots) do
-		-- Get the corresponding equipment slot
+		-- 取出该显示槽位对应的装备槽。
 		local equipmentSlot = GetEquipmentSlot(slot)
-		
-		-- Check if this slot has an item equipped
+
+		-- 该栏位还装备着物品时不需要处理，幻化外观仍由装备事件负责维持。
 		local currentItem = player:GetEquippedItemBySlot(equipmentSlot)
-		
-		-- If the slot is empty but we have a transmog value, we need to clear it
+
 		if not currentItem then
 			local state = GetCharacterTransmogCache(player)[slot]
-			if state and state.item then
-				state.item = nil
+			-- state.item 为 0 表示“隐藏外观”，同样需要保留，因此用 ~= nil 判断。
+			-- state.realItem 非空说明数据库中仍记录着卸下前的实物，需要落库一次将 real_item 置空；
+			-- 本函数在一次装备变更中会被调用多次，realItem 置空后即可跳过，避免重复写库。
+			if state and state.item ~= nil and state.realItem ~= nil then
+				-- 仅更新“当前实物”并清空栏位显示，幻化记录继续留存在缓存与数据库中，
+				-- 这样重新装备时 Transmog_OnEquipItem 会自动把外观套用回去。
 				state.realItem = nil
-				SaveCharacterTransmog(player, slot, nil, nil)
+				SaveCharacterTransmog(player, slot, state.item, nil)
 				player:SetUInt32Value(tonumber(slot), 0)
-				AIO.Handle(player, "TransmogrificationServer", "ClearSlotTransmogrification", slot)
 			end
 		end
 	end
@@ -601,8 +605,14 @@ function Transmog_Load(player)
 	for slot, state in pairs(cache) do
 		local equipmentSlot = GetEquipmentSlot(tonumber(slot))
 		local equippedItem = player:GetEquippedItemBySlot(equipmentSlot)
-		local actualItemID = equippedItem and equippedItem:GetItemTemplate():GetItemId() or 0
-		player:SetUInt32Value(tonumber(slot), state.item or actualItemID)
+		if equippedItem then
+			local itemTemplate = equippedItem:GetItemTemplate()
+			local actualItemID = itemTemplate and itemTemplate:GetItemId() or 0
+			player:SetUInt32Value(tonumber(slot), state.item or actualItemID)
+		else
+			-- 栏位没有装备时不显示任何外观：幻化记录会保留，但空栏位不能凭空渲染出装备。
+			player:SetUInt32Value(tonumber(slot), 0)
+		end
 	end
 end
 
@@ -927,11 +937,9 @@ RegisterPlayerEvent(4, Transmog_OnLogout)
 
 RegisterPlayerEvent(29, Transmog_OnEquipItem)
 
-RegisterPlayerEvent(30, function(event, player, bag, slot) 
-    if bag == 255 then
-        TransmogrificationHandler.OnUnequipItem(player)
-    end
-end)
+-- 本引擎（mod-ale）没有暴露“卸下装备”的 Lua 事件：Hooks.h 中 30 是 PLAYER_EVENT_ON_FIRST_LOGIN，
+-- 核心的 OnPlayerUnequip 也未接入 Lua。卸下装备后的清理由客户端在 PLAYER_EQUIPMENT_CHANGED /
+-- UNIT_MODEL_CHANGED 时通过 AIO 调用 TransmogrificationHandler.OnUnequipItem 完成。
 
 if ADD_NEWLY_LOOTED_ITEMS_TO_THE_TRANSMOG_LIST then
 	RegisterPlayerEvent(32, Transmog_OnLootItem)
