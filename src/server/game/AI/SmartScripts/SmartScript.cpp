@@ -204,7 +204,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
             for (WorldObject* target : targets)
             {
-                if (IsCreature((target)) && !target->ToCreature()->IsPet()) // Prevented sending text to pets.
+                if (IsCreature((target)) && !target->ToUnit()->IsSummon()) // 阻止将宠物/召唤物(如法师的镜像)当作说话者
                 {
                     if (e.action.talk.useTalkTarget)
                     {
