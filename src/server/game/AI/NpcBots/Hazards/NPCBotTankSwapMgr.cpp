@@ -12,6 +12,7 @@
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "QueryResult.h" // 需要 ResultSet 完整定义才能调用 Fetch()
 #include "SpellMgr.h"
 #include "Timer.h"
 
