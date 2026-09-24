@@ -1007,6 +1007,9 @@ void Unit::DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb)
 
 uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss, bool /*allowGM*/, Spell const* damageSpell /*= nullptr*/)
 {
+    // 同队免伤不在此处拦截：目标检查类型为 TARGET_CHECK_ALLY/PARTY/RAID 的友方目标伤害
+    // 属于副本机制设计（如泰迪斯的极性电荷、埃基尔松的电气风暴），必须在本层放行。
+    // 同队不可攻击的判定统一收敛在 Unit::_IsValidAttackTarget（目标选择层）。
     damage = sScriptMgr->DealDamage(attacker, victim, damage, damagetype);
     // Xinef: initialize damage done for rage calculations
     // Xinef: its rare to modify damage in hooks, however training dummy's sets damage to 0
@@ -11424,6 +11427,15 @@ bool Unit::_IsValidAttackTarget(Unit const* target, SpellInfo const* bySpell, Wo
         if (playerAffectingAttacker->duel && playerAffectingAttacker->duel->Opponent == playerAffectingTarget && playerAffectingAttacker->duel->State == DUEL_STATE_IN_PROGRESS)
             return true;
 
+    // 同队成员之间不可互相攻击（支持跨阵营组队、NPCBot、宠物与载具）。
+    // 这里是同队免伤的唯一判定点：目标检查类型为 TARGET_CHECK_ENEMY 的法术都会经过此处
+    // （单体、以施法者为中心的 AOE、指向性区域 AOE、锥形 AOE）；
+    // 而 TARGET_CHECK_ALLY/PARTY/RAID 的友方目标走 _IsValidAssistTarget，不受影响，
+    // 因此保留副本机制中"故意伤害队友"的设计（如泰迪斯极性电荷、埃基尔松电气风暴）。
+    // 代价：绕过目标选择的伤害（脚本直接调用 DealDamage、近战挥砍）不做兜底拦截。
+    if (IsInSamePlayerGroup(target))
+        return false;
+
     // PvP case - can't attack when attacker or target are in sanctuary
     // however, 13850 client doesn't allow to attack when one of the unit's has sanctuary flag and is pvp
     if (target->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) && HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED) && (target->IsInSanctuary() || IsInSanctuary()))
@@ -15991,6 +16003,29 @@ bool Unit::IsInRaidWith(Unit const* unit) const
         return true;
     else
         return false;
+}
+
+// 判断是否与目标同属一个玩家队伍（支持跨阵营组队、NPCBot、宠物与载具）
+bool Unit::IsInSamePlayerGroup(Unit const* other) const
+{
+    if (!other || other == this)
+        return false;
+
+    // 被魅惑的单位（例如首领的精神控制机制）不受同队免伤保护，正常驾驶的载具除外
+    if ((IsCharmed() && !IsVehicle()) || (other->IsCharmed() && !other->IsVehicle()))
+        return false;
+
+    // 追溯单位背后的控制玩家（载具->驾驶者->主人，宠物/机器人->主人）
+    Player const* selfPlayer = GetAffectingPlayer();
+    Player const* targetPlayer = other->GetAffectingPlayer();
+    if (!selfPlayer || !targetPlayer || selfPlayer == targetPlayer)
+        return false;
+
+    // 决斗中的双方即使同队也需要互相造成伤害
+    if (selfPlayer->duel && selfPlayer->duel->Opponent == targetPlayer && selfPlayer->duel->State == DUEL_STATE_IN_PROGRESS)
+        return false;
+
+    return selfPlayer->IsInRaidWith(targetPlayer);
 }
 
 void Unit::GetPartyMembers(std::list<Unit*>& TagUnitMap)

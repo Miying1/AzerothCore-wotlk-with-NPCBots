@@ -1917,6 +1917,10 @@ public:
     // Group methods
     bool IsInPartyWith(Unit const* unit) const;
     bool IsInRaidWith(Unit const* unit) const;
+    // 同队判定：追溯单位背后的控制玩家，支持跨阵营组队、NPCBot、宠物与载具。
+    // 仅供目标选择层（Unit::_IsValidAttackTarget）使用，用于阻止同队成员互相选中为敌对目标；
+    // 不在 Unit::DealDamage 中做伤害兜底，以免吞掉脚本/光环对友方目标造成的机制性伤害
+    [[nodiscard]] bool IsInSamePlayerGroup(Unit const* other) const;
     void GetPartyMembers(std::list<Unit*>& units);
     Unit* GetNextRandomRaidMemberOrPet(float radius);
     void UpdateAuraForGroup(uint8 slot);

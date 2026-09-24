@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
   `damage_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '伤害法术ID，非0时优先读取法术伤害半径',
   `safety_distance` FLOAT UNSIGNED NOT NULL DEFAULT 0 COMMENT '额外安全距离',
   `deactivation_delay_ms` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '危险源消失后继续保留的时间（毫秒）',
+  `required_aura_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '需同时存在的技能光环ID，非0时仅当生物身上存在该光环才视为危险源',
   `comment` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '配置说明',
   PRIMARY KEY (`map_id`, `creature_entry`),
   KEY `idx_creature_entry` (`creature_entry`)

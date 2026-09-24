@@ -4083,7 +4083,7 @@ Unit* bot_ai::_getVehicleTarget(BotVehicleStrats /*strat*/) const
     else if (mmover->isMoving() && veh->GetMapId() == 578) //oculus
         followdist *= 0.5f;
 
-    if (mytar && (veh->IsInCombat() || mytar->IsInCombat()) &&
+    if (mytar && !IsInBotParty(mytar) && (veh->IsInCombat() || mytar->IsInCombat()) &&
         (!masterVeh || !mmover->IsAlive() || mmover->GetDistance(mytar) < followdist) && veh->IsValidAttackTarget(mytar))
         return mytar;
 
@@ -12215,6 +12215,10 @@ void bot_ai::OnOwnerDamagedBy(Unit* attacker)
 void bot_ai::OnOwnerVehicleDamagedBy(Unit* attacker)
 {
     if (HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION))
+        return;
+
+    //不因同队成员（跨阵营队友的载具、宠物或玩家误伤）的攻击而强制反击
+    if (!attacker || IsInBotParty(attacker))
         return;
 
     Creature* veh = me->GetVehicleCreatureBase();

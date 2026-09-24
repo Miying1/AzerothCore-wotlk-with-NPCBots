@@ -185,8 +185,10 @@ class NearbyHostileVehicleTargetCheck
             //    return false;
             //if (!u->isTargetableForAttack(false))
             //    return false;
-            //if (ai->IsInBotParty(u))
-            //    return false;
+            // 同队成员（玩家、bot、宠物、载具）不作为载具攻击目标
+            // 跨阵营组队时，载具阵营跟随乘员阵营，仅靠阵营反应度会判定为敌对
+            if (ai->IsInBotParty(u))
+                return false;
             if (!ai->IsInBotParty(u->GetVictim()))
                 return false;
             if (u->GetReactionTo(veh) >= REP_NEUTRAL)

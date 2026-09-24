@@ -37,6 +37,18 @@ INSERT INTO `npcbot_creature_hazard`
 VALUES
 (603, 33123, 10.0, 62549, 1.5, 1000, '奥杜尔：烈焰巨兽硬模式灼热地面，Scorched Ground');
 
+-- 冰冠堡垒：玛洛加尔领主冷焰（36672）。
+-- 骨刺风暴期间 Boss 在场上召唤冷焰生物，冷焰在自身位置施放 69146
+-- （PERSISTENT_AREA_AURA + 每秒一跳的周期伤害，半径索引 8），形成固定位置的持续地面火焰。
+-- 冷焰落点固定，damage_spell_id 优先读取法术半径，读不到时用固定 radius 兜底。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 631 AND `creature_entry` = 36672;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(631, 36672, 5.0, 69146, 2.0, 1000, 0, '冰冠堡垒：玛洛加尔冷焰');
+
 -- 冰冠堡垒：辛达苟萨 Icy Blast。
 -- 38223 由 Boss 技能链生成，并由生物自身施放 71380 Icy Blast Area。
 DELETE FROM `npcbot_creature_hazard`
@@ -46,6 +58,20 @@ INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
 (631, 38223, 8.0, 71380, 1, 500, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
+
+-- ============================================================================
+-- 灵魂熔炉（Forge of Souls，map 632）
+-- ============================================================================
+-- 噬魂者（Devourer of Souls）的「众魂之井」（36536）。
+-- 由 Boss 技能召唤后固定于落点，以自身为中心施放 68863 范围伤害（半径索引 26），
+-- 属固定位置持续地板危险区，BOT 应远离井体。生物被移除后保留 2 秒危险区。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 632 AND `creature_entry` = 36536;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(632, 36536, 10.0, 68863, 2.0, 2000, 0, '灵魂熔炉：噬魂者灵魂之井召唤物');
 
 -- 奥杜尔：科拉隆凝视之眼（左眼 33632 / 右眼 33802）。
 -- 眼睛由 63342 召唤后 MoveChase 追人被点名玩家，向前方发射射线 63676/63702。
@@ -161,6 +187,21 @@ VALUES
 (603, 33169, 4.0, 62457, 2.0, 0, 62236, '奥杜尔：霍迪尔未打包冰柱（坠落光环存续期间危险）'),
 (603, 33173, 7.0, 65370, 2.0, 0, 62460, '奥杜尔：霍迪尔打包冰柱（坠落光环存续期间危险）');
 
+-- 奥杜尔：锋鳞（Razorscale）第一阶段地面蓝焰「噬体烈焰」（34188 / 34189）。
+-- Boss 空中阶段对随机玩家施放 63236，在落点召唤生物 34188（10人）/34189（25人）；
+-- 该生物经 creature_template_addon 常驻光环 64709（25人解析为 64734），
+-- 64709/64734 为 PERIODIC_TRIGGER_SPELL（2 秒），触发 64704/64733 的以生物为中心、
+-- 半径索引 8 的范围火焰伤害，全程不产生 DynamicObject，只能按生物型危险区域处理。
+-- 生物落点固定、常驻即危险，required_aura_spell_id 保持 0；生物被移除后保留 1 秒危险区。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 603 AND `creature_entry` IN (34188, 34189);
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(603, 34188, 8.0, 64704, 2.0, 1000, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（10人）'),
+(603, 34189, 8.0, 64733, 2.0, 1000, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（25人）');
+
 -- ============================================================================
 -- 祖阿曼（Zul'Aman，map 568）
 -- ============================================================================
@@ -175,4 +216,16 @@ WHERE `map_id` = 568 AND `creature_entry` = 23920;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(568,	23920,	4.0,	42630,	1,	1000,	0,	'祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
+(568, 23920, 4.0, 42630, 1, 1000, 0, '祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
+
+-- 祖阿曼：祖尔金鹰形态的羽毛漩涡（24136）。
+-- 鹰形态阶段祖尔金用 43112 一次召唤四个羽毛漩涡，漩涡常驻被动 43120 每秒触发 43121，
+-- 以其为中心 4 码范围内的敌人受到伤害并被击退；漩涡会追击玩家移动，危险圈随其实时位置更新。
+-- 43121 半径索引 26（约 4 码），damage_spell_id 优先读半径，读不到时用固定 radius 兜底。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 568 AND `creature_entry` = 24136;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(568, 24136, 4.0, 43121, 3.0, 2000, 0, '祖阿曼祖尔金鹰形态：移动中的羽毛旋风');

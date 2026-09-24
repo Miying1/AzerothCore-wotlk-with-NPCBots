@@ -19,7 +19,9 @@
 #include "CreatureScript.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "ObjectMgr.h"
 #include "PassiveAI.h"
+#include "Random.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
@@ -85,7 +87,17 @@ const Position fireWallCoords[4] =
     {-33.93f, 1175.68f, 19, 1.5f * 3.1415f}
 };
 
-const Position hatcherway[2][5] =
+// 孵化者路径点数量（最后一点即蛋巢，到达后才会开始孵化）
+constexpr uint32 hatcherWaypointCount = 5;
+
+// 重置战斗时搜索龙鹰蛋的范围：必须覆盖整个平台，否则 Boss 在场地一侧脱战时，
+// 另一侧远处的蛋不会被复活（蛋的重生时间长达 7200 秒，等于永远不重置）
+constexpr float eggResetSearchRange = 250.0f;
+
+// 孵化者只孵化自己身边的蛋（本侧蛋巢），避免隔着整个平台把对面蛋巢的蛋也孵了
+constexpr float hatcherHatchRange = 30.0f;
+
+const Position hatcherway[2][hatcherWaypointCount] =
 {
     {
         {-87.46f, 1170.09f, 6.0f, 0.0f},
@@ -101,12 +113,6 @@ const Position hatcherway[2][5] =
         {-33.57f, 1125.72f, 19.0f, 0.0f},
         {-34.29f, 1095.22f, 19.0f, 0.0f}
     }
-};
-
-enum HatchActions
-{
-    HATCH_RESET = 0,
-    HATCH_ALL   = 1
 };
 
 enum Misc
@@ -125,7 +131,7 @@ struct boss_janalai : public BossAI
     void Reset() override
     {
         BossAI::Reset();
-        HatchAllEggs(HATCH_RESET);
+        ResetEggs();
         _isBombing = false;
         _isFlameBreathing = false;
 
@@ -159,10 +165,14 @@ struct boss_janalai : public BossAI
     {
         if (summon->GetEntry() == NPC_AMANI_HATCHLING)
         {
-            if (summon->GetPositionY() > 1150)
-                summon->GetMotionMaster()->MovePoint(0, hatcherway[0][3].GetPositionX() + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[0][3].GetPositionY());
-            else
-                summon->GetMotionMaster()->MovePoint(0, hatcherway[1][3].GetPositionX() + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[1][3].GetPositionY());
+            // 雏龙破壳后跑向平台中央。注意第三个参数是 Z 坐标，原实现误把路径点的 Y 坐标当成了 Z，
+            // 导致雏龙朝一千多码高的空中跑
+            uint8 side = summon->GetPositionY() > 1150.0f ? 0 : 1;
+            Position const& midPos = hatcherway[side][hatcherWaypointCount - 2];
+            summon->GetMotionMaster()->MovePoint(0,
+                midPos.GetPositionX() + irand(-2, 2),
+                1150.0f + irand(-2, 2),
+                midPos.GetPositionZ());
         }
 
         BossAI::JustSummoned(summon);
@@ -244,25 +254,36 @@ struct boss_janalai : public BossAI
             _sideHatched[data] = true;
     }
 
-    bool HatchAllEggs(uint32 hatchAction)
+    // 重置所有龙鹰蛋：先清掉残留的孵化者与雏龙，再复活平台上所有的蛋
+    void ResetEggs()
     {
-        std::list<Creature* > eggList;
-        me->GetCreaturesWithEntryInRange(eggList, 100.0f, NPC_EGG);
-        if (eggList.empty())
-            return false;
+        summons.DespawnEntry(NPC_AMANI_HATCHER);
+        summons.DespawnEntry(NPC_AMANI_HATCHLING);
 
-        if (hatchAction == HATCH_RESET)
+        // 半径必须覆盖整个平台：南北两个蛋巢相距约 137 码，而搜索圆心是 Boss 脱战时的位置，
+        // 半径太小（例如 100 码）就会漏掉对面蛋巢的蛋
+        std::list<Creature*> eggList;
+        me->GetCreaturesWithEntryInRange(eggList, eggResetSearchRange, NPC_EGG);
+        for (Creature* egg : eggList)
+            if (!egg->IsAlive())
+                egg->Respawn(true);
+
+        // 兜底：蛋对象已不在场（例如所在格子被卸载）时，清掉刷新计时并立即重建，
+        // 否则要等 creature 表里的 7200 秒才会重新刷出来，等同于"永远不重置"
+        for (auto const& [spawnId, data] : sObjectMgr->GetAllCreatureData())
         {
-            for (Creature* egg : eggList)
-                egg->Respawn();
+            if (data.id != NPC_EGG || uint32(data.mapid) != me->GetMap()->GetId())
+                continue;
 
-            summons.DespawnEntry(NPC_AMANI_HATCHLING);
+            if (janalainPos.GetExactDist2d(data.posX, data.posY) > eggResetSearchRange)
+                continue;
+
+            if (!me->GetMap()->GetCreature(ObjectGuid::Create<HighGuid::Unit>(NPC_EGG, spawnId)))
+            {
+                me->GetMap()->RemoveCreatureRespawnTime(spawnId);
+                me->GetMap()->ProcessCreatureRespawn(spawnId);
+            }
         }
-        else if (hatchAction == HATCH_ALL)
-            DoCastSelf(SPELL_HATCH_EGG_ALL);
-
-        eggList.clear();
-        return true;
     }
 
     void FireWall()
@@ -375,58 +396,88 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         ScriptedAI::Reset();
         scheduler.CancelAll();
-        _side = (me->GetPositionY() < 1150);
-        _waypoint = 0;
-        _repeatCount = 1;
+        _side = (me->GetPositionY() < 1150.0f) ? 1 : 0;
         _isHatching = false;
+        _sidesCleared = 0;
         me->GetMotionMaster()->Clear();
-        me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
+        MoveToWaypoint(0);
     }
 
-    void MovementInform(uint32, uint32) override
+    void MovementInform(uint32 type, uint32 pointId) override
     {
-        if (_waypoint == 5)
-        {
-            _isHatching = true;
+        // 只处理路径点移动；孵化过程中不再移动
+        if (type != POINT_MOTION_TYPE || _isHatching)
+            return;
 
-            scheduler.Schedule(1500ms, [this](TaskContext context)
-            {
-                me->CastCustomSpell(SPELL_HATCH_EGG_ALL, SPELLVALUE_MAX_TARGETS, _repeatCount);
-
-                ++_repeatCount;
-
-                if (me->FindNearestCreature(NPC_EGG, 100.0f))
-                    context.Repeat(5s);
-                else
-                {
-                    if (WorldObject* summoner = GetSummoner())
-                        if (Creature* janalai = summoner->ToCreature())
-                            janalai->AI()->SetData(DATA_ALL_EGGS_HATCHED, _side);
-
-                    _side = _side ? 0 : 1;
-                    _isHatching = false;
-                    _waypoint = 3;
-                    MoveToNewWaypoint(_waypoint);
-                }
-            });
-        }
+        // 用目标点编号推进路径，避免重复的移动回调导致跳点（跳点会让孵化者在半路就开始孵化）
+        if (pointId + 1 < hatcherWaypointCount)
+            MoveToWaypoint(pointId + 1);
         else
-        {
-            MoveToNewWaypoint(_waypoint);
-            ++_waypoint;
-        }
+            StartHatching();
     }
 
-    void MoveToNewWaypoint(uint8 waypoint)
+    void MoveToWaypoint(uint32 pointId)
     {
-        if (!_isHatching)
+        scheduler.Schedule(100ms, [this, pointId](TaskContext)
         {
-            scheduler.Schedule(100ms, [this, waypoint](TaskContext)
-            {
-                me->GetMotionMaster()->Clear();
-                me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
-            });
+            me->GetMotionMaster()->Clear();
+            me->GetMotionMaster()->MovePoint(pointId, hatcherway[_side][pointId]);
+        });
+    }
+
+    // 只有真正走到蛋巢（路径最后一点）才会开始孵化；重复或过期的移动回调不会让孵化在半路开始
+    void StartHatching()
+    {
+        if (_isHatching)
+            return;
+
+        Position const& nestPos = hatcherway[_side][hatcherWaypointCount - 1];
+        if (me->GetDistance2d(nestPos.GetPositionX(), nestPos.GetPositionY()) > hatcherHatchRange)
+        {
+            // 还没走到蛋巢，继续走过去
+            MoveToWaypoint(hatcherWaypointCount - 1);
+            return;
         }
+
+        _isHatching = true;
+
+        scheduler.Schedule(1500ms, [this](TaskContext context)
+        {
+            if (HatchNearbyEgg())
+                context.Repeat(5s);
+            else
+                SwitchToOtherNest();
+        });
+    }
+
+    // 孵化自己身边最近的一颗蛋：直接让蛋施放召唤雏龙的法术
+    //（与数据库中蛋的 SmartAI 行为一致：召唤雏龙并由法术效果摧毁蛋本身）
+    bool HatchNearbyEgg()
+    {
+        Creature* egg = me->FindNearestCreature(NPC_EGG, hatcherHatchRange);
+        if (!egg)
+            return false;
+
+        egg->CastSpell(egg, SPELL_SUMMON_HATCHLING, true);
+        return true;
+    }
+
+    // 本侧蛋巢已孵完：通报 Boss 后换到另一侧继续；两侧都孵完就离场（避免两只孵化者来回跑）
+    void SwitchToOtherNest()
+    {
+        if (WorldObject* summoner = GetSummoner())
+            if (Creature* janalai = summoner->ToCreature())
+                janalai->AI()->SetData(DATA_ALL_EGGS_HATCHED, _side);
+
+        if (++_sidesCleared >= 2)
+        {
+            me->DespawnOrUnsummon(3s);
+            return;
+        }
+
+        _side = _side ? 0 : 1;
+        _isHatching = false;
+        MoveToWaypoint(hatcherWaypointCount - 2);
     }
 
     void UpdateAI(uint32 diff) override
@@ -440,8 +491,7 @@ struct npc_janalai_hatcher : public ScriptedAI
 
 private:
     uint8 _side;
-    uint8 _waypoint;
-    uint32 _repeatCount;
+    uint8 _sidesCleared;
     bool _isHatching;
 };
 
