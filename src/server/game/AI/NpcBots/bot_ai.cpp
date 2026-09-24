@@ -21525,6 +21525,8 @@ Unit* bot_ai::SpawnVehicle(uint32 creEntry, uint32 vehEntry)
         me->GetClosePoint(x, y, z, me->GetCombatReach());
         vc = new TempSummon(nullptr, me->GetGUID());
         ASSERT(vc->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, master->GetPhaseMask(), creEntry, vehEntry, x,y,z,o));
+        //记录归属，使载具能被正确识别为所在队伍所有（阵营/队伍判定依赖 owner / charmer）
+        vc->SetOwnerGUID(me->GetGUID());
         vc->ClearZoneScript();
         vc->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
         vc->InitStats(0);
@@ -21544,6 +21546,8 @@ Unit* bot_ai::SpawnVehicle(uint32 creEntry, uint32 vehEntry)
         me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
         vc = new TempSummon(nullptr, me->GetGUID());
         ASSERT(vc->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, master->GetPhaseMask(), creEntry, vehEntry, x,y,z,o));
+        //记录归属，使载具能被正确识别为所在队伍所有（阵营/队伍判定依赖 owner / charmer）
+        vc->SetOwnerGUID(me->GetGUID());
         vc->ClearZoneScript();
 
         //vc->SetTransport(me->GetTransport());
