@@ -473,6 +473,13 @@ Unit::~Unit()
 
     _DeleteRemovedAuras();
 
+    // 兜底解除所有跟随者对本单位的引用：
+    // RemoveFromWorld() 中的清理只在单位仍处于世界内时执行，且只清当时已注册的跟随者。
+    // 若单位在离开世界之后又被注册为跟随目标（例如缓存的裸指针再次 MoveFollow，
+    // NPCBot 的 petOwner 等场景），m_followingMe 会残留，跟随者的 _target 将变成悬垂指针，
+    // 之后在 AbstractFollower::SetTarget/析构中访问已释放内存导致崩溃。
+    RemoveAllFollowers();
+
     delete i_motionMaster;
     delete m_charmInfo;
     delete movespline;
