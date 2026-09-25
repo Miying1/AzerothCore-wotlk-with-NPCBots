@@ -597,10 +597,15 @@ namespace lfg
 
        满足以下任一情况即视为残留（队伍标志无法自动清除）：
          - LFG 状态为 NONE / FINISHED_DUNGEON：状态已失效或副本已通关，但队伍仍带 LFG 标志；
-         - 处于 DUNGEON / BOOT 状态，但队伍已不在对应副本实例内（中途退本、掉线或数据残留）。
+         - 处于 DUNGEON / BOOT 状态，但队伍的副本数据无效（拿不到副本地图，例如重启后数据残缺）。
 
-       清理时同时重置 Group 的 GROUPTYPE_LFG 标志与 LFGMgr 的队伍数据，避免两边状态不同步
-       导致队伍被永久卡住（例如满 5 人时被 isContinue 判定拦住无法重新排队）。
+       注意：DUNGEON / BOOT 状态下即使队员暂时不在副本地图内（中途退本、掉线、传送中、重启后
+       玩家数据尚未恢复）也**不能**清理。玩家随时可能回到该副本打完尾王，而尾王死亡时只有队伍
+       还带 LFG 标志才会走 LFGMgr::FinishDungeon 发放随机副本奖励（含每日首刷 24788）；在这里
+       抹掉标志会让奖励被静默跳过（副本掉落、经验不受影响，所以只表现为"打完没有首刷奖励"）。
+       "离开副本后想重新随机"改由 JoinLfg 的 isContinue 判断处理，见 IsGroupInsideLfgDungeon。
+
+       清理时同时重置 Group 的 GROUPTYPE_LFG 标志与 LFGMgr 的队伍数据，避免两边状态不同步。
 
        @param[in]     group 待检查的队伍
        @return 是否执行了清理
@@ -623,17 +628,8 @@ namespace lfg
                 break;
             case LFG_STATE_DUNGEON:
             case LFG_STATE_BOOT:
-                {
-                    // 副本数据无效，或队伍已不在该副本实例内
-                    uint32 mapId = GetDungeonMapId(gguid);
-                    stale = true;
-                    for (GroupReference* itr = group->GetFirstMember(); itr != nullptr && stale; itr = itr->next())
-                    {
-                        if (Player* member = itr->GetSource())
-                            if (member->IsInWorld() && mapId && member->GetMapId() == mapId)
-                                stale = false;
-                    }
-                }
+                // 仅副本数据本身无效时才算残留；队员不在副本地图内不算（可能只是暂时离开/传送中）
+                stale = !GetDungeonMapId(gguid);
                 break;
             default:
                 // QUEUED / ROLECHECK / PROPOSAL：正常的排队或组队流程，不做处理
@@ -650,6 +646,81 @@ namespace lfg
         RemoveGroupData(gguid);
         group->ConvertToGroup();
         return true;
+    }
+
+    /**
+       判断队伍是否还有成员处于该队伍当前 LFG 副本的实例内。
+
+       JoinLfg 用它区分两种情况：
+         - 人在副本里：按"继续打本"处理（不接受新的随机分配，与原逻辑一致）；
+         - 人已离开副本（中途退本、掉线、传送中、重启后）：按新排队处理，既能避免满 5 人时被
+           isContinue 判定拦住无法重新随机（0726051ec 原本的目的），又不会因为清理 LFG 标志
+           而丢掉"回到原副本打完尾王"的随机首刷奖励。
+
+       @param[in]     group 待检查的队伍
+       @return 是否有成员在该队伍当前 LFG 副本实例内
+    */
+    bool LFGMgr::IsGroupInsideLfgDungeon(Group* group)
+    {
+        if (!group)
+            return false;
+
+        uint32 mapId = GetDungeonMapId(group->GetGUID());
+        if (!mapId)
+            return false;
+
+        for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            if (Player* member = itr->GetSource())
+                if (member->IsInWorld() && member->GetMapId() == mapId)
+                    return true;
+        }
+
+        return false;
+    }
+
+    /**
+       确保队伍所有成员（真人 + 机器人）都登记在 LFGMgr 的队伍数据里。
+
+       预组队排队（带机器人必然如此）在 MakeNewGroup 里是直接复用原队伍的，不会走
+       Group::AddMember → OnGroupAddMember → LFGGroupScript::OnAddMember，所以成员集合不会
+       随队伍成员补齐；一旦队伍 LFG 数据被清理过（例如上一把打完后重新排队时
+       CleanupStaleLfgGroup 会把 GroupsStore 里的记录整个删掉），成员集合就会是空的 ——
+       尾王死亡时 FinishDungeon 遍历 GetPlayers(gguid) 一个成员都取不到，随机副本奖励
+       （含每日首刷 24788）会被静默跳过（掉落/经验不受影响，所以只表现为"没有首刷奖励"）。
+       这里同时补上"随机排队"标记：预组队玩家/机器人在排队前就已入队，原本永远标记不上
+       （CONDITION_PLAYER_QUEUED_RANDOM_DUNGEON 之类的判定会失效）。
+
+       @param[in]     group 需要登记成员的队伍
+    */
+    void LFGMgr::EnsureGroupMembersRegistered(Group* group)
+    {
+        if (!group)
+            return;
+
+        ObjectGuid gguid = group->GetGUID();
+        SetLeader(gguid, group->GetLeaderGUID());
+
+        auto register_member = [this, &gguid](ObjectGuid memberGuid)
+        {
+            SetGroup(memberGuid, gguid);
+            AddPlayerToGroup(gguid, memberGuid);
+            AddPlayerQueuedForRandomDungeonToGroup(gguid, memberGuid);
+        };
+
+        for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            if (Player* member = itr->GetSource())
+                register_member(member->GetGUID());
+        }
+
+        //npcbot
+        for (GroupBotReference* itr = group->GetFirstBotMember(); itr != nullptr; itr = itr->next())
+        {
+            if (Creature* member = itr->GetSource())
+                register_member(member->GetGUID());
+        }
+        //end npcbot
     }
 
     /**
@@ -681,7 +752,18 @@ namespace lfg
         if (grp)
             CleanupStaleLfgGroup(grp);
 
-        bool isContinue = grp && grp->isLFGGroup() && GetState(gguid) != LFG_STATE_FINISHED_DUNGEON;
+        // “继续当前副本”分两种情况：
+        //   1) 人还在该副本实例里（正常继续打本）；
+        //   2) 本次请求的正好是队伍当前分配的那个具体副本（客户端“继续”按钮 / OfferContinue 会带当前具体副本）。
+        // 这两种必须按 continue 处理：不能重置玩家已选副本（否则尾王结算时判定不出“随机首刷”，
+        // 24788 等随机日常奖励会被静默跳过），同时跳过随机副本冷却判定。
+        // 人已离开副本、又想排别的内容时按新排队处理：既不会被满 5 人的 isContinue 判定拦住无法
+        // 重新排队（0726051ec 的原始目的），也不会因为清掉 LFG 标志而丢掉原副本的奖励资格。
+        // 副本数据为 0 的残留队伍已由 CleanupStaleLfgGroup 处理，不再进入 continue 分支。
+        bool continuingCurrentDungeon = grp && grp->isLFGGroup() && GetDungeon(gguid) && dungeons.size() == 1
+            && (*dungeons.begin() & 0x00FFFFFF) == GetDungeon(gguid);
+        bool isContinue = grp && grp->isLFGGroup() && GetState(gguid) != LFG_STATE_FINISHED_DUNGEON
+            && (continuingCurrentDungeon || IsGroupInsideLfgDungeon(grp));
 
         if (!sScriptMgr->OnPlayerCanJoinLfg(player, roles, dungeons, comment))
             return;
@@ -703,7 +785,8 @@ namespace lfg
                 dungeons.insert(continueDungeon);
             else
             {
-                // 队伍 LFG 数据缺失（残留 LFG 标志但副本数据为 0）：拒绝排队并完整重置队伍的 LFG 状态
+                // 兜底：副本数据为 0 时拒绝排队并完整重置队伍的 LFG 状态。
+                // 正常的"副本进行中但数据为 0"残留已由 CleanupStaleLfgGroup 处理，所以这里基本不会走到
                 joinData.result = LFG_JOIN_DUNGEON_INVALID;
                 RemoveGroupData(gguid);
                 grp->ConvertToGroup();
@@ -910,7 +993,8 @@ namespace lfg
             return;
 
          // Do not allow to change dungeon in the middle of a current dungeon
-        if (!isRaid && isContinue && grp->GetMembersCount() == 5)
+         // 继续当前副本（客户端"继续"按钮）不算改排，不应该被拦，否则满 5 人时连回到自己副本都排不了
+        if (!isRaid && isContinue && !continuingCurrentDungeon && grp->GetMembersCount() == 5)
         {
             dungeons.clear();
             dungeons.insert(GetDungeon(gguid));
@@ -2059,6 +2143,10 @@ namespace lfg
         ObjectGuid gguid = grp->GetGUID();
         SetDungeon(gguid, dungeon->Entry());
         SetState(gguid, LFG_STATE_DUNGEON);
+
+        // 补齐队伍成员登记：预组队（带机器人）复用原队伍，不会触发 OnGroupAddMember，
+        // 若队伍 LFG 数据曾被清理过，成员集合会是空的，尾王死亡时谁都拿不到随机奖励
+        EnsureGroupMembersRegistered(grp);
 
         _SaveToDB(gguid);
 

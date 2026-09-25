@@ -600,8 +600,12 @@ namespace lfg
         void SetState(ObjectGuid guid, LfgState state);
         void SetCanOverrideRBState(ObjectGuid guid, bool val);
         void GetCompatibleDungeons(LfgDungeonSet& dungeons, LfgGuidSet const& players, LfgLockPartyMap& lockMap, uint32 randomDungeonId = 0);
-        // 清理残留的 LFG 队伍（标志还在但 LFG 数据失效/已退本），同时同步 Group 标志与 LFGMgr 数据
+        // 清理残留的 LFG 队伍（标志还在但 LFG 数据失效/已通关），同时同步 Group 标志与 LFGMgr 数据
         bool CleanupStaleLfgGroup(Group* group);
+        // 判断队伍是否还有成员处于其当前 LFG 副本实例内（用于 JoinLfg 的 isContinue 判断）
+        bool IsGroupInsideLfgDungeon(Group* group);
+        // 确保队伍所有成员（真人 + 机器人）都登记在 LFGMgr 的队伍数据里（预组队排队不会触发 OnGroupAddMember）
+        void EnsureGroupMembersRegistered(Group* group);
         void _SaveToDB(ObjectGuid guid);
         LFGDungeonData const* GetLFGDungeon(uint32 id);
 
