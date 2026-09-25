@@ -17,6 +17,12 @@ CREATE TABLE IF NOT EXISTS `reward_shop` (
   `action` int(11) NOT NULL DEFAULT '0',
   `action_data` int(11) NOT NULL DEFAULT '0',
   `quantity` int(11) NOT NULL DEFAULT '0',
+  `action2` int(11) NOT NULL DEFAULT '0',
+  `action_data2` int(11) NOT NULL DEFAULT '0',
+  `quantity2` int(11) NOT NULL DEFAULT '0',
+  `action3` int(11) NOT NULL DEFAULT '0',
+  `action_data3` int(11) NOT NULL DEFAULT '0',
+  `quantity3` int(11) NOT NULL DEFAULT '0',
   `code` char(50) NOT NULL,
   `status` int(11) NOT NULL DEFAULT '0',
   `PlayerGUID` int(11) NOT NULL DEFAULT '0',
@@ -31,4 +37,4 @@ CREATE TABLE IF NOT EXISTS `reward_shop` (
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 
 -- Redeem the code "123" to get 11 gold
-INSERT INTO reward_shop VALUES (1, 2, 11, 0, 123, 0, 0, 0,0);
+INSERT INTO reward_shop (`id`, `action`, `action_data`, `quantity`, `action2`, `action_data2`, `quantity2`, `action3`, `action_data3`, `quantity3`, `code`, `status`, `PlayerGUID`, `PlayerIP`, `CreatedBy`) VALUES (1, 2, 11, 0, 0, 0, 0, 0, 0, 0, '123', 0, 0, '0', NULL);

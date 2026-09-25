@@ -4,7 +4,7 @@
  * 复刻海加尔山之战·阿克蒙德（污染者）的核心战斗逻辑，强度对齐 10 人奥杜尔（Ulduar 10N）。
  * 相比原版（Kalimdor/CavernsOfTime/BattleForMountHyjal/boss_archimonde.cpp）：
  *  - 保留核心战斗：气爆、军团之握（诅咒）、毁灭之火、死亡一指（无近战目标惩罚）、
- *    恐惧、灵魂充能（击杀玩家后按职业充能并释放对应灵魂）、10% 血量与 10 分钟狂暴；
+ *    恐惧、10% 血量与 10 分钟狂暴；
  *  - 移除副本剧情专属：世界树吸取、智慧精灵、红天效果、永恒之井束缚等；
  *  - 毁灭之火（120516）为自定义召唤物（继承 WorldBossSummonAI），由召唤物自身携带
  *    31945 光环触发伤害链（31945->31943->31944 火焰直伤），伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
@@ -18,11 +18,7 @@
 
 #include "world_boss_guard.h"
 
-#include <algorithm>
-#include <array>
 #include <cmath>
-#include <utility>
-#include <vector>
 
 enum ArchimondeSpells
 {
@@ -33,14 +29,6 @@ enum ArchimondeSpells
     SPELL_DOOMFIRE_SPAWN     = 32074, // 毁灭之火召唤（视觉）
     SPELL_FINGER_OF_DEATH    = 31984, // 死亡一指（无近战目标时惩罚，20000 暗影）
     SPELL_FEAR               = 31970, // 恐惧（AOE）
-
-    // 灵魂充能（击杀玩家后按职业充能，2-10 秒后释放）
-    SPELL_SOUL_CHARGE_RED     = 32052, // 灵魂充能·红（法师/牧师/术士）
-    SPELL_SOUL_CHARGE_YELLOW  = 32045, // 灵魂充能·黄（DK/圣骑/盗贼/战士）
-    SPELL_SOUL_CHARGE_GREEN   = 32051, // 灵魂充能·绿（德鲁伊/猎人/萨满）
-    SPELL_UNLEASH_SOUL_RED    = 32053, // 灵魂释放·红（火焰 AOE）
-    SPELL_UNLEASH_SOUL_YELLOW = 32054, // 灵魂释放·黄（物理 AOE）
-    SPELL_UNLEASH_SOUL_GREEN  = 32057, // 灵魂释放·绿（自然 DOT）
 
     // 狂暴
     SPELL_HAND_OF_DEATH = 35354, // 死亡之手（10% 血量 / 10 分钟狂暴，99998 暗影秒杀）
@@ -102,45 +90,9 @@ struct boss_world_archimonde : public WorldBossGuardAI
         summons.Despawn(summon);
     }
 
-    void KilledUnit(Unit* victim) override
+    void KilledUnit(Unit* /*victim*/) override
     {
         Talk(SAY_SLAY);
-
-        // 灵魂充能：击杀玩家后按职业叠加对应充能印记，2-10 秒后释放对应灵魂。
-        if (Player* player = victim->ToPlayer())
-        {
-            uint32 soulChargeSpell = 0;
-            switch (player->getClass())
-            {
-                case CLASS_MAGE:
-                case CLASS_PRIEST:
-                case CLASS_WARLOCK:
-                    soulChargeSpell = SPELL_SOUL_CHARGE_RED;
-                    break;
-                case CLASS_DEATH_KNIGHT:
-                case CLASS_PALADIN:
-                case CLASS_ROGUE:
-                case CLASS_WARRIOR:
-                    soulChargeSpell = SPELL_SOUL_CHARGE_YELLOW;
-                    break;
-                case CLASS_DRUID:
-                case CLASS_HUNTER:
-                case CLASS_SHAMAN:
-                    soulChargeSpell = SPELL_SOUL_CHARGE_GREEN;
-                    break;
-                default:
-                    break;
-            }
-
-            if (soulChargeSpell)
-            {
-                DoCastSelf(soulChargeSpell, true);
-                scheduler.Schedule(2s, 10s, [this](TaskContext)
-                {
-                    UnleashSoulCharge();
-                });
-            }
-        }
     }
 
     void JustDied(Unit* killer) override
@@ -171,54 +123,17 @@ struct boss_world_archimonde : public WorldBossGuardAI
         me->GetClosePoint(x, y, z, me->GetObjectSize(), 15.0f, angle);
 
         // 毁灭之火灵魂生成时面向阿克蒙德（原版朝向），之后由自身 AI 转向并蔓延。
-        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, Position::NormalizeOrientation(angle + 3.1415927f), TEMPSUMMON_TIMED_DESPAWN, 27 * IN_MILLISECONDS))
+        if (Creature* doomfireSpirit = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE_SPIRIT, x, y, z, Position::NormalizeOrientation(angle + 3.1415927f), TEMPSUMMON_TIMED_DESPAWN, 17 * IN_MILLISECONDS))
         {
             // 被动状态：避免野外环境下触发型召唤物（敌对阵营）主动攻击玩家。
             doomfireSpirit->SetReactState(REACT_PASSIVE);
 
-            if (Creature* doomfire = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 27 * IN_MILLISECONDS))
+            if (Creature* doomfire = me->SummonCreature(NPC_WORLD_BOSS_ARCHIMONDE_DOOMFIRE, x, y, z, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 17 * IN_MILLISECONDS))
             {
                 doomfire->SetReactState(REACT_PASSIVE);
                 doomfire->GetMotionMaster()->MoveFollow(doomfireSpirit, 0.0f, 0.0f);
             }
         }
-    }
-
-    // 释放灵魂充能：随机选择一个已叠加的充能印记，移除并释放对应灵魂。
-    void UnleashSoulCharge()
-    {
-        me->InterruptNonMeleeSpells(false);
-
-        static std::array<std::pair<uint32, uint32>, 3> const chargeAurasAndSpells =
-        {{
-            { SPELL_SOUL_CHARGE_RED,    SPELL_UNLEASH_SOUL_RED    },
-            { SPELL_SOUL_CHARGE_YELLOW, SPELL_UNLEASH_SOUL_YELLOW },
-            { SPELL_SOUL_CHARGE_GREEN,  SPELL_UNLEASH_SOUL_GREEN  },
-        }};
-
-        std::vector<uint32> availableAuras;
-        std::vector<uint32> availableSpells;
-        for (auto const& [aura, spell] : chargeAurasAndSpells)
-        {
-            if (me->HasAura(aura))
-            {
-                availableAuras.push_back(aura);
-                availableSpells.push_back(spell);
-            }
-        }
-
-        if (availableAuras.empty())
-            return;
-
-        // 掷硬币翻转释放顺序，模拟原版的不确定性。
-        if (urand(0, 1))
-        {
-            std::reverse(availableAuras.begin(), availableAuras.end());
-            std::reverse(availableSpells.begin(), availableSpells.end());
-        }
-
-        me->RemoveAuraFromStack(availableAuras.front());
-        DoCastVictim(availableSpells.front());
     }
 
     void ExecuteEvent(uint32 eventId) override

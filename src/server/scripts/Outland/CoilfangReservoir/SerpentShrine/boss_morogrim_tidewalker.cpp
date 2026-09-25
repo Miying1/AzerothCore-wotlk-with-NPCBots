@@ -113,7 +113,7 @@ struct boss_morogrim_tidewalker : public BossAI
             scheduler.Schedule(8s, [this](TaskContext)
             {
                 Talk(SAY_SUMMON);
-                for (uint32 murlocSpellId = SPELL_SUMMON_MURLOC1; murlocSpellId < SPELL_SUMMON_MURLOC1 + 11; ++murlocSpellId)
+                for (uint32 murlocSpellId = SPELL_SUMMON_MURLOC1; murlocSpellId < SPELL_SUMMON_MURLOC1 + 6; ++murlocSpellId)
                 {
                     DoCastSelf(murlocSpellId, true);
                 }
@@ -135,8 +135,8 @@ class spell_morogrim_tidewalker_watery_grave : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        uint8 maxSize = 4;
         Unit* caster = GetCaster();
+        uint8 maxSize = caster && caster->GetEntry() == 120109 ? 2 : 4;
 
         targets.remove_if([caster](WorldObject const* target) -> bool
             {

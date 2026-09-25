@@ -29,7 +29,7 @@ enum LeotherasSpells
 {
     SPELL_WHIRLWIND          = 37640, // 旋风斩（触发 37641 造成伤害）
     SPELL_CHAOS_BLAST        = 37674, // 混沌冲击（DUMMY，触发 37675）
-    SPELL_INSIDIOUS_WHISPER  = 37676, // 疯狂低语（对最多 5 个非当前目标施放）
+    SPELL_INSIDIOUS_WHISPER  = 37676, // 疯狂低语（对最多 2 个非当前目标施放）
     SPELL_DUAL_WIELD         = 42459, // 双持
     SPELL_BERSERK            = 26662, // 狂暴（10 分钟）
     SPELL_METAMORPHOSIS      = 37673, // 变形（进入恶魔形态外观）
@@ -213,7 +213,7 @@ struct boss_world_leotheras : public WorldBossGuardAI
 
             case EVENT_INSIDIOUS_WHISPER:
                 Talk(SAY_INNER_DEMONS);
-                me->CastCustomSpell(SPELL_INSIDIOUS_WHISPER, SPELLVALUE_MAX_TARGETS, 5, me, false);
+                me->CastCustomSpell(SPELL_INSIDIOUS_WHISPER, SPELLVALUE_MAX_TARGETS, 2, me, false);
                 break;
 
             case EVENT_MOVE_IN_RANGE:
@@ -269,13 +269,13 @@ struct boss_world_leotheras : public WorldBossGuardAI
 
         if (_isDemonForm)
         {
-            // 恶魔形态：远程混沌冲击（每 2 秒），无近战
+            // 恶魔形态：远程混沌冲击（每 3 秒），无近战
             if (me->isAttackReady(BASE_ATTACK))
             {
                 if (DoCastVictim(SPELL_CHAOS_BLAST) != SPELL_CAST_OK)
                     DoMeleeAttackIfReady();
                 else
-                    me->setAttackTimer(BASE_ATTACK, 2000);
+                    me->setAttackTimer(BASE_ATTACK, 3000);
             }
         }
         else
@@ -404,7 +404,7 @@ struct npc_world_boss_leotheras_shadow : public WorldBossSummonAI
             if (DoCastVictim(SPELL_CHAOS_BLAST) != SPELL_CAST_OK)
                 DoMeleeAttackIfReady();
             else
-                me->setAttackTimer(BASE_ATTACK, 2000);
+                me->setAttackTimer(BASE_ATTACK, 3000);
         }
     }
 };

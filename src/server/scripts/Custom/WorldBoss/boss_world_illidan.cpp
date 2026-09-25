@@ -294,10 +294,10 @@ struct boss_world_illidan : public WorldBossGuardAI
 
             case PHASE_DEMON:
                 // 暗影冲击
-                scheduler.Schedule(2500ms, [this](TaskContext context)
+                scheduler.Schedule(4s, [this](TaskContext context)
                 {
                     DoCastVictim(SPELL_SHADOW_BLAST);
-                    context.Repeat(2500ms);
+                    context.Repeat(4s);
                 });
                 // 烈焰爆发
                 scheduler.Schedule(7s, [this](TaskContext context)
@@ -345,7 +345,7 @@ struct boss_world_illidan : public WorldBossGuardAI
         scheduler.Schedule(5s, [this](TaskContext context)
         {
             if (DoCastRandomTarget(SPELL_FIREBALL, 0, 100.0f, true) == SPELL_CAST_OK)
-                context.Repeat(2400ms);
+                context.Repeat(3s);
         });
 
         // 眼棱（空中周期）

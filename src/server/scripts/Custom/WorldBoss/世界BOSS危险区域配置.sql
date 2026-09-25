@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
   `damage_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '伤害法术ID，非0时优先读取法术效果半径',
   `safety_distance` FLOAT UNSIGNED NOT NULL DEFAULT 0 COMMENT '危险半径外的额外安全距离',
   `deactivation_delay_ms` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '危险源消失后继续保留危险区域的时间（毫秒）',
+  `required_aura_spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '需同时存在的技能光环ID，非0时仅当生物身上存在该光环才视为危险源',
   `comment` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '配置说明',
   PRIMARY KEY (`map_id`, `creature_entry`),
   KEY `idx_creature_entry` (`creature_entry`)
@@ -32,41 +33,49 @@ CREATE TABLE IF NOT EXISTS `npcbot_creature_hazard` (
 
 -- 幂等：重复导入本文件时先清掉本项目配置的条目，避免主键冲突导致后续语句中断
 DELETE FROM `npcbot_creature_hazard`
-WHERE `creature_entry` IN (120501, 120509, 120510, 120516, 23336);
+WHERE `creature_entry` IN (120501, 120509, 120510, 120516, 23336, 23069);
 
 -- 1. 奥（120100）：烈焰之痕 120501
 --    俯冲轰炸后留下的地面火焰，周期触发 35380 -> 35383 火焰伤害（DBC 2188-2812）。
 INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-    (0, 120501, 10, 35383, 2, 2000, '世界BOSS-奥：烈焰之痕（火焰地板）');
+    (0, 120501, 10, 35383, 2, 0, '世界BOSS-奥：烈焰之痕（火焰地板）');
 
 -- 2. 苏普雷姆斯（120106）：熔岩拳隐形巡者 120509
 --    施放 40980 -> 40253（区域光环，半径约 8 码）-> 40265 熔岩烈焰伤害，持续地面火焰。
 INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-    (0, 120509, 8, 40265, 2, 2000, '世界BOSS-苏普雷姆斯：熔岩拳隐形巡者（熔岩烈焰地板）');
+    (0, 120509, 8, 40265, 2, 200, '世界BOSS-苏普雷姆斯：熔岩拳隐形巡者（熔岩烈焰地板）');
 
 -- 3. 苏普雷姆斯（120106）：火山 120510
 --    施放 40117 -> 42055 -> 42052 火山间歇泉伤害，固定火山持续喷发地板。
 INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-    (0, 120510, 12, 42052, 2, 2000, '世界BOSS-苏普雷姆斯：火山（间歇泉地板）');
+    (0, 120510, 12, 42052, 2, 200, '世界BOSS-苏普雷姆斯：火山（间歇泉地板）');
 
 -- 4. 阿克蒙德（120110）：毁灭之火 120516
 --    施放 31945 -> 31943（区域光环，半径约 8 码）-> 31944 火焰伤害，持续地面火焰。
 INSERT INTO `npcbot_creature_hazard`
     (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-    (0, 120516, 8, 31944, 2, 2000, '世界BOSS-阿克蒙德：毁灭之火（火焰地板）');
+    (0, 120516, 8, 31944, 2, 200, '世界BOSS-阿克蒙德：毁灭之火（火焰地板）');
 
 -- 5. 伊利丹（120101）：烈焰碰撞 23336（原版生物）
 --    40832（烈焰碰撞）除直伤外还召唤 23336，该生物经 creature_template_addon 自带光环 40836，
 --    每 2 秒触发 40841 火焰伤害，形成落点地面火焰；伤害以生物当前位置为圆心，属生物型危险区域。
 --    注：23336 为原版生物，黑暗神庙原版伊利丹同样使用，故 map_id = 0 全地图生效。
 INSERT INTO `npcbot_creature_hazard`
-    (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
+    (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-    (0, 23336, 6, 40841, 2, 2000, '世界BOSS-伊利丹：烈焰碰撞（火焰地板，原版生物 23336）');
+    (0, 23336, 6, 40841, 2, 200, 0, '世界BOSS-伊利丹：烈焰碰撞（火焰地板，原版生物 23336）');
+
+-- 6. 伊利丹（120101）：眼棱触发单位 23069（原版生物）
+--    39908 -> 40017 -> 40018 召唤 23069；23069 自带 40029 周期光环，触发 40030 范围伤害。
+--    仅在 40029 光环存在时识别，避免同 Entry 的普通生物被误判为危险区域。
+INSERT INTO `npcbot_creature_hazard`
+    (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+    (0, 23069, 8, 40030, 2, 0, 40029, '世界BOSS-伊利丹：眼棱（原版生物 23069，40029 光环触发 40030）');

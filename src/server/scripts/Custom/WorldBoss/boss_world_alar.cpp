@@ -4,7 +4,7 @@
  * 复刻风暴要塞·奥的核心战斗逻辑，强度对齐 10 人奥杜尔（Ulduar 10N）。
  * 相比原版（Outland/TempestKeep/Eye/boss_alar.cpp）：
  *  - 省去副本实例环境（无 DATA_ALAR、无平台路径点移动、无任务交互）；
- *  - 保留核心战斗：火焰盛宴、火焰羽刺、召唤余烬、假死重生、熔化护甲、冲锋、烈焰之痕、俯冲轰炸、狂暴。
+ *  - 保留核心战斗：召唤余烬、假死重生、熔化护甲、冲锋、烈焰之痕、俯冲轰炸、狂暴。
  * 技能伤害统一由 WorldBossGuardAI 基类（world_boss_guard.cpp）缩放。
  * 该BOSS用于世界地图随机刷新（普通生物，非召唤物/无 owner），无固定房间坐标。
  */
@@ -19,8 +19,6 @@ enum AlarSpells
 {
     // 核心技能
     SPELL_BERSERK           = 45078, // 狂暴
-    SPELL_FLAME_QUILLS      = 34229, // 火焰羽刺（复用原版 spell_alar_flame_quills 发射羽刺导弹）
-    SPELL_FLAME_BUFFET      = 34121, // 火焰盛宴（近战无目标时 AOE）
     SPELL_MELT_ARMOR        = 35410, // 熔化护甲
     SPELL_CHARGE            = 35412, // 冲锋
     SPELL_DIVE_BOMB         = 35181, // 俯冲轰炸
@@ -34,8 +32,6 @@ enum AlarSpells
 
 enum AlarEvents
 {
-    EVENT_FLAME_BUFFET = 1,
-    EVENT_FLAME_QUILLS = 2,
     EVENT_SUMMON_EMBER = 3,
     EVENT_REBIRTH      = 4,
     EVENT_MELT_ARMOR   = 5,
@@ -127,8 +123,6 @@ struct boss_world_alar : public WorldBossGuardAI
         WorldBossGuardAI::JustEngagedWith(who);
 
         // 一阶段技能循环
-        events.ScheduleEvent(EVENT_FLAME_BUFFET, 2s);
-        events.ScheduleEvent(EVENT_FLAME_QUILLS, 15s);
         events.ScheduleEvent(EVENT_SUMMON_EMBER, 10s);
     }
 
@@ -178,18 +172,6 @@ struct boss_world_alar : public WorldBossGuardAI
     {
         switch (eventId)
         {
-            case EVENT_FLAME_BUFFET:
-                // 近战范围内无敌人时释放火焰盛宴
-                if (!me->SelectNearestTarget(me->GetCombatReach()))
-                    DoCastAOE(SPELL_FLAME_BUFFET);
-                events.Repeat(2s);
-                break;
-
-            case EVENT_FLAME_QUILLS:
-                DoCastSelf(SPELL_FLAME_QUILLS);
-                events.Repeat(25s);
-                break;
-
             case EVENT_SUMMON_EMBER:
                 SpawnEmbers();
                 events.Repeat(30s);
@@ -245,7 +227,7 @@ struct boss_world_alar : public WorldBossGuardAI
     void SpawnEmbers()
     {
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 50.0f, true))
-            for (uint8 i = 0; i < 2; ++i)
+            for (uint8 i = 0; i < 1; ++i)
                 me->SummonCreature(NPC_WORLD_BOSS_ALAR_EMBER, *target, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30 * IN_MILLISECONDS);
     }
 

@@ -4,9 +4,8 @@ Database Actions:
 
 1 = item
 2 = gold
-3 = name change
-4 = faction change
-5 = race change
+
+每个兑换码最多支持三组 action。
 
 script made by talamortis
 
@@ -22,6 +21,7 @@ script made by talamortis
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "Chat.h"
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -42,12 +42,6 @@ public:
 
         
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "我想兑换我的代码.", GOSSIP_SENDER_MAIN, 1, "", 0, true);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "离开...", GOSSIP_SENDER_MAIN, 3);
-
-        if (sConfigMgr->GetOption<bool>("AllowGM", 1) && player->IsGameMaster())
-        {
-            AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "[GM] 我想生成一个代码.", GOSSIP_SENDER_MAIN, 4);
-        }
 
         SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
         return true;
@@ -56,44 +50,10 @@ public:
     bool OnGossipSelect(Player *player, Creature *creature, uint32 /* sender */, uint32 action)
     {
         player->PlayerTalkClass->ClearMenus(); 
-        uint32 rnd1 = urand(10000, 90000);
-        uint32 rnd2 = urand(10000, 90000); 
+        if (action == 1)
+            return true;
 
-        std::string CreatedBy = player->GetName();
-        std::ostringstream randomcode;
-        
-
-        switch (action)
-        { 
-        case 3:
-            CloseGossipMenuFor(player);
-            break;
-        case 4:
-            player->PlayerTalkClass->ClearMenus();
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT,std::string("生成名称更改代码.").c_str(), GOSSIP_SENDER_MAIN, 6);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "生成阵营改变代码.", GOSSIP_SENDER_MAIN, 7);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "生成种族改变代码.", GOSSIP_SENDER_MAIN, 8);
-            SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
-            break;
-        case 6:
-            randomcode << "N" << rnd1 << "-" << rnd2;
-            CharacterDatabase.Query("INSERT INTO `reward_shop` (`action`, `action_data`, `quantity`, `code`, `status`,isonly, `PlayerGUID`,  `CreatedBy`) VALUES(3, 0, 0, '{}', 0, 0, 0, '{}')", randomcode.str().c_str(), CreatedBy.c_str());
-            ChatHandler(player->GetSession()).PSendSysMessage("Code was successfully created your code is %s", randomcode.str().c_str());
-            SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
-            break;
-        case 7:
-            randomcode << "F" << rnd1 << "-" << rnd2;
-            CharacterDatabase.Query("INSERT INTO `reward_shop` (`action`, `action_data`, `quantity`, `code`, `status`, isonly,`PlayerGUID`, `CreatedBy`) VALUES(4, 0, 0, '{}', 0, 0, 0, '{}')", randomcode.str().c_str(), CreatedBy.c_str());
-            ChatHandler(player->GetSession()).PSendSysMessage("Code was successfully created your code is %s", randomcode.str().c_str());
-            SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
-            break;
-        case 8:
-            randomcode << "R" << rnd1 << "-" << rnd2;
-            CharacterDatabase.Query("INSERT INTO `reward_shop` (`action`, `action_data`, `quantity`, `code`, `status`, isonly,`PlayerGUID`, `CreatedBy`) VALUES(5, 0, 0, '{}', 0, 0, 0, '{}')", randomcode.str().c_str(), CreatedBy.c_str());
-            ChatHandler(player->GetSession()).PSendSysMessage("Code was successfully created your code is %s", randomcode.str().c_str());
-            SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
-            break;
-        }
+        CloseGossipMenuFor(player);
         return true;
     }
 
@@ -108,7 +68,7 @@ public:
             return false;
 
         // check for code
-        QueryResult result = CharacterDatabase.Query("SELECT action, action_data, quantity, action_data2, quantity2, action_data3, quantity3, status, isonly FROM reward_shop WHERE code = '{}'", rewardcode.c_str());
+        QueryResult result = CharacterDatabase.Query("SELECT action, action_data, quantity, action2, action_data2, quantity2, action3, action_data3, quantity3, status, isonly FROM reward_shop WHERE code = '{}'", rewardcode.c_str());
 
         if (!result)
         {
@@ -123,15 +83,11 @@ public:
 
         
         Field *fields = result->Fetch();
-        uint32 action = fields[0].Get<uint32>();
-        uint32 action_data = fields[1].Get<uint32>();
-        uint32 quantity = fields[2].Get<uint32>();
-        uint32 action_data2 = fields[3].Get<uint32>();
-        uint32 quantity2 = fields[4].Get<uint32>();
-        uint32 action_data3 = fields[5].Get<uint32>();
-        uint32 quantity3 = fields[6].Get<uint32>();
-        uint32 status = fields[7].Get<int32>();
-        uint32 isonly = fields[8].Get<int32>();
+        uint32 actions[3] = { fields[0].Get<uint32>(), fields[3].Get<uint32>(), fields[6].Get<uint32>() };
+        uint32 actionData[3] = { fields[1].Get<uint32>(), fields[4].Get<uint32>(), fields[7].Get<uint32>() };
+        uint32 quantities[3] = { fields[2].Get<uint32>(), fields[5].Get<uint32>(), fields[8].Get<uint32>() };
+        uint32 status = fields[9].Get<uint32>();
+        uint32 isonly = fields[10].Get<uint32>();
         if (status == 1)
         {
             player->PlayDirectSound(9638); // No
@@ -140,9 +96,15 @@ public:
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
             return false;
         }
-        if(isonly==1){
-            QueryResult check_only = CharacterDatabase.Query("SELECT 1 FROM reward_shop WHERE action_data = {} and PlayerGUID={} and status=1", action_data,playerguid.GetCounter());
-            if(check_only){
+        if (isonly == 1)
+        {
+            uint32 uniqueRewardData = actionData[0];
+            if (!uniqueRewardData)
+                uniqueRewardData = actionData[1] ? actionData[1] : actionData[2];
+
+            QueryResult check_only = CharacterDatabase.Query("SELECT 1 FROM reward_shop WHERE action_data = {} and PlayerGUID={} and status=1", uniqueRewardData, playerguid.GetCounter());
+            if (check_only)
+            {
                 player->PlayDirectSound(9638); // No
                 creature->Whisper("你已领取过这类奖励了!", LANG_UNIVERSAL, player);
                 creature->HandleEmoteCommand(EMOTE_ONESHOT_QUESTION);
@@ -150,65 +112,97 @@ public:
                 return false;
             }
         }
-        switch (action)
-        {
-        case 1: /* Item */
-        {
-            // 收集需要发放的物品列表（最多支持三件物品）
-            std::vector<std::pair<uint32, uint32>> items;
-            if (action_data && quantity)
-                items.emplace_back(action_data, quantity);
-            if (action_data2 && quantity2)
-                items.emplace_back(action_data2, quantity2);
-            if (action_data3 && quantity3)
-                items.emplace_back(action_data3, quantity3);
 
-            if (items.empty())
+        std::vector<std::pair<uint32, uint32>> itemRewards;
+        uint32 totalGold = 0;
+        bool hasReward = false;
+        for (uint32 index = 0; index < 3; ++index)
+        {
+            if (!actions[index])
+                continue;
+
+            if (actions[index] == 1)
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，配置的物品数据无效!");
+                if (!actionData[index] || !quantities[index])
+                {
+                    ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，配置的物品数据无效!");
+                    ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+                    return false;
+                }
+
+                auto item = std::find_if(itemRewards.begin(), itemRewards.end(), [itemId = actionData[index]](auto const& reward)
+                {
+                    return reward.first == itemId;
+                });
+                if (item == itemRewards.end())
+                    itemRewards.emplace_back(actionData[index], quantities[index]);
+                else
+                    item->second += quantities[index];
+
+                hasReward = true;
+            }
+            else if (actions[index] == 2)
+            {
+                if (!actionData[index])
+                {
+                    ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，配置的金币数据无效!");
+                    ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+                    return false;
+                }
+
+                totalGold += actionData[index];
+                hasReward = true;
+            }
+            else
+            {
+                ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，配置的 action 无效!");
+                ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+                return false;
+            }
+        }
+
+        if (!hasReward)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，未配置有效的 action!");
+            ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+            return false;
+        }
+
+        std::vector<std::pair<std::pair<uint32, uint32>, ItemPosCountVec>> itemDestinations;
+        ItemPosCountVec reservedDestinations;
+        for (auto const& item : itemRewards)
+        {
+            uint32 noSpaceForCount = 0;
+            ItemPosCountVec destinations;
+            std::size_t reservedCount = reservedDestinations.size();
+            if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, reservedDestinations, item.first, item.second, &noSpaceForCount) != EQUIP_ERR_OK)
+            {
+                ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，你的背包满了或你已拥有相同的唯一物品!");
                 ChatHandler(player->GetSession()).SetSentErrorMessage(true);
                 return false;
             }
 
-            // 先检查背包空间是否足够存放所有物品
-            for (auto const& item : items)
-            {
-                uint32 noSpaceForCount = 0;
-                ItemPosCountVec dest;
-                if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, item.first, item.second, &noSpaceForCount) != EQUIP_ERR_OK)
-                {
-                    ChatHandler(player->GetSession()).PSendSysMessage("无法发送奖励，你的背包满了或你已拥有相同的唯一物品!");
-                    ChatHandler(player->GetSession()).SetSentErrorMessage(true);
-                    return false;
-                }
-            }
-
-            // 全部检查通过后统一发放
-            for (auto const& item : items)
-            {
-                player->AddItem(item.first, item.second);
-            }
-            break;
+            destinations.assign(reservedDestinations.begin() + reservedCount, reservedDestinations.end());
+            itemDestinations.emplace_back(item, std::move(destinations));
         }
-        case 2: /* Gold */
-            player->ModifyMoney(action_data * 10000);
-            ChatHandler(player->GetSession()).PSendSysMessage("成功发送G币: [%u G]", action_data);
-            break;
-        case 3: /* Name Change */
-            player->SetAtLoginFlag(AT_LOGIN_RENAME);
-            ChatHandler(player->GetSession()).PSendSysMessage("CHAT OUTPUT: 请返回角色登录界面以修改角色名称.");
-            break;
-        case 4: /* Faction Change */
-            player->SetAtLoginFlag(AT_LOGIN_CHANGE_FACTION);
-            ChatHandler(player->GetSession()).PSendSysMessage("CHAT OUTPUT: 请返回角色登录界面选择阵营.");
-            break;
-        case 5: /* Race Change */
-            player->SetAtLoginFlag(AT_LOGIN_CHANGE_RACE);
-            ChatHandler(player->GetSession()).PSendSysMessage("CHAT OUTPUT: 请返回角色登录界面修改种族.");
-            break;
-        } 
 
-        CharacterDatabase.Query("UPDATE reward_shop SET status = 1, PlayerGUID = '{}' WHERE code = '{}'", playerguid.GetCounter(), rewardcode);
+        CharacterDatabase.DirectExecute("UPDATE reward_shop SET status = 1, PlayerGUID = '{}' WHERE code = '{}' AND status = 0", playerguid.GetCounter(), rewardcode);
+        QueryResult redeemed = CharacterDatabase.Query("SELECT 1 FROM reward_shop WHERE code = '{}' AND status = 1 AND PlayerGUID = '{}'", rewardcode, playerguid.GetCounter());
+        if (!redeemed)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("兑换代码状态更新失败，请稍后重试!");
+            ChatHandler(player->GetSession()).SetSentErrorMessage(true);
+            return false;
+        }
+
+        for (auto const& item : itemDestinations)
+            player->StoreNewItem(item.second, item.first.first, true);
+
+        if (totalGold)
+        {
+            player->ModifyMoney(totalGold * 10000);
+            ChatHandler(player->GetSession()).PSendSysMessage("成功发送G币: [%u G]", totalGold);
+        }
         CloseGossipMenuFor(player);
         return true;
     }

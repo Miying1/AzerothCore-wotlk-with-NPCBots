@@ -3,7 +3,7 @@
  *
  * 复刻毒蛇神殿·莫洛格里·踏潮者的核心战斗逻辑，强度对齐 10 人奥杜尔（Ulduar 10N）。
  * 相比原版（Outland/CoilfangReservoir/SerpentShrine/boss_morogrim_tidewalker.cpp）：
- *  - 保留核心战斗：潮汐波（坦克正面 AOE）、水之墓（对 4 个非坦克目标的 DOT）、
+ *  - 保留核心战斗：潮汐波（坦克正面 AOE）、水之墓（对 2 个非坦克目标的 DOT）、
  *    地震 + 鱼人召唤（全团 AOE 后召唤 11 只潮行者潜伏者）、25% 血量以下改为召唤水晶体；
  *  - 潮行者潜伏者（120514）与水晶体（120515）为自定义召唤物（继承 WorldBossSummonAI），
  *    其中水晶体的冻结伤害经 WorldBossSummonAI::DamageDealt 统一缩放；
@@ -20,7 +20,7 @@
 enum MorogrimSpells
 {
     SPELL_TIDAL_WAVE   = 37730, // 潮汐波（坦克正面 AOE）
-    SPELL_WATERY_GRAVE = 38028, // 水之墓（DUMMY，脚本对 4 个目标施放 38023/38024/38025/37850）
+    SPELL_WATERY_GRAVE = 38028, // 水之墓（DUMMY，脚本对 2 个目标施放 38023/38024/38025/37850）
     SPELL_EARTHQUAKE   = 37764, // 地震（全团 AOE）
     SPELL_FREEZE       = 37871, // 冻结（水晶体，冰霜伤害 + 定身）
 };
@@ -80,24 +80,24 @@ struct boss_world_morogrim : public WorldBossGuardAI
         Talk(SAY_DEATH);
     }
 
-    // 召唤 11 只潮行者潜伏者（环绕 BOSS 分布）
+    // 召唤 6 只潮行者潜伏者（环绕 BOSS 分布）
     void SummonMurlocs()
     {
         constexpr float TAU = 6.2831853f; // 2π
-        for (uint8 i = 0; i < 11; ++i)
+        for (uint8 i = 0; i < 6; ++i)
         {
-            Position pos = me->GetNearPosition(6.0f, TAU * float(i) / 11.0f);
+            Position pos = me->GetNearPosition(6.0f, TAU * float(i) / 6.0f);
             me->SummonCreature(NPC_WORLD_BOSS_MURLOC, pos, TEMPSUMMON_DEAD_DESPAWN, 0);
         }
     }
 
-    // 召唤 4 个水晶体（环绕 BOSS 分布）
+    // 召唤 2 个水晶体（环绕 BOSS 分布）
     void SummonWaterGlobules()
     {
         constexpr float TAU = 6.2831853f; // 2π
-        for (uint8 i = 0; i < 4; ++i)
+        for (uint8 i = 0; i < 2; ++i)
         {
-            Position pos = me->GetNearPosition(8.0f, TAU * float(i) / 4.0f);
+            Position pos = me->GetNearPosition(8.0f, TAU * float(i) / 2.0f);
             me->SummonCreature(NPC_WORLD_BOSS_WATER_GLOBULE, pos, TEMPSUMMON_DEAD_DESPAWN, 0);
         }
     }
@@ -115,9 +115,9 @@ struct boss_world_morogrim : public WorldBossGuardAI
                 Talk(SAY_SUMMON_BUBBLE);
                 if (me->HealthAbovePct(25))
                 {
-                    // 血量高于 25%：对 4 个非坦克目标施放水之墓（复用原版法术脚本）
+                    // 血量高于 25%：对 2 个非坦克目标施放水之墓（复用原版法术脚本）
                     Talk(EMOTE_WATERY_GRAVE);
-                    me->CastCustomSpell(SPELL_WATERY_GRAVE, SPELLVALUE_MAX_TARGETS, 4, me, false);
+                    me->CastCustomSpell(SPELL_WATERY_GRAVE, SPELLVALUE_MAX_TARGETS, 2, me, false);
                 }
                 else
                 {
