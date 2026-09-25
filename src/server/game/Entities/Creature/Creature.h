@@ -63,6 +63,12 @@ public:
     void SetDisplayId(uint32 displayId, float displayScale = 1.f) override;
     void SetDisplayFromModel(uint32 modelIdx);
 
+    // NPCBot 幻形缩放计算：由 srcDisplayId（BOT 原模型）变形到 dstDisplayId（幻形模型）时的 ObjectScale。
+    // 供 GetNativeObjectScale() 与 PlayerTransmog::CastTransmogBot() 共用，保证两处口径一致。
+    // srcDisplayScale 为 BOT 原模型的 DisplayScale（模板值）；其 <= 0 或幻形模型数据异常时返回 false，
+    // 调用方应回退到模板 scale（GetNativeObjectScale）或放弃幻形（CastTransmogBot）。
+    static bool CalculateBotTransmogScale(uint32 srcDisplayId, uint32 dstDisplayId, float srcDisplayScale, float& outScale);
+
     void DisappearAndDie();
 
     [[nodiscard]] bool isVendorWithIconSpeak() const;

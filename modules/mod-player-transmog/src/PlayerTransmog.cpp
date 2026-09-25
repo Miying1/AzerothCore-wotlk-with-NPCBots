@@ -1,4 +1,5 @@
 #include "PlayerTransmog.h"
+#include "Creature.h"
 #include "ItemTemplate.h"
 #include "DatabaseEnv.h" 
 #include "Configuration/Config.h"
@@ -11,39 +12,6 @@
 //    MaxAttrChance = sConfigMgr->GetOption<float>("RandomEnchants.MaxAttrChance", 40.0f);
 //    ReRandChance = sConfigMgr->GetOption<float>("RandomEnchants.ReRandChance", 80.0f);
 //}
-
-// 某个 DisplayId 的"真实尺寸系数"：
-//   客户端最终体积 = ObjectScale × CreatureModelData.Scale × CreatureDisplayInfo.scale
-//                    × 模型几何尺寸
-// 几何尺寸取 CreatureModelData 的 GeoBoxMin/MaxZ（顶点包围盒**高度**）：很多导入模型
-// （伊利丹 2548：高 7.05，对牛头人 59：2.26）的 ModelScale 与 DisplayInfo.scale 都是 1，
-// 只按 Scale 相乘是归一不掉的。
-// 不取三轴最大值：伊利丹的 X/Y 包围盒包含武器与张臂姿态（Y 9.92），按最大轴归一会把它
-// 缩得比 BOT 原模型还小；按高度归一保证"高度 = BOT 原高度"，其它轴只会更大。
-// 返回 0 表示该 DisplayId 缺几何数据，调用方退化为 GetDisplayModelScaleFactor()。
-static float GetDisplayModelSizeFactor(uint32 displayId)
-{
-    CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
-    if (!info)
-        return 0.f;
-    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
-    if (!modelData)
-        return 0.f;
-    float size = modelData->GeoBoxMax[2] - modelData->GeoBoxMin[2];
-    if (size <= 0.f)
-        return 0.f;
-    return size * modelData->Scale * info->scale;
-}
-
-// 退化用的体积系数：拿不到包围盒时只按 DBC 的 ModelScale × DisplayInfo.scale 归一
-static float GetDisplayModelScaleFactor(uint32 displayId)
-{
-    CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(displayId);
-    if (!info)
-        return 0.f;
-    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(info->ModelId);
-    return (modelData ? modelData->Scale : 1.f) * info->scale;
-}
 
 void PlayerTransmog::InitData()
 {
@@ -102,39 +70,16 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
     CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.LookupEntry(modelId);
     if (!minfo) return false;
 
-    // 2) 取 BOT 模板唯一模型作为体积基准（BOT 单模型，entry 唯一对应一个生物）
+    // 2) 取 BOT 模板唯一模型作为高度基准（BOT 单模型，entry 唯一对应一个生物）
     CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
     if (!tmpl) return false;
 
-    // 3) 体积归一：让幻形后的最终体积等于 BOT 原体积
-    //    (原) = tmpl->DisplayScale × 原模型尺寸系数
-    //    (新) = scale             × 幻形模型尺寸系数
-    //    两者相等 => scale = tmpl->DisplayScale × 原尺寸系数 / 新尺寸系数
-    float scale;
-    float srcSize = GetDisplayModelSizeFactor(tmpl->CreatureDisplayID);
-    float dstSize = GetDisplayModelSizeFactor(modelId);
-    if (srcSize > 0.f && dstSize > 0.f)
-    {
-        scale = tmpl->DisplayScale * srcSize / dstSize;
-    }
-    else
-    {
-        // 退化：拿不到包围盒时只按 DBC 的 ModelScale × DisplayInfo.scale 归一
-        float srcFactor = GetDisplayModelScaleFactor(tmpl->CreatureDisplayID);
-        if (srcFactor <= 0.f)
-            srcFactor = 1.f;
-        float dstFactor = GetDisplayModelScaleFactor(modelId);
-        if (dstFactor <= 0.f)
-            return false;                     // 幻形模型数据异常，放弃幻形
-        srcSize = srcFactor;
-        dstSize = dstFactor;
-        scale = tmpl->DisplayScale * srcFactor / dstFactor;
-    }
-
-    // 目标模型比 BOT 原模型大时，归一后的缩放再增加 10%：
-    // 大模型按高度对齐后视觉上会显小，补一点体量
-    if (dstSize > srcSize)
-        scale *= 1.2f;
+    // 3) 计算缩放（与 Creature::GetNativeObjectScale() 共用同一实现，保证复活/重生后口径一致）：
+    //    先按高度归一到 BOT 原高度（缩放后高度不小于原本高度），再视目标模型高出幅度做阶梯加成
+    //    （高出 50% 以上 +10%，高出 100% 以上 +20%）
+    float scale = 0.f;
+    if (!Creature::CalculateBotTransmogScale(tmpl->CreatureDisplayID, modelId, tmpl->DisplayScale, scale))
+        return false;                         // 幻形模型数据异常，放弃幻形
 
     // 4) 关键：需要展示角色外观的 BOT 条目在 creature_outfits 里，核心会打上
     //    UNIT_FLAG2_MIRROR_IMAGE（ObjectMgr.cpp:9799 "Needed so client requests mirror packet"）。

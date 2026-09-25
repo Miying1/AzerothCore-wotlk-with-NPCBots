@@ -265,11 +265,24 @@ CloseGossipMenuFor(player);
 
 ### 6.1 缩放公式
 
-模型体积 ≈ `ObjectScale × CreatureDisplayInfoEntry::scale`。保持体积一致：
+模型最终体积 ≈ `ObjectScale × 模型尺寸系数`，尺寸系数取 `GeoBox(Z 高度) × CreatureModelData.Scale × CreatureDisplayInfo.scale`
+（详见 6.3 ①）。
 
 ```
-目标 ObjectScale = 模板模型 DisplayScale / 幻形模型固有 scale
+若 模板模型 DisplayScale ≤ 0 → 计算失败（返回 false）：调用方回退模板 scale / 放弃幻形（避免算出 0 缩放）
+
+基础缩放 base = 模板模型 DisplayScale × 原模型尺寸系数 / 幻形模型尺寸系数   // 高度对齐，等于 BOT 原高度
+高度比 ratio  = 幻形模型尺寸系数 / 原模型尺寸系数
+
+ratio > 2.0（目标高出 100% 以上）→ 缩放 = base × 1.2
+ratio > 1.5（目标高出 50% 以上）  → 缩放 = base × 1.1
+其余                              → 缩放 = base
+
+加成只增不减，故最终缩放恒 ≥ base（幻形后的高度不会小于 BOT 原本高度）
 ```
+
+> 计算统一收敛到核心的 `Creature::CalculateBotTransmogScale()`，`GetNativeObjectScale()` 与
+> `CastTransmogBot()` 两处共用，避免口径漂移（此前两处曾分别为 1.1 / 1.2）。
 
 ### 6.2 `CastTransmogBot` 实现
 
@@ -282,12 +295,14 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
     CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.LookupEntry(modelId);
     if (!minfo) return false;
 
-    // 2) 取 BOT 模板唯一模型作为体积基准（BOT 单模型，entry 唯一对应一个生物）
+    // 2) 取 BOT 模板唯一模型作为高度基准（BOT 单模型，entry 唯一对应一个生物）
     CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
     if (!tmpl) return false;
 
-    // 3) 体积归一
-    float scale = tmpl->DisplayScale / minfo->scale;
+    // 3) 计算缩放：与 Creature::GetNativeObjectScale() 共用同一实现（6.1 公式）
+    float scale = 0.f;
+    if (!Creature::CalculateBotTransmogScale(tmpl->CreatureDisplayID, modelId, tmpl->DisplayScale, scale))
+        return false;                       // 幻形模型数据异常，放弃幻形
 
     // 4) 直接写原生显示 ID + 显示 ID + 缩放（无任何光环）
     bot->SetNativeDisplayId(modelId);
@@ -301,19 +316,44 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
 
 「写原生显示 ID」解决了**模型**持久；但 `Creature::GetNativeObjectScale()` 读的是 creature_template 而非 native display id，因此**缩放**还需两处小改：
 
-#### ① `Creature::GetNativeObjectScale()`（Creature.cpp:3721）
+#### ① `Creature::GetNativeObjectScale()`（Creature.cpp）
+
+幻形缩放计算抽出为 `Creature::CalculateBotTransmogScale()`（静态，见 6.1 公式），本函数直接复用：
 
 ```cpp
+bool Creature::CalculateBotTransmogScale(uint32 srcDisplayId, uint32 dstDisplayId, float srcDisplayScale, float& outScale)
+{
+    if (srcDisplayScale <= 0.f) return false;   // 模板 scale 异常，放弃计算（否则会算出 0 缩放）
+
+    // 尺寸系数 = GeoBox(Z 高度) × CreatureModelData.Scale × CreatureDisplayInfo.scale
+    // （取 Z 高度而非三轴最大值：伊利丹等模型 X/Y 包围盒含武器与张臂姿态，会把模型缩得过小）
+    float srcSize = BotTransmogDisplaySizeFactor(srcDisplayId);
+    float dstSize = BotTransmogDisplaySizeFactor(dstDisplayId);
+    // ...拿不到包围盒时退化为 ModelScale × DisplayInfo.scale...
+
+    // 1) 高度归一
+    float baseScale = srcDisplayScale * srcSize / dstSize;
+    // 2) 目标远高于 BOT 原模型时补体量：高出 100% 以上 +20%，高出 50% 以上 +10%
+    float scale = baseScale;
+    float ratio = dstSize / srcSize;
+    if (ratio > 2.0f)      scale *= 1.2f;
+    else if (ratio > 1.5f) scale *= 1.1f;
+    // 3) 加成只增不减，最终缩放恒 ≥ base
+    outScale = scale;
+    return true;
+}
+
 float Creature::GetNativeObjectScale() const
 {
-    // BOT 幻形：原生显示 ID 已被改成幻形模型 → 返回体积归一后的 scale
+    // BOT 幻形：原生显示 ID 已被改成幻形模型 → 返回高度归一后的 scale
     if (IsNPCBot())
     {
         CreatureModel const* tmpl = GetCreatureTemplate()->GetFirstValidModel();
         if (tmpl && GetNativeDisplayId() != tmpl->CreatureDisplayID)
         {
-            if (CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(GetNativeDisplayId()))
-                return tmpl->DisplayScale / info->scale;
+            float scale = 0.f;
+            if (CalculateBotTransmogScale(tmpl->CreatureDisplayID, GetNativeDisplayId(), tmpl->DisplayScale, scale))
+                return scale;
         }
     }
 
