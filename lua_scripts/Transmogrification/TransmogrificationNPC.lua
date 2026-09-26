@@ -9,17 +9,32 @@ local AIO_HANDLER = "TransmogrificationFrame"
 local GOSSIP_ACTION_OPEN = 1
 local GOSSIP_ACTION_CLOSE = 2
 local GOSSIP_ACTION_SHOP = 3
+local GOSSIP_ACTION_MODEL_SHOW = 4
 local BAIHU_GOSSIP_ACTION_OPEN = 1004
+
+-- “模型展示”传送目标：地图 1（卡利姆多）及坐标
+local MODEL_SHOW_MAP = 1
+local MODEL_SHOW_X = -10742.04
+local MODEL_SHOW_Y = 2431.02
+local MODEL_SHOW_Z = 6.65
+local MODEL_SHOW_O = 5.68
 
 local function OpenTransmogrification(player)
     player:GossipComplete()
     AIO.Handle(player, AIO_NAMESPACE, AIO_HANDLER)
 end
 
+-- 将玩家传送到模型展示区域
+local function TeleportToModelShow(player)
+    player:GossipComplete()
+    player:Teleport(MODEL_SHOW_MAP, MODEL_SHOW_X, MODEL_SHOW_Y, MODEL_SHOW_Z, MODEL_SHOW_O)
+end
+
 local function OnTransmogrificationNpcHello(event, player, creature)
     player:GossipClearMenu()
     player:GossipMenuAddItem(0, "打开幻化界面", 0, GOSSIP_ACTION_OPEN)
     player:GossipMenuAddItem(1, "幻象商店", 0, GOSSIP_ACTION_SHOP)
+    player:GossipMenuAddItem(0, "模型展示", 0, GOSSIP_ACTION_MODEL_SHOW)
     player:GossipSendMenu(1, creature)
 end
 
@@ -29,6 +44,8 @@ local function OnTransmogrificationNpcSelect(event, player, creature, sender, ac
     elseif action == GOSSIP_ACTION_SHOP then
         player:GossipComplete()
         player:SendListInventory(creature)
+    elseif action == GOSSIP_ACTION_MODEL_SHOW then
+        TeleportToModelShow(player)
     else
         player:GossipComplete()
     end

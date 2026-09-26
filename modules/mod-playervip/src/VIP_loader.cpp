@@ -10,6 +10,7 @@ void AddNpcBaihuGossipScripts();
 void AddSC_item_mount_gift_box();
 void AddSC_item_tameable_summon();
 void AddSC_hunter_pet_scale();
+void AddSC_random_equip_gift();
 void Addmod_playervipScripts()
 {
     AddPlayerItemScripts();
@@ -19,4 +20,5 @@ void Addmod_playervipScripts()
     AddSC_item_mount_gift_box();
     AddSC_item_tameable_summon();
     AddSC_hunter_pet_scale();
+    AddSC_random_equip_gift();
 }
