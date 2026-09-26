@@ -3,6 +3,12 @@
 #include "ItemTemplate.h"
 #include "DatabaseEnv.h" 
 #include "Configuration/Config.h"
+#include <algorithm>
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
+#include <iomanip>
+#include <sstream>
 
 
 
@@ -12,6 +18,52 @@
 //    MaxAttrChance = sConfigMgr->GetOption<float>("RandomEnchants.MaxAttrChance", 40.0f);
 //    ReRandChance = sConfigMgr->GetOption<float>("RandomEnchants.ReRandChance", 80.0f);
 //}
+
+// 去掉首尾空白（客户端输入框可能带上空格）
+static std::string TrimString(std::string const& s)
+{
+    std::size_t begin = s.find_first_not_of(" \t\r\n");
+    if (begin == std::string::npos)
+        return std::string();
+
+    std::size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(begin, end - begin + 1);
+}
+
+bool ParseTransmogScaleFactor(std::string const& text, float& outFactor)
+{
+    std::string s = TrimString(text);
+    if (s.empty())
+        return false;
+
+    // 只接受纯数字（可含小数点），不接受 "1.25倍" 这类带多余字符的输入
+    errno = 0;
+    char* end = nullptr;
+    double value = std::strtod(s.c_str(), &end);
+    // isfinite 用来挡 "nan"/"inf"：strtod 能成功解析它们，且 NaN 经过 clamp 后仍是 NaN
+    if (errno == ERANGE || !end || *end != '\0' || !std::isfinite(value))
+        return false;
+
+    // 夹取到合法区间，超范围不视为失败（按边界处理，方便玩家直接填 3 表示最大）
+    outFactor = std::clamp(static_cast<float>(value), TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    return true;
+}
+
+std::string FormatTransmogScaleFactor(float factor)
+{
+    std::ostringstream str;
+    str << std::fixed << std::setprecision(2)
+        << std::clamp(factor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX) << " 倍";
+    return str.str();
+}
+
+std::string MakeTransmogScaleHint(float currentFactor)
+{
+    std::ostringstream str;
+    str << "请输入缩放系数(0.5-1.5),当前值:" << std::fixed << std::setprecision(2)
+        << std::clamp(currentFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    return str.str();
+}
 
 void PlayerTransmog::InitData()
 {
@@ -61,8 +113,10 @@ void PlayerTransmog::InitData()
 
     // 追加加载佣兵幻形数据（角色级）
     LoadBotTransmogData();
+    // 追加加载玩家变形缩放设置（角色级）
+    LoadPlayerTransmogSetData();
 }
-bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
+bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId, float scaleFactor /*= TRANSMOG_SCALE_FACTOR_DEFAULT*/)
 {
     if (!bot || !bot->IsNPCBot()) return false;
 
@@ -80,6 +134,12 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
     float scale = 0.f;
     if (!Creature::CalculateBotTransmogScale(tmpl->CreatureDisplayID, modelId, tmpl->DisplayScale, scale))
         return false;                         // 幻形模型数据异常，放弃幻形
+
+    // 3.1) 乘上玩家为该佣兵设置的最终缩放系数（0.5 - 1.5），并把系数写进 BOT，
+    //      让核心 GetNativeObjectScale() 在复活/光环重算时保持同一口径
+    float factor = std::clamp(scaleFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    scale *= factor;
+    bot->SetBotTransmogScaleFactor(factor);
 
     // 4) 关键：需要展示角色外观的 BOT 条目在 creature_outfits 里，核心会打上
     //    UNIT_FLAG2_MIRROR_IMAGE（ObjectMgr.cpp:9799 "Needed so client requests mirror packet"）。
@@ -102,12 +162,15 @@ bool PlayerTransmog::CastTransmog(Player* player, int modelid)
     if (!minfo) return false;
 
     // 与佣兵幻形共用同一套缩放算法（Creature::CalculateBotTransmogScale）：
-    //   高度归一（幻形后高度 = 玩家原高度）+ 大模型阶梯加成 + 按 DisplayId 的硬编码缩放表。
+    //   高度归一（幻形后高度 = 玩家原高度）+ 大模型阶梯加成。
     //   基准取玩家自己的种族模型（displayId_m/f，见 Player::InitDisplayIds），玩家的 object scale
     //   默认是 1.0，故 srcDisplayScale 传 1.0。
     float scale = 1.0f;
     if (!Creature::CalculateBotTransmogScale(player->GetNativeDisplayId(), static_cast<uint32>(modelid), 1.0f, scale))
         scale = 1.0f;                          // 幻形模型数据异常时退回不缩放
+
+    // 乘上该玩家自己设置的变形缩放系数（0.5 - 1.5，持久化在 mod_player_transmog_set）
+    scale *= GetPlayerTransmogScaleFactor(player->GetGUID().GetCounter());
 
     // 先记录本次幻形（模型 + 缩放），供 100004 光环在「被其他变形覆盖后恢复」时还原为所选幻形
     SetPlayerTransmog(player, static_cast<uint32>(modelid), scale);
@@ -253,18 +316,55 @@ void PlayerTransmog::LoadBotTransmogData()
     std::lock_guard<std::mutex> lock(_botTransmogMutex);
     BotTransmogStore.clear();
     QueryResult result = CharacterDatabase.Query(
-        "SELECT character_id, bot_entry, model_id, model_name FROM mod_player_bot_transmog");
+        "SELECT character_id, bot_entry, model_id, model_name, scale_factor FROM mod_player_bot_transmog");
     if (!result) return;
     do
     {
         Field* f = result->Fetch();
         BotTransmogData d;
         uint32 cid = f[0].Get<uint32>();
-        d.bot_entry  = f[1].Get<uint32>();
-        d.model_id   = f[2].Get<uint32>();
-        d.model_name = f[3].Get<std::string>();
+        d.bot_entry    = f[1].Get<uint32>();
+        d.model_id     = f[2].Get<uint32>();
+        d.model_name   = f[3].Get<std::string>();
+        d.scale_factor = std::clamp(f[4].Get<float>(), TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
         BotTransmogStore[cid][d.bot_entry] = d;
     } while (result->NextRow());
+}
+
+void PlayerTransmog::LoadPlayerTransmogSetData()
+{
+    std::lock_guard<std::mutex> lock(_playerScaleMutex);
+    PlayerScaleStore.clear();
+    QueryResult result = CharacterDatabase.Query(
+        "SELECT character_id, scale_factor FROM mod_player_transmog_set");
+    if (!result) return;
+    do
+    {
+        Field* f = result->Fetch();
+        PlayerScaleStore[f[0].Get<uint32>()] =
+            std::clamp(f[1].Get<float>(), TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    } while (result->NextRow());
+}
+
+float PlayerTransmog::GetPlayerTransmogScaleFactor(uint32 characterId) const
+{
+    std::lock_guard<std::mutex> lock(_playerScaleMutex);
+    auto it = PlayerScaleStore.find(characterId);
+    return it != PlayerScaleStore.end() ? it->second : TRANSMOG_SCALE_FACTOR_DEFAULT;
+}
+
+void PlayerTransmog::SetPlayerTransmogScaleFactor(uint32 characterId, float scaleFactor)
+{
+    float factor = std::clamp(scaleFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    {
+        std::lock_guard<std::mutex> lock(_playerScaleMutex);
+        PlayerScaleStore[characterId] = factor;
+    }
+
+    // DB 写入放到锁外执行（异步，避免阻塞主线程）
+    CharacterDatabase.AsyncQuery(Acore::StringFormat(
+        "INSERT INTO mod_player_transmog_set (character_id, scale_factor) VALUES ({}, {}) "
+        "ON DUPLICATE KEY UPDATE scale_factor=VALUES(scale_factor)", characterId, factor));
 }
 
 std::optional<BotTransmogData> PlayerTransmog::GetBotTransmog(uint32 characterId, uint32 botEntry)
@@ -277,11 +377,13 @@ std::optional<BotTransmogData> PlayerTransmog::GetBotTransmog(uint32 characterId
     return it->second;   // 返回副本，避免锁释放后指针悬垂
 }
 
-void PlayerTransmog::SetBotTransmog(uint32 cid, uint32 botEntry, uint32 modelId, std::string const& modelName)
+void PlayerTransmog::SetBotTransmog(uint32 cid, uint32 botEntry, uint32 modelId, std::string const& modelName,
+                                    float scaleFactor /*= TRANSMOG_SCALE_FACTOR_DEFAULT*/)
 {
+    float factor = std::clamp(scaleFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
     {
         std::lock_guard<std::mutex> lock(_botTransmogMutex);
-        BotTransmogData d{ botEntry, modelId, modelName };
+        BotTransmogData d{ botEntry, modelId, modelName, factor };
         BotTransmogStore[cid][botEntry] = d;
     }
 
@@ -289,10 +391,40 @@ void PlayerTransmog::SetBotTransmog(uint32 cid, uint32 botEntry, uint32 modelId,
     std::string escapedName = modelName;
     CharacterDatabase.EscapeString(escapedName);
     std::string sql = Acore::StringFormat(
-        "INSERT INTO mod_player_bot_transmog (character_id, bot_entry, model_id, model_name) "
-        "VALUES ({}, {}, {}, '{}') ON DUPLICATE KEY UPDATE model_id=VALUES(model_id), model_name=VALUES(model_name)",
-        cid, botEntry, modelId, escapedName);
+        "INSERT INTO mod_player_bot_transmog (character_id, bot_entry, model_id, model_name, scale_factor) "
+        "VALUES ({}, {}, {}, '{}', {}) ON DUPLICATE KEY UPDATE model_id=VALUES(model_id), "
+        "model_name=VALUES(model_name), scale_factor=VALUES(scale_factor)",
+        cid, botEntry, modelId, escapedName, factor);
     CharacterDatabase.AsyncQuery(sql);
+}
+
+void PlayerTransmog::SetBotTransmogScale(uint32 cid, uint32 botEntry, float scaleFactor)
+{
+    float factor = std::clamp(scaleFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
+    {
+        std::lock_guard<std::mutex> lock(_botTransmogMutex);
+        // 已有记录只改系数，模型保持不动；没有记录则插入一条空模型记录
+        BotTransmogData& d = BotTransmogStore[cid][botEntry];
+        d.bot_entry    = botEntry;
+        d.scale_factor = factor;
+    }
+
+    // 只更新系数：ON DUPLICATE KEY UPDATE 时 INSERT 的 model_id / model_name 不会覆盖已有值
+    CharacterDatabase.AsyncQuery(Acore::StringFormat(
+        "INSERT INTO mod_player_bot_transmog (character_id, bot_entry, model_id, model_name, scale_factor) "
+        "VALUES ({}, {}, 0, '', {}) ON DUPLICATE KEY UPDATE scale_factor=VALUES(scale_factor)",
+        cid, botEntry, factor));
+}
+
+float PlayerTransmog::GetBotTransmogScaleFactor(uint32 characterId, uint32 botEntry) const
+{
+    std::lock_guard<std::mutex> lock(_botTransmogMutex);
+    auto cit = BotTransmogStore.find(characterId);
+    if (cit == BotTransmogStore.end())
+        return TRANSMOG_SCALE_FACTOR_DEFAULT;
+
+    auto it = cit->second.find(botEntry);
+    return it != cit->second.end() ? it->second.scale_factor : TRANSMOG_SCALE_FACTOR_DEFAULT;
 }
 
 void PlayerTransmog::RemoveBotTransmog(uint32 cid, uint32 botEntry)
@@ -314,16 +446,16 @@ void PlayerTransmog::RemoveBotTransmog(uint32 cid, uint32 botEntry)
     CharacterDatabase.AsyncQuery(sql);
 }
 
-std::vector<std::pair<uint32, uint32>> PlayerTransmog::GetBotTransmogEntries(uint32 characterId) const
+std::vector<BotTransmogData> PlayerTransmog::GetBotTransmogEntries(uint32 characterId) const
 {
     std::lock_guard<std::mutex> lock(_botTransmogMutex);
-    std::vector<std::pair<uint32, uint32>> entries;
+    std::vector<BotTransmogData> entries;
     auto cit = BotTransmogStore.find(characterId);
     if (cit != BotTransmogStore.end())
     {
         for (auto const& [entry, d] : cit->second)
             if (d.model_id)
-                entries.emplace_back(entry, d.model_id);
+                entries.push_back(d);
     }
     return entries;
 }
@@ -335,6 +467,9 @@ void PlayerTransmog::RestoreBotTransmog(Creature* bot)
     // 恢复到模板唯一模型的显示 ID 与 scale（BOT 单模型，直接取模板）
     CreatureModel const* tmpl = bot->GetCreatureTemplate()->GetFirstValidModel();
     if (!tmpl) return;
+
+    // 恢复原形时清掉玩家自定义缩放系数，避免残留影响后续幻形计算
+    bot->SetBotTransmogScaleFactor(TRANSMOG_SCALE_FACTOR_DEFAULT);
 
     bot->SetNativeDisplayId(tmpl->CreatureDisplayID);
     bot->SetDisplayId(tmpl->CreatureDisplayID, tmpl->DisplayScale);

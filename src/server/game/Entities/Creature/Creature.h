@@ -69,6 +69,12 @@ public:
     // 调用方应回退到模板 scale（GetNativeObjectScale）或放弃幻形（CastTransmogBot）。
     static bool CalculateBotTransmogScale(uint32 srcDisplayId, uint32 dstDisplayId, float srcDisplayScale, float& outScale);
 
+    // NPCBot 幻形：玩家自定义的"最终缩放系数"（0.5 - 1.5，默认 1.0），由 mod-player-transmog 模块写入。
+    // 核心在 GetNativeObjectScale() 里把它乘到归一缩放上，这样 BOT 复活、光环增减触发
+    // RecalculateObjectScale() 重新计算缩放时，玩家设置的系数不会被丢掉。
+    void SetBotTransmogScaleFactor(float factor) { _botTransmogScaleFactor = factor > 0.f ? factor : 1.f; }
+    [[nodiscard]] float GetBotTransmogScaleFactor() const { return _botTransmogScaleFactor; }
+
     void DisappearAndDie();
 
     [[nodiscard]] bool isVendorWithIconSpeak() const;
@@ -620,6 +626,9 @@ protected:
     uint16 m_LootMode;  // bitmask, default LOOT_MODE_DEFAULT, determines what loot will be lootable
 
     float _sparringPct;
+
+    // NPCBot 幻形：玩家自定义的最终缩放系数，默认 1.0（见 SetBotTransmogScaleFactor）
+    float _botTransmogScaleFactor{ 1.0f };
 
     [[nodiscard]] bool IsInvisibleDueToDespawn() const override;
     bool CanAlwaysSee(WorldObject const* obj) const override;

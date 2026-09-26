@@ -49,13 +49,19 @@ enum TransmogItemEnum
     GOSSIP_SENDER_BOT_MODEL      = 5300,   // 选中幻象（action = model_id）
     GOSSIP_SENDER_BOT_BACK       = 5400,   // 返回上一级
     GOSSIP_SENDER_BOT_TRANSFORM  = 5500,   // 点击「变形」-> 进入分类菜单
-    GOSSIP_SENDER_BOT_UNTRANSFORM = 5600   // 点击「取消变形」-> 取消幻形
+    GOSSIP_SENDER_BOT_UNTRANSFORM = 5600,  // 点击「取消变形」-> 取消幻形
+    GOSSIP_SENDER_BOT_SCALE      = 5700,   // 点击「设置缩放」-> 弹出输入框（coded）
+
+    // 玩家自身变形缩放（一级菜单入口，弹出输入框）
+    GOSSIP_SENDER_PLAYER_SCALE   = 6000
 
 };
 
 // 佣兵幻形：消耗品与问候语文本 ID
 constexpr uint32 BOT_TRANSMOG_COIN_ENTRY     = 63000;  // 幸运币 item entry（每次幻形消耗 1 枚）
 constexpr uint32 BOT_TRANSMOG_GOSSIP_TEXT_ID = 60701;  // 佣兵幻形 BOT 列表菜单问候语 npc_text ID
+
+// 缩放输入框提示文本（客户端 coded 弹框显示在输入框上方）：由 MakeTransmogScaleHint 生成
 
 // 多级状态携带：哈哈镜是无状态 gossip，用模块级瞬态缓存记录当前选中 BOT
 std::unordered_map<ObjectGuid, uint32> BotTransmogSelectedEntry; // player guid -> 当前选中 bot_entry
@@ -93,7 +99,32 @@ public:
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "稀有幻象", GOSSIP_SENDER_XY, 2);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "史诗幻象", GOSSIP_SENDER_BOSS, 3);
         AddGossipItemFor(player, GOSSIP_ICON_TALK, "佣兵幻形", GOSSIP_SENDER_BOT_MAIN, 0);
+        // 玩家自身变形缩放：点击弹输入框（coded），提示文本带上当前值
+        float playerScale = pTransmog->GetPlayerTransmogScaleFactor(player->GetGUID().GetCounter());
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                         "玩家变形缩放（" + FormatTransmogScaleFactor(playerScale) + "）",
+                         GOSSIP_SENDER_PLAYER_SCALE, 0, MakeTransmogScaleHint(playerScale), 0, true);
         SendGossipMenuFor(player, textId, item->GetGUID());
+    }
+
+    // 输入框回调：玩家在缩放弹框里点「确定」后走到这里（点「取消」不会触发）
+    void OnGossipSelectCode(Player* player, Item* /*item*/, uint32 sender, uint32 /*action*/, char const* code) override
+    {
+        player->PlayerTalkClass->ClearMenus();
+
+        switch (sender)
+        {
+            case GOSSIP_SENDER_BOT_SCALE:
+                SetBotScale(player, code ? code : "");
+                return;
+            case GOSSIP_SENDER_PLAYER_SCALE:
+                SetPlayerScale(player, code ? code : "");
+                return;
+            default:
+                break;
+        }
+
+        CloseGossipMenuFor(player);
     }
 
     void  OnGossipSelect(Player* player, Item* item, uint32  sender, uint32 action) override
@@ -168,6 +199,11 @@ public:
         case GOSSIP_SENDER_BOT_SELECT:
             BotTransmogSelectedEntry[player->GetGUID()] = action;   // 记住选中的 bot_entry
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "选择幻象", GOSSIP_SENDER_BOT_TRANSFORM, 0);
+            // 设置缩放：点击弹输入框（coded），提示文本带上当前值
+            float botScale = pTransmog->GetBotTransmogScaleFactor(player->GetGUID().GetCounter(), action);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                             "设置缩放（" + FormatTransmogScaleFactor(botScale) + "）",
+                             GOSSIP_SENDER_BOT_SCALE, 0, MakeTransmogScaleHint(botScale), 0, true);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "取消变形", GOSSIP_SENDER_BOT_UNTRANSFORM, 0,
                              "是否取消该佣兵的变形？", 0, false);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
@@ -279,21 +315,92 @@ public:
         SendGossipMenuFor(player, textId, item->GetGUID());
     }
 
+    // 在当前雇佣的 BOT 里按 entry 查找（未找到返回 nullptr）
+    static Creature* FindOwnedBot(Player* player, uint32 bot_entry)
+    {
+        for (auto const& [_, b] : *player->GetBotMgr()->GetBotMap())
+        {
+            if (b && b->GetEntry() == bot_entry)
+                return b;
+        }
+        return nullptr;
+    }
+
+    // 佣兵缩放输入框确认：解析系数 -> 持久化 -> 若该佣兵在场且已幻形则立即按新系数重刷
+    void SetBotScale(Player* player, std::string const& code)
+    {
+        ChatHandler ch(player->GetSession());
+        uint32 cid = player->GetGUID().GetCounter();
+
+        // 缓存里没有选中项（菜单状态丢失/被伪造的 gossip 包）时直接拒绝，
+        // 避免把 bot_entry=0 的脏记录写进持久化表
+        auto selectedIt = BotTransmogSelectedEntry.find(player->GetGUID());
+        if (selectedIt == BotTransmogSelectedEntry.end() || !selectedIt->second)
+        {
+            ch.SendSysMessage("请先选择一个佣兵，再设置缩放。");
+            CloseGossipMenuFor(player);
+            return;
+        }
+        uint32 bot_entry = selectedIt->second;
+
+        float factor = 0.f;
+        if (!ParseTransmogScaleFactor(code, factor))
+        {
+            ch.SendSysMessage("缩放系数无效，请输入 0.5 - 1.5 之间的数字（例如 1.25），当前设置未改变。");
+            CloseGossipMenuFor(player);
+            return;
+        }
+
+        pTransmog->SetBotTransmogScale(cid, bot_entry, factor);
+
+        // 已幻形的佣兵立即按新系数重算缩放（未幻形则等下次幻形时生效）
+        Creature* bot = FindOwnedBot(player, bot_entry);
+        if (bot && bot->IsInWorld() && bot->IsAlive())
+        {
+            if (auto d = pTransmog->GetBotTransmog(cid, bot_entry))
+            {
+                if (d->model_id)
+                    pTransmog->CastTransmogBot(bot, d->model_id, factor);
+            }
+        }
+
+        ch.SendSysMessage("已设置该佣兵的缩放系数为 " + FormatTransmogScaleFactor(factor) + "。");
+        CloseGossipMenuFor(player);
+    }
+
+    // 玩家变形缩放输入框确认：解析系数 -> 持久化 -> 若当前已变形则立即按新系数重刷
+    void SetPlayerScale(Player* player, std::string const& code)
+    {
+        ChatHandler ch(player->GetSession());
+
+        float factor = 0.f;
+        if (!ParseTransmogScaleFactor(code, factor))
+        {
+            ch.SendSysMessage("缩放系数无效，请输入 0.5 - 1.5 之间的数字（例如 1.25），当前设置未改变。");
+            CloseGossipMenuFor(player);
+            return;
+        }
+
+        pTransmog->SetPlayerTransmogScaleFactor(player->GetGUID().GetCounter(), factor);
+
+        // 当前正处于变形状态则立即重放一次变形，按新系数刷新模型缩放
+        if (auto state = pTransmog->GetPlayerTransmog(player))
+            pTransmog->CastTransmog(player, static_cast<int>(state->modelid));
+
+        ch.SendSysMessage("已设置玩家变形缩放系数为 " + FormatTransmogScaleFactor(factor) + "。");
+        CloseGossipMenuFor(player);
+    }
+
     // 应用幻形：校验 BOT 在场、幸运币充足，成功后消耗并持久化
     void ApplyBotTransmog(Player* player, uint32 model_id)
     {
         uint32 bot_entry  = BotTransmogSelectedEntry[player->GetGUID()];
         uint16 account_id = player->GetSession()->GetAccountId();
+        uint32 cid        = player->GetGUID().GetCounter();
+        // 沿用该佣兵已设置的缩放系数（没设置过则为默认 1.0）
+        float scale_factor = pTransmog->GetBotTransmogScaleFactor(cid, bot_entry);
 
-        Creature* bot = nullptr;
-        for (auto const& [_, b] : *player->GetBotMgr()->GetBotMap())
-        {
-            if (b && b->GetEntry() == bot_entry)
-            {
-                bot = b;
-                break;
-            }
-        }
+        Creature* bot = FindOwnedBot(player, bot_entry);
 
         if (!bot || !bot->IsInWorld() || !bot->IsAlive())
         {
@@ -303,12 +410,12 @@ public:
         {
             ChatHandler(player->GetSession()).SendSysMessage("幸运币不足，无法给佣兵幻形。");
         }
-        else if (pTransmog->CastTransmogBot(bot, model_id))
+        else if (pTransmog->CastTransmogBot(bot, model_id, scale_factor))
         {
             player->DestroyItemCount(BOT_TRANSMOG_COIN_ENTRY, 1, true);   // 幻形成功后消耗 1 枚幸运币
             ModelData* m = pTransmog->GetModelDataById(account_id, model_id);
             std::string name = m ? m->modelname : std::to_string(model_id);
-            pTransmog->SetBotTransmog(player->GetGUID().GetCounter(), bot_entry, model_id, name); // 持久化
+            pTransmog->SetBotTransmog(cid, bot_entry, model_id, name, scale_factor); // 持久化（含缩放系数）
             ChatHandler(player->GetSession()).SendSysMessage("佣兵幻形成功。");
         }
         else
@@ -325,15 +432,7 @@ public:
         uint32 cid       = player->GetGUID().GetCounter();
 
         // 找到在场 BOT 并恢复原形（不在场则仅清理持久化，等其出现时不会再幻形）
-        Creature* bot = nullptr;
-        for (auto const& [_, b] : *player->GetBotMgr()->GetBotMap())
-        {
-            if (b && b->GetEntry() == bot_entry)
-            {
-                bot = b;
-                break;
-            }
-        }
+        Creature* bot = FindOwnedBot(player, bot_entry);
         if (bot)
             pTransmog->RestoreBotTransmog(bot);
 
@@ -648,7 +747,7 @@ public:
         uint32 cid = owner->GetGUID().GetCounter();
         auto d = pTransmog->GetBotTransmog(cid, bot->GetEntry());
         if (d && d->model_id)
-            pTransmog->CastTransmogBot(bot, d->model_id);
+            pTransmog->CastTransmogBot(bot, d->model_id, d->scale_factor);
     }
 
     // ③④ 下线/解雇：恢复原形；解雇额外清理 DB
@@ -687,7 +786,7 @@ public:
 
         auto d = pTransmog->GetBotTransmog(ownerLow, bot->GetEntry());
         if (d && d->model_id)
-            pTransmog->CastTransmogBot(bot, d->model_id);
+            pTransmog->CastTransmogBot(bot, d->model_id, d->scale_factor);
     }
 };
 
@@ -727,13 +826,13 @@ private:
         uint32 cid = pl->GetGUID().GetCounter();
         auto entries = pTransmog->GetBotTransmogEntries(cid);
 
-        for (auto const& [entry, model_id] : entries)
+        for (auto const& d : entries)
         {
             for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
             {
-                if (bot && bot->GetEntry() == entry && bot->IsInWorld() && bot->IsAlive()
-                    && !pTransmog->IsBotTransmogApplied(bot, model_id))
-                    pTransmog->CastTransmogBot(bot, model_id);
+                if (bot && bot->GetEntry() == d.bot_entry && bot->IsInWorld() && bot->IsAlive()
+                    && !pTransmog->IsBotTransmogApplied(bot, d.model_id))
+                    pTransmog->CastTransmogBot(bot, d.model_id, d.scale_factor);
             }
         }
     }

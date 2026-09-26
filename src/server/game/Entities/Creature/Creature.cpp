@@ -3755,29 +3755,8 @@ static float BotTransmogDisplayScaleFactor(uint32 displayId)
     return (modelData ? modelData->Scale : 1.f) * info->scale;
 }
 
-// NPCBot 幻形：个别模型的缩放硬编码表（key = 幻形目标的 DisplayId，value = 幻形后的最终缩放）
-//   表里命中的模型直接使用指定缩放，跳过下面的高度归一；未命中的模型仍走 6.1 的自动归一。
-//   用途：DBC 的包围盒代表不了"看起来有多高"的模型。例如 28641（阿尔加隆模型 3064：包围盒近似
-//   立方体 8.42³ 且 CreatureDisplayInfo.scale = 3，尺寸系数 25.3，自动归一算出 ≈0.12 会明显偏矮），
-//   按游戏内观感把最终缩放手填进来即可（值必须 > 0，越小模型越小）。
-//   注意：这里的值是"绝对缩放"，与 BOT 种族无关；只影响该 DisplayId 作为幻形目标时。
-static std::unordered_map<uint32, float> const BotTransmogModelScales =
-{
-    // { DisplayId, 最终缩放 }
-     { 28641, 0.18f },
-     {27571,0.25f},
-     {21322,0.25f}
-};
-
 bool Creature::CalculateBotTransmogScale(uint32 srcDisplayId, uint32 dstDisplayId, float srcDisplayScale, float& outScale)
 {
-    // 0) 硬编码表优先：命中则直接用指定缩放，不再做高度归一
-    if (auto it = BotTransmogModelScales.find(dstDisplayId); it != BotTransmogModelScales.end() && it->second > 0.f)
-    {
-        outScale = it->second;
-        return true;
-    }
-
     if (srcDisplayScale <= 0.f)
         return false;                           // 模板 DisplayScale 异常，放弃计算（否则会算出 0 缩放）
 
@@ -3824,7 +3803,7 @@ float Creature::GetNativeObjectScale() const
         {
             float scale = 0.f;
             if (CalculateBotTransmogScale(tmpl->CreatureDisplayID, GetNativeDisplayId(), tmpl->DisplayScale, scale))
-                return scale;
+                return scale * _botTransmogScaleFactor;   // 乘上玩家自定义的缩放系数
         }
     }
 
