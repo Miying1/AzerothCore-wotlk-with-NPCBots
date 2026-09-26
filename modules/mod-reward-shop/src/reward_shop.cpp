@@ -201,7 +201,7 @@ public:
         if (totalGold)
         {
             player->ModifyMoney(totalGold * 10000);
-            ChatHandler(player->GetSession()).PSendSysMessage("成功发送G币: [%u G]", totalGold);
+            ChatHandler(player->GetSession()).PSendSysMessage("成功发送G币: [{} G]", totalGold);
         }
         CloseGossipMenuFor(player);
         return true;
