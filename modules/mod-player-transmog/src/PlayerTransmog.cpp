@@ -129,7 +129,8 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId, float scaleF
     if (!tmpl) return false;
 
     // 3) 计算缩放（与 Creature::GetNativeObjectScale() 共用同一实现，保证复活/重生后口径一致）：
-    //    先按高度归一到 BOT 原高度（缩放后高度不小于原本高度），再视目标模型高出幅度做阶梯加成
+    //    命中 DisplayId 硬编码表时直接取表内基准缩放；否则先按高度归一到 BOT 原高度
+    //    （缩放后高度不小于原本高度），再视目标模型高出幅度做阶梯加成
     //    （高出 50% 以上 +10%，高出 100% 以上 +20%）
     float scale = 0.f;
     if (!Creature::CalculateBotTransmogScale(tmpl->CreatureDisplayID, modelId, tmpl->DisplayScale, scale))
@@ -162,7 +163,8 @@ bool PlayerTransmog::CastTransmog(Player* player, int modelid)
     if (!minfo) return false;
 
     // 与佣兵幻形共用同一套缩放算法（Creature::CalculateBotTransmogScale）：
-    //   高度归一（幻形后高度 = 玩家原高度）+ 大模型阶梯加成。
+    //   命中 DisplayId 硬编码表时取表内基准缩放，否则走高度归一（幻形后高度 = 玩家原高度）+ 大模型阶梯加成；
+    //   玩家自己的缩放系数（0.5 - 1.5，见下）叠乘在这个基准之上，硬编码命中的模型同样受该系数影响。
     //   基准取玩家自己的种族模型（displayId_m/f，见 Player::InitDisplayIds），玩家的 object scale
     //   默认是 1.0，故 srcDisplayScale 传 1.0。
     float scale = 1.0f;
