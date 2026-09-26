@@ -6,6 +6,7 @@
 
 #include "Creature.h"
 #include "ScriptMgr.h"
+#include "SpellScript.h"
 
 namespace HeroicDungeonRift
 {
@@ -24,16 +25,24 @@ enum Events : uint32
 
 enum Spells : uint32
 {
-    SpellFelImmolation = 36051,
+    SpellFelImmolation = 36051,       // 邪能献祭（T1基础，自身父Aura）
+    SpellFelImmolationDamage = 35959, // 邪能献祭父Aura每3秒触发的范围火焰伤害
     SpellFelfireShock = 35759,
     SpellKnockAway = 36512,
-    SpellFelfire = 35769,
+    SpellFelfire = 35769,             // 邪火（T1基础，冲锋路径上的地面区域光环）
+    SpellFelfireDamage = 35767,       // 邪火区域光环每1秒触发的地面火焰伤害
     SpellCharge = 35754,
     SpellShadowPower = 35322,
     SpellShadowfury = 39082
 };
 
 constexpr int32 ShadowfuryRaidDamage = 3500;
+
+// 父Aura不会把自身效果基础点传给触发的子法术，必须在这里按T1基线补写子法术基础点。
+// 邪能献祭每3秒一跳（Boss周围范围），取1500；地面邪火每1秒一跳且可躲避，取1000。
+// 两者数值需与 rift_spell_damage.h 中 35959/35767 的表项保持一致。
+constexpr int32 FelImmolationTier1DamagePerTick = 1500;
+constexpr int32 FelfireTier1DamagePerTick = 1000;
 
 // 原版中文喊话与语音；裂隙版本去掉战前对话，生成后即可直接攻击。
 constexpr char const* SoccothratesAggroText = "终于有个发泄怒气的目标了！";
@@ -44,6 +53,88 @@ constexpr uint32 SoccothratesAggroSound = 11238;
 constexpr uint32 SoccothratesSlaySound = 11239;
 constexpr uint32 SoccothratesKnockAwaySound = 11241;
 constexpr uint32 SoccothratesDeathSound = 11243;
+
+// 父Aura触发子法术的统一入口：保持引擎原有的施法者/目标语义，只把子法术基础点换成T1基线。
+// 引擎按NeedsToBeTriggeredByCaster决定子法术由谁施放；当光环承载者自行施放时（如地面邪火），
+// 伤害不经过Boss的DamageDealt，这里补上Tier倍率；由Boss施放时交给DamageDealt乘算，避免重复放大。
+void CastTieredAuraTriggerSpell(Creature* caster, AuraEffect const* aurEff, uint32 childSpellId,
+    Unit* target, int32 tier1BasePoint)
+{
+    SpellInfo const* childInfo = sSpellMgr->GetSpellInfo(childSpellId);
+    if (!childInfo)
+        return;
+
+    int32 damage = CompensateRiftCreatureLevelScaling(caster, childSpellId, EFFECT_0, tier1BasePoint);
+    Unit* triggerCaster = childInfo->NeedsToBeTriggeredByCaster(aurEff->GetSpellInfo(), aurEff->GetEffIndex())
+        ? caster : target;
+    if (!triggerCaster)
+        return;
+
+    if (triggerCaster != caster)
+        if (TierConfig const* tierConfig = GetTierConfigForCreature(caster))
+            damage = int32(damage * tierConfig->DamageMultiplier);
+
+    triggerCaster->CastCustomSpell(childSpellId, SPELLVALUE_BASE_POINT0, damage, target,
+        TRIGGERED_FULL_MASK, nullptr, aurEff);
+}
+
+// 邪能献祭（36051）：Boss常驻光环，每3秒对周围敌人造成35959火焰伤害。
+class spell_rift_soccothrates_fel_immolation : public AuraScript
+{
+    PrepareAuraScript(spell_rift_soccothrates_fel_immolation);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SpellFelImmolationDamage });
+    }
+
+    void HandlePeriodic(AuraEffect const* aurEff)
+    {
+        Creature* caster = GetCaster() ? GetCaster()->ToCreature() : nullptr;
+        Unit* target = GetTarget();
+        // 原版苏克拉底同样施放36051，非裂隙生物保留DBC原始行为，不接管。
+        if (!caster || !target || !GetTierForCreature(caster))
+            return;
+
+        PreventDefaultAction();
+        CastTieredAuraTriggerSpell(caster, aurEff, SpellFelImmolationDamage, target,
+            FelImmolationTier1DamagePerTick);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_rift_soccothrates_fel_immolation::HandlePeriodic,
+            EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+    }
+};
+
+// 邪火（35769）：冲锋路径上的地面区域光环，每1秒对范围内敌人造成35767火焰伤害。
+class spell_rift_soccothrates_felfire : public AuraScript
+{
+    PrepareAuraScript(spell_rift_soccothrates_felfire);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SpellFelfireDamage });
+    }
+
+    void HandlePeriodic(AuraEffect const* aurEff)
+    {
+        Creature* caster = GetCaster() ? GetCaster()->ToCreature() : nullptr;
+        Unit* target = GetTarget();
+        if (!caster || !target || !GetTierForCreature(caster))
+            return;
+
+        PreventDefaultAction();
+        CastTieredAuraTriggerSpell(caster, aurEff, SpellFelfireDamage, target, FelfireTier1DamagePerTick);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_rift_soccothrates_felfire::HandlePeriodic,
+            EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+    }
+};
 }
 
 struct boss_rift_soccothrates : public BossAIBase
@@ -139,6 +230,8 @@ private:
 void AddSC_boss_rift_soccothrates()
 {
     RegisterCreatureAI(boss_rift_soccothrates);
+    RegisterSpellScript(spell_rift_soccothrates_fel_immolation);
+    RegisterSpellScript(spell_rift_soccothrates_felfire);
 }
 
 } // namespace HeroicDungeonRift
