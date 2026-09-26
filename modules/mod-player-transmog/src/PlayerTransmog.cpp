@@ -100,13 +100,14 @@ bool PlayerTransmog::CastTransmog(Player* player, int modelid)
     player->RemoveAurasByType(SPELL_AURA_TRANSFORM);
     CreatureDisplayInfoEntry const* minfo = sCreatureDisplayInfoStore.AssertEntry(modelid);
     if (!minfo) return false;
-    CreatureDisplayInfoEntry const* pminfo = sCreatureDisplayInfoStore.AssertEntry(player->GetNativeDisplayId()); 
 
-    // 体积归一缩放：幻形模型比原生模型大时按比例缩小，保持原身体积
+    // 与佣兵幻形共用同一套缩放算法（Creature::CalculateBotTransmogScale）：
+    //   高度归一（幻形后高度 = 玩家原高度）+ 大模型阶梯加成 + 按 DisplayId 的硬编码缩放表。
+    //   基准取玩家自己的种族模型（displayId_m/f，见 Player::InitDisplayIds），玩家的 object scale
+    //   默认是 1.0，故 srcDisplayScale 传 1.0。
     float scale = 1.0f;
-    if (minfo->scale > (pminfo->scale * 1.1)) {
-        scale = pminfo->scale / (minfo->scale);
-    }
+    if (!Creature::CalculateBotTransmogScale(player->GetNativeDisplayId(), static_cast<uint32>(modelid), 1.0f, scale))
+        scale = 1.0f;                          // 幻形模型数据异常时退回不缩放
 
     // 先记录本次幻形（模型 + 缩放），供 100004 光环在「被其他变形覆盖后恢复」时还原为所选幻形
     SetPlayerTransmog(player, static_cast<uint32>(modelid), scale);
