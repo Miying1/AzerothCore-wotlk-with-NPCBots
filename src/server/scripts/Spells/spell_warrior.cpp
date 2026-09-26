@@ -1251,8 +1251,7 @@ void AddSC_warrior_spell_scripts()
     RegisterSpellScript(spell_warr_vigilance);
     RegisterSpellScript(spell_warr_vigilance_redirect_threat);
     RegisterSpellScript(spell_warr_vigilance_trigger);
-    RegisterSpellScript(spell_warr_warriors_wrath);
-    RegisterSpellScript(spell_warr_heroic_leap);
+    RegisterSpellScript(spell_warr_warriors_wrath); 
     RegisterSpellScript(spell_warr_t3_prot_8p_bonus);
     RegisterSpellScript(spell_warr_heroic_strike);
     RegisterSpellScript(spell_war_sudden_death_aura);
