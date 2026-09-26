@@ -52,8 +52,8 @@ constexpr float EntranceCombatReach = 1.0f;
 constexpr uint32 EntrancePurgeGraceMilliseconds = 5 * IN_MILLISECONDS;
 // 常规补充间隔（按难度等级）：每隔该时间触发一次补充，数量低于最小值时补到最小值，否则每次补一个。
 // T1 3 分钟、T2 5 分钟、T3 7 分钟。
-constexpr uint32 EntranceRefillIntervalTier1Milliseconds = 3 * MINUTE * IN_MILLISECONDS;
-constexpr uint32 EntranceRefillIntervalTier2Milliseconds = 5 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 EntranceRefillIntervalTier1Milliseconds = 2 * MINUTE * IN_MILLISECONDS;
+constexpr uint32 EntranceRefillIntervalTier2Milliseconds = 4 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 EntranceRefillIntervalTier3Milliseconds = 7 * MINUTE * IN_MILLISECONDS;
 // 时间表评估间隔：开启窗口内每秒一次（保证到点即刷），关闭窗口时放宽以节流。
 constexpr uint32 SchedulePollIntervalOpenMilliseconds = 3 * IN_MILLISECONDS;
