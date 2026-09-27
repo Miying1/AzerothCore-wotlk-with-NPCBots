@@ -832,8 +832,23 @@ private:
         {
             for (auto const& [_, bot] : *pl->GetBotMgr()->GetBotMap())
             {
-                if (bot && bot->GetEntry() == d.bot_entry && bot->IsInWorld() && bot->IsAlive()
-                    && !pTransmog->IsBotTransmogApplied(bot, d.model_id))
+                if (!bot || bot->GetEntry() != d.bot_entry || !bot->IsInWorld() || !bot->IsAlive())
+                    continue;
+
+                // BOT 正处于其它变形/形态（如战斗中被变形术、德鲁伊变猫/熊）时不要干预：此时显示 ID 本就
+                // 不是幻形模型，硬套幻形会把绵羊、猫熊等外观提前顶掉。幻形模型写在原生显示 ID 上，等该
+                // 变形失效后核心 RestoreDisplayId() 会自动恢复幻形模型与缩放，无需巡检兜底。
+                // 注意：只有"确实把外观改写成别的模型"的形态才跳过。战士姿态（战斗/防御/狂暴）同样是
+                // SPELL_AURA_MOD_SHAPESHIFT 光环，但不改模型（当前显示仍等于原生显示），若一并跳过会让
+                // 姿态类 BOT 的巡检永久失效，故用显示 ID 是否被改写来区分。
+                bool const shiftedAway =
+                    !bot->GetAuraEffectsByType(SPELL_AURA_TRANSFORM).empty() ||
+                    (!bot->GetAuraEffectsByType(SPELL_AURA_MOD_SHAPESHIFT).empty() &&
+                     bot->GetDisplayId() != bot->GetNativeDisplayId());
+                if (shiftedAway)
+                    continue;
+
+                if (!pTransmog->IsBotTransmogApplied(bot, d.model_id))
                     pTransmog->CastTransmogBot(bot, d.model_id, d.scale_factor);
             }
         }

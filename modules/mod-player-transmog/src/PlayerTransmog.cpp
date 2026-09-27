@@ -493,6 +493,14 @@ bool PlayerTransmog::IsBotTransmogApplied(Creature* bot, uint32 modelId) const
     if (bot->HasUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE))
         return false;
 
+    // 缩放也必须与核心算出的"原生缩放"（归一缩放 × 玩家系数）一致：
+    // 某些只恢复显示 ID、不带缩放的重置路径（如战斗中被变形术变形、变形术失效时的
+    // RestoreDisplayId）会把 ObjectScale 冲掉。只校验显示 ID 会漏判，导致幻形模型
+    // 还在、大小却回到未缩放状态，巡检也无法把它纠正回来。
+    float const nativeScale = bot->GetNativeObjectScale();
+    if (nativeScale > 0.f && std::fabs(bot->GetObjectScale() - nativeScale) > 0.001f)
+        return false;
+
     return true;
 }
 

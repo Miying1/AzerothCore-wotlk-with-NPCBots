@@ -4840,7 +4840,9 @@ bool Unit::IsUnderWater() const
 
 void Unit::DeMorph()
 {
-    SetDisplayId(GetNativeDisplayId());
+    // 与 RestoreDisplayId() 保持一致：恢复原生模型时同时恢复原生缩放，
+    // 避免把 BOT 幻形的归一缩放（及玩家缩放系数）冲成默认的 1.0f
+    SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale());
 }
 
 int32 Unit::GetHighestExclusiveSameEffectSpellGroupValue(AuraEffect const* aurEff, AuraType auraType, bool checkMiscValue /*= false*/, int32 miscValue /*= 0*/) const
@@ -14029,8 +14031,11 @@ void Unit::RestoreDisplayId()
         return;
     }
 
-    // no auras found - set modelid to default
-    SetDisplayId(GetNativeDisplayId());
+    // 恢复为原生模型时，缩放必须一并恢复为原生缩放（GetNativeObjectScale()），不能沿用
+    // SetDisplayId 的默认值 1.0f：否则会把 BOT 幻形的"归一缩放 × 玩家系数"冲掉（例如战斗中
+    // 被变形术变形，变形术失效时模型恢复成幻形模型、大小却回到未缩放的原始大小）。
+    // 玩家 GetNativeObjectScale() 恒为 1.0f，行为与改动前一致。
+    SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale());
 }
 
 void Unit::AddComboPoints(Unit* target, int8 count)

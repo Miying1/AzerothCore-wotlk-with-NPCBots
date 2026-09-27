@@ -28,14 +28,19 @@
 
 ### 2.1 核心原理
 
-核心里**恢复模型的路径，最终都回落到 `SetDisplayId(GetNativeDisplayId())`**（即在无其它变形/形态光环时恢复为原生显示 ID）：
+核心里**恢复模型的路径，最终都回落到 `SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale())`**（即在无其它变形/形态光环时恢复为原生显示 ID + 原生缩放）：
 
 | 恢复模型路径 | 位置 | 恢复目标 |
 | --- | --- | --- |
-| `Unit::RestoreDisplayId()`（无 transform/shapeshift/clone 光环时回 native） | `Unit.cpp:13954`，fallback 语句在 `14014` | `SetDisplayId(GetNativeDisplayId())` |
-| `Unit::DeMorph()` | `Unit.cpp:4831` | `SetDisplayId(GetNativeDisplayId())` |
-| `BotMgr::_reviveBot()`（BOT 复活） | `botmgr.cpp:439` | `SetDisplayId(GetNativeDisplayId(), ...)` |
+| `Unit::RestoreDisplayId()`（无 transform/shapeshift/clone 光环时回 native） | `Unit.cpp:13975`，fallback 语句在 `14038` | `SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale())` |
+| `Unit::DeMorph()` | `Unit.cpp:4841` | `SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale())` |
+| `BotMgr::_reviveBot()`（BOT 复活） | `botmgr.cpp:441` | `SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale())` |
 | 变形（transform）光环失效 | `SpellAuraEffects.cpp:2935` | `RestoreDisplayId()` → 无光环时回 native |
+
+> **缩放必须与模型一起恢复**：`SetDisplayId()` 的 `displayScale` 默认值是 `1.0f`，只传原生显示 ID
+> 会把幻形的「归一缩放 × 玩家系数」冲成 `1.0f` —— 表现为变形术失效后模型是幻形模型、大小却回到
+> 未缩放状态。故 `RestoreDisplayId()` / `DeMorph()` 需显式传入 `GetNativeObjectScale()`（对幻形 BOT
+> 该函数返回归一缩放 × 玩家系数；对玩家恒为 `1.0f`，行为与改动前一致）。
 
 因此，只要把幻形模型直接写入 `UNIT_FIELD_NATIVEDISPLAYID`（原生显示 ID），上述所有路径都会自动恢复成幻形模型。实现核心就两行：
 
@@ -312,9 +317,9 @@ bool PlayerTransmog::CastTransmogBot(Creature* bot, uint32 modelId)
 }
 ```
 
-### 6.3 缩放持久需要改动的两处核心
+### 6.3 缩放持久需要改动的核心位置
 
-「写原生显示 ID」解决了**模型**持久；但 `Creature::GetNativeObjectScale()` 读的是 creature_template 而非 native display id，因此**缩放**还需两处小改：
+「写原生显示 ID」解决了**模型**持久；但 `Creature::GetNativeObjectScale()` 读的是 creature_template 而非 native display id，因此**缩放**还需以下几处同步改为传 `GetNativeObjectScale()`：
 
 #### ① `Creature::GetNativeObjectScale()`（Creature.cpp）
 
@@ -361,7 +366,7 @@ float Creature::GetNativeObjectScale() const
 }
 ```
 
-#### ② `BotMgr::_reviveBot()`（botmgr.cpp:439）
+#### ② `BotMgr::_reviveBot()`（botmgr.cpp:441）
 
 ```cpp
 // 改前：
@@ -369,6 +374,22 @@ bot->SetDisplayId(bot->GetNativeDisplayId(), bot->GetCreatureTemplate()->GetFirs
 // 改后：
 bot->SetDisplayId(bot->GetNativeDisplayId(), bot->GetNativeObjectScale());
 ```
+
+#### ③ `Unit::RestoreDisplayId()`（Unit.cpp:14038）与 `Unit::DeMorph()`（Unit.cpp:4845）
+
+这两条路径此前只传原生显示 ID，`SetDisplayId` 的 `displayScale` 默认 `1.0f` 会把幻形缩放冲掉
+（模型回来了、大小却回到未缩放），必须一并传 `GetNativeObjectScale()`：
+
+```cpp
+// 改前：
+SetDisplayId(GetNativeDisplayId());
+// 改后：
+SetDisplayId(GetNativeDisplayId(), GetNativeObjectScale());
+```
+
+影响面：变形术（`SPELL_AURA_TRANSFORM`）失效、德鲁伊/战士形态切换退出、`.demorph` 命令、
+SmartAI `MORPH_TO_ENTRY_OR_MODEL=0` 都会经过这两条路径；玩家侧 `GetNativeObjectScale()` 恒为
+`1.0f`，行为与改动前一致。
 
 > - 非幻形 BOT：`GetNativeObjectScale()` 仍返回模板 scale，行为不变。
 > - `Unit::RecalculateObjectScale()` 无需改动：幻形 BOT 不挂 100004 光环，走 `else` 分支 `GetNativeObjectScale() + CalculatePct(1.0f, scaleAuras)`，`GetNativeObjectScale()` 已返回归一 scale。
@@ -518,6 +539,18 @@ void OnUpdate(uint32 diff) override
     }
 }
 ```
+
+> **注**：上面的代码块是最初的简化示意，当前实现见 `TmItemScript.cpp::_applyPlayerBots()`（另有登录后
+> 10 秒快检窗口 `BotTransmogLoginWatch`），其中「是否已套用 / 是否跳过」的判定如下：
+> - 是否已套用由 `IsBotTransmogApplied()` 判断，除显示 ID（`GetDisplayId()`/`GetNativeDisplayId()`）
+>   与 `UNIT_FLAG2_MIRROR_IMAGE` 外，还要求 `GetObjectScale()` 与 `GetNativeObjectScale()` 一致，
+>   否则会漏判「幻形模型还在、大小却回到未缩放」的情况而无法自愈。
+> - 仅当 BOT 的外观确实被其它变形/形态改写成别的模型时才跳过：存在 `SPELL_AURA_TRANSFORM`
+>   （变形术等），或存在 `SPELL_AURA_MOD_SHAPESHIFT` 且 `GetDisplayId() != GetNativeDisplayId()`
+>   （德鲁伊变猫/熊等）。战士姿态（战斗/防御/狂暴）同样挂着 `SPELL_AURA_MOD_SHAPESHIFT`，但
+>   `GetModelForForm()` 对其返回 0（不改模型，当前显示仍等于原生显示），因此不跳过，否则姿态类
+>   BOT 的巡检会永久失效。
+> - 幻形失效主要由核心 `RestoreDisplayId()` 兜底（见 6.3 ③），巡检只负责补漏。
 
 ### 7.5 恢复原形（`RestoreBotTransmog`）
 
