@@ -94,11 +94,11 @@ public:
                AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, pTransmog->GetModelNameText(&(*its)), GOSSIP_SENDER_USE, (*its).modelid); 
             }
         }
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "佣兵幻形", GOSSIP_SENDER_BOT_MAIN, 0);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "普通幻象", GOSSIP_SENDER_PT, 0);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_JY, 1);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "稀有幻象", GOSSIP_SENDER_XY, 2);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "史诗幻象", GOSSIP_SENDER_BOSS, 3);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "佣兵幻形", GOSSIP_SENDER_BOT_MAIN, 0);
         // 玩家自身变形缩放：点击弹输入框（coded），提示文本带上当前值
         float playerScale = pTransmog->GetPlayerTransmogScaleFactor(player->GetGUID().GetCounter());
         AddGossipItemFor(player, GOSSIP_ICON_CHAT,
