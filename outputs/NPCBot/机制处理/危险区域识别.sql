@@ -15,7 +15,7 @@ DELETE FROM `npcbot_creature_hazard` WHERE `map_id` = 532 AND `creature_entry` =
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(532, 16697, 2, 28865, 2, 1000, '卡拉赞：虚空幽龙的虚空领域');
+(532, 16697, 2, 28865, 2, 0, '卡拉赞：虚空幽龙的虚空领域');
 
 -- 奥杜尔：米米尔隆硬模式 Flames Spread。
 -- 34121 由火焰扩散机制生成，并由生物自身承载 64561 Flames Aura。
@@ -25,7 +25,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 34121;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 34121, 5.0, 64566, 3, 1000, '奥杜尔：米米尔隆硬模式火焰扩散，Flames Aura');
+(603, 34121, 5.0, 64566, 3, 0, '奥杜尔：米米尔隆硬模式火焰扩散，Flames Aura');
 
 -- 奥杜尔：烈焰巨兽硬模式 Scorched Ground。
 -- 33123 由 Boss 技能触发生成，并由生物自身施放 62548 Scorched Ground。
@@ -35,7 +35,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 33123;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 33123, 10.0, 62549, 1.5, 1000, '奥杜尔：烈焰巨兽硬模式灼热地面，Scorched Ground');
+(603, 33123, 10.0, 62549, 1.5, 0, '奥杜尔：烈焰巨兽硬模式灼热地面，Scorched Ground');
 
 -- 冰冠堡垒：玛洛加尔领主冷焰（36672）。
 -- 骨刺风暴期间 Boss 在场上召唤冷焰生物，冷焰在自身位置施放 69146
@@ -47,7 +47,7 @@ WHERE `map_id` = 631 AND `creature_entry` = 36672;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(631, 36672, 5.0, 69146, 2.0, 1000, 0, '冰冠堡垒：玛洛加尔冷焰');
+(631, 36672, 5.0, 69146, 2.0, 0, 0, '冰冠堡垒：玛洛加尔冷焰');
 
 -- 冰冠堡垒：辛达苟萨 Icy Blast。
 -- 38223 由 Boss 技能链生成，并由生物自身施放 71380 Icy Blast Area。
@@ -57,7 +57,7 @@ WHERE `map_id` = 631 AND `creature_entry` = 38223;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(631, 38223, 8.0, 71380, 1, 500, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
+(631, 38223, 8.0, 71380, 1, 0, '冰冠堡垒：辛达苟萨寒冰冲击区域，Icy Blast Area');
 
 -- ============================================================================
 -- 灵魂熔炉（Forge of Souls，map 632）
@@ -71,7 +71,7 @@ WHERE `map_id` = 632 AND `creature_entry` = 36536;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(632, 36536, 10.0, 68863, 2.0, 2000, 0, '灵魂熔炉：噬魂者灵魂之井召唤物');
+(632, 36536, 10.0, 68863, 2.0, 0, 0, '灵魂熔炉：噬魂者灵魂之井召唤物');
 
 -- 奥杜尔：科拉隆凝视之眼（左眼 33632 / 右眼 33802）。
 -- 眼睛由 63342 召唤后 MoveChase 追人被点名玩家，向前方发射射线 63676/63702。
@@ -83,8 +83,8 @@ WHERE `map_id` = 603 AND `creature_entry` IN (33632, 33802);
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 33632, 10.0, 0, 1.0, 500, '奥杜尔：科拉隆凝视之眼（左眼，射线追人）'),
-(603, 33802, 10.0, 0, 1.0, 500, '奥杜尔：科拉隆凝视之眼（右眼，射线追人）');
+(603, 33632, 10.0, 0, 1.0, 0, '奥杜尔：科拉隆凝视之眼（左眼，射线追人）'),
+(603, 33802, 10.0, 0, 1.0, 0, '奥杜尔：科拉隆凝视之眼（右眼，射线追人）');
 
 -- 奥杜尔：芙蕾雅自然炸弹（34129）。
 -- 芙蕾雅对随机玩家施放 64648 后，在目标位置召唤 34129，约 11 秒后施放 64587 范围爆炸伤害。
@@ -106,7 +106,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 32953;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 32953, 8.0, 62169, 1.0, 500, '奥杜尔：奥尔加隆黑洞（持续地板）');
+(603, 32953, 8.0, 62169, 1.0, 0, '奥杜尔：奥尔加隆黑洞（持续地板）');
 
 -- 奥杜尔：米米尔隆感应地雷（34362）。
 -- 米米尔隆 P2 布设的地雷，靠近约 1.9 码触发 66351 范围爆炸，固定位置。
@@ -117,7 +117,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 34362;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 34362, 3.0, 0, 1.0, 500, '奥杜尔：米米尔隆感应地雷（踩踏引爆）');
+(603, 34362, 3.0, 0, 1.0, 0, '奥杜尔：米米尔隆感应地雷（踩踏引爆）');
 
 -- 奥杜尔：烈焰巨兽本体（33113）。
 -- 一号 Boss 为载具战，烈焰巨兽会追人碾压（SPELL_PURSUED 62374）并施放火焰喷射（62396）。
@@ -129,7 +129,7 @@ WHERE `map_id` = 603 AND `creature_entry` = 33113;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(603, 33113, 20.0, 0, 1.0, 500, '奥杜尔：烈焰巨兽本体（追人碾压，载具战）');
+(603, 33113, 20.0, 0, 1.0, 0, '奥杜尔：烈焰巨兽本体（追人碾压，载具战）');
 
 -- ============================================================================
 -- 十字军试炼（Trial of the Crusader，map 649）
@@ -147,7 +147,7 @@ WHERE `map_id` = 649 AND `creature_entry` = 34784;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(649, 34784, 8.0, 0, 1.0, 1000, 'TOC：加拉克苏斯军团烈焰（落地持续火焰）');
+(649, 34784, 8.0, 0, 1.0, 0, 'TOC：加拉克苏斯军团烈焰（落地持续火焰）');
 
 -- 加拉克苏斯大王：地狱火火山（34813）。
 -- 加拉克苏斯施放 66258 召唤地狱火火山生物 34813（固定位置），
@@ -159,7 +159,7 @@ WHERE `map_id` = 649 AND `creature_entry` = 34813;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `comment`)
 VALUES
-(649, 34813, 10.0, 0, 1.0, 1000, 'TOC：加拉克苏斯地狱火火山（固定喷发地板）');
+(649, 34813, 10.0, 0, 1.0, 0, 'TOC：加拉克苏斯地狱火火山（固定喷发地板）');
 
 -- 阿努巴拉克：追击尖刺（34660）。
 -- 钻地后 EVENT_SPELL_SUMMON_SPIKE 用 66169 召唤，尖刺 MoveChase 追击被点名真实玩家，
@@ -199,8 +199,8 @@ WHERE `map_id` = 603 AND `creature_entry` IN (34188, 34189);
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(603, 34188, 8.0, 64704, 2.0, 1000, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（10人）'),
-(603, 34189, 8.0, 64733, 2.0, 1000, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（25人）');
+(603, 34188, 8.0, 64704, 2.0, 0, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（10人）'),
+(603, 34189, 8.0, 64733, 2.0, 0, 0, '奥杜尔：锋鳞噬体烈焰地面蓝焰（25人）');
 
 -- ============================================================================
 -- 祖阿曼（Zul'Aman，map 568）
@@ -216,7 +216,7 @@ WHERE `map_id` = 568 AND `creature_entry` = 23920;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(568, 23920, 4.0, 42630, 1, 1000, 0, '祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
+(568, 23920, 4.0, 42630, 1, 0, 0, '祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
 
 -- 祖阿曼：祖尔金鹰形态的羽毛漩涡（24136）。
 -- 鹰形态阶段祖尔金用 43112 一次召唤四个羽毛漩涡，漩涡常驻被动 43120 每秒触发 43121，
@@ -228,4 +228,26 @@ WHERE `map_id` = 568 AND `creature_entry` = 24136;
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(568, 24136, 4.0, 43121, 3.0, 2000, 0, '祖阿曼祖尔金鹰形态：移动中的羽毛旋风');
+(568, 24136, 4.0, 43121, 3.0, 0, 0, '祖阿曼祖尔金鹰形态：移动中的羽毛旋风');
+
+-- ============================================================================
+-- 艾卓-尼鲁布（Azjol-Nerub，map 601）
+-- ============================================================================
+-- 尾王阿努巴拉克（Anub'arak）的「穿刺」（Impale）。
+-- 机制链：潜地阶段 Boss 自身承载 53456（Impale Periodic 周期光环）
+--   -> 53457/53458（穿刺召唤，脚本 spell_azjol_nerub_impale_summon 修正落点高度）
+--   -> 在随机玩家落点召唤生物 29184（Impale Target）
+--   -> 29184 由 SmartAI 在自身位置施放 53455（每 tick 视觉/击飞）
+--      与 53454（普通难度范围伤害，RadiusIndex=26）/59446（英雄难度范围伤害，RadiusIndex=26），
+--      并在 On Reset 后延迟 7000ms 消失（smart_scripts 29184 事件 0~4）。
+-- 尖刺为固定落点、不移动的短时地板危险区，故无需 required_aura_spell_id。
+-- damage_spell_id=53454 为 SCHOOL_DAMAGE（可读取法术半径），读取失败时以固定 radius 兜底，
+-- 且 radius 同时作为半径下限，保证 BOT 不会站在伤害边缘。
+-- radius=5.0：双方言法术半径索引均为 26（约 4 码），配置 5 码作为下限保护。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 601 AND `creature_entry` = 29184;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(601, 29184, 4.0, 53454, 1.0, 0, 0, '艾卓-尼鲁布：阿努巴拉克穿刺尖刺（落点固定，生物施放 53454/59446）');

@@ -17,6 +17,7 @@
 
 #include "AchievementCriteriaScript.h"
 #include "CreatureScript.h"
+#include "Random.h"
 #include "ScriptedCreature.h"
 #include "SpellScriptLoader.h"
 #include "gundrak.h"
@@ -78,10 +79,12 @@ public:
             ScheduleHealthCheckEvent(90, [&] {
                 Talk(SAY_SUMMON_SNAKES);
 
+                // 每波随机 1-2 只毒蛇, 刷新点从数组末尾开始取
                 ScheduleTimedEvent(1s, [&] {
-                    for (uint8 i = MAX_CONSTRICTOR; i < MAX_SUMMONS; ++i)
-                        me->SummonCreature(NPC_SLADRAN_VIPER, SpawnLoc[i], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
-                }, 8s);
+                    uint8 const count = uint8(urand(1, MAX_VIPER));
+                    for (uint8 i = 0; i < count; ++i)
+                        me->SummonCreature(NPC_SLADRAN_VIPER, SpawnLoc[MAX_SUMMONS - 1 - i], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
+                }, 10s, 15s);
             });
 
             ScheduleHealthCheckEvent(DUNGEON_MODE(50, 75), [&] {

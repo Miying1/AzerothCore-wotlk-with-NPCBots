@@ -355,7 +355,9 @@ public:
         {
             if (me->ToTempSummon())
             {
-                if (who->IsPlayer() || who->GetOwnerGUID().IsPlayer())
+                // 先摸到魔精的可能是玩家本人、玩家的宠物/图腾, 也可能是 NPCBot 及其宠物/图腾
+                // (NPCBots 是 Creature 且入队时不设置 OwnerGUID, 只判断 IsPlayer/OwnerGUID.IsPlayer 会把它们全漏掉, 导致巨像永远无法激活)
+                if (who->IsPlayer() || who->IsControlledByPlayer() || who->IsNPCBotOrPet() || who->GetOwnerGUID().IsPlayer())
                     if (Unit* summoner = me->ToTempSummon()->GetSummonerUnit())
                         summoner->GetAI()->DoAction(ACTION_INFORM);
                 return;

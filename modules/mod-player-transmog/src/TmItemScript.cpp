@@ -197,6 +197,7 @@ public:
             ShowBotList(player, item);
             return;
         case GOSSIP_SENDER_BOT_SELECT:
+        {
             BotTransmogSelectedEntry[player->GetGUID()] = action;   // 记住选中的 bot_entry
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "选择幻象", GOSSIP_SENDER_BOT_TRANSFORM, 0);
             // 设置缩放：点击弹输入框（coded），提示文本带上当前值
@@ -209,6 +210,7 @@ public:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
             SendGossipMenuFor(player, textId, item->GetGUID());
             return;
+        }
         case GOSSIP_SENDER_BOT_TRANSFORM:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "普通幻象", GOSSIP_SENDER_BOT_CATEGORY, 0);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_BOT_CATEGORY, 1);
