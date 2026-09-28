@@ -16,9 +16,14 @@
  */
 
 #include "CreatureScript.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
+#include "bot_ai.h"
+#include "botmgr.h"
 #include "utgarde_pinnacle.h"
+
+#include <algorithm>
 
 enum Misc
 {
@@ -33,6 +38,7 @@ enum Misc
 
     // SPELLS
     SPELL_BANE                              = 48294,
+    SPELL_BANE_HEROIC                       = 59301,
     SPELL_DARK_SLASH                        = 48292,
     SPELL_FETID_ROT                         = 48291,
     SPELL_SCREAMS_OF_THE_DEAD               = 51750,
@@ -116,9 +122,81 @@ public:
         SummonList summons2;
         uint8 BoatNum;
         uint8 BoatOrder[4];
+        std::vector<ObjectGuid> banePausedBots;
+
+        void PauseBotsForBane()
+        {
+            if (!banePausedBots.empty())
+                return;
+
+            for (auto const& playerReference : me->GetMap()->GetPlayers())
+            {
+                Player* player = playerReference.GetSource();
+                if (!player || !player->HaveBot())
+                    continue;
+
+                BotMap const* botMap = player->GetBotMgr()->GetBotMap();
+                for (auto const& [guid, bot] : *botMap)
+                {
+                    if (!bot || !bot->IsAlive() || bot->GetVictim() != me)
+                        continue;
+
+                    bot_ai* botAI = bot->GetBotAI();
+                    if (!botAI || botAI->HasBotCommandState(BOT_COMMAND_FULLSTOP))
+                        continue;
+
+                    banePausedBots.push_back(guid);
+                    botAI->SetBotCommandState(BOT_COMMAND_FULLSTOP, true);
+                }
+            }
+        }
+
+        void ResumeBotsAfterBane()
+        {
+            if (banePausedBots.empty())
+                return;
+
+            for (auto const& playerReference : me->GetMap()->GetPlayers())
+            {
+                Player* player = playerReference.GetSource();
+                if (!player || !player->HaveBot())
+                    continue;
+
+                BotMap const* botMap = player->GetBotMgr()->GetBotMap();
+                for (auto const& [guid, bot] : *botMap)
+                {
+                    if (!bot || !bot->IsAlive() || std::find(banePausedBots.begin(), banePausedBots.end(), guid) == banePausedBots.end())
+                        continue;
+
+                    bot_ai* botAI = bot->GetBotAI();
+                    if (!botAI)
+                        continue;
+
+                    botAI->RemoveBotCommandState(BOT_COMMAND_FULLSTOP);
+                    if (me->IsAlive() && me->IsInCombat() && bot->IsValidAttackTarget(me))
+                    {
+                        bot->AttackStop();
+                        botAI->SetBotCommandState(BOT_COMMAND_COMBATRESET);
+                        bot->Attack(me, !botAI->HasRole(BOT_ROLE_RANGED));
+                    }
+                }
+            }
+
+            banePausedBots.clear();
+        }
+
+        void UpdateBaneBots()
+        {
+            if (me->HasAura(SPELL_BANE) || me->HasAura(SPELL_BANE_HEROIC))
+                PauseBotsForBane();
+            else
+                ResumeBotsAfterBane();
+        }
 
         void Reset() override
         {
+            ResumeBotsAfterBane();
+
             for (uint8 i = 0; i < 4; ++i)
             {
                 bool good;
@@ -199,6 +277,8 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            UpdateBaneBots();
+
             if (!UpdateVictim())
                 return;
 
@@ -337,6 +417,7 @@ public:
 
         void JustDied(Unit*  /*pKiller*/) override
         {
+            ResumeBotsAfterBane();
             Talk(SAY_DEATH);
             summons.DespawnAll();
             summons2.DespawnAll();
