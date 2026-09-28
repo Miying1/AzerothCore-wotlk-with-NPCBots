@@ -9,13 +9,13 @@
 
 -- ---------- 一、恢复三个副本的英雄(H)模式 ----------
 -- 按主键(sourceType,entry)删除，不依赖 comment 文本，避免因连接编码导致匹配不上
-DELETE FROM `disables` WHERE `sourceType` = 2 AND `entry` IN (542, 658, 668);
+DELETE FROM `disables` WHERE `sourceType` = 2 AND `entry` IN (632, 658, 668);
 
 -- 恢复英雄模式(difficulty=1)的准入等级（原值已核对）：
 --   542 鲜血烘炉   英雄 min_level = 70
 --   658 萨隆矿坑   英雄 min_level = 80
 --   668 映像大厅   英雄 min_level = 80
-UPDATE `dungeon_access_template` SET `min_level` = 70 WHERE `map_id` = 542 AND `difficulty` = 1 AND `min_level` = 81;
+UPDATE `dungeon_access_template` SET `min_level` = 70 WHERE `map_id` = 632 AND `difficulty` = 1 AND `min_level` = 81;
 UPDATE `dungeon_access_template` SET `min_level` = 80 WHERE `map_id` IN (658, 668) AND `difficulty` = 1 AND `min_level` = 81;
 
 -- ---------- 二、重新开放卡拉赞(532) 10 人团队副本 ----------
