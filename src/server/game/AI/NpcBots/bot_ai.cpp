@@ -10969,17 +10969,20 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     break;
                 }
 
-                if (uint32 maxBotsPerAccount = BotCfg::GetMaxAccountBots())
+                // IP 限制：每个 IP 最大雇佣 BOT 数量 = 基础上限 + 同 IP 所有账号 VIP 等级总和 * 8
+                if (!player->IsGameMaster())
                 {
-                    // VIP 等级每级 +8 账户 BOT 上限
-                    uint32 vipLevel = player->GetVipBenefits().vip_level;
-                    maxBotsPerAccount += vipLevel * 8u;
+                    // 一次查询拿到该 IP 的已雇佣数量与其下所有账号的 VIP 等级总和
+                    uint32 ipBotsCount = 0;
+                    uint32 vipLevelSum = 0;
+                    BotDataMgr::GetIpBotInfo(player->GetSession()->GetRemoteAddress(), ipBotsCount, vipLevelSum);
 
-                    uint32 accountBotsCount = BotDataMgr::GetAccountBotsCount(player->GetSession()->GetAccountId());
-                    if (accountBotsCount >= maxBotsPerAccount)
+                    // VIP 等级每级 +8
+                    uint32 ipMaxBots = BotMgr::GetIPMaxBots() + vipLevelSum * 8u;
+                    if (ipBotsCount >= ipMaxBots)
                     {
                         ChatHandler ch(player->GetSession());
-                        ch.PSendSysMessage(LocalizedNpcText(player, BOT_TEXT_HIREFAIL_MAXBOTS_ACCOUNT).c_str(), accountBotsCount, maxBotsPerAccount);
+                        ch.SendSysMessage(LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS));
                         break;
                     }
                 }

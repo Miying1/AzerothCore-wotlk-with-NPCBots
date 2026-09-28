@@ -78,42 +78,7 @@ public:
                 case HIRE:
                 {
                     gossipTextId = GOSSIP_BOTGIVER_HIRE;
-                    if (player->GetNpcBotsCount() >= BotCfg::GetMaxNpcBots(player->GetLevel()))
-                    {
-                        WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
-                        break;
-                    }
-
-                    if (uint32 maxBotsPerAccount = BotCfg::GetMaxAccountBots())
-                    {
-                        // VIP 等级每级 +8 账户 BOT 上限
-                        uint32 vipLevel = player->GetVipBenefits().vip_level;
-                        maxBotsPerAccount += vipLevel * 8u;
-
-                        uint32 accountBotsCount = BotDataMgr::GetAccountBotsCount(player->GetSession()->GetAccountId());
-                        if (accountBotsCount >= maxBotsPerAccount)
-                        {
-                            ChatHandler ch(player->GetSession());
-                            ch.PSendSysMessage(bot_ai::LocalizedNpcText(player, BOT_TEXT_HIREFAIL_MAXBOTS_ACCOUNT).c_str(), accountBotsCount, maxBotsPerAccount);
-                            break;
-                        }
-                    }
-
-                    // IP 限制：每个 IP 最大雇佣 BOT 数量，VIP 等级每级 +8 上限
-                    if (!player->IsGameMaster())
-                    {
-                        uint32 ipMaxBots = BotMgr::GetIPMaxBots();
-                        uint32 vipLevel = player->GetVipBenefits().vip_level;
-                        // VIP 等级每级 +8
-                        ipMaxBots += vipLevel * 8u;
-
-                        uint32 allcount = BotDataMgr::GetNpcBotCountByIp(player->GetSession()->GetRemoteAddress());
-                        if (allcount >= ipMaxBots)
-                        {
-                            WhisperTo(player, me, bot_ai::LocalizedNpcText(player, BOT_TEXT_BOTGIVER_TOO_MANY_BOTS).c_str());
-                            break;
-                        }
-                    }
+                    // 等级/账号/IP 等各类上限统一在真正雇佣时（bot_ai.cpp GOSSIP_SENDER_HIRE）校验，入口只负责展示可雇佣列表
 
                     subMenu = true;
 
@@ -138,15 +103,6 @@ public:
                     {
                         if (!BotCfg::IsClassEnabled(botclass))
                             continue;
-
-                        if (player->HaveBot() && BotCfg::GetMaxClassBots())
-                        {
-                            uint8 count = static_cast<uint8>(std::ranges::count_if(*player->GetBotMgr()->GetBotMap(), [=](BotMap::value_type const& kv) {
-                                return kv.second->GetBotClass() == botclass;
-                            }));
-                            if (count >= BotCfg::GetMaxClassBots())
-                                continue;
-                        }
 
                         uint32 textId;
                         switch (botclass)

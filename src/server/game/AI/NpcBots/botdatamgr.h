@@ -247,6 +247,8 @@ public:
     static std::vector<uint32> GetExistingNPCBotIds();
     static uint8 GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask = 0, bool count_shared = false);
     static uint8 GetAccountBotsCount(uint32 account_id);
+    // 一次查询返回指定 IP 的已雇佣 BOT 数量与其下所有账号的 VIP 等级总和（以 account 为主体，先按 last_ip 过滤）
+    static void GetIpBotInfo(std::string ip, uint32& bot_count, uint32& vip_level_sum);
     static uint32 GetNpcBotCountByIp(std::string ip);
     static bool SetBotName(Creature* bot, std::string name);
 

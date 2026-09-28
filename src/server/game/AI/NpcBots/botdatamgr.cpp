@@ -3432,13 +3432,33 @@ uint8 BotDataMgr::GetOwnedBotsCount(ObjectGuid owner_guid, uint32 class_mask, bo
             ++count;
     return count;
 }
-uint32 BotDataMgr::GetNpcBotCountByIp(std::string ip) {
-    uint32 bot_count = 0;
-    QueryResult result = CharacterDatabase.Query("SELECT npc_count FROM view_player_botcount WHERE last_ip = '{}'", ip);
+// 一次查询返回指定 IP 的已雇佣 BOT 数量与其下所有账号的 VIP 等级总和
+// 以 account 为主体、先按 last_ip 过滤再关联角色/佣兵，避免用带 GROUP BY 的视图查询导致整视图物化
+void BotDataMgr::GetIpBotInfo(std::string ip, uint32& bot_count, uint32& vip_level_sum)
+{
+    bot_count = 0;
+    vip_level_sum = 0;
+
+    QueryResult result = CharacterDatabase.Query(
+        "SELECT "
+        "(SELECT COUNT(1) FROM `acore_auth`.`account` `a` "
+            "JOIN `characters` `c` ON `c`.`account` = `a`.`id` "
+            "JOIN `characters_npcbot` `b` ON `b`.`owner` = `c`.`guid` "
+            "WHERE `a`.`last_ip` = '{}' AND `b`.`owner` > 0) AS `npc_count`, "
+        "(SELECT IFNULL(SUM(IFNULL(`av`.`vip_level`, 0)), 0) FROM `acore_auth`.`account` `a` "
+            "LEFT JOIN `acore_auth`.`account_vip` `av` ON `av`.`account_id` = `a`.`id` "
+            "WHERE `a`.`last_ip` = '{}') AS `vip_level_sum`", ip, ip);
     if (result)
     {
-        bot_count = result->Fetch()[0].Get<uint32>();
+        Field* fields = result->Fetch();
+        bot_count = fields[0].Get<uint32>();
+        vip_level_sum = fields[1].Get<uint32>();
     }
+}
+uint32 BotDataMgr::GetNpcBotCountByIp(std::string ip) {
+    uint32 bot_count = 0;
+    uint32 vip_level_sum = 0;
+    GetIpBotInfo(std::move(ip), bot_count, vip_level_sum);
     return bot_count;
 }
 bool BotDataMgr::SetBotName(Creature* bot,std::string name) {
