@@ -535,6 +535,14 @@ void Item::DeleteFromInventoryDB(CharacterDatabaseTransaction trans, ObjectGuid:
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_INVENTORY_BY_ITEM);
     stmt->SetData(0, itemGuid);
     trans->Append(stmt);
+
+    // 账号银行扩展：物品离开玩家库存时必须一并清理账号银行映射（account_bank_item），否则映射残留，
+    // 换角色打开账号银行时仍能通过该 GUID JOIN 到 item_instance 而「重新出现」，并与 BOT 身上的装备形成复制。
+    // 调用点（交易 / 邮件 / 拍卖 / 公会银行 / 机器人装备与装备库）都自带事务，这里与 character_inventory
+    // 共用同一个落库点，保证两表的清理与物品新归属的写入同生共死（不会出现物品丢失）。
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
+    stmt->SetData(0, itemGuid);
+    trans->Append(stmt);
 }
 
 void Item::DeleteFromInventoryDB(CharacterDatabaseTransaction trans)

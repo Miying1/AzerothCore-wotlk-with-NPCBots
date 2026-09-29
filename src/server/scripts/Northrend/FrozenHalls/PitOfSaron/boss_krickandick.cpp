@@ -113,8 +113,10 @@ public:
             if (spell->Id == SPELL_PURSUIT && target->IsPlayer())
             {
                 Talk(EMOTE_ICK_CHASE, target);
-                AttackStart(target);
-                me->SetReactState(REACT_PASSIVE);
+                // 盯住被点名的玩家：SetGazeOn 会先攻击目标再把自己置为被动状态，
+                // 必须与 UpdateVictimWithGaze 配合使用，否则被动状态下的 UpdateVictim 会清除目标，
+                // 追击移动会因为丢失目标而中断（原地不动）
+                SetGazeOn(target);
                 events.RescheduleEvent(EVENT_SET_REACT_AGGRESSIVE, 12s);
             }
         }
@@ -150,7 +152,8 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if (!UpdateVictim())
+            // 使用 UpdateVictimWithGaze：追击（被动状态）期间保留当前目标，移动不会被打断
+            if (!UpdateVictimWithGaze())
                 return;
 
             if (me->GetVictim())

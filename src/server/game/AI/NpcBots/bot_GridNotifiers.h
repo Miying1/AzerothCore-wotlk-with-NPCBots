@@ -1275,6 +1275,12 @@ class NearbyHostileAoEDynobjectCheck
             if (caster->IsValidAttackTarget(_me))
                 return true;
 
+            // 施法者无法把扫描单位判定为攻击目标时（扫描单位是尸体/已死亡、施法者是不可攻击的触发物或假人、
+            // 施法者处于载具等特殊状态），只要施法者本身对扫描单位敌对，仍把该地面危险区视为威胁。
+            // 否则玩家阵亡后或 BOSS 由不可攻击的施法物落地板技能时，BOT 会完全无视危险区站在原地。
+            if (caster->IsHostileTo(_me))
+                return true;
+
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(dObj->GetSpellId());
             if (!spellInfo || !IsNegativeAreaSpell(spellInfo))
                 return false;

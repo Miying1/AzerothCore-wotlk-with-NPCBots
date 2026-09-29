@@ -6264,10 +6264,7 @@ void Player::_LoadBank(PreparedQueryResult result, ObjectGuid const& owner, bool
                     {
                         LOG_ERROR("entities.player", "Player::_LoadBank: player ({}, name: '{}') has account bank item ({}, entry: {}) which doesnt have a valid bag (Bag GUID: {}, slot: {}). Deleting.",
                                   GetGUID().ToString(), GetName(), item->GetGUID().ToString(), item->GetEntry(), bagGuid, slot);
-                        item->DeleteFromInventoryDB(trans);
-                        CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
-                        delStmt->SetData(0, item->GetGUID().GetCounter());
-                        trans->Append(delStmt);
+                        item->DeleteFromInventoryDB(trans);     // 同时清理 character_inventory 与 account_bank_item
                     }
                     delete item;
                     continue;
@@ -6293,26 +6290,14 @@ void Player::_LoadBank(PreparedQueryResult result, ObjectGuid const& owner, bool
             {
                 LOG_ERROR("entities.player", "Player::_LoadBank: player ({}, name: '{}') has item ({}, entry: {}) which can't be loaded into bank (Bag GUID: {}, slot: {}) by reason {}.",
                           GetGUID().ToString(), GetName(), item->GetGUID().ToString(), item->GetEntry(), bagGuid, slot, err);
-                item->DeleteFromInventoryDB(trans);
-                if (accountBank)
-                {
-                    CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
-                    delStmt->SetData(0, item->GetGUID().GetCounter());
-                    trans->Append(delStmt);
-                }
+                item->DeleteFromInventoryDB(trans);     // 同时清理 character_inventory 与 account_bank_item
                 delete item;
             }
         }
         else
         {
-            // _LoadItem 返回 nullptr：物品无效或已被删除，清理账号银行表残留记录
-            if (accountBank)
-            {
-                ObjectGuid::LowType itemGuid = fields[13].Get<uint32>();
-                CharacterDatabasePreparedStatement* delStmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ACCOUNT_BANK_ITEM_BY_ITEM);
-                delStmt->SetData(0, itemGuid);
-                trans->Append(delStmt);
-            }
+            // _LoadItem 返回 nullptr：物品无效或已被删除。其 character_inventory / account_bank_item 残留
+            // 已由 _LoadItem 内部通过 Item::DeleteFromInventoryDB 清理，此处无需重复处理。
         }
     } while (result->NextRow());
 
