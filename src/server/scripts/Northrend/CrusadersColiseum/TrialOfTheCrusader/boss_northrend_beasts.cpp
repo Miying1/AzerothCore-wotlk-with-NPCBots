@@ -264,11 +264,7 @@ public:
             events.RescheduleEvent(EVENT_SPELL_STAGGERING_STOMP, 15s);
             events.RescheduleEvent(EVENT_PICK_SNOBOLD_TARGET, 16s, 24s);
 
-            // refresh snobold position
-            if (Vehicle* vk = me->GetVehicleKit())
-                for( uint8 i = 0; i < 4; ++i )
-                    if (Unit* snobold = vk->GetPassenger(i))
-                        snobold->SendMovementFlagUpdate();
+            // 车厢座位上的斯诺波德苦力(34800)始终处于定身(ROOT)状态，调用 SendMovementFlagUpdate 只会触发报错并被忽略，无需刷新
         }
 
         void JustReachedHome() override
