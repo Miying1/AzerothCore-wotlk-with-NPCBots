@@ -1,0 +1,2 @@
+数据库： E:\wlk80Server\mysql8.0  或 G:\wow\WLK80\mysql8.0\
+root 密码 wow@80

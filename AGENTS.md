@@ -98,3 +98,9 @@ Then declare and call `AddSC_<name>()` from the regional loader (`Spells/spells_
 **Module hooks** (e.g. `OnPlayerLogin`, `OnWorldUpdate`, `OnSpellCast`) are declared in `src/server/game/Scripting/ScriptDefines/*.h`. Implement by inheriting the matching base (`PlayerScript`, `WorldScript`, …) and registering with `new MyClass();` (or its `RegisterXxxScript` macro) inside `AddSC_<name>()`. Full list: https://www.azerothcore.org/wiki/hooks-script.
 
 Custom (non-upstream) scripts go in `src/server/scripts/Custom/` (gitignored).
+
+## 本地开发环境
+
+- **法术 DBC 路径**：`outputs/Spell.csv`
+- **本地数据库（MySQL 8.0）**：`E:\wlk80Server\mysql8.0` 或 `G:\wow\WLK80\mysql8.0\`
+- **数据库账号**：`root`，密码：`wow@80`

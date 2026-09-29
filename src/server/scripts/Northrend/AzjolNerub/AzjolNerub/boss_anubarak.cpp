@@ -320,9 +320,10 @@ struct boss_anub_arak : public BossAI
             case EVENT_POUND:
                 if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 10.0f))
                 {
-                    DoCastSelf(SPELL_SELF_ROOT, true);
+                    // 必须先禁用转向并广播移动标志更新，再施加定身，否则会触发"root 状态下发送心跳"的报错
                     me->DisableRotate(true);
                     me->SendMovementFlagUpdate();
+                    DoCastSelf(SPELL_SELF_ROOT, true);
                     events.ScheduleEvent(EVENT_ENABLE_ROTATE, 3300ms, GROUP_EMERGED);
                     DoCast(target, SPELL_POUND);
                 }
