@@ -142,7 +142,8 @@ struct boss_bronjahm : public BossAI
                 events.Repeat(10s, 15s);
                 break;
             case EVENT_SPELL_CORRUPT_SOUL:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                // 腐蚀灵魂只点名真实玩家，排除 NPCBot
+                if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 100.0f))
                 {
                     Talk(SAY_CORRUPT_SOUL);
                     DoCast(target, SPELL_CORRUPT_SOUL);
