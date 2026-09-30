@@ -51,6 +51,7 @@ enum TransmogItemEnum
     GOSSIP_SENDER_BOT_TRANSFORM  = 5500,   // 点击「变形」-> 进入分类菜单
     GOSSIP_SENDER_BOT_UNTRANSFORM = 5600,  // 点击「取消变形」-> 取消幻形
     GOSSIP_SENDER_BOT_SCALE      = 5700,   // 点击「设置缩放」-> 弹出输入框（coded）
+    GOSSIP_SENDER_BOT_NO_RECORD  = 5710,   // 该佣兵还没有变形记录 -> 只给提示，不弹输入框
 
     // 玩家自身变形缩放（一级菜单入口，弹出输入框）
     GOSSIP_SENDER_PLAYER_SCALE   = 6000
@@ -200,17 +201,33 @@ public:
         {
             BotTransmogSelectedEntry[player->GetGUID()] = action;   // 记住选中的 bot_entry
             AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "选择幻象", GOSSIP_SENDER_BOT_TRANSFORM, 0);
-            // 设置缩放：点击弹输入框（coded），提示文本带上当前值
-            float botScale = pTransmog->GetBotTransmogScaleFactor(player->GetGUID().GetCounter(), action);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT,
-                             "设置缩放（" + FormatTransmogScaleFactor(botScale) + "）",
-                             GOSSIP_SENDER_BOT_SCALE, 0, MakeTransmogScaleHint(botScale), 0, true);
+
+            // 设置缩放：只有已有变形记录（model_id 非 0）的佣兵才给 coded 输入框；
+            // 没有记录时不给输入框（点了也不会弹框），改成普通选项，点击后只给提示。
+            // 原因：缩放持久化只更新已有记录（UPDATE），没有记录时无从更新。
+            auto botData = pTransmog->GetBotTransmog(player->GetGUID().GetCounter(), action);
+            if (botData && botData->model_id)
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                                 "设置缩放（" + FormatTransmogScaleFactor(botData->scale_factor) + "）",
+                                 GOSSIP_SENDER_BOT_SCALE, 0, MakeTransmogScaleHint(botData->scale_factor), 0, true);
+            }
+            else
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "设置缩放（无变形记录）", GOSSIP_SENDER_BOT_NO_RECORD, 0);
+            }
+
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "取消变形", GOSSIP_SENDER_BOT_UNTRANSFORM, 0,
                              "是否取消该佣兵的变形？", 0, false);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "返回...", GOSSIP_SENDER_BOT_MAIN, 0);
             SendGossipMenuFor(player, textId, item->GetGUID());
             return;
         }
+        // 该佣兵还没有变形记录：不弹输入框，只提示，然后回到该佣兵的操作菜单
+        case GOSSIP_SENDER_BOT_NO_RECORD:
+            ChatHandler(player->GetSession()).SendSysMessage("该佣兵还没有变形记录，请先给它选择一个幻象。");
+            OnGossipSelect(player, item, GOSSIP_SENDER_BOT_SELECT, BotTransmogSelectedEntry[player->GetGUID()]);
+            return;
         case GOSSIP_SENDER_BOT_TRANSFORM:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "普通幻象", GOSSIP_SENDER_BOT_CATEGORY, 0);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "精英幻象", GOSSIP_SENDER_BOT_CATEGORY, 1);
@@ -344,6 +361,15 @@ public:
             return;
         }
         uint32 bot_entry = selectedIt->second;
+
+        // 没有变形记录就没有可更新的行（缩放只 UPDATE 已有记录），直接给提示
+        auto botData = pTransmog->GetBotTransmog(cid, bot_entry);
+        if (!botData || !botData->model_id)
+        {
+            ch.SendSysMessage("该佣兵还没有变形记录，请先给它选择一个幻象。");
+            CloseGossipMenuFor(player);
+            return;
+        }
 
         float factor = 0.f;
         if (!ParseTransmogScaleFactor(code, factor))

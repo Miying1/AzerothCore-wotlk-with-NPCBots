@@ -405,17 +405,19 @@ void PlayerTransmog::SetBotTransmogScale(uint32 cid, uint32 botEntry, float scal
     float factor = std::clamp(scaleFactor, TRANSMOG_SCALE_FACTOR_MIN, TRANSMOG_SCALE_FACTOR_MAX);
     {
         std::lock_guard<std::mutex> lock(_botTransmogMutex);
-        // 已有记录只改系数，模型保持不动；没有记录则插入一条空模型记录
+        // 只改系数，模型保持不动（调用方保证该佣兵已有幻形记录）
         BotTransmogData& d = BotTransmogStore[cid][botEntry];
         d.bot_entry    = botEntry;
         d.scale_factor = factor;
     }
 
-    // 只更新系数：ON DUPLICATE KEY UPDATE 时 INSERT 的 model_id / model_name 不会覆盖已有值
+    // 只改系数：直接用 UPDATE 改已有记录。
+    // 该佣兵必然已有幻形记录（菜单在没有记录时不给输入框），故不再考虑「没有记录」时的插入，
+    // 也就不会出现 INSERT ... ON DUPLICATE KEY UPDATE 占位行在唯一键不命中时另插一行的问题；
+    // UPDATE 也不依赖 (character_id, bot_entry) 唯一键，只要记录存在就一定能改到。
     CharacterDatabase.AsyncQuery(Acore::StringFormat(
-        "INSERT INTO mod_player_bot_transmog (character_id, bot_entry, model_id, model_name, scale_factor) "
-        "VALUES ({}, {}, 0, '', {}) ON DUPLICATE KEY UPDATE scale_factor=VALUES(scale_factor)",
-        cid, botEntry, factor));
+        "UPDATE mod_player_bot_transmog SET scale_factor = {} WHERE character_id = {} AND bot_entry = {}",
+        factor, cid, botEntry));
 }
 
 float PlayerTransmog::GetBotTransmogScaleFactor(uint32 characterId, uint32 botEntry) const
