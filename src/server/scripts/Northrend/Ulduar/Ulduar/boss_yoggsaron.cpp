@@ -624,7 +624,8 @@ struct boss_yoggsaron_sara : public ScriptedAI
 
     void AddPortals()
     {
-        _summonSpeed -= 0.1f;
+        // 兜底：召唤加速系数设下限，避免归零/变负导致 Repeat(0ms) 触手洪泛
+        _summonSpeed = std::max(0.2f, _summonSpeed - 0.1f);
         Creature* creature = nullptr;
 
         // Spawn Portals

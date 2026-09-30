@@ -417,6 +417,17 @@ struct boss_runemaster_molgeim : public ScriptedAI
         me->RemoveAllAuras();
     }
 
+    // 登记召唤物，使 Reset 中的 summons.DespawnAll() 能真正清理符文与闪电元素
+    void JustSummoned(Creature* summon) override
+    {
+        summons.Summon(summon);
+    }
+
+    void SummonedCreatureDespawn(Creature* summon) override
+    {
+        summons.Despawn(summon);
+    }
+
     void JustEngagedWith(Unit* who) override
     {
         me->InterruptNonMeleeSpells(false);

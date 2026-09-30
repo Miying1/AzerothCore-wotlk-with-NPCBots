@@ -219,7 +219,7 @@ public:
         // Shared
         EventMap _events;
         bool _mimironTramUsed;
-        bool _algalonResummonPending;
+        bool _algalonArrivalPending;
 
         void Initialize() override
         {
@@ -234,8 +234,8 @@ public:
 
             // Shared
             _events.Reset();
-            _mimironTramUsed       = false;
-            _algalonResummonPending = false;
+            _mimironTramUsed        = false;
+            _algalonArrivalPending  = false;
         }
 
         void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
@@ -279,29 +279,13 @@ public:
                         ObservationRingKeeperEntry[i],
                         ObservationRingKeepersPos[i]);
 
-            uint32 algalonTimer =
-                GetPersistentData(PERSISTENT_DATA_ALGALON_TIMER);
-            if (!GetObjectGuid(BOSS_ALGALON) && !_algalonResummonPending && algalonTimer
-                && (algalonTimer <= 60
-                    || algalonTimer == TIMER_ALGALON_TO_SUMMON))
-            {
-                TempSummon* algalon = instance->SummonCreature(NPC_ALGALON, AlgalonLandPos);
-                if (!algalon)
-                    return;
-
-                if (algalonTimer <= 60)
-                {
-                    _events.RescheduleEvent(EVENT_UPDATE_ALGALON_TIMER, 1min);
-                    algalon->AI()->DoAction(ACTION_INIT_ALGALON);
-                }
-                else // if (algalonTimer == TIMER_ALGALON_TO_SUMMON)
-                {
-                    StorePersistentData(
-                        PERSISTENT_DATA_ALGALON_TIMER,
-                        TIMER_ALGALON_SUMMONED);
-                    algalon->SetImmuneToPC(false);
-                }
-            }
+            // 这里只覆盖“副本重载”的情况：灭团后地图会在脱战 20 秒后自行重新召唤奥尔加隆，
+            // 因此先等那次重生落地（延迟 30 秒）再决定是否补召。
+            uint32 algalonTimer = GetPersistentData(PERSISTENT_DATA_ALGALON_TIMER);
+            if (!GetCreature(BOSS_ALGALON) && algalonTimer
+                && (algalonTimer <= 60 || algalonTimer == TIMER_ALGALON_TO_SUMMON)
+                && !_events.HasTimeUntilEvent(EVENT_RESUMMON_ALGALON))
+                _events.ScheduleEvent(EVENT_RESUMMON_ALGALON, 30s);
         }
 
         bool IsEncounterInProgress() const override
@@ -493,6 +477,11 @@ public:
                 case NPC_ALGALON:
                     if (!GetPersistentData(PERSISTENT_DATA_ALGALON_TIMER))
                         creature->DespawnOrUnsummon();
+                    else if (_algalonArrivalPending)
+                    {
+                        _algalonArrivalPending = false;
+                        creature->AI()->DoAction(ACTION_START_INTRO);
+                    }
                     break;
                 //! These creatures are summoned by something else than Algalon
                 //! but need to be controlled/despawned by him - so they need to be
@@ -505,6 +494,13 @@ public:
                         algalon->AI()->JustSummoned(creature);
                     break;
             }
+        }
+
+        void OnCreatureEvade(Creature* creature) override
+        {
+            // 地图会在奥尔加隆硬重置脱战的 20 秒后重新召唤他，新的个体需要重播入场演出
+            if (creature->GetEntry() == NPC_ALGALON && GetBossState(BOSS_ALGALON) != DONE)
+                _algalonArrivalPending = true;
         }
 
         void OpenIfDone(uint32 encounter, GameObject* go, GOState state)
@@ -709,10 +705,6 @@ public:
                     DoUpdateWorldState(WORLD_STATE_ULDUAR_ALGALON_DESPAWN_TIMER, 60);
                     StorePersistentData(PERSISTENT_DATA_ALGALON_TIMER, 60);
                     _events.RescheduleEvent(EVENT_UPDATE_ALGALON_TIMER, 1min);
-                    return;
-                case DATA_RESUMMON_ALGALON:
-                    _algalonResummonPending = true;
-                    _events.RescheduleEvent(EVENT_RESUMMON_ALGALON, 2s);
                     return;
                 case DATA_ALGALON_SUMMON_STATE:
                 case DATA_ALGALON_DEFEATED:
@@ -940,11 +932,28 @@ public:
                     break;
                 }
                 case EVENT_RESUMMON_ALGALON:
-                    _algalonResummonPending = false;
-                    if (!GetCreature(BOSS_ALGALON))
-                        if (Creature* algalon = instance->SummonCreature(NPC_ALGALON, AlgalonSummonPos))
-                            algalon->AI()->DoAction(ACTION_START_INTRO);
+                {
+                    uint32 algalonTimer = GetPersistentData(PERSISTENT_DATA_ALGALON_TIMER);
+                    if (GetCreature(BOSS_ALGALON) || !algalonTimer
+                        || (algalonTimer > 60 && algalonTimer != TIMER_ALGALON_TO_SUMMON))
+                        break;
+
+                    TempSummon* algalon = instance->SummonCreature(NPC_ALGALON, AlgalonLandPos);
+                    if (!algalon)
+                        break;
+
+                    if (algalonTimer <= 60)
+                    {
+                        _events.RescheduleEvent(EVENT_UPDATE_ALGALON_TIMER, 1min);
+                        algalon->AI()->DoAction(ACTION_INIT_ALGALON);
+                    }
+                    else // TIMER_ALGALON_TO_SUMMON
+                    {
+                        StorePersistentData(PERSISTENT_DATA_ALGALON_TIMER, TIMER_ALGALON_SUMMONED);
+                        algalon->SetImmuneToPC(false);
+                    }
                     break;
+                }
             }
         }
 

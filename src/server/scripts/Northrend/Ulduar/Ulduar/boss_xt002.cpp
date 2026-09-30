@@ -390,7 +390,7 @@ struct boss_xt002 : public BossAI
                     Talk(EMOTE_HEART_OPENED);
                     if (Creature* heart = instance->GetCreature(DATA_XT002_HEART))
                         heart->AI()->DoAction(ACTION_START_PHASE_HEART);
-                    events.ScheduleEvent(EVENT_DISPOSE_HEART, 30s, PHASE_HEART);
+                    events.ScheduleEvent(EVENT_DISPOSE_HEART, 30s, 0, PHASE_HEART);
                     break;
                 case EVENT_DISPOSE_HEART:
                     DisposeHeart();
