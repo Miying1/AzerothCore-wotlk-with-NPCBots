@@ -215,7 +215,8 @@ public:
                         case 0: // Pursuit
                             if (Creature* k = GetKrick())
                                 k->AI()->Talk(SAY_CHASE);
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 70.0f, true))
+                            // 追击只点名真实玩家，排除 NPCBot
+                            if (Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 70.0f))
                                 me->CastSpell(target, SPELL_PURSUIT, false);
                             break;
                         case 1: // Poison Nova

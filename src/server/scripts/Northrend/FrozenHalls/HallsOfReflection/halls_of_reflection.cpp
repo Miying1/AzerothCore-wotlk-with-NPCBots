@@ -918,17 +918,17 @@ struct npc_ghostly_priest: public ScriptedAI
         switch (events.ExecuteEvent())
         {
             case EVENT_SHADOW_WORD_PAIN:
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_SHADOW_WORD_PAIN);
                 events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s);
                 break;
             case EVENT_CIRCLE_OF_DESTRUCTION:
-                if (Unit* target = SelectTargetFromPlayerList(10.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 10.0f, true))
                     DoCast(target, SPELL_CIRCLE_OF_DESTRUCTION);
                 events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12s);
                 break;
             case EVENT_COWER_IN_FEAR:
-                if (Unit* target = SelectTargetFromPlayerList(20.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 20.0f, true))
                     DoCast(target, SPELL_COWER_IN_FEAR);
                 events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10s);
                 break;
@@ -1019,12 +1019,12 @@ struct npc_phantom_mage: public ScriptedAI
                 events.ScheduleEvent(EVENT_FLAMESTRIKE, 15s);
                 break;
             case EVENT_FROSTBOLT:
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_FROSTBOLT);
                 events.ScheduleEvent(EVENT_FROSTBOLT, 9s);
                 break;
             case EVENT_CHAINS_OF_ICE:
-                if (Unit* target = SelectTargetFromPlayerList(100.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                     DoCast(target, SPELL_CHAINS_OF_ICE);
                 events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 12s);
                 break;
@@ -1139,7 +1139,7 @@ struct npc_shadowy_mercenary: public ScriptedAI
         switch (events.ExecuteEvent())
         {
             case EVENT_SHADOW_STEP:
-                if (Unit* target = SelectTargetFromPlayerList(100.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
                 {
                     DoResetThreatList();
                     me->AddThreat(target, 5000.0f);
@@ -1153,7 +1153,7 @@ struct npc_shadowy_mercenary: public ScriptedAI
                 events.ScheduleEvent(EVENT_DEADLY_POISON, 4s);
                 break;
             case EVENT_ENVENOMED_DAGGER_THROW:
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_ENVENOMED_DAGGER_THROW);
                 events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10s);
                 break;
@@ -1316,7 +1316,7 @@ struct npc_tortured_rifleman  : public ScriptedAI
                 events.ScheduleEvent(EVENT_FROST_TRAP, 30s);
                 break;
             case EVENT_ICE_SHOT:
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_ICE_SHOT);
                 events.ScheduleEvent(EVENT_ICE_SHOT, 8s);
                 break;
@@ -1382,7 +1382,7 @@ struct boss_frostsworn_general : public ScriptedAI
                 instance->SetData(ACTION_SPIRITUAL_REFLECTIONS_ACTIVATE, 1);
                 break;
             case EVENT_THROW_SHIELD:
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_THROW_SHIELD);
                 events.ScheduleEvent(EVENT_THROW_SHIELD, 10s);
                 break;
@@ -2099,7 +2099,7 @@ struct npc_hor_risen_witch_doctor : public ScriptedAI
         switch (events.ExecuteEvent())
         {
             case 1:
-                if (Unit* target = SelectTargetFromPlayerList(30.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
                     DoCast(target, SPELL_CURSE_OF_DOOM);
                 events.ScheduleEvent(1, 12s);
                 break;
@@ -2108,7 +2108,7 @@ struct npc_hor_risen_witch_doctor : public ScriptedAI
                 events.ScheduleEvent(2, 4500ms);
                 break;
             case 3:
-                if (SelectTargetFromPlayerList(30.0f, 0, true))
+                if (SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
                     DoCastVictim(SPELL_SHADOW_BOLT_VOLLEY);
                 events.ScheduleEvent(3, 9s);
                 break;

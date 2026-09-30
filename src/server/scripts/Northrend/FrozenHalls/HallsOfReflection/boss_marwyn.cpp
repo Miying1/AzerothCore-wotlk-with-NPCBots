@@ -107,7 +107,7 @@ struct boss_marwyn : public BossAI
                 break;
             case EVENT_WELL_OF_CORRUPTION:
                 Talk(SAY_CORRUPTED_WELL);
-                if (Unit* target = SelectTargetFromPlayerList(40.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
                     DoCast(target, SPELL_WELL_OF_CORRUPTION);
                 events.Repeat(13s);
                 break;
@@ -117,7 +117,7 @@ struct boss_marwyn : public BossAI
                 events.Repeat(20s);
                 break;
             case EVENT_SHARED_SUFFERING:
-                if (Unit* target = SelectTargetFromPlayerList(200.0f, 0, true))
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 200.0f, true))
                     DoCast(target, SPELL_SHARED_SUFFERING, true);
                 events.Repeat(15s);
                 break;

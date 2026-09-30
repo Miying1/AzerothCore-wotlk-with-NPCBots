@@ -21,6 +21,9 @@
 #include "MapMgr.h"
 #include "Transport.h"
 #include "WorldStateDefines.h"
+//npcbot
+#include "botmgr.h"
+//end npcbot
 #include "halls_of_reflection.h"
 
 class UtherBatteredHiltEvent : public BasicEvent
@@ -838,6 +841,17 @@ public:
                             continue;
                         if (p->IsAlive())
                             allDead = false;
+                        else if (p->HaveBot())
+                        {
+                            // 玩家死亡但 BOT 仍存活时，不算团灭，避免波次被错误重置
+                            BotMap const* botMap = p->GetBotMgr()->GetBotMap();
+                            for (auto const& it : *botMap)
+                                if (it.second && it.second->IsAlive())
+                                {
+                                    allDead = false;
+                                    break;
+                                }
+                        }
                         if (p->GetExactDist2d(&CenterPos) > MAX_DIST_FROM_CENTER_IN_COMBAT)
                         {
                             outOfRange = true;
