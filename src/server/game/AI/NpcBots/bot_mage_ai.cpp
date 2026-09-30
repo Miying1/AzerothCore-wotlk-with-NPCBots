@@ -1084,6 +1084,13 @@ public:
             damage = int32(fdamage * (1.0f + pctbonus));
         }
 
+        void ApplyClassThreatMods(SpellInfo const* spellInfo, float& threat) const override
+        {
+            //火焰法师仇恨偏高，统一削减 30% 仇恨（点燃等额外伤害产生的仇恨也会被此覆盖）
+            if (GetSpec() == BOT_SPEC_MAGE_FIRE)
+                threat *= 0.7f;
+        }
+
         void ApplyClassSpellCostMods(SpellInfo const* spellInfo, int32& cost) const override
         {
             uint32 baseId = spellInfo->GetFirstRankSpell()->Id;
