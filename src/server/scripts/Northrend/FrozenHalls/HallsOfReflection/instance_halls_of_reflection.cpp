@@ -345,6 +345,10 @@ public:
         switch (type)
         {
             case DATA_FALRIC:
+                // 法瑞克被击杀即视为第一阶段完成：此后即使还没进入第 6 波就灭团，
+                // 重来时也会跳过第 1-4 波和法瑞克本波，避免卡在第 5 波不出 Boss
+                if (state == DONE)
+                    _falricPhaseComplete = true;
                 if (_waveNumber)
                 {
                     if (state == NOT_STARTED)
@@ -737,13 +741,13 @@ public:
             _nextWaveTimer = 0;
             if (_waveNumber == 5)
             {
-                if (Creature* falric = GetCreature(DATA_FALRIC))
-                {
-                    if (falric->IsAlive())
-                        falric->AI()->DoAction(1);
-                    else
-                        _nextWaveTimer = 1;
-                }
+                // 法瑞克已阵亡或对象已被回收时不能停在这里，否则永远不出下一波（Boss），
+                // 这里直接推进到第 6 波
+                Creature* falric = GetCreature(DATA_FALRIC);
+                if (falric && falric->IsAlive())
+                    falric->AI()->DoAction(1);
+                else
+                    _nextWaveTimer = 1;
             }
             else
             {
@@ -785,6 +789,11 @@ public:
     {
         if (!_waveNumber)
             return;
+
+        // 波次状态是从运行时变量重建的（例如再次进入副本后 Initialize 会把标记清零），
+        // 这里以已持久化的 Boss 状态为准：法瑞克已死就说明第一阶段已完成
+        if (GetBossState(DATA_FALRIC) == DONE)
+            _falricPhaseComplete = true;
 
         DoUpdateWorldState(WORLD_STATE_HALLS_OF_REFLECTION_WAVES_ENABLED, 0);
         DoUpdateWorldState(WORLD_STATE_HALLS_OF_REFLECTION_WAVE_COUNT, 0);
@@ -908,13 +917,16 @@ public:
                         {
                             falric->UpdatePosition(5274.9f, 2039.2f, 709.319f, 5.4619f, true);
                             falric->StopMovingOnCurrentPos();
-                            falric->SetVisible(true);
                             if (falric->IsAlive())
                             {
+                                falric->SetVisible(true);
                                 falric->GetMotionMaster()->MovePoint(0, FalricMovePos);
                                 if (Aura* a = falric->AddAura(SPELL_SHADOWMOURNE_VISUAL, falric))
                                     a->SetDuration(8000);
                             }
+                            // 已阵亡的法瑞克（灭团发生在第一阶段完成之后）不再显示
+                            else
+                                falric->SetVisible(false);
                         }
                         if (Creature* marwyn = GetCreature(DATA_MARWYN))
                         {
