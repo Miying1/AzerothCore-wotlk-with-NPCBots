@@ -1060,8 +1060,10 @@ class spell_warr_deep_wounds_aura : public AuraScript
         PreventDefaultAction();
 
         Unit* caster = GetTarget();
-        if (!caster->IsPlayer())
+        //npcbot: 允许 NPCBot 也触发重伤流血
+        if (!caster->IsPlayer() && !caster->IsNPCBot())
             return;
+        //end npcbot
 
         int32 basepoints;
         if (eventInfo.GetTypeMask() & PROC_FLAG_DONE_OFFHAND_ATTACK)
