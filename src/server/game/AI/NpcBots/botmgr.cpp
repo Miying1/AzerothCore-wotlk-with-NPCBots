@@ -208,6 +208,12 @@ void BotMgr::Update(uint32 diff)
 
     if (partyCombat)
         bot_ai::CalculateAoeSpots(_owner, _aoespots, _creatureHazardStates);
+    else if (!_aoespots.empty() || !_creatureHazardStates.empty())
+    {
+        // 危险区缓存只在战斗中刷新，脱战后必须清空：
+        _aoespots.clear();
+        _creatureHazardStates.clear();
+    }
 
     ++_botsIterateDepth;
 
