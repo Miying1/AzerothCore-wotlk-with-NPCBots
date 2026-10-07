@@ -17,7 +17,9 @@ namespace
 // T1 保留原版两阶段：火焰阶段 -> 重力流逝阶段。
 constexpr uint32 RiftEntryPhoenix = 102056;
 constexpr uint32 RiftEntryArcaneSphere = 102057;
-constexpr int32 ArcaneDisruptionRaidDamage = 4000;
+// 龙息术在此显式传入 T1 基准伤害，运行时由 DamageDealt 统一乘以当前 Tier 倍率；
+// 破片炸弹的 T1 基准登记在 rift_spell_damage.h 的按法术缩放表中（走 CastIfConfigured）。
+constexpr int32 DragonsBreathRaidDamage = 4000;
 
 enum Events : uint32
 {
@@ -30,8 +32,8 @@ enum Events : uint32
     EventGravityLapseKnockup,
     EventGravityLapseFlight,
     EventGravityLapseEnd,
-    EventArcaneDisruption,
-    EventMindControl
+    EventDragonsBreath,          // T2新增：龙息术
+    EventFragmentationBomb       // T3新增：破片炸弹
 };
 
 enum Spells : uint32
@@ -41,8 +43,8 @@ enum Spells : uint32
     SpellPhoenixVisual = 44194,
     SpellShockBarrier = 46165,
     SpellPyroblast = 36819,
-    SpellArcaneDisruption = 36834,
-    SpellMindControl = 36797,
+    SpellDragonsBreath = 42949,  // 3.3.5：法师龙息术（前方锥形火焰伤害并短暂混乱）
+    SpellFragmentationBomb = 74707, // 3.3.5：破片炸弹（点名玩家位置范围火焰伤害，并降低其护甲）
     SpellTeleportCenter = 44218,
     SpellGravityLapseInitial = 44224,
     SpellGravityLapsePlayer = 44219,
@@ -122,9 +124,9 @@ struct boss_rift_kaelthas : public BossAIBase
         events.ScheduleEvent(EventFlamestrike, 22s);
         events.ScheduleEvent(EventPyroblast, 50s);
         if (_tier >= 2)
-            events.ScheduleEvent(EventArcaneDisruption, 27s);
+            events.ScheduleEvent(EventDragonsBreath, 27s);
         if (_tier >= 3)
-            events.ScheduleEvent(EventMindControl, 41s);
+            events.ScheduleEvent(EventFragmentationBomb, 41s);
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellSchoolMask /*damageSchoolMask*/) override
@@ -241,14 +243,14 @@ struct boss_rift_kaelthas : public BossAIBase
                 me->SetReactState(REACT_AGGRESSIVE);
                 events.ScheduleEvent(EventGravityLapse, 10s);
                 break;
-            case EventArcaneDisruption:
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellArcaneDisruption, SPELLVALUE_BASE_POINT0,
-                    ArcaneDisruptionRaidDamage, true);
-                events.ScheduleEvent(EventArcaneDisruption, _tier == 3 ? 22s : 28s);
+            case EventDragonsBreath: // T2新增：以Boss为原点向前喷吐锥形火焰，命中者短暂混乱，T3略微提前
+                CastFinalRaidDamageSpell(me, SpellDragonsBreath, SPELLVALUE_BASE_POINT0, DragonsBreathRaidDamage);
+                events.ScheduleEvent(EventDragonsBreath, _tier == 3 ? 22s : 28s);
                 break;
-            case EventMindControl:
-                CastIfConfigured(SelectRandomPlayer(), SpellMindControl, true);
-                events.ScheduleEvent(EventMindControl, 32s);
+            case EventFragmentationBomb: // T3新增：点名随机玩家，在其位置半径10码内造成火焰伤害并降低其护甲
+                // T1基准取 rift_spell_damage.h 中的缩放配置（BP0），护甲减益BP1保留DBC原值。
+                CastIfConfigured(SelectRandomPlayer(), SpellFragmentationBomb);
+                events.ScheduleEvent(EventFragmentationBomb, 25s);
                 break;
             default:
                 break;

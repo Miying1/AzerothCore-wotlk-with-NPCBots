@@ -197,7 +197,6 @@ constexpr RiftSpellDamageTuning RiftSpellDamageTunings[] =
     { 36512, {{ 0, 0, 0 }}, 1.00f }, // 击退
     { 36705, {{ 4800, 0, 0 }}, 1.00f }, // 奥术箭雨
     { 36819, {{ 7000, 0, 0 }}, 1.00f }, // 炎爆术
-    { 36834, {{ 7000, 0, 0 }}, 1.00f }, // 奥术干扰
     { 37328, {{ 1500, 6000, 0 }}, 1.00f }, // 月火术
     { 37329, {{ 7200, 0, 0 }}, 1.00f }, // 火球术
     { 37330, {{ 2000, 0, 0 }}, 1.00f }, // 精神鞭笞
@@ -228,6 +227,7 @@ constexpr RiftSpellDamageTuning RiftSpellDamageTunings[] =
     { 60182, {{ 5800, 0, 0 }}, 1.00f }, // 法力爆炸
     { 64422, {{ 4600, 0, 0 }}, 1.00f }, // 音速尖啸
     { 72318, {{ 2500, 0, 0 }}, 1.00f }, // 暗言术：痛
+    { 74707, {{ 8000, 0, 0 }}, 1.00f }, // 破片炸弹（凯尔萨斯T3新增，点名玩家位置范围伤害）
 };
 
 inline RiftSpellDamageTuning const* GetRiftSpellDamageTuning(uint32 spellId)
