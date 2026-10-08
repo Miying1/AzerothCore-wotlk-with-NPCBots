@@ -38,6 +38,8 @@ void AddSC_npc_account_bank();
 void AddSC_siege_summon_command();
 // 攻城BOSS：化身技能（判断 GUID 修改血量/伤害/模型/放大）
 void AddSC_real_boss_transform();
+// 风暴要塞：死亡释放后保持幽灵状态并骑飞行坐骑
+void AddSC_tempest_keep_ghost();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
@@ -75,4 +77,6 @@ void AddCustomScripts()
     AddSC_siege_summon_command();
     // 攻城BOSS：化身技能（判断 GUID 修改血量/伤害/模型/放大）
     AddSC_real_boss_transform();
+    // 风暴要塞：死亡释放后保持幽灵状态并骑飞行坐骑
+    AddSC_tempest_keep_ghost();
 }

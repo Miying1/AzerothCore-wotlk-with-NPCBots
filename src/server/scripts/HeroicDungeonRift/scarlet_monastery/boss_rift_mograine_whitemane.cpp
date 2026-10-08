@@ -127,6 +127,23 @@ struct npc_rift_whitemane : public ScriptedAI
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
     }
 
+    // 入场、走位和复活读条阶段怀特迈恩是 REACT_PASSIVE 且不主动攻击，
+    // 核心的 CreatureAI::UpdateVictim() 会把“被动且不在战斗”判成“没有敌人”并发起
+    // EnterEvadeMode → Reset()，于是她回到休眠、_mograineGuid 被清空，复活流程中断或重播。
+    // 只要本实例还有存活玩家，脚本阶段就不允许这类自动重置；全团阵亡后仍走正常重置。
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        bool const scriptedPhase = _phase == WhitemaneMovingToMograine || _phase == WhitemaneMovingForResurrection ||
+            _phase == WhitemaneResurrecting;
+        if (scriptedPhase && me->IsAlive() && me->GetMap() && me->GetMap()->GetPlayersCountExceptGMs(true) > 0)
+        {
+            me->SetInCombatWithZone();
+            return;
+        }
+
+        ScriptedAI::EnterEvadeMode(why);
+    }
+
     void SetData(uint32 type, uint32 data) override
     {
         if (type == RiftDataTier)
@@ -508,6 +525,21 @@ struct boss_rift_mograine : public BossAIBase
         PrepareWhitemane();
     }
 
+    // 假死阶段莫格莱尼同样是 REACT_PASSIVE 且主动脱离战斗，核心的 CreatureAI::UpdateVictim()
+    // 会把“被动且不在战斗”判成“没有敌人”并发起 EnterEvadeMode → Reset()，
+    // 那会把整场遭遇重置为满血、清掉 _resurrected 并重新准备怀特迈恩，表现为复活流程反复播放。
+    // 只要本实例还有存活玩家，假死序列就不允许自动重置；全团阵亡后仍走正常重置。
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        if (_fakeDeath && me->IsAlive() && me->GetMap() && me->GetMap()->GetPlayersCountExceptGMs(true) > 0)
+        {
+            me->SetInCombatWithZone();
+            return;
+        }
+
+        BossAIBase::EnterEvadeMode(why);
+    }
+
     void JustEngagedWith(Unit* who) override
     {
         if (who)
@@ -523,6 +555,18 @@ struct boss_rift_mograine : public BossAIBase
         if (_fakeDeath || _resurrected || damage < me->GetHealth())
             return;
 
+        // 必须先确认复活者可用再进入假死：旧逻辑先压低血量、再在怀特迈恩缺失时调用 EnterEvadeMode，
+        // 相当于把整场遭遇（满血、_resurrected=false、重新准备怀特迈恩）重置一遍，
+        // 玩家先打死亡怀特迈恩再继续击杀莫格莱尼时就会又走一遍完整的复活流程。
+        // 怀特迈恩不可用时让伤害正常结算，莫格莱尼真正死亡、遭遇正常结束。
+        Creature* whitemane = ObjectAccessor::GetCreature(*me, _whitemaneGuid);
+        if (!whitemane || !whitemane->IsAlive())
+        {
+            LOG_ERROR("scripts", "Rift Mograine {} cannot enter fake death: prepared Whitemane {} is unavailable.",
+                me->GetGUID().ToString(), _whitemaneGuid.ToString());
+            return;
+        }
+
         damage = me->GetHealth() - 1;
         if (Unit* victim = me->GetVictim())
             _combatTargetGuid = victim->GetGUID();
@@ -535,15 +579,6 @@ struct boss_rift_mograine : public BossAIBase
         me->RemoveAurasDueToSpell(SpellRetributionAura);
         me->SetStandState(UNIT_STAND_STATE_DEAD);
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-
-        Creature* whitemane = ObjectAccessor::GetCreature(*me, _whitemaneGuid);
-        if (!whitemane || !whitemane->IsAlive())
-        {
-            LOG_ERROR("scripts", "Rift Mograine {} cannot enter fake death: prepared Whitemane {} is unavailable.",
-                me->GetGUID().ToString(), _whitemaneGuid.ToString());
-            EnterEvadeMode(EVADE_REASON_SEQUENCE_BREAK);
-            return;
-        }
 
         whitemane->AI()->SetGUID(me->GetGUID(), GuidMograine);
         whitemane->AI()->SetGUID(_combatTargetGuid, GuidCombatTarget);
@@ -627,7 +662,12 @@ private:
         me->SetReactState(REACT_AGGRESSIVE);
         me->SetFullHealth();
         if (caster)
+        {
+            // 圣疗术(9257)的目标条件限定为原版怀特迈恩(3977)，裂隙怀特迈恩使用专用Entry无法被命中，
+            // 因此保留原版施法表现的同时直接补满她的生命（该法术本身效果就是回满血，不改变数值预期）。
             CastIfConfigured(caster, SpellLayOnHands, true);
+            caster->SetFullHealth();
+        }
         CastIfConfigured(me, SpellRetributionAura, true);
         events.ScheduleEvent(EventMograineResurrectionYell, 1s);
         ScheduleCombatEvents();
@@ -661,9 +701,16 @@ private:
         if (_whitemaneGuid)
             if (Creature* existing = ObjectAccessor::GetCreature(*me, _whitemaneGuid))
             {
-                existing->AI()->DoAction(ActionResetWhitemaneEncounter);
-                existing->AI()->SetGUID(me->GetGUID(), GuidMograine);
-                return;
+                // 已死亡的怀特迈恩不能复用：ResetToDormantState 只是写满血量，无法复活尸体，
+                // 继续沿用会让遭遇卡在“等一个永远不会进场的复活者”上，因此清掉残留并重新召唤。
+                if (existing->IsAlive())
+                {
+                    existing->AI()->DoAction(ActionResetWhitemaneEncounter);
+                    existing->AI()->SetGUID(me->GetGUID(), GuidMograine);
+                    return;
+                }
+
+                existing->DespawnOrUnsummon();
             }
 
         // 怀特迈恩在莫格莱尼假死前必须保持休眠（不可攻击、被动、不进入战斗），
