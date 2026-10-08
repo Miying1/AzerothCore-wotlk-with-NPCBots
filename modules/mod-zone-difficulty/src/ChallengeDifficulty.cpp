@@ -424,12 +424,12 @@ void ChallengeDifficulty::SendChallengLoot(Map* map)
         return;
 
     uint32 sendloot = levelData->second.award2;
-    std::string notice = "恭喜你，已完成 %i 级挑战！";
+    std::string notice = "恭喜你，已完成 {} 级挑战！";
     //限时完成
     if (insScript->GetTimeLimitMinute() > 0)
     { 
         sendloot = levelData->second.award1;
-        notice = "恭喜你，已限时完成 %i 级挑战！";
+        notice = "恭喜你，已限时完成 {} 级挑战！";
     }
     cdata->is_complete = true;
     SaveChallengeData(instId);
