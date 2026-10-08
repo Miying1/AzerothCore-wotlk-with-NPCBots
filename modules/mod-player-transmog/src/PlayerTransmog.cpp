@@ -419,7 +419,6 @@ void PlayerTransmog::SetBotTransmogScale(uint32 cid, uint32 botEntry, float scal
     std::string const sql = Acore::StringFormat(
         "UPDATE mod_player_bot_transmog SET scale_factor = {} WHERE character_id = {} AND bot_entry = {}",
         factor, cid, botEntry);
-    LOG_ERROR("module.player_transmog", "SetBotTransmogScale 执行 SQL: {}", sql);
     CharacterDatabase.AsyncQuery(sql);
 }
 
