@@ -816,6 +816,21 @@ public:
         if (d && d->model_id)
             pTransmog->CastTransmogBot(bot, d->model_id, d->scale_factor);
     }
+
+    // ⑤ 归属终止：玩家主动解雇（BotMgr::RemoveBot）与归属到期自动解雇（bot_ai::CheckOwnerExpiry）
+    //    都会触发这里，恢复原形并清掉该主人对应的幻形/缩放持久化数据。
+    //    与上面的 OnBotReset 解雇分支是幂等的（RemoveBotTransmog 重复调用不会出错），
+    //    保留 OnBotReset 里那份是为了兜住不走 BotMgr::RemoveBot 的 ResetBotAI(DISMISS) 调用点。
+    void OnBotDismiss(Unit* unit, uint32 ownerLow) override
+    {
+        Creature* bot = unit->ToCreature();
+        if (!bot) return;
+
+        pTransmog->RestoreBotTransmog(bot);
+
+        if (ownerLow)
+            pTransmog->RemoveBotTransmog(ownerLow, bot->GetEntry());
+    }
 };
 
 // 玩家登录/下线：登录开启短时补齐窗口，下线清理瞬态缓存

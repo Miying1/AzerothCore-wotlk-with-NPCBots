@@ -46,6 +46,7 @@ enum UnitHook
     UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM,
     UNITHOOK_ON_BOT_SET_OWNER,   // NPCBot 设置主人成功
     UNITHOOK_ON_BOT_RESET,       // NPCBot 重置（解雇/下线/解除绑定等）
+    UNITHOOK_ON_BOT_DISMISS,     // NPCBot 归属终止（玩家主动解雇 / 归属到期自动解雇）
     UNITHOOK_END
 };
 
@@ -117,6 +118,11 @@ public:
     virtual void OnBotSetOwner(Unit* /*bot*/, Player* /*owner*/) { }
     // NPCBot 重置时触发（resetType 见 BotAIResetType），模块可据此恢复原形/清理数据
     virtual void OnBotReset(Unit* /*bot*/, uint8 /*resetType*/) { }
+
+    // NPCBot 与其主人的归属关系被终止时触发（玩家主动解雇、归属到期自动解雇），
+    // ownerLow 为解除归属前的主人 GUID 低 32 位（可能为 0，表示无法确定），
+    // 模块可据此恢复原形并清理该主人的持久化数据
+    virtual void OnBotDismiss(Unit* /*bot*/, uint32 /*ownerLow*/) { }
 };
 
 #endif

@@ -149,6 +149,11 @@ void ScriptMgr::OnBotReset(Unit* bot, uint8 resetType)
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_BOT_RESET, script->OnBotReset(bot, resetType));
 }
 
+void ScriptMgr::OnBotDismiss(Unit* bot, uint32 ownerLow)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_BOT_DISMISS, script->OnBotDismiss(bot, ownerLow));
+}
+
 UnitScript::UnitScript(char const* name, bool addToScripts, std::vector<uint16> enabledHooks)
     : ScriptObject(name, UNITHOOK_END)
 {

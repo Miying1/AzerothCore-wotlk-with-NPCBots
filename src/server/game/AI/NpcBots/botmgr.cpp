@@ -864,6 +864,8 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
 
     if (resetType == BOTAI_RESET_DISMISS)
     {
+        // 通知模块：BOT 被玩家主动解雇，清理该主人相关的持久化数据（如佣兵幻形与缩放）
+        sScriptMgr->OnBotDismiss(bot, _owner->GetGUID().GetCounter());
         BotDataMgr::ResetNpcBotTransmogData(bot->GetEntry(), false);
         uint32 newOwner = 0;
         BotDataMgr::UpdateNpcBotData(bot->GetEntry(), NPCBOT_UPDATE_OWNER, &newOwner);

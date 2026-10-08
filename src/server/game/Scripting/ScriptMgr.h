@@ -571,6 +571,7 @@ public: /* UnitScript */
     void OnUnitSetShapeshiftForm(Unit* unit, uint8 form);
     void OnBotSetOwner(Unit* bot, Player* owner);
     void OnBotReset(Unit* bot, uint8 resetType);
+    void OnBotDismiss(Unit* bot, uint32 ownerLow);
 
 public: /* MovementHandlerScript */
     void OnPlayerMove(Player* player, MovementInfo movementInfo, uint32 opcode);

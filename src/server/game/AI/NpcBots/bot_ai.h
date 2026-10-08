@@ -607,7 +607,8 @@ protected:
     bool ProcessImmediateNonAttackTarget();
 
     static bool IsUsableItem(Item const* item);
-    uint32 GetItemSpellCooldown(uint32 spellid) const;
+    // 读取物品栏位上绑定法术的冷却配置；返回 false 表示未配置，调用方需回退 Spell.dbc
+    bool GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catrec) const;
     void CheckUsableItems(uint32 diff);
 
     uint32 GetLastWMOArea() const { return _lastWMOAreaId; }

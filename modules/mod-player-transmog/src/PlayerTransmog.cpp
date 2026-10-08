@@ -3,6 +3,7 @@
 #include "ItemTemplate.h"
 #include "DatabaseEnv.h" 
 #include "Configuration/Config.h"
+#include "Log.h"
 #include <algorithm>
 #include <cerrno>
 #include <cmath>
@@ -415,9 +416,11 @@ void PlayerTransmog::SetBotTransmogScale(uint32 cid, uint32 botEntry, float scal
     // 该佣兵必然已有幻形记录（菜单在没有记录时不给输入框），故不再考虑「没有记录」时的插入，
     // 也就不会出现 INSERT ... ON DUPLICATE KEY UPDATE 占位行在唯一键不命中时另插一行的问题；
     // UPDATE 也不依赖 (character_id, bot_entry) 唯一键，只要记录存在就一定能改到。
-    CharacterDatabase.AsyncQuery(Acore::StringFormat(
+    std::string const sql = Acore::StringFormat(
         "UPDATE mod_player_bot_transmog SET scale_factor = {} WHERE character_id = {} AND bot_entry = {}",
-        factor, cid, botEntry));
+        factor, cid, botEntry);
+    LOG_ERROR("module.player_transmog", "SetBotTransmogScale 执行 SQL: {}", sql);
+    CharacterDatabase.AsyncQuery(sql);
 }
 
 float PlayerTransmog::GetBotTransmogScaleFactor(uint32 characterId, uint32 botEntry) const

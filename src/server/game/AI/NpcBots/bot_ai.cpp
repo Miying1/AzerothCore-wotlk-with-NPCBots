@@ -461,6 +461,10 @@ void bot_ai::CheckOwnerExpiry()
         sCharacterCache->GetCharacterNameByGuid(ownerGuid, name);
         BOT_LOG_DEBUG("npcbots", "{}'s (guid: {}) ownership over bot {} ({}) has expired!", name, _botData->owner, me->GetName(), me->GetEntry());
 
+        // 通知模块：归属到期自动解雇，清理该主人相关的持久化数据。
+        // 必须放在下面「hard reset owner」之前，此时 _botData->owner 还是原主人。
+        sScriptMgr->OnBotDismiss(me, _botData->owner);
+
         //send all items back
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_NPCBOT_EQUIP_BY_ITEM_INSTANCE);
         //        0            1                2      3         4        5      6             7                 8           9           10    11    12         13
@@ -6885,22 +6889,39 @@ bool bot_ai::IsUsableItem(Item const* item)
 
     return false;
 }
-uint32 bot_ai::GetItemSpellCooldown(uint32 spellId) const
+// 读取物品栏位上绑定法术的冷却配置。规则与 Player::AddSpellAndCategoryCooldowns()、
+// 客户端物品查询(ItemHandler)保持一致：物品栏位任一项 >= 0 视为已配置（以物品数据为准），
+// 两项均为 -1 表示未配置，返回 false 由调用方回退 Spell.dbc
+bool bot_ai::GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catrec) const
 {
     for (Item const* item : _equips)
     {
-        if (item && IsUsableItem(item))
+        if (!item)
+            continue;
+
+        ItemTemplate const* proto = item->GetTemplate();
+        if (!proto)
+            continue;
+
+        for (auto i : NPCBots::index_array<uint8, MAX_ITEM_PROTO_SPELLS>)
         {
-            ItemTemplate const* proto = item->GetTemplate();
-            for (auto const& itemSpell : proto->Spells)
-            {
-                if (itemSpell.SpellId == decltype(itemSpell.SpellId)(spellId))
-                    return itemSpell.SpellCooldown;
-            }
+            _Spell const& spellData = proto->Spells[i];
+
+            if (spellData.SpellId <= 0 || uint32(spellData.SpellId) != spellId)
+                continue;
+
+            // -1 与 item_template 空栏位取值一致，表示该栏位未配置冷却
+            if (spellData.SpellCooldown < 0 && spellData.SpellCategoryCooldown < 0)
+                return false;
+
+            // 负值统一归 0，避免 int32 转 uint32 溢出成 4294967295（约 49.7 天冷却）
+            rec    = spellData.SpellCooldown > 0 ? uint32(spellData.SpellCooldown) : 0;
+            catrec = spellData.SpellCategoryCooldown > 0 ? uint32(spellData.SpellCategoryCooldown) : 0;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 void bot_ai::CheckUsableItems(uint32 diff)
 {
@@ -6924,7 +6945,12 @@ void bot_ai::CheckUsableItems(uint32 diff)
                         if (firstItemSpellId == 0)
                             firstItemSpellId = itemSpell.SpellId;
 
-                        if (IsSpellReady(itemSpell.SpellId, diff, false))
+                        // 冷却表以首级法术 id 为键（OnBotSpellGo() 写回时同样归一化），这里必须保持一致
+                        uint32 baseSpellId = itemSpell.SpellId;
+                        if (SpellInfo const* itemSpellInfo = sSpellMgr->GetSpellInfo(uint32(itemSpell.SpellId)))
+                            baseSpellId = itemSpellInfo->GetFirstRankSpell()->Id;
+
+                        if (IsSpellReady(baseSpellId, diff, false))
                             is_spell_ready = true;
                         else
                         {
@@ -6966,8 +6992,8 @@ void bot_ai::CheckUsableItems(uint32 diff)
                 targets.SetUnitTarget(castTarget);
                 _castBotItemUseSpell(item, targets);
 
-                // do not delay next check unless all items were checked
-                if (slot < BOT_SLOT_TRINKET2)
+                // 掩码中还有更高编号的可用物品槽时，下一帧立即继续检查；否则按随机间隔节流
+                if ((_usableItemSlotsMask >> (slot + 1)) != 0)
                     itemsAutouseTimer = 0;
 
                 break;
@@ -7500,8 +7526,13 @@ void bot_ai::SetSpellCooldown(uint32 basespell, uint32 msCooldown)
     //if (!msCooldown)
     //    return;
 
-    BotSpell& newSpell = _spells.try_emplace(basespell).first->second;
-    newSpell.cooldown = msCooldown;
+    // 物品使用型法术、PVP 徽章等从未经过 InitSpellMap() 初始化，
+    // 首次写入冷却时必须补齐 spellId，否则该条目 spellId 恒为 0，
+    // IsSpellReady() 会因 `spellId != 0` 判定失败而永久拒绝再次使用
+    auto [itr, inserted] = _spells.try_emplace(basespell);
+    if (inserted)
+        itr->second.spellId = basespell;
+    itr->second.cooldown = msCooldown;
 }
 //Using first-rank spell as source, sets cooldown for spells of that category
 void bot_ai::SetSpellCategoryCooldown(SpellInfo const* spellInfo, uint32 msCooldown)
@@ -16950,8 +16981,17 @@ void bot_ai::OnBotSpellGo(Spell const* spell, bool ok)
             //Set cooldown
             if (!curInfo->IsCooldownStartedOnEvent() && !curInfo->IsPassive())
             {
-                uint32 rec = curInfo->RecoveryTime ? curInfo->GetRecoveryTime() : GetItemSpellCooldown(curInfo->Id);
-                uint32 catrec = curInfo->CategoryRecoveryTime;
+                uint32 rec = 0;
+                uint32 catrec = 0;
+
+                // 职业/种族法术不查物品；物品法术与 PVP 徽章等按“物品栏位优先、未配置(-1)回退 Spell.dbc”取值，
+                // 与 Player::AddSpellAndCategoryCooldowns() / 客户端物品查询保持一致
+                if (HasSpell(curInfo->GetFirstRankSpell()->Id) || !GetItemSpellCooldownData(curInfo->Id, rec, catrec))
+                {
+                    rec = curInfo->RecoveryTime ? curInfo->GetRecoveryTime() : 0;
+                    catrec = curInfo->CategoryRecoveryTime;
+                }
+
                 if (!catrec && curInfo->StartRecoveryCategory == 133 && !curInfo->CalcCastTime())
                     catrec = curInfo->StartRecoveryTime;
 
@@ -16960,8 +17000,10 @@ void bot_ai::OnBotSpellGo(Spell const* spell, bool ok)
                 if (catrec && !(curInfo->AttributesEx6 & SPELL_ATTR6_NO_CATEGORY_COOLDOWN_MODS))
                     ApplyBotSpellCategoryCooldownMods(curInfo, catrec);
 
+                // 另：物品只配了类别冷却而未配自身冷却时，用它兜底作为该法术的冷却，
+                // 避免出现“配了冷却却完全无冷却”的刷屏使用
                 if (rec || catrec)
-                    SetSpellCooldown(curInfo->GetFirstRankSpell()->Id, rec);
+                    SetSpellCooldown(curInfo->GetFirstRankSpell()->Id, rec ? rec : catrec);
                 SetSpellCategoryCooldown(curInfo->GetFirstRankSpell(), catrec);
 
                 if (!IAmFree())

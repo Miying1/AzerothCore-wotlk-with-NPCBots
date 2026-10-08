@@ -31,6 +31,9 @@ enum Spells : uint32
 
 constexpr int32 FreezeTier1DamagePerTick = 1800;
 
+// 蓝量低于该百分比时立即回满，避免法师型首领因法力不足无法施放技能。
+constexpr float ManaRefillThresholdPercent = 50.0f;
+
 constexpr char const* RasFrostwhisperYell = "这不可能！！";
 constexpr uint32 RasFrostwhisperSound = 6371;
 }
@@ -55,6 +58,16 @@ struct boss_rift_ras_frostwhisper : public BossAIBase
         me->Yell(RasFrostwhisperYell, LANG_UNIVERSAL);
         me->PlayDirectSound(RasFrostwhisperSound);
         BossAIBase::JustDied(nullptr);
+    }
+
+    // 蓝量低于50%时立即回满，保证连发寒冰箭等技能随时可施放。
+    void UpdateAI(uint32 diff) override
+    {
+        if (uint32 maxMana = me->GetMaxPower(POWER_MANA))
+            if (me->GetPowerPct(POWER_MANA) < ManaRefillThresholdPercent)
+                me->SetPower(POWER_MANA, maxMana);
+
+        BossAIBase::UpdateAI(diff);
     }
 
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); AddInterruptImmuneSpell(SpellFear); }

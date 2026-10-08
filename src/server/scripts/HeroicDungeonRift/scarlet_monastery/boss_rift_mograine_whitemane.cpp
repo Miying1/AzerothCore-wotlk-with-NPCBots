@@ -34,7 +34,8 @@ enum WhitemaneEvents : uint32
     EventWhitemaneHeal,             // 治疗术（原版/T1复活后阶段）
     EventWhitemaneDominateMind,     // 统御意志（原版/T1复活后阶段）
     EventWhitemaneResurrectMograine,// 血色复活（原版/T1组合战流程）
-    EventWhitemaneResurrectionYell  // 复活台词（原版/T1流程）
+    EventWhitemaneResurrectionYell, // 复活台词（原版/T1流程）
+    EventWhitemaneResurrectionFallback // 复活兜底（施法回调全部丢失时强制推进）
 };
 
 enum Spells : uint32
@@ -54,7 +55,8 @@ enum Spells : uint32
 enum Actions : int32
 {
     ActionBeginWhitemaneEncounter = 1,
-    ActionResetWhitemaneEncounter
+    ActionResetWhitemaneEncounter,
+    ActionResurrectMograine          // 怀特迈恩施法完成通知莫格莱尼解除假死
 };
 
 enum WhitemaneMovementPoints : uint32
@@ -188,17 +190,17 @@ struct npc_rift_whitemane : public ScriptedAI
             _phase = WhitemaneResurrecting;
             _events.ScheduleEvent(EventWhitemaneResurrectMograine, 4500ms);
             _events.ScheduleEvent(EventWhitemaneResurrectionYell, 1900ms);
+            _events.ScheduleEvent(EventWhitemaneResurrectionFallback, 12000ms);
         }
     }
 
     void SpellHitTarget(Unit* target, SpellInfo const* spell) override
     {
-        if (_phase != WhitemaneResurrecting || !target || !spell || spell->Id != SpellScarletResurrection ||
+        if (!target || !spell || spell->Id != SpellScarletResurrection ||
             target->GetGUID() != _mograineGuid)
             return;
 
-        _phase = WhitemaneCombatPhaseTwo;
-        ResumeCombat();
+        FinishResurrection();
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/,
@@ -238,8 +240,14 @@ struct npc_rift_whitemane : public ScriptedAI
 
     void OnSpellCast(SpellInfo const* spell) override
     {
-        if (spell)
-            _lastCastSpellId = spell->Id;
+        if (!spell)
+            return;
+
+        _lastCastSpellId = spell->Id;
+        // 复活法术读条结束时推进复活流程：裂隙莫格莱尼使用专用Entry，
+        // 无法满足该法术自带的目标条件（原版3976），命中回调不会触发。
+        if (spell->Id == SpellScarletResurrection)
+            FinishResurrection();
     }
 
     void KilledUnit(Unit* victim) override
@@ -281,6 +289,12 @@ struct npc_rift_whitemane : public ScriptedAI
                 if (_phase == WhitemaneResurrecting || _phase == WhitemaneCombatPhaseTwo)
                     YellWithSound(WhitemaneResurrectText, SoundWhitemaneResurrect);
             }
+            else if (eventId == EventWhitemaneResurrectionFallback)
+            {
+                // 兜底：施法被意外打断或法术未能开始读条时，命中与施法完成回调都收不到，
+                // 必须强制走完复活流程，否则怀特迈恩会永久停留在不可选中状态导致遭遇无法结束。
+                FinishResurrection();
+            }
             else if (UpdateVictim())
             {
                 switch (eventId)
@@ -314,6 +328,20 @@ struct npc_rift_whitemane : public ScriptedAI
     }
 
 private:
+    // 复活完成的统一出口：切换阶段、通知莫格莱尼解除假死，并恢复自身可被选中/攻击的状态。
+    // 原版复活法术(9232)的DBC目标为“最近的指定Entry单位”，世界库conditions把它限定为原版莫格莱尼(3976)；
+    // 裂隙莫格莱尼使用专用Entry，法术永远无法命中，故不能只依赖 SpellHitTarget 命中回调。
+    void FinishResurrection()
+    {
+        if (_phase != WhitemaneResurrecting)
+            return;
+
+        _phase = WhitemaneCombatPhaseTwo;
+        if (Creature* mograine = ObjectAccessor::GetCreature(*me, _mograineGuid))
+            mograine->AI()->DoAction(ActionResurrectMograine);
+        ResumeCombat();
+    }
+
     // 怀特迈恩走到莫格莱尼身边后进入第一战斗阶段；由 MovementInform、接近判定或传送兜底触发。
     void EnterCombatPhaseOne()
     {
@@ -528,27 +556,15 @@ struct boss_rift_mograine : public BossAIBase
             caster->GetGUID() != _whitemaneGuid)
             return;
 
-        _fakeDeath = false;
-        _resurrected = true;
-        me->SetStandState(UNIT_STAND_STATE_STAND);
-        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-        me->SetReactState(REACT_AGGRESSIVE);
-        me->SetFullHealth();
-        CastIfConfigured(caster, SpellLayOnHands, true);
-        CastIfConfigured(me, SpellRetributionAura, true);
-        events.ScheduleEvent(EventMograineResurrectionYell, 1s);
-        ScheduleCombatEvents();
+        ResurrectFromFakeDeath(caster);
+    }
 
-        Unit* target = ObjectAccessor::GetUnit(*me, _combatTargetGuid);
-        if ((!target || !target->IsAlive()) && caster->GetVictim())
-            target = caster->GetVictim();
-        if (target && target->IsAlive())
-        {
-            _combatTargetGuid = target->GetGUID();
-            AttackStart(target);
-        }
-        else
-            me->SetInCombatWithZone();
+    void DoAction(int32 action) override
+    {
+        // 怀特迈恩的复活法术(9232)目标由DBC与世界库conditions限定为原版莫格莱尼(3976)，
+        // 裂隙莫格莱尼使用专用Entry无法被该法术命中，因此改由怀特迈恩施法完成后直接驱动复活。
+        if (action == ActionResurrectMograine)
+            ResurrectFromFakeDeath();
     }
 
     void KilledUnit(Unit* victim) override
@@ -595,6 +611,39 @@ struct boss_rift_mograine : public BossAIBase
     }
 
 private:
+    // 假死复活的统一实现：由复活法术命中回调或怀特迈恩的施法完成通知触发。
+    void ResurrectFromFakeDeath(Unit* caster = nullptr)
+    {
+        if (_resurrected)
+            return;
+
+        if (!caster)
+            caster = ObjectAccessor::GetCreature(*me, _whitemaneGuid);
+
+        _fakeDeath = false;
+        _resurrected = true;
+        me->SetStandState(UNIT_STAND_STATE_STAND);
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        me->SetReactState(REACT_AGGRESSIVE);
+        me->SetFullHealth();
+        if (caster)
+            CastIfConfigured(caster, SpellLayOnHands, true);
+        CastIfConfigured(me, SpellRetributionAura, true);
+        events.ScheduleEvent(EventMograineResurrectionYell, 1s);
+        ScheduleCombatEvents();
+
+        Unit* target = ObjectAccessor::GetUnit(*me, _combatTargetGuid);
+        if ((!target || !target->IsAlive()) && caster)
+            target = caster->GetVictim();
+        if (target && target->IsAlive())
+        {
+            _combatTargetGuid = target->GetGUID();
+            AttackStart(target);
+        }
+        else
+            me->SetInCombatWithZone();
+    }
+
     void YellWithSound(std::string_view text, uint32 soundId, WorldObject const* target = nullptr)
     {
         me->Yell(text, LANG_UNIVERSAL, target);
