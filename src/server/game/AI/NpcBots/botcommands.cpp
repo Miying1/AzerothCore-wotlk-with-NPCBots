@@ -2126,7 +2126,8 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
 
         Unit* target = owner->GetSelectedUnit();
         if (!target || !target->IsAlive() || !owner->IsValidAttackTarget(target))
-        { 
+        {
+            handler->PSendSysMessage("请先选择一个有效的攻击目标!");
             return true;
         }
 
@@ -2141,10 +2142,18 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
             return true;
         }
         if (!bot->IsAlive())
-        { 
+        {
+            handler->PSendSysMessage("{} 已死亡，无法设置持续攻击目标!", bot->GetName());
             return true;
         }
-        if (!bot->GetBotAI()->CanBotAttack(target))
+        // 暂不支持战斗前预定目标
+        if (!owner->IsInCombat() && !bot->IsInCombat() && !target->IsInCombat())
+        {
+            handler->PSendSysMessage("只能在战斗中设置持续攻击目标!");
+            return true;
+        }
+        // 使用宽松判定：命令下发不受距离/战斗阶段等瞬时条件限制
+        if (!bot->GetBotAI()->CanBotForceAttack(target))
         {
             handler->PSendSysMessage("{} 无法攻击当前目标!", bot->GetName());
             return true;
@@ -2173,6 +2182,11 @@ handler->SendSysMessage("列出职业 #botclass 的漫游机器人所有生成�
         if (!bot || !bot->IsInWorld())
         {
             handler->PSendSysMessage("未找到机器人 {}!", *bot_name);
+            return true;
+        }
+        if (!bot->GetBotAI()->HasForcedAttackTarget())
+        {
+            handler->PSendSysMessage("{} 当前没有持续攻击目标。", bot->GetName());
             return true;
         }
 

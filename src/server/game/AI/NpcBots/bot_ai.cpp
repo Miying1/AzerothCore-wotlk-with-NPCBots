@@ -555,6 +555,8 @@ void bot_ai::InitUnitFlags()
 void bot_ai::ResetBotAI(uint8 resetType)
 {
     _botCommandState = 0;
+    // 机器人被重置(解雇/下线/放出/召回/重生)：撤销持续攻击命令
+    _forcedAttackTargetGuid.Clear();
     _combatPositioningOverride = -1;
     _botAwaitState = BOT_AWAIT_NONE;
     _stayPosition = Position{};
@@ -3978,6 +3980,50 @@ bool bot_ai::CanBotAttack(Unit const* target, int8 byspell, bool secondary) cons
 
     return false;
 }
+// 宽松版攻击判定：仅校验目标是否具备被攻击的基本条件。
+// 与 CanBotAttack 不同，这里不检查距离、战斗阶段(engage timer)、
+// 主人/目标是否处于战斗等战斗态势条件，避免“持续攻击”命令
+// 因这些会随 tick 变化的态势而被拒绝或撤销。
+bool bot_ai::CanBotForceAttack(Unit const* target) const
+{
+    if (!target || !target->IsAlive())
+        return false;
+    if (HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION))
+        return false;
+    if (target->HasUnitState(UNIT_STATE_EVADE | UNIT_STATE_IN_FLIGHT))
+        return false;
+    if (!target->IsVisible())
+        return false;
+    if (!target->isTargetableForAttack(false))
+        return false;
+    if (!target->InSamePhase(me) && !CanSeeEveryone())
+        return false;
+    if (!BotCfg::IsPvPEnabled() && me->IsPvP() && target->IsControlledByPlayer())
+        return false;
+    if ((target->GetFaction() == 35 || target->GetFaction() == me->GetFaction()) && me->GetFaction() != FACTION_TEMPLATE_NEUTRAL_HOSTILE)
+        return false;
+    if (!CanBotAttackOnVehicle())
+        return false;
+    if (IsPointedNoDPSTarget(target))
+        return false;
+    if (me->IsValidAttackTarget(target))
+        return true;
+
+    //被魅惑的队友需在特殊情况下可被攻击(与 CanBotAttack 保持一致)
+    if (IsInBotParty(target))
+    {
+        switch (target->HasAuraType(SPELL_AURA_MOD_CHARM) ? target->GetAuraEffectsByType(SPELL_AURA_MOD_CHARM).front()->GetId() : 0)
+        {
+            case 17244:
+            case 17246: //Possess (Baroness Anastari, Stratholme, 17244 -> 17246)
+                return true;
+            default:
+                break;
+        }
+    }
+
+    return false;
+}
 bool bot_ai::CanBotAttackOnVehicle() const
 {
     if (VehicleSeatEntry const* seat = me->GetVehicle() ? me->GetVehicle()->GetSeatForPassenger(me) : nullptr)
@@ -4133,7 +4179,15 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
     if (!_forcedAttackTargetGuid.IsEmpty())
     {
         Unit* forcedTarget = ObjectAccessor::GetUnit(*me, _forcedAttackTargetGuid);
-        if (forcedTarget && forcedTarget->IsAlive() && me->IsInMap(forcedTarget) && CanBotAttack(forcedTarget))
+        // 仅在目标死亡 / 换图 / guid 彻底失效时才永久撤销持续攻击命令并停止攻击
+        if (!forcedTarget || !forcedTarget->IsAlive() || !me->IsInMap(forcedTarget))
+        {
+            if (forcedTarget && me->GetVictim() == forcedTarget)
+                me->AttackStop();
+            _forcedAttackTargetGuid.Clear();
+        }
+        // 宽松判定：瞬时不可攻击(脱战/超距/相位等)时保留命令，等待恢复
+        else if (CanBotForceAttack(forcedTarget))
         {
             if (me->IsWithinDistInMap(forcedTarget, 5.0f) || me->GetVehicle() || me->CanFly() || me->CanSwim())
                 return { forcedTarget, forcedTarget };
@@ -4143,11 +4197,9 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
                 forcedTarget->GetPositionX(), forcedTarget->GetPositionY(), forcedTarget->GetPositionZ());
             if (pathFound && !(path.GetPathType() & (PATHFIND_NOPATH | PATHFIND_SHORTCUT | PATHFIND_FARFROMPOLY)))
                 return { forcedTarget, forcedTarget };
+            // 暂时无法到达：保留命令，本 tick 回退到常规选敌
         }
-
-        _forcedAttackTargetGuid.Clear();
     }
-
 
     //Immediate targets
     //orders
@@ -4615,7 +4667,10 @@ std::pair<Unit*, Unit*> bot_ai::_getTargets(bool byspell, bool ranged, bool &res
         mytar = nullptr;
     }
 
-    if (u && !IAmFree() && (master->IsInCombat() || u->IsInCombat())/* && !InDuel(u)*/ && !IsInBotParty(u) && (BotCfg::IsPvPEnabled() || !u->IsControlledByPlayer()) &&
+    // 主人当前目标：只有在 bot 没有被下达“停手”(FULLSTOP) / “只跟随”(INACTION) 指令时才作为攻击目标，
+    // 否则这两种状态下 bot 依旧会跟随主人目标输出，导致停手指令失效。
+    if (u && !IAmFree() && !HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION) &&
+        (master->IsInCombat() || u->IsInCombat())/* && !InDuel(u)*/ && !IsInBotParty(u) && (BotCfg::IsPvPEnabled() || !u->IsControlledByPlayer()) &&
         (!HasBotCommandState(BOT_COMMAND_STAY) || (!IsRanged() ? me->IsWithinMeleeRange(u) : me->GetDistance(u) < foldist)))
     {
         //BOT_LOG_ERROR("entities.player", "bot %s starts attack master's target %s", me->GetName().c_str(), u->GetName().c_str());
@@ -5701,20 +5756,36 @@ bool bot_ai::TryGetAoeDetourPoint(Position const& start, Position const& goal, P
     float const cz = nearestCenter->GetPositionZ();
     float const r = nearestRadius;
 
-    // 沿最近的危险圆边界均匀采样候选绕行点（不额外加安全边距）。
-    // 逐个排除仍落在任何危险区内的候选，并按"起点→候选→目标"的绕行路径总长取最短者。
-    // 这样即使首选一侧落入重叠/相邻危险圆，也会自动尝试另一侧及其它方向重新规划，
-    // 而不是直接放弃绕行。
+    // 实际移动体（载具时取用载具基座），与 IsWithinAoERadius 的判定基准保持一致
+    Unit const* const mover = me->GetVehicle() ? me->GetVehicleBase() : me;
+
+    // 采样半径必须在危险圆之外再让出 bot 体积补偿与固定余量：
+    // IsWithinAoERadius 会把危险半径按 (GetCombatReach - DEFAULT_COMBAT_REACH) 放大，
+    // 若候选点恰好落在圆边界上，会被重新判定为“仍在危险区”，导致全部候选被剔除、
+    // 绕行彻底失效（载具/幻形缩放等 combat reach > 1.5 的场景必然触发）。
+    float const cr_diff = mover->GetCombatReach() - DEFAULT_COMBAT_REACH;
+    float const sampleRadius = r + std::max(cr_diff, 0.0f) + 0.5f;
+
+    // 沿最近的危险圆外侧均匀采样候选绕行点，再逐个排除仍落在任何危险区内的候选
+    // （含重叠/相邻危险圆），并按“起点→候选→目标”的绕行路径总长取最短者。
+    // 候选还必须是视线可达且 navmesh 可达的点：点移动一旦寻路失败会退化成两点直线，
+    // 把 bot 直接送进墙壁或悬崖下，因此与 MoveBehind 保持一致做可达性校验。
     constexpr uint8 SAMPLE_COUNT = 16;
     float bestScore = std::numeric_limits<float>::max();
     Position bestPos;
     bool found = false;
 
+    // 复用同一个 PathGenerator：构造时会重建寻路 filter，且实例内部会保留上一次的 poly 路径，
+    // 跨候选点复用可命中子路径优化，避免每个候选点都重新构造 + 重建 filter 的开销。
+    PathGenerator path(mover);
+
     for (uint8 i = 0; i < SAMPLE_COUNT; ++i)
     {
         float const ang = (2.0f * float(M_PI) * i) / SAMPLE_COUNT;
         Position candidate;
-        candidate.Relocate(cx + r * std::cos(ang), cy + r * std::sin(ang), cz);
+        candidate.Relocate(cx + sampleRadius * std::cos(ang), cy + sampleRadius * std::sin(ang), cz);
+        // 候选点贴地，避免沿用圆心高度导致悬空或埋入地形
+        mover->UpdateAllowedPositionZ(candidate.m_positionX, candidate.m_positionY, candidate.m_positionZ);
 
         // 跳过仍处于某个危险区内的候选（含重叠危险圆）
         if (IsWithinAoERadius(candidate))
@@ -5722,12 +5793,21 @@ bool bot_ai::TryGetAoeDetourPoint(Position const& start, Position const& goal, P
 
         // 2D 路径长度评分，评分越低说明绕行越短、越靠近目标
         float const score = start.GetExactDist2d(candidate) + candidate.GetExactDist2d(goal);
-        if (score < bestScore)
-        {
-            bestScore = score;
-            bestPos.Relocate(candidate);
-            found = true;
-        }
+        if (score >= bestScore)
+            continue;
+
+        // 视线可达性校验
+        if (!mover->IsWithinLOS(candidate.m_positionX, candidate.m_positionY, candidate.m_positionZ))
+            continue;
+
+        // navmesh 可达性校验，排除直线穿行类路径
+        if (!path.CalculatePath(candidate.m_positionX, candidate.m_positionY, candidate.m_positionZ, false) ||
+            (path.GetPathType() & (PATHFIND_NOPATH | PATHFIND_SHORTCUT | PATHFIND_FARFROMPOLY)))
+            continue;
+
+        bestScore = score;
+        bestPos.Relocate(candidate);
+        found = true;
     }
 
     if (!found)
@@ -16538,7 +16618,16 @@ void bot_ai::SetForcedAttackTarget(Unit const* target)
 
 void bot_ai::ClearForcedAttackTarget()
 {
+    ObjectGuid forcedGuid = _forcedAttackTargetGuid;
     _forcedAttackTargetGuid.Clear();
+
+    if (forcedGuid.IsEmpty())
+        return;
+
+    // 撤销攻击：若机器人正攻击该强制目标，则立即停止攻击
+    if (Unit* forcedTarget = ObjectAccessor::GetUnit(*me, forcedGuid))
+        if (me->GetVictim() == forcedTarget)
+            me->AttackStop();
 }
 
 void bot_ai::JustEngagedWith(Unit* u)
@@ -16603,6 +16692,8 @@ void bot_ai::JustDied(Unit* u)
     AbortAwaitStateRemoval();
     KillEvents(false);
     CancelAllActions();
+    // 机器人自身死亡：撤销持续攻击命令
+    _forcedAttackTargetGuid.Clear();
 
     if (me->GetVehicle())
         me->ExitVehicle();

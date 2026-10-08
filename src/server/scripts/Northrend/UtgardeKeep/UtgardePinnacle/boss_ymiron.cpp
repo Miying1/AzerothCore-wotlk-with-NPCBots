@@ -124,11 +124,15 @@ public:
         uint8 BoatOrder[4];
         std::vector<ObjectGuid> banePausedBots;
 
+        // 判断 bot 是否正在攻击伊米隆：自身当前目标就是 boss，或被 boss 记录为攻击者
+        bool IsBotAttackingBaneTarget(Creature* bot) const
+        {
+            return bot->GetVictim() == me || me->getAttackers().count(bot) > 0;
+        }
+
+        // 灾祸(Bane)持续期间让正在攻击 boss 的 bot 停手
         void PauseBotsForBane()
         {
-            if (!banePausedBots.empty())
-                return;
-
             for (auto const& playerReference : me->GetMap()->GetPlayers())
             {
                 Player* player = playerReference.GetSource();
@@ -138,19 +142,33 @@ public:
                 BotMap const* botMap = player->GetBotMgr()->GetBotMap();
                 for (auto const& [guid, bot] : *botMap)
                 {
-                    if (!bot || !bot->IsAlive() || bot->GetVictim() != me)
+                    if (!bot || !bot->IsAlive() || !IsBotAttackingBaneTarget(bot))
                         continue;
 
                     bot_ai* botAI = bot->GetBotAI();
-                    if (!botAI || botAI->HasBotCommandState(BOT_COMMAND_FULLSTOP))
+                    if (!botAI)
                         continue;
 
-                    banePausedBots.push_back(guid);
-                    botAI->SetBotCommandState(BOT_COMMAND_FULLSTOP, true);
+                    bool const pausedByUs = std::find(banePausedBots.begin(), banePausedBots.end(), guid) != banePausedBots.end();
+
+                    // 玩家手动下达的停手指令（不是本机制设置的）保持原样，也不登记
+                    if (!pausedByUs && botAI->HasBotCommandState(BOT_COMMAND_FULLSTOP))
+                        continue;
+
+                    // 灾祸期间状态被外部清除（如主人下达 follow）时重新压回停手
+                    if (!botAI->HasBotCommandState(BOT_COMMAND_FULLSTOP))
+                    {
+                        botAI->SetBotCommandState(BOT_COMMAND_FULLSTOP, true);
+                        LOG_DEBUG("scripts", "Ymiron Bane: bot {} 停手", bot->GetName());
+                    }
+
+                    if (!pausedByUs)
+                        banePausedBots.push_back(guid);
                 }
             }
         }
 
+        // 灾祸结束后恢复被本机制停手的 bot
         void ResumeBotsAfterBane()
         {
             if (banePausedBots.empty())
@@ -165,14 +183,19 @@ public:
                 BotMap const* botMap = player->GetBotMgr()->GetBotMap();
                 for (auto const& [guid, bot] : *botMap)
                 {
-                    if (!bot || !bot->IsAlive() || std::find(banePausedBots.begin(), banePausedBots.end(), guid) == banePausedBots.end())
+                    if (!bot || std::find(banePausedBots.begin(), banePausedBots.end(), guid) == banePausedBots.end())
                         continue;
 
                     bot_ai* botAI = bot->GetBotAI();
                     if (!botAI)
                         continue;
 
+                    // 已死亡的 bot 也要清除状态，避免复活后一直卡在停手
                     botAI->RemoveBotCommandState(BOT_COMMAND_FULLSTOP);
+
+                    if (!bot->IsAlive())
+                        continue;
+
                     if (me->IsAlive() && me->IsInCombat() && bot->IsValidAttackTarget(me))
                     {
                         bot->AttackStop();
@@ -181,6 +204,8 @@ public:
                     }
                 }
             }
+
+            LOG_DEBUG("scripts", "Ymiron Bane: 恢复 {} 个 bot", banePausedBots.size());
 
             banePausedBots.clear();
         }
@@ -335,7 +360,8 @@ public:
                         break;
                     }
                 case 20:
-                    if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE)) {
+                    if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+                    {
                         events.ScheduleEvent(EVENT_YMIRON_ACTIVATE_BOAT, 0s);
                     }
                     break;
@@ -346,7 +372,7 @@ public:
                         me->GetMotionMaster()->MoveChase(me->GetVictim());
                         // Spawn it!
                         if (Creature* king = me->SummonCreature(BoatStructure[BoatOrder[BoatNum - 1]].npc, BoatStructure[BoatOrder[BoatNum - 1]].SpawnX, BoatStructure[BoatOrder[BoatNum - 1]].SpawnY, BoatStructure[BoatOrder[BoatNum - 1]].SpawnZ, BoatStructure[BoatOrder[BoatNum - 1]].SpawnO, TEMPSUMMON_CORPSE_DESPAWN, 0))
-                        { 
+                        {
                             king->CastSpell(me, SPELL_CHANNEL_SPIRIT_TO_YMIRON, true);
                             summons.Summon(king);
                             king->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
@@ -370,7 +396,7 @@ public:
                                     break;
                             }
                         }
-                      
+
                         break;
                     }
                 case EVENT_YMIRON_BJORN_ABILITY:

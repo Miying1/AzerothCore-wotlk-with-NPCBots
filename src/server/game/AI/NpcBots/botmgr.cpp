@@ -608,6 +608,8 @@ void BotMgr::_teleportBot(Creature* bot, Map* newMap, float x, float y, float z,
                 bot->RemoveAurasByType(SPELL_AURA_MOD_CONFUSE);
                 bot->RemoveAurasByType(SPELL_AURA_MOD_ROOT);
                 bot->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TELEPORTED);
+                // 机器人换图：撤销持续攻击命令并停止攻击
+                botai->ClearForcedAttackTarget();
             }
 
             bot->InterruptNonMeleeSpells(true);
