@@ -609,6 +609,8 @@ protected:
     static bool IsUsableItem(Item const* item);
     // 读取物品栏位上绑定法术的冷却配置；返回 false 表示未配置，调用方需回退 Spell.dbc
     bool GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catrec) const;
+    // 解析法术实际应使用的冷却（物品栏位优先，其次 Spell.dbc）；返回 false 表示两处都没有配置冷却
+    bool GetSpellCooldownData(SpellInfo const* spellInfo, uint32& rec, uint32& catrec) const;
     void CheckUsableItems(uint32 diff);
 
     uint32 GetLastWMOArea() const { return _lastWMOAreaId; }

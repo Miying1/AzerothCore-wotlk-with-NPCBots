@@ -6923,6 +6923,27 @@ bool bot_ai::GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catre
 
     return false;
 }
+// 解析某法术实际应使用的冷却：物品栏位优先（与客户端/玩家一致），
+// 物品栏位未配置、或只填了 0 占位（没真正提供冷却）时回退 Spell.dbc；
+// 返回 false 表示两个来源都没有配置冷却（此类“使用型”物品 AI 不会自动使用，避免被无限使用）
+bool bot_ai::GetSpellCooldownData(SpellInfo const* spellInfo, uint32& rec, uint32& catrec) const
+{
+    uint32 itemRec = 0;
+    uint32 itemCatRec = 0;
+
+    if (GetItemSpellCooldownData(spellInfo->Id, itemRec, itemCatRec) && (itemRec || itemCatRec))
+    {
+        rec    = itemRec;
+        catrec = itemCatRec;
+    }
+    else
+    {
+        rec    = spellInfo->RecoveryTime ? spellInfo->GetRecoveryTime() : 0;
+        catrec = spellInfo->CategoryRecoveryTime;
+    }
+
+    return rec != 0 || catrec != 0;
+}
 void bot_ai::CheckUsableItems(uint32 diff)
 {
     if (!_usableItemSlotsMask || itemsAutouseTimer > diff || !me->IsInCombat() || IsCasting() || (!me->GetVictim() && me->getAttackers().empty()))
@@ -6945,12 +6966,22 @@ void bot_ai::CheckUsableItems(uint32 diff)
                         if (firstItemSpellId == 0)
                             firstItemSpellId = itemSpell.SpellId;
 
-                        // 冷却表以首级法术 id 为键（OnBotSpellGo() 写回时同样归一化），这里必须保持一致
-                        uint32 baseSpellId = itemSpell.SpellId;
-                        if (SpellInfo const* itemSpellInfo = sSpellMgr->GetSpellInfo(uint32(itemSpell.SpellId)))
-                            baseSpellId = itemSpellInfo->GetFirstRankSpell()->Id;
+                        SpellInfo const* itemSpellInfo = sSpellMgr->GetSpellInfo(uint32(itemSpell.SpellId));
+                        if (!itemSpellInfo)
+                            continue;
 
-                        if (IsSpellReady(baseSpellId, diff, false))
+                        // 物品栏位与 Spell.dbc 都没有冷却数据时不自动使用，
+                        // 否则冷却表里不会写入任何冷却，物品会被反复使用
+                        uint32 rec = 0;
+                        uint32 catrec = 0;
+                        if (!GetSpellCooldownData(itemSpellInfo, rec, catrec))
+                        {
+                            is_spell_ready = false;
+                            break;
+                        }
+
+                        // 冷却表以首级法术 id 为键（OnBotSpellGo() 写回时同样归一化），这里必须保持一致
+                        if (IsSpellReady(itemSpellInfo->GetFirstRankSpell()->Id, diff, false))
                             is_spell_ready = true;
                         else
                         {
@@ -14014,6 +14045,28 @@ BotEquipResult bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver, bo
         uint32 slotMask = 1ul << slot;
         ASSERT(!(_usableItemSlotsMask & slotMask));
         _usableItemSlotsMask |= slotMask;
+
+        // 使用型物品在物品栏位与 Spell.dbc 中都没有冷却数据时 AI 不会自动使用它，
+        // 这里提示一次便于补全 item_template / Spell.dbc 数据
+        for (auto i : NPCBots::index_array<uint8, MAX_ITEM_PROTO_SPELLS>)
+        {
+            _Spell const& spellData = proto->Spells[i];
+            if (spellData.SpellId <= 0 || spellData.SpellTrigger != ITEM_SPELLTRIGGER_ON_USE)
+                continue;
+
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(uint32(spellData.SpellId));
+            if (!spellInfo)
+                continue;
+
+            uint32 rec = 0;
+            uint32 catrec = 0;
+            if (!GetSpellCooldownData(spellInfo, rec, catrec))
+            {
+                BOT_LOG_WARN("entities.player",
+                    "bot_ai::_equip(): 机器人 {} 装备的物品 {} ({}) 使用型法术 {} 在物品与 Spell.dbc 中都没有冷却配置，AI 不会自动使用该物品",
+                    me->GetName().c_str(), proto->ItemId, proto->Name1.c_str(), spellData.SpellId);
+            }
+        }
     }
 
     _updateEquips(slot, newItem);
@@ -16984,9 +17037,9 @@ void bot_ai::OnBotSpellGo(Spell const* spell, bool ok)
                 uint32 rec = 0;
                 uint32 catrec = 0;
 
-                // 职业/种族法术不查物品；物品法术与 PVP 徽章等按“物品栏位优先、未配置(-1)回退 Spell.dbc”取值，
-                // 与 Player::AddSpellAndCategoryCooldowns() / 客户端物品查询保持一致
-                if (HasSpell(curInfo->GetFirstRankSpell()->Id) || !GetItemSpellCooldownData(curInfo->Id, rec, catrec))
+                // 职业/种族法术不受物品影响；物品法术与 PVP 徽章等按“物品栏位优先、
+                // 未配置或仅 0 占位时回退 Spell.dbc”取值，与客户端物品查询保持一致
+                if (HasSpell(curInfo->GetFirstRankSpell()->Id) || !GetSpellCooldownData(curInfo, rec, catrec))
                 {
                     rec = curInfo->RecoveryTime ? curInfo->GetRecoveryTime() : 0;
                     catrec = curInfo->CategoryRecoveryTime;
