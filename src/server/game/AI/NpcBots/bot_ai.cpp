@@ -6907,7 +6907,11 @@ bool bot_ai::GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catre
         {
             _Spell const& spellData = proto->Spells[i];
 
-            if (spellData.SpellId <= 0 || uint32(spellData.SpellId) != spellId)
+            // 只有“使用型”栏位才有物品使用冷却，其余触发类型不参与
+            if (spellData.SpellId <= 0 || spellData.SpellTrigger != ITEM_SPELLTRIGGER_ON_USE)
+                continue;
+
+            if (uint32(spellData.SpellId) != spellId)
                 continue;
 
             // -1 与 item_template 空栏位取值一致，表示该栏位未配置冷却
@@ -6923,9 +6927,12 @@ bool bot_ai::GetItemSpellCooldownData(uint32 spellId, uint32& rec, uint32& catre
 
     return false;
 }
-// 解析某法术实际应使用的冷却：物品栏位优先（与客户端/玩家一致），
-// 物品栏位未配置、或只填了 0 占位（没真正提供冷却）时回退 Spell.dbc；
-// 返回 false 表示两个来源都没有配置冷却（此类“使用型”物品 AI 不会自动使用，避免被无限使用）
+// 解析某法术实际应使用的冷却：
+// 使用型物品的冷却写在物品栏位上（Spell.dbc 里这些法术的冷却普遍为 0，即使有也可能比物品配置更短），
+// 因此物品栏位提供了冷却就以物品为准；物品未配置或只填 0 占位时回退 Spell.dbc。
+// 注意：部分物品的使用型法术 id 与职业技能 id 相同（如「能量披风」用 5405 回春术、
+// 「绑定收购检验项目」用 133 火球术），其冷却只在物品栏位上，所以调用方不能按“是否为职业法术”跳过物品数据。
+// 返回 false 表示两个来源都没有配置冷却，调用方（AI 自动使用物品）应跳过该物品
 bool bot_ai::GetSpellCooldownData(SpellInfo const* spellInfo, uint32& rec, uint32& catrec) const
 {
     uint32 itemRec = 0;
@@ -14040,6 +14047,8 @@ BotEquipResult bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver, bo
             me->SetAttackTime(WeaponAttackType(slot), delay); //set attack speed
     }
 
+    _updateEquips(slot, newItem);
+
     if (IsUsableItem(newItem))
     {
         uint32 slotMask = 1ul << slot;
@@ -14047,7 +14056,8 @@ BotEquipResult bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver, bo
         _usableItemSlotsMask |= slotMask;
 
         // 使用型物品在物品栏位与 Spell.dbc 中都没有冷却数据时 AI 不会自动使用它，
-        // 这里提示一次便于补全 item_template / Spell.dbc 数据
+        // 这里提示一次便于补全 item_template / Spell.dbc 数据。
+        // 必须在 _updateEquips() 之后再解析，否则扫描不到刚装备的这件物品
         for (auto i : NPCBots::index_array<uint8, MAX_ITEM_PROTO_SPELLS>)
         {
             _Spell const& spellData = proto->Spells[i];
@@ -14068,8 +14078,6 @@ BotEquipResult bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver, bo
             }
         }
     }
-
-    _updateEquips(slot, newItem);
 
     //only for non-standard items
     if (slot > BOT_SLOT_RANGED || einfo->ItemEntry[slot] != newItemId)
@@ -15402,8 +15410,22 @@ void bot_ai::_castBotItemUseSpell(Item const* item, SpellCastTargets const& targ
         //spell->m_CastItem = item; // DO NOT TAKE ITEM
         //spell->m_cast_count = cast_count;                   // set count of casts
         //spell->m_glyphIndex = glyphIndex;                   // glyph index
-        spell->prepare(&targets);
+        bool const cast_ok = spell->prepare(&targets) == SPELL_CAST_OK;
         ++count;
+
+        // 使用型物品冷却在此直接落地：OnBotSpellGo() 对 passive / IsCooldownStartedOnEvent /
+        // 载具座位无法攻击等情况会跳过冷却写入，只依赖那里会让冷却失效、物品被反复使用
+        if (cast_ok)
+        {
+            uint32 rec = 0;
+            uint32 catrec = 0;
+            if (GetSpellCooldownData(spellInfo, rec, catrec))
+            {
+                SetSpellCooldown(spellInfo->GetFirstRankSpell()->Id, rec ? rec : catrec);
+                BOT_LOG_TRACE("npcbots", "bot_ai::_castBotItemUseSpell(): {} 使用物品 {} ({}) 法术 {} 冷却 {} ms",
+                    me->GetName().c_str(), proto->ItemId, proto->Name1.c_str(), spellInfo->Id, uint32(rec ? rec : catrec));
+            }
+        }
     }
 
     // Item enchantments spells casted at use
@@ -17034,16 +17056,10 @@ void bot_ai::OnBotSpellGo(Spell const* spell, bool ok)
             //Set cooldown
             if (!curInfo->IsCooldownStartedOnEvent() && !curInfo->IsPassive())
             {
+                // 冷却解析：物品栏位优先，物品未配置或仅 0 占位时回退 Spell.dbc（详见 GetSpellCooldownData）
                 uint32 rec = 0;
                 uint32 catrec = 0;
-
-                // 职业/种族法术不受物品影响；物品法术与 PVP 徽章等按“物品栏位优先、
-                // 未配置或仅 0 占位时回退 Spell.dbc”取值，与客户端物品查询保持一致
-                if (HasSpell(curInfo->GetFirstRankSpell()->Id) || !GetSpellCooldownData(curInfo, rec, catrec))
-                {
-                    rec = curInfo->RecoveryTime ? curInfo->GetRecoveryTime() : 0;
-                    catrec = curInfo->CategoryRecoveryTime;
-                }
+                GetSpellCooldownData(curInfo, rec, catrec);
 
                 if (!catrec && curInfo->StartRecoveryCategory == 133 && !curInfo->CalcCastTime())
                     catrec = curInfo->StartRecoveryTime;
