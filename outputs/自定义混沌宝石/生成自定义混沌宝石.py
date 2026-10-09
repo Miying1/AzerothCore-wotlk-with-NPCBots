@@ -95,11 +95,11 @@ def gem_item(entry, name, gprops, quality):
 # 材料物品：源力碎片 / 源力核心（class=7 贸易货物, subclass=11 材料）
 MATERIALS = [
     {"entry": 63100, "class": 7, "subclass": 11, "name": "源力碎片",
-     "displayid": 13124, "Quality": 4, "Flags": 4096, "BuyCount": 1,
+     "displayid": 20977, "Quality": 4, "Flags": 4096, "BuyCount": 1,
      "BuyPrice": 15000000, "SellPrice": 350000, "ItemLevel": 80, "stackable": 100,
      "delay": 1000, "Material": 4, "description": "用于合成源力核心。", "VerifiedBuild": 12340},
     {"entry": 63101, "class": 7, "subclass": 11, "name": "源力核心",
-     "displayid": 13124, "Quality": 5, "Flags": 4096, "BuyCount": 1,
+     "displayid": 49259, "Quality": 5, "Flags": 4096, "BuyCount": 1,
      "BuyPrice": 45000000, "SellPrice": 700000, "ItemLevel": 80, "stackable": 100,
      "delay": 1000, "Material": 4, "description": "用于合成源力宝石。", "VerifiedBuild": 12340},
 ]
@@ -116,6 +116,13 @@ ITEMS = [
     gem_item(63109, "完美源力坚韧宝石", 5008, 5),
     gem_item(63110, "完美源力祝福宝石", 5009, 5),
 ]
+
+# 附魔ID -> 提供该附魔的宝石物品ID（客户端据此在插槽中显示宝石图标）
+ENCH_ITEM = {}
+for _item in ITEMS:
+    for _gid, _eid in GEMPROPS:
+        if _gid == _item["GemProperties"]:
+            ENCH_ITEM[_eid] = _item["entry"]
 
 # ============================================================
 # spell 默认模板（基于 spell_dbc ID=38405 被动光环）
@@ -201,7 +208,8 @@ SPELL_DEFAULTS = {
     "EffectSpellClassMaskB_1":0,"EffectSpellClassMaskB_2":0,"EffectSpellClassMaskB_3":0,
     "EffectSpellClassMaskC_1":0,"EffectSpellClassMaskC_2":0,"EffectSpellClassMaskC_3":0,
     "SpellVisualID_1":0,"SpellVisualID_2":0,"SpellIconID":0,"ActiveIconID":0,"SpellPriority":0,
-    "Name_Lang_Mask":0,"NameSubtext_Lang_Mask":0,"Description_Lang_Mask":0,"AuraDescription_Lang_Mask":0,
+    "Name_Lang_Mask":16712190,"NameSubtext_Lang_Mask":16712190,
+    "Description_Lang_Mask":16712190,"AuraDescription_Lang_Mask":16712190,
     "ManaCostPct":0,"StartRecoveryCategory":0,"StartRecoveryTime":0,"MaxTargetLevel":0,
     "SpellClassSet":0,"SpellClassMask_1":0,"SpellClassMask_2":0,"SpellClassMask_3":0,
     "MaxTargets":0,"DefenseType":0,"PreventionType":0,"StanceBarOrder":0,
@@ -213,11 +221,40 @@ SPELL_DEFAULTS = {
     "SpellDescriptionVariableID":0,"SpellDifficultyID":0,
 }
 
+# ============================================================
+# 光环 -> 描述文案（百分比实际值 = abs(EffectBasePoints + 1)）
+# ============================================================
+AURA_TEXT = {
+    A_MOD_THREAT:         ("造成的威胁值提高{v}%", "Increases threat caused by {v}%."),
+    A_MOD_DMG_PCT_DONE:   ("造成的伤害提高{v}%",   "Increases all damage caused by {v}%."),
+    A_MOD_DMG_PCT_TAKEN:  ("受到的伤害降低{v}%",   "Reduces damage taken by {v}%."),
+    A_MOD_INC_ENERGY_PCT: ("法力值上限提高{v}%",   "Increases maximum mana by {v}%."),
+    A_MOD_INC_HEALTH_PCT: ("生命值上限提高{v}%",   "Increases maximum health by {v}%."),
+    A_MOD_HEALING_PCT:    ("治疗效果提高{v}%",     "Increases healing done by {v}%."),
+    A_MOD_TOTAL_STAT_PCT: ("所有属性提高{v}%",     "Increases all stats by {v}%."),
+    A_MOD_CRIT_DMG_BONUS: ("暴击伤害提高{v}%",     "Increases critical strike damage by {v}%."),
+}
+
+def build_desc(effects):
+    """根据光环效果生成含具体数值的 (中文描述, 中文光环描述, 英文描述, 英文光环描述)。"""
+    zh, en = [], []
+    for aura, base, _misc in effects:
+        v = abs(base + 1)
+        zt, et = AURA_TEXT[aura]
+        zh.append(zt.format(v=v))
+        en.append(et.format(v=v))
+    return "使" + "，".join(zh) + "。", "，".join(zh) + "。", " ".join(en), " ".join(en)
+
 def build_spell_row(spid, zh, en, effects):
     row = dict(SPELL_DEFAULTS)
     row["ID"] = spid
     row["Name_Lang_zhCN"] = zh
     row["Name_Lang_enUS"] = en
+    desc_zh, aura_zh, desc_en, aura_en = build_desc(effects)
+    row["Description_Lang_zhCN"] = desc_zh
+    row["Description_Lang_enUS"] = desc_en
+    row["AuraDescription_Lang_zhCN"] = aura_zh
+    row["AuraDescription_Lang_enUS"] = aura_en
     for i in range(1, 4):
         row[f"Effect_{i}"] = 0
         row[f"EffectDieSides_{i}"] = 0
@@ -252,7 +289,9 @@ with open(os.path.join(SQLDIR, "01_混沌宝石法术.sql"), "w", encoding="utf-
         vals = []
         for c in SPELL_FIELDS:
             v = row.get(c)
-            if c.startswith("Name_Lang_") and c != "Name_Lang_zhCN" and c != "Name_Lang_enUS" and c != "Name_Lang_Mask":
+            if c.endswith(("_Lang_deDE", "_Lang_enGB", "_Lang_koKR", "_Lang_frFR", "_Lang_enCN",
+                           "_Lang_enTW", "_Lang_zhTW", "_Lang_esES", "_Lang_esMX", "_Lang_ruRU",
+                           "_Lang_ptPT", "_Lang_ptBR", "_Lang_itIT", "_Lang_Unk")):
                 vals.append("NULL")
             elif isinstance(v, str):
                 vals.append(sql_quote(v))
@@ -266,7 +305,7 @@ ENCH_FIELDS = ["ID","Charges","Effect_1","Effect_2","Effect_3","EffectPointsMin_
 "EffectArg_3","Name_Lang_enUS","Name_Lang_enGB","Name_Lang_koKR","Name_Lang_frFR","Name_Lang_deDE",
 "Name_Lang_enCN","Name_Lang_zhCN","Name_Lang_enTW","Name_Lang_zhTW","Name_Lang_esES","Name_Lang_esMX",
 "Name_Lang_ruRU","Name_Lang_ptPT","Name_Lang_ptBR","Name_Lang_itIT","Name_Lang_Unk","Name_Lang_Mask",
-"ItemVisual","Flags","Src_itemID","Condition_ID","RequiredSkillID","RequiredSkillRank","RequiredLevel"]
+"ItemVisual","Flags","Src_ItemID","Condition_Id","RequiredSkillID","RequiredSkillRank","MinLevel"]
 
 with open(os.path.join(SQLDIR, "02_混沌宝石附魔.sql"), "w", encoding="utf-8") as f:
     f.write("-- 自定义混沌宝石 9 个附魔定义（type=3 EQUIP_SPELL）\n")
@@ -281,15 +320,15 @@ with open(os.path.join(SQLDIR, "02_混沌宝石附魔.sql"), "w", encoding="utf-
             "EffectArg_1": spells[0] if len(spells) > 0 else 0,
             "EffectArg_2": spells[1] if len(spells) > 1 else 0,
             "EffectArg_3": spells[2] if len(spells) > 2 else 0,
-            "Name_Lang_zhCN": display, "Name_Lang_enUS": display,
-            "Name_Lang_Mask": 0, "ItemVisual": 0, "Flags": 0, "Src_itemID": 0,
-            "Condition_ID": 0, "RequiredSkillID": 0, "RequiredSkillRank": 0, "RequiredLevel": 0,
+            "Name_Lang_deDE": display,
+            "Name_Lang_Mask": 16712190, "ItemVisual": 0, "Flags": 0, "Src_ItemID": ENCH_ITEM.get(eid, 0),
+            "Condition_Id": 0, "RequiredSkillID": 0, "RequiredSkillRank": 0, "MinLevel": 0,
         }
         cols = ",".join(f"`{c}`" for c in ENCH_FIELDS)
         vs = []
         for c in ENCH_FIELDS:
             v = vals.get(c)
-            if c.startswith("Name_Lang_") and c not in ("Name_Lang_zhCN", "Name_Lang_enUS", "Name_Lang_Mask"):
+            if c.startswith("Name_Lang_") and c not in ("Name_Lang_deDE", "Name_Lang_Mask"):
                 vs.append("NULL")
             elif isinstance(v, str):
                 vs.append(sql_quote(v))
@@ -337,16 +376,25 @@ with open(src_spell_csv, encoding="utf-8-sig") as f:
 def csv_cell(v):
     return "" if v is None else v
 
+# 客户端 DBC CSV 的本地化列对齐：
+# 参考 outputs/Spell.csv，中文文本实际存放在 *_Lang_deDE 列（其余非 enUS 本地化列为空），
+# 因此输出 CSV 时把中文写入 deDE 列，与 Spell.csv 严格保持一致。
+def csv_locale_cell(row, h):
+    if h.endswith("_Lang_deDE"):
+        zh_key = h[: -len("deDE")] + "zhCN"
+        if row.get(zh_key) not in (None, ""):
+            return row[zh_key]
+    if h.endswith("_Lang_zhCN"):
+        return ""
+    return row.get(HEADER_MAP.get(h, h))
+
 # 1) Spell.csv（16 行追加，供 WDBX 导入）
 with open(os.path.join(CSVDIR, "混沌宝石_Spell.dbc.csv"), "w", newline="", encoding="utf-8-sig") as f:
     w = csv.writer(f, quoting=csv.QUOTE_ALL)
     w.writerow(spell_csv_header)
     for spid, zh, en, effects in SPELLS:
         row = build_spell_row(spid, zh, en, effects)
-        line = []
-        for h in spell_csv_header:
-            key = HEADER_MAP.get(h, h)
-            line.append(csv_cell(row.get(key)))
+        line = [csv_cell(csv_locale_cell(row, h)) for h in spell_csv_header]
         w.writerow(line)
 
 # 2) SpellItemEnchantment.csv（9 行）
@@ -355,7 +403,7 @@ ENCH_CSV_FIELDS = ["ID","Charges","Effect_1","Effect_2","Effect_3","EffectPoints
 "EffectArg_3","Name_Lang_enUS","Name_Lang_enGB","Name_Lang_koKR","Name_Lang_frFR","Name_Lang_deDE",
 "Name_Lang_enCN","Name_Lang_zhCN","Name_Lang_enTW","Name_Lang_zhTW","Name_Lang_esES","Name_Lang_esMX",
 "Name_Lang_ruRU","Name_Lang_ptPT","Name_Lang_ptBR","Name_Lang_itIT","Name_Lang_Unk","Name_Lang_Mask",
-"ItemVisual","Flags","Src_itemID","Condition_ID","RequiredSkillID","RequiredSkillRank","RequiredLevel"]
+"ItemVisual","Flags","Src_ItemID","Condition_Id","RequiredSkillID","RequiredSkillRank","MinLevel"]
 
 with open(os.path.join(CSVDIR, "混沌宝石_SpellItemEnchantment.dbc.csv"), "w", newline="", encoding="utf-8-sig") as f:
     w = csv.writer(f, quoting=csv.QUOTE_ALL)
@@ -370,9 +418,9 @@ with open(os.path.join(CSVDIR, "混沌宝石_SpellItemEnchantment.dbc.csv"), "w"
             "EffectArg_1": spells[0] if len(spells) > 0 else 0,
             "EffectArg_2": spells[1] if len(spells) > 1 else 0,
             "EffectArg_3": spells[2] if len(spells) > 2 else 0,
-            "Name_Lang_zhCN": display, "Name_Lang_enUS": display,
-            "Name_Lang_Mask": 0, "ItemVisual": 0, "Flags": 0, "Src_itemID": 0,
-            "Condition_ID": 0, "RequiredSkillID": 0, "RequiredSkillRank": 0, "RequiredLevel": 0,
+            "Name_Lang_deDE": display,
+            "Name_Lang_Mask": 16712190, "ItemVisual": 0, "Flags": 0, "Src_ItemID": ENCH_ITEM.get(eid, 0),
+            "Condition_Id": 0, "RequiredSkillID": 0, "RequiredSkillRank": 0, "MinLevel": 0,
         }
         w.writerow([csv_cell(vals.get(c)) for c in ENCH_CSV_FIELDS])
 
