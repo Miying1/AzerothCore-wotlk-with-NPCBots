@@ -29,7 +29,7 @@
 
 namespace
 {
-constexpr float CREATURE_HAZARD_SCAN_DISTANCE = 60.0f;
+constexpr float CREATURE_HAZARD_SCAN_DISTANCE = BOT_AOE_SCAN_DISTANCE;
 
 bool IsDamageEffect(SpellEffectInfo const& effect)
 {

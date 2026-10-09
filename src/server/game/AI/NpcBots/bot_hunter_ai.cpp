@@ -354,6 +354,14 @@ public:
                         bot_ai::GetInPosition(force, newtarget, pos);
                         return;
                     }
+                    // 站桩输出死区本应原地站定，但若上游 CalculateAttackPos 已判定需要强制走位
+                    // (force == true，如脚下出现危险 AOE 时)，必须放行到基类执行躲避，
+                    // 否则猎人会一直站桩吃 AOE 不躲
+                    if (force)
+                    {
+                        bot_ai::GetInPosition(force, newtarget, pos);
+                        return;
+                    }
                     return;
                 }
 

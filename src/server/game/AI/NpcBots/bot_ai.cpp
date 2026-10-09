@@ -5320,9 +5320,9 @@ void bot_ai::CalculateAoeSpots(Unit const* unit, AoeSpotsVec& spots,
     spots.clear();
 
     std::list<WorldObject*> doList;
-    NearbyHostileAoEDynobjectCheck check(unit, 60.f);
+    NearbyHostileAoEDynobjectCheck check(unit, float(BOT_AOE_SCAN_DISTANCE));
     Bcore::WorldObjectListSearcher searcher(unit, doList, check, GRID_MAP_TYPE_MASK_DYNAMICOBJECT);
-    Cell::VisitObjects(unit, searcher, 60.f);
+    Cell::VisitObjects(unit, searcher, float(BOT_AOE_SCAN_DISTANCE));
 
     //filter and add to list
     SpellInfo const* spellInfo;
@@ -5644,9 +5644,7 @@ AoeSafeSpotsVec bot_ai::CalculateAoeSafeSpots(Unit* target, float maxdist) const
                 aoeangle += angledelta;
 
                 Position ppos = target->GetFirstCollisionPosition(aoedist, Position::NormalizeOrientation(aoeangle - target->GetOrientation()));
-                bool toofaraway = master->GetDistance(ppos) > maxdist;
-
-                if (!toofaraway && !IsWithinAoERadius(ppos))
+                if (!IsWithinAoERadius(ppos))
                     safespots.push_back(ppos);
             }
         }
@@ -5984,7 +5982,7 @@ void bot_ai::CalculateAttackPos(Unit* target, Position& pos, bool& force) const
         }
     }
 
-    AoeSafeSpotsVec safespots = CalculateAoeSafeSpots(target, float(followdist));
+    AoeSafeSpotsVec safespots = CalculateAoeSafeSpots(target, float(BOT_AOE_SAFE_SPOT_DISTANCE));
 
     bool angle_reset_to_master = false;
     uint8 collision_dist_max = IAmFree() ? 30 : 38;
@@ -19410,7 +19408,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
                         {
                             //BOT_LOG_ERROR("scripts", "%s moving to x %.2f y %.2f z %.2f to attack %s",
                             //    me->GetName().c_str(), attackpos.m_positionX, attackpos.m_positionY, attackpos.m_positionZ, victim->GetName().c_str());
-                            GetInPosition(true, victim, &attackpos);
+                            GetInPosition(force, victim, &attackpos);
                         }
                     }
                 }
