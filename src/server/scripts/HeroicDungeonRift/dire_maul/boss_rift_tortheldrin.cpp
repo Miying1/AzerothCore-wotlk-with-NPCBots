@@ -31,11 +31,22 @@ enum Spells : uint32
 };
 
 constexpr int32 FrostNovaTier1DirectDamage = 3500;
+
+// 原版托塞德林王子为中立阵营(1355)，需在击杀伊莫塔尔后由SmartAI改为敌对(14)。
+// 裂隙版本不继承该SmartAI，且无前置条件，生成时直接设为敌对阵营14（Monster），红名可直接攻击。
+constexpr uint32 HostileFaction = 14;
 }
 
 struct boss_rift_tortheldrin : public BossAIBase
 {
     explicit boss_rift_tortheldrin(Creature* creature) : BossAIBase(creature) { }
+
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        // 原版靠SmartAI在击杀伊莫塔尔后转敌对，裂隙去除前置，直接设为敌对阵营保证红名可攻击。
+        me->SetFaction(HostileFaction);
+    }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
