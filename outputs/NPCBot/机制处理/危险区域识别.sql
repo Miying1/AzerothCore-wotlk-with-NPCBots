@@ -230,6 +230,19 @@ INSERT INTO `npcbot_creature_hazard`
 VALUES
 (568, 24136, 4.0, 43121, 3.0, 0, 0, '祖阿曼祖尔金鹰形态：移动中的羽毛旋风');
 
+-- 祖阿曼：祖尔金龙鹰形态的火焰之柱（24187，Column of Fire）。
+-- 龙鹰形态阶段祖尔金对随机玩家施放 43216 火焰之柱，在目标落点召唤生物 24187；
+-- 该生物经 creature_template_spell 自动施放 43218，由 43218 触发 43217 燃烧，
+-- 以其为中心约 4 码（半径索引 26）范围持续火焰伤害。柱体固定于落点，属固定地板危险区。
+-- damage_spell_id=43217 优先读取伤害半径，读不到时用固定 radius 兜底。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 568 AND `creature_entry` = 24187;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(568, 24187, 4.0, 43217, 1.0, 0, 0, '祖阿曼祖尔金龙鹰形态：火焰之柱（落地持续燃烧）');
+
 -- ============================================================================
 -- 艾卓-尼鲁布（Azjol-Nerub，map 601）
 -- ============================================================================
@@ -251,3 +264,22 @@ INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
 (601, 29184, 4.0, 53454, 1.0, 0, 0, '艾卓-尼鲁布：阿努巴拉克穿刺尖刺（落点固定，生物施放 53454/59446）');
+
+-- ============================================================================
+-- 纳克萨玛斯（Naxxramas，map 533）
+-- ============================================================================
+-- 尾王克尔苏加德（Kel'Thuzad）的「暗影裂隙」（Shadow Fissure，红圈技能）。
+-- 机制链：Boss 施放 27810 暗影裂隙
+--   -> 在随机玩家落点召唤生物 16129（Shadow Fissure）
+--   -> 16129 经 trigger_periodic AI 周期性施放 27812 虚空爆裂
+--   -> 27812（SCHOOL_DAMAGE，RadiusIndex=26，约 4 码）对裂隙内敌人造成约 41999 点伤害。
+-- 生物落点固定、持续约 10 秒后消失，属固定位置地板危险区，BOT 应远离红圈。
+-- damage_spell_id=27812 可读取伤害半径（约 4 码），radius=5.0 作为下限保护，
+-- 叠加 safety_distance=2.0 后 BOT 实际在约 7 码外站位。
+DELETE FROM `npcbot_creature_hazard`
+WHERE `map_id` = 533 AND `creature_entry` = 16129;
+
+INSERT INTO `npcbot_creature_hazard`
+(`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
+VALUES
+(533, 16129, 5.0, 27812, 1.0, 0, 0, '纳克萨玛斯：克尔苏加德暗影裂隙（红圈，生物周期施放 27812 虚空爆裂）');
