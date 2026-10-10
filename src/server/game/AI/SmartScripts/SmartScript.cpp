@@ -204,7 +204,8 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
             for (WorldObject* target : targets)
             {
-                if (IsCreature((target)) && !target->ToUnit()->IsSummon()) // 阻止将宠物/召唤物(如法师的镜像)当作说话者
+                // 只屏蔽“玩家控制的”宠物/召唤物(如法师的镜像)当作说话者；
+                if (IsCreature((target)) && !target->ToUnit()->IsControlledByPlayer())
                 {
                     if (e.action.talk.useTalkTarget)
                     {

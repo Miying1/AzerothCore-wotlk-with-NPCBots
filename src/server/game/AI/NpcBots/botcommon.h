@@ -44,7 +44,7 @@ enum BotCommonValues
     BOT_ENTRY_MIRROR_IMAGE_BM           = 70552,
     //BOT_ENTRY_CONVERSING_WITH_THE_DEPTHS_TRIGGER = 70100,
     BOT_MAX_CHASE_RANGE                 = 120,  //yds
-    BOT_AOE_SCAN_DISTANCE               = 70,   //AOE 危险区扫描距离(码)
+    BOT_AOE_SCAN_DISTANCE               = 60,   //AOE 危险区扫描距离(码)
     BOT_AOE_SAFE_SPOT_DISTANCE          = 50,   //AOE 安全点取点范围(码)
     //BOT_EVADE_TIME                      = 3000, //ms
 //COMMON GAMEOBJECTS
