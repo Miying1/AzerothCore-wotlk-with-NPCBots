@@ -56,6 +56,27 @@ bool IsDamageEffect(SpellEffectInfo const& effect)
             return false;
     }
 }
+
+// 在规则列表中匹配当前生物适用的规则：
+// 优先命中 required_aura 精确匹配的规则（如带 43113 光环的火墙），
+// 否则回退到 required_aura = 0 的默认规则（如普通火球炸弹）。
+BotCreatureHazardRule const* MatchHazardRule(std::vector<BotCreatureHazardRule> const& rules, Creature const* creature)
+{
+    BotCreatureHazardRule const* fallback = nullptr;
+    for (BotCreatureHazardRule const& rule : rules)
+    {
+        if (rule.RequiredAuraSpellId)
+        {
+            if (creature->HasAura(rule.RequiredAuraSpellId))
+                return &rule;
+        }
+        else
+        {
+            fallback = &rule;
+        }
+    }
+    return fallback;
+}
 }
 
 NPCBotHazardMgr* NPCBotHazardMgr::instance()
@@ -160,9 +181,9 @@ void NPCBotHazardMgr::LoadFromDB()
 
         BotCreatureHazardRule rule{ mapId, creatureEntry, damageSpellId, radius, safetyDistance, deactivationDelayMs, requiredAuraSpellId };
         if (mapId)
-            rulesByMap[mapId][creatureEntry] = rule;
+            rulesByMap[mapId][creatureEntry].push_back(rule);
         else
-            globalRules[creatureEntry] = rule;
+            globalRules[creatureEntry].push_back(rule);
         ++loadedCount;
     } while (result->NextRow());
 
@@ -173,21 +194,21 @@ void NPCBotHazardMgr::LoadFromDB()
         GetMSTimeDiffToNow(oldMSTime), skippedCount);
 }
 
-BotCreatureHazardRule const* NPCBotHazardMgr::GetRule(uint32 mapId, uint32 creatureEntry) const
+std::vector<BotCreatureHazardRule> const* NPCBotHazardMgr::GetRules(uint32 mapId, uint32 creatureEntry) const
 {
     if (auto mapItr = _rulesByMap.find(mapId); mapItr != _rulesByMap.end())
-        if (auto ruleItr = mapItr->second.find(creatureEntry); ruleItr != mapItr->second.end())
-            return &ruleItr->second;
+        if (auto entryItr = mapItr->second.find(creatureEntry); entryItr != mapItr->second.end())
+            return &entryItr->second;
 
-    if (auto ruleItr = _globalRules.find(creatureEntry); ruleItr != _globalRules.end())
-        return &ruleItr->second;
+    if (auto entryItr = _globalRules.find(creatureEntry); entryItr != _globalRules.end())
+        return &entryItr->second;
 
     return nullptr;
 }
 
 bool NPCBotHazardMgr::HasRule(uint32 mapId, uint32 creatureEntry) const
 {
-    return GetRule(mapId, creatureEntry) != nullptr;
+    return GetRules(mapId, creatureEntry) != nullptr;
 }
 
 void NPCBotHazardMgr::CollectCreatureHazards(Unit const* unit, AoeSpotsVec& spots,
@@ -214,15 +235,12 @@ void NPCBotHazardMgr::CollectCreatureHazards(Unit const* unit, AoeSpotsVec& spot
             !unit->IsWithinDistInMap(creature, CREATURE_HAZARD_SCAN_DISTANCE))
             return false;
 
-        BotCreatureHazardRule const* rule = GetRule(mapId, creature->GetEntry());
-        if (!rule)
+        std::vector<BotCreatureHazardRule> const* rules = GetRules(mapId, creature->GetEntry());
+        if (!rules)
             return false;
 
-        // 配置了 required_aura_spell_id 时，要求生物身上存在该技能光环才视为危险源
-        if (rule->RequiredAuraSpellId && !creature->HasAura(rule->RequiredAuraSpellId))
-            return false;
-
-        return true;
+        // 匹配适用规则：优先 required_aura 精确匹配，其次 required_aura = 0 的默认规则
+        return MatchHazardRule(*rules, creature) != nullptr;
     };
     Bcore::CreatureListSearcher<decltype(check)> searcher(unit, creatures, check);
     Cell::VisitObjects(unit, searcher, CREATURE_HAZARD_SCAN_DISTANCE);
@@ -230,7 +248,11 @@ void NPCBotHazardMgr::CollectCreatureHazards(Unit const* unit, AoeSpotsVec& spot
     float combatReach = unit->GetVehicle() ? unit->GetVehicleBase()->GetCombatReach() : unit->GetCombatReach();
     for (Creature const* creature : creatures)
     {
-        BotCreatureHazardRule const* rule = GetRule(mapId, creature->GetEntry());
+        std::vector<BotCreatureHazardRule> const* rules = GetRules(mapId, creature->GetEntry());
+        if (!rules)
+            continue;
+
+        BotCreatureHazardRule const* rule = MatchHazardRule(*rules, creature);
         if (!rule)
             continue;
 

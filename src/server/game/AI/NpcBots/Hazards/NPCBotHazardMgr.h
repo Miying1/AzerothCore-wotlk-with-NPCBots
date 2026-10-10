@@ -15,6 +15,7 @@
 
 #include <map>
 #include <unordered_map>
+#include <vector>
 
 class Unit;
 
@@ -56,11 +57,12 @@ public:
     void CollectCreatureHazards(Unit const* unit, AoeSpotsVec& spots, NPCBotCreatureHazardStateMap& states);
 
 private:
-    using CreatureHazardRulesByEntry = std::unordered_map<uint32, BotCreatureHazardRule>;
+    // key: creatureEntry -> 该生物的危险区域规则列表（允许同一生物按 required_aura 区分多套规则）
+    using CreatureHazardRulesByEntry = std::unordered_map<uint32, std::vector<BotCreatureHazardRule>>;
 
     NPCBotHazardMgr() = default;
 
-    BotCreatureHazardRule const* GetRule(uint32 mapId, uint32 creatureEntry) const;
+    std::vector<BotCreatureHazardRule> const* GetRules(uint32 mapId, uint32 creatureEntry) const;
     bool HasRule(uint32 mapId, uint32 creatureEntry) const;
     static float GetDamageSpellRadius(uint32 spellId);
 

@@ -210,13 +210,16 @@ VALUES
 -- 43113 周期性触发 43114，对火墙附近目标造成约 11000 点火焰伤害（EffectRadiusIndex=15 → 3 码）。
 -- 23920 同时被用作「火球炸弹」（轰炸弹，最终施放 42630 爆炸），但火球炸弹不带 43113 光环，
 -- 故用 required_aura_spell_id = 43113 只圈定「火墙」本体，避免把 40 颗火球炸弹一并识别为危险源。
+-- 2) 火墙 + 火球炸弹两条规则（radius 仅作下限，服务端按 damage_spell_id 自动计算实际半径）
 DELETE FROM `npcbot_creature_hazard`
 WHERE `map_id` = 568 AND `creature_entry` = 23920;
 
 INSERT INTO `npcbot_creature_hazard`
 (`map_id`, `creature_entry`, `radius`, `damage_spell_id`, `safety_distance`, `deactivation_delay_ms`, `required_aura_spell_id`, `comment`)
 VALUES
-(568, 23920, 4.0, 42630, 1, 0, 0, '祖阿曼：加亚莱火焰炸弹爆炸，Fire Bomb Damage');
+(568, 23920, 4.0, 43114, 1.0, 0, 43113, '祖阿曼：加亚莱火墙（43113 周期触发 43114 火焰伤害）'),
+(568, 23920, 4.0, 42630, 1.0, 0, 0,     '祖阿曼：加亚莱火球炸弹（42630 爆炸）');
+
 
 -- 祖阿曼：祖尔金鹰形态的羽毛漩涡（24136）。
 -- 鹰形态阶段祖尔金用 43112 一次召唤四个羽毛漩涡，漩涡常驻被动 43120 每秒触发 43121，
