@@ -36,6 +36,9 @@ constexpr uint32 RiftOpenReminder5Minutes = 5 * MINUTE;
 constexpr uint32 RiftOpenReminder1Minute = 1 * MINUTE;
 // 开启/结束通知的连发次数。
 constexpr uint32 RiftOpenCloseNoticeRepeat = 2;
+// 刷新点 Z 与其 XY 处地面高度偏差超过该值即视为异常点位（多半是来源本身悬空/在地下，
+// 或点位落在坡坎边缘）。异常点按 ERROR 打印，默认日志级别下即可发现需要重建或清理的点位。
+constexpr float SpawnPointZFaultTolerance = 2.0f;
 }
 
 uint32 GetEntranceEntryForTier(uint8 tier)
@@ -666,9 +669,9 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     if (!point)
         return false;
 
-    // 刷新点坐标来自原版生物/物体再做 XY ±5 码偏移，Z 沿用来源坐标。偏移后的 XY 可能落在坡地或
-    // 坎上（本地地面高于来源 Z），入口就会刷到地面以下；客户端射线打不到地面以下的目标、服务端
-    // 3D 距离判定也够不着，玩家表现为“能选中但右键毫无反应”。这里以刷新点为心重新取本地地面高度：
+    // 刷新点坐标直接取自原版生物/物体，但来源本身可能悬空或在地下（飞行怪、触发器、沉在地形下的
+    // 物体），此时入口会刷到地面以下；客户端射线打不到地面以下的目标、服务端 3D 距离判定也够不着，
+    // 玩家表现为“能选中但右键毫无反应”。这里以刷新点为心重新取本地地面高度：
     //   1) GetHeight 带 vmap，正常贴地点位几乎不变；
     //   2) 点位已经在地下（GetHeight 查不到地面）时退回地形高度 GetGridHeight，把它抬回地面；
     //   3) 两种查询都不可用时保留原始 Z（维持原行为）。
@@ -679,7 +682,22 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     if (groundZ <= INVALID_HEIGHT)
         groundZ = map->GetGridHeight(spawnPos.GetPositionX(), spawnPos.GetPositionY());
     if (groundZ > INVALID_HEIGHT)
+    {
+        // 与本地地面偏差过大说明这条点位数据不可信：按 ERROR 打印，默认日志级别下即可发现。
+        float const offsetZ = groundZ - spawnPos.GetPositionZ();
+        if (offsetZ > SpawnPointZFaultTolerance || offsetZ < -SpawnPointZFaultTolerance)
+            LOG_ERROR("scripts", "Five-player heroic rift spawn point {} (region {}, T{}) Z {} deviates "
+                "from the ground at its XY by {} and was corrected to {}; regenerate this point.",
+                pointId, region.RegionId, uint32(tier), spawnPos.GetPositionZ(), offsetZ, groundZ);
+
         spawnPos.Relocate(spawnPos.GetPositionX(), spawnPos.GetPositionY(), groundZ, spawnPos.GetOrientation());
+    }
+    else
+    {
+        LOG_ERROR("scripts", "Five-player heroic rift spawn point {} (region {}, T{}) has no ground height at its XY "
+            "and kept the stored Z {}; regenerate this point.",
+            pointId, region.RegionId, uint32(tier), spawnPos.GetPositionZ());
+    }
 
     // 常驻临时生物：只由刷新管理器在被使用后主动移除，运行态不写入数据库。
     TempSummon* summon = map->SummonCreature(entry, spawnPos, nullptr, 0);
