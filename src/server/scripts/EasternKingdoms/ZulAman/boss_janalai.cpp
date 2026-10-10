@@ -117,7 +117,7 @@ const Position hatcherway[2][hatcherWaypointCount] =
 
 enum Misc
 {
-    MAX_BOMB_COUNT              = 40,
+    MAX_BOMB_COUNT              = 30,
     GROUP_ENRAGE                = 1,
     GROUP_HATCHING              = 2,
     DATA_ALL_EGGS_HATCHED       = 0
@@ -191,6 +191,7 @@ struct boss_janalai : public BossAI
     {
         BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
+
         //schedule abilities
         ScheduleTimedEvent(30s, [&]{
             StartBombing();
