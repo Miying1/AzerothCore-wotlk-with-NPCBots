@@ -48,7 +48,7 @@ std::unordered_map<uint32, float> const g_hunterPetScaleMap =
     { 94007, 0.8f },
     { 94008, 0.7f },
     { 94009, 0.7f },
-    { 94010, 0.9f },
+    { 94010, 0.6f },
 };
 
 // 查询该单位是否为字典中的猎人宠物；命中时返回 true 并写入 scale

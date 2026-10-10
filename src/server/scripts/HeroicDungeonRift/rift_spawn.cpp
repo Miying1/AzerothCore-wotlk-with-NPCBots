@@ -666,8 +666,23 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     if (!point)
         return false;
 
+    // 刷新点坐标来自原版生物/物体再做 XY ±5 码偏移，Z 沿用来源坐标。偏移后的 XY 可能落在坡地或
+    // 坎上（本地地面高于来源 Z），入口就会刷到地面以下；客户端射线打不到地面以下的目标、服务端
+    // 3D 距离判定也够不着，玩家表现为“能选中但右键毫无反应”。这里以刷新点为心重新取本地地面高度：
+    //   1) GetHeight 带 vmap，正常贴地点位几乎不变；
+    //   2) 点位已经在地下（GetHeight 查不到地面）时退回地形高度 GetGridHeight，把它抬回地面；
+    //   3) 两种查询都不可用时保留原始 Z（维持原行为）。
+    Position spawnPos = point->Pos;
+    map->LoadGrid(spawnPos.GetPositionX(), spawnPos.GetPositionY()); // 网格未加载时地形高度查询不可用
+    float groundZ = map->GetHeight(PHASEMASK_NORMAL, spawnPos.GetPositionX(), spawnPos.GetPositionY(),
+        spawnPos.GetPositionZ(), true);
+    if (groundZ <= INVALID_HEIGHT)
+        groundZ = map->GetGridHeight(spawnPos.GetPositionX(), spawnPos.GetPositionY());
+    if (groundZ > INVALID_HEIGHT)
+        spawnPos.Relocate(spawnPos.GetPositionX(), spawnPos.GetPositionY(), groundZ, spawnPos.GetOrientation());
+
     // 常驻临时生物：只由刷新管理器在被使用后主动移除，运行态不写入数据库。
-    TempSummon* summon = map->SummonCreature(entry, point->Pos, nullptr, 0);
+    TempSummon* summon = map->SummonCreature(entry, spawnPos, nullptr, 0);
     if (!summon)
         return false;
 
@@ -676,6 +691,9 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     creature->SetFaction(35);
     creature->SetReactState(REACT_PASSIVE);
     creature->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+    // 入口是纯展示用的定点 NPC：关闭重力，避免客户端按它自己的地面把入口往下掉（掉到地面以下
+    // 就点不到了）。SetDisableGravity 同时会下发 SMSG_SPLINE_MOVE_GRAVITY_DISABLE 给客户端。
+    creature->SetDisableGravity(true);
     if (uint32 aura = GetEntranceAuraForTier(tier))
         creature->AddAura(aura, creature);
 
