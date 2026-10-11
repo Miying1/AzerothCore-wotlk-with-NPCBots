@@ -22,6 +22,8 @@ namespace
 constexpr uint32 GoldLootBonusIncrement = 15;
 constexpr uint32 MaxGoldLootBonus = 150;
 constexpr uint32 MaxVipLevel = 10; // VIP 等级上限
+constexpr uint32 MaxExtraBotCount = 4; // 账号额外可雇佣佣兵名额上限
+constexpr uint32 BotCountIncrement = 1;   // 每件物品增加的额外佣兵名额
 
 // 物品使用确认弹窗（gossip）的发送者与动作约定
 constexpr uint32 VipItemGossipSender = GOSSIP_SENDER_MAIN;
@@ -340,6 +342,34 @@ public:
         return true;
     }
 };
+
+// 佣兵名额扩充物品：使用后账号额外可雇佣 NPCBot 数量 +1（账号通用）
+class PlayerVipBotCountItem : public ItemScript
+{
+public:
+    PlayerVipBotCountItem() : ItemScript("PlayerVipBotCountItem") { }
+
+    bool OnUse(Player* player, Item* item, SpellCastTargets const& /*targets*/) override
+    {
+        if (!player || !item)
+            return false;
+
+        uint32 currentCount = player->GetVipBenefits().extra_botcount;
+        if (currentCount >= MaxExtraBotCount)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("你的额外佣兵名额已达到上限（{} 个）。", MaxExtraBotCount);
+            return true;
+        }
+
+        uint32 newCount = currentCount + BotCountIncrement;
+        player->GetVipBenefits().extra_botcount = newCount;
+        uint32 accountId = player->GetSession()->GetAccountId();
+        LoginDatabase.Execute("UPDATE `account_vip` SET `extra_botcount` = {} WHERE `account_id` = {}", newCount, accountId);
+        player->DestroyItemCount(item->GetEntry(), 1, true);
+        ChatHandler(player->GetSession()).PSendSysMessage("单角色佣兵名额已增加 {} 个，当前额外名额：{} 个（账号通用）。", BotCountIncrement, newCount);
+        return true;
+    }
+};
 }
 
 void AddPlayerVipBenefitsScripts()
@@ -348,4 +378,5 @@ void AddPlayerVipBenefitsScripts()
     new PlayerVipGoldBonusItem();
     new PlayerVipResetInstanceItem();
     new PlayerVipLevelItem();
+    new PlayerVipBotCountItem();
 }

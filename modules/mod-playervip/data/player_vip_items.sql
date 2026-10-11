@@ -36,3 +36,10 @@ DELETE FROM `item_template` WHERE `entry` = @VIP_LEVEL_ITEM_ENTRY;
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
 VALUES
 (@VIP_LEVEL_ITEM_ENTRY, 0, 0, 'VIP等级+1', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 1, 20, '使用后 VIP 等级 +1，账号通用。账号可雇佣佣兵数量上限+8', 18282, 0, 'PlayerVipLevelItem');
+
+-- 佣兵名额扩充券：使用后账号额外可雇佣佣兵数量 +1（账号通用）
+SET @BOT_COUNT_ITEM_ENTRY := 70102;
+DELETE FROM `item_template` WHERE `entry` = @BOT_COUNT_ITEM_ENTRY;
+INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
+VALUES
+(@BOT_COUNT_ITEM_ENTRY, 0, 0, '佣兵名额+1', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 1, 20, '使用后账号内角色额外可雇佣佣兵数量 +1 (账号通用),单个角色最多可雇佣9个佣兵', 18282, 0, 'PlayerVipBotCountItem');
