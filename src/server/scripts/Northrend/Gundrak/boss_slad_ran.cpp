@@ -94,7 +94,7 @@ public:
                 ScheduleTimedEvent(1s, [&] {
                     for (uint8 i = 0; i < MAX_CONSTRICTOR; ++i)
                         me->SummonCreature(NPC_SLADRAN_CONSTRICTORS, SpawnLoc[i], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
-                }, 10s, 15s);
+                }, 8s, 10s);
             });
         }
 
