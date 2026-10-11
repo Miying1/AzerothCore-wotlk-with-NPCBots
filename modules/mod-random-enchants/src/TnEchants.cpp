@@ -55,19 +55,16 @@ void TnEchants::InitData()
 bool TnEchants::RandomEnchEffect(Player* player,Item* const item){
     if (!IsEnable || EnchEffectStore.size() < 1) return false;
     uint32 group_rand=urand(1,EnchEffectStore.size())-1;
-    if(group_rand<0) return false; 
     auto efs_its=EnchEffectStore.begin();
     std::advance(efs_its, group_rand);  
     const EnchEffectGroup* group =&efs_its->second;
-    if (!group || group->size() < 2) return false;
+    if (group->size() < 2) return false;
     uint32 maxrand = static_cast<uint32>(std::floor(group->size() * RandRangeattrMaxPct));
     if (maxrand <= 1) return false;
     uint32 eff_rand=urand(1, maxrand)-1;
-    if(eff_rand<0) return false; 
     auto group_its=group->begin();
     std::advance(group_its, eff_rand);  
     const EnchantsEffect* effect = &(*group_its);
-    if(!&effect) return false;
     if (sSpellItemEnchantmentStore.LookupEntry(effect->enchantID)) { //Make sure enchantment id exists
             player->ApplyEnchantment(item, EnchantmentSlot(0), false);
             item->SetEnchantment(EnchantmentSlot(0), effect->enchantID, 0, 0);
@@ -102,8 +99,8 @@ bool TnEchants::SaveEnchEffect(uint32 itemid, const EnchantsEffect* enchEffect,u
           newitemEh.max_oid=EnchEffectStore[enchEffect->attr_group].size();
           newitemEh.oid = enchEffect->oid;
           newitemEh.refm_count =0;
-          ItemEnchantsStore[itemid] = newitemEh;
-          itemEnch =&newitemEh;
+          // 取 map 内实体的地址，切勿取块内局部变量（块结束即析构，属悬垂指针）
+          itemEnch = &(ItemEnchantsStore[itemid] = newitemEh);
       }
       WorldDatabase.Query("REPLACE into mod_item_enchantment_result(item_guid,attr_group,oid,refm_count)values({},{},{},{});", itemid, itemEnch->attr_group, itemEnch->oid, itemEnch->refm_count );
       return true;
@@ -152,7 +149,10 @@ uint32 TnEchants::UpEnchLevel(Player* player, Item* item){
       uint32 itemid=item->GetGUID().GetCounter();
       ItemEnchants* itemEnch=GetItemEnchants(itemid);
       if(!itemEnch) return 0;
-      std::list<EnchantsEffect>& attr_group = EnchEffectStore[itemEnch->attr_group];
+      // 分组必须已加载且非空，否则 back() 是未定义行为；用 find 避免 operator[] 插入空组
+      auto groupIt = EnchEffectStore.find(itemEnch->attr_group);
+      if (groupIt == EnchEffectStore.end() || groupIt->second.empty()) return 0;
+      std::list<EnchantsEffect>& attr_group = groupIt->second;
       if (attr_group.back().oid <= itemEnch->oid) return 3;
       float chance=GetUpEnchLevelChance(itemEnch);
       uint32 curOid=itemEnch->oid +1;
@@ -166,7 +166,6 @@ uint32 TnEchants::UpEnchLevel(Player* player, Item* item){
         curOid+=1;
       }
       
-      if(attr_group.empty()) return 0;
       curOid=std::min(curOid, attr_group.back().oid);
       auto it = attr_group.begin(); 
       const EnchantsEffect* effect=nullptr;

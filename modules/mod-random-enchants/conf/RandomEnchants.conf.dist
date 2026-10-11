@@ -61,7 +61,7 @@ RandomEnchants.Custom.Enable = 1
 #     RandomEnchants.Custom.Chance
 #        装备等级超过 MinItemLevel 时，触发随机附魔的概率（百分比）
 #        Default:     100.0
-RandomEnchants.Custom.Chance = 100.0
+RandomEnchants.Custom.Chance = 70.0
 
 #     RandomEnchants.Custom.MinItemLevel
 #        触发附魔的最低装备等级（严格大于该值）
