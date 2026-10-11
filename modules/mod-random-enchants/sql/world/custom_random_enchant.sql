@@ -6,8 +6,8 @@
 -- tier     ：同属性内数值从小到大序号
 -- chance   ：条目权重（同属性内序号越大权重越低）
 
-DROP TABLE IF EXISTS `custom_random_enchant`;
-CREATE TABLE `custom_random_enchant` (
+DROP TABLE IF EXISTS `mod_random_enchant`;
+CREATE TABLE `mod_random_enchant` (
   `entry` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT '分组入口',
   `ench` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'ItemRandomProperties.dbc 组合ID',
   `attr` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '属性名',
@@ -18,7 +18,7 @@ CREATE TABLE `custom_random_enchant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义随机附魔分组';
 
 -- 法系组 entry=90001（333 个组合）
-INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
+INSERT INTO `mod_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
 (90001, 10000, '智力', 5, 1, 51),
 (90001, 10001, '智力', 5, 2, 50),
 (90001, 10002, '智力', 5, 3, 49),
@@ -354,7 +354,7 @@ INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier
 (90001, 10332, '法术穿透', 47, 41, 1);
 
 -- 治疗组 entry=90301（287 个组合）
-INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
+INSERT INTO `mod_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
 (90301, 10333, '智力', 5, 1, 51),
 (90301, 10334, '智力', 5, 2, 50),
 (90301, 10335, '智力', 5, 3, 49),
@@ -644,7 +644,7 @@ INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier
 (90301, 10619, '每5秒法力回复', 43, 31, 1);
 
 -- 物理组 entry=90101（443 个组合）
-INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
+INSERT INTO `mod_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
 (90101, 10620, '力量', 4, 1, 41),
 (90101, 10621, '力量', 4, 2, 40),
 (90101, 10622, '力量', 4, 3, 39),
@@ -1090,7 +1090,7 @@ INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier
 (90101, 11062, '精准等级', 37, 36, 1);
 
 -- 防御组 entry=90201（244 个组合）
-INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
+INSERT INTO `mod_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES
 (90201, 11063, '躲闪', 13, 1, 71),
 (90201, 11064, '躲闪', 13, 2, 70),
 (90201, 11065, '躲闪', 13, 3, 69),

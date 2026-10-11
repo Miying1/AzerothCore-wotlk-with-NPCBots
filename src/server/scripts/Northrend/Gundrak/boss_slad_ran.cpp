@@ -49,7 +49,7 @@ enum Misc
     NPC_SLADRAN_CONSTRICTORS                    = 29713,
 
     MAX_VIPER                                   = 2,
-    MAX_CONSTRICTOR                             = 3,
+    MAX_CONSTRICTOR                             = 2,
     MAX_SUMMONS                                 = 5
 };
 
@@ -84,16 +84,17 @@ public:
                     uint8 const count = uint8(urand(1, MAX_VIPER));
                     for (uint8 i = 0; i < count; ++i)
                         me->SummonCreature(NPC_SLADRAN_VIPER, SpawnLoc[MAX_SUMMONS - 1 - i], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
-                }, 10s, 15s);
+                }, 20s, 30s);
             });
 
             ScheduleHealthCheckEvent(DUNGEON_MODE(50, 75), [&] {
                 Talk(SAY_SUMMON_CONSTRICTORS);
 
+                // 固定 2 只巨蟒, 刷新点从数组开头取
                 ScheduleTimedEvent(1s, [&] {
                     for (uint8 i = 0; i < MAX_CONSTRICTOR; ++i)
                         me->SummonCreature(NPC_SLADRAN_CONSTRICTORS, SpawnLoc[i], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 20 * IN_MILLISECONDS);
-                }, 3s, 5s);
+                }, 10s, 15s);
             });
         }
 

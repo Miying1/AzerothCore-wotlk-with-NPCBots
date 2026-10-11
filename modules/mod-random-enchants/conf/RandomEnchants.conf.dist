@@ -38,9 +38,9 @@ RandomEnchants.OnGroupRoll = 1
 #        Probability (in percentage) for the first enchant to be applied.
 #        Default:     70.0
 
-RandomEnchants.LootEnchantChance1=45.0
+RandomEnchants.LootEnchantChance1=30.0
 #重新FM成功率
-RandomEnchants.ReRandChance=85.0
+RandomEnchants.ReRandChance=75.0
 #随机FM值的范围%
 RandomEnchants.RandRangeattrMaxPct=0.50
  
@@ -49,6 +49,9 @@ RandomEnchants.MaxAttrChance=20.0
 
 #
 #     自定义装备段四分组随机附魔（item_random_enchant.cpp）
+#
+#     附魔时机与上方 RandomEnchants.OnLoot / OnCreate / OnGroupRoll 共用：
+#     拾取 / 制造 / 团队 roll 获得装备时触发，三个开关任一关闭即该时机不附魔。
 #
 #     RandomEnchants.Custom.Enable
 #        是否启用该四分组方案（法系/物理/防御/治疗）

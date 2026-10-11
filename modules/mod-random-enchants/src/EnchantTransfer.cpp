@@ -11,8 +11,11 @@
  *   2. 属性卷轴（60104，消耗）：右键使用，选择一件「无随机属性」的装备，
  *      将卷轴上的随机属性注入目标装备，并消耗卷轴。
  *
- * 可操作的装备部位：武器 / 护甲（头、颈、肩、胸、腕、手、腰、腿、脚、戒指、披风、
- *   盾牌、副手等），但不含饰品。
+ * 可操作的装备部位：与随机附魔（item_random_enchant.cpp）一致，覆盖全部装备槽
+ *   （头/颈/肩/背/胸/袍/腰/腿/脚/腕/手/戒指/饰品/主手/副手/双手/远程/投掷/盾/
+ *   副手物品/圣物），见 RandomEnchantCommon.h 的 IsEquipmentSlot()。
+ *
+ * 可选范围：玩家主背包（16 格）与已装备的包内物品，不含已装备的装备。
  *
  * 持久化：卷轴的 randomPropertyId 由 item_instance 表保存，可跨登录长久保留。
  */
@@ -22,14 +25,15 @@
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "Player.h"
+#include "RandomEnchantCommon.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
 
+// GOSSIP_SENDER_MAIN 由 ScriptedGossip.h 提供（= 1），此处不再重复定义
 enum
 {
-    ITEM_EXTRACTOR     = 60103,   // 属性萃取仪（非消耗）
-    ITEM_SCROLL        = 60104,   // 属性卷轴（消耗，携带随机属性）
-    GOSSIP_SENDER_MAIN = 1,
+    ITEM_EXTRACTOR = 60103,   // 属性萃取仪（非消耗）
+    ITEM_SCROLL    = 60104,   // 属性卷轴（消耗，携带随机属性）
 };
 
 class EnchantTransferItem : public ItemScript
@@ -93,7 +97,7 @@ private:
         player->StoreNewItem(dest, ITEM_SCROLL, true, rp);
 
         CloseGossipMenuFor(player);
-        ChatHandler(player->GetSession()).PSendSysMessage("随机属性已提取为卷轴，原装备被销毁。");
+        ChatHandler(player->GetSession()).PSendSysMessage("属性词条已提取为卷轴，原装备被销毁。");
     }
 
     void DoInject(Player* player, Item* scroll, Item* target)
@@ -112,7 +116,7 @@ private:
         player->DestroyItem(scroll->GetBagSlot(), scroll->GetSlot(), true);
 
         CloseGossipMenuFor(player);
-        ChatHandler(player->GetSession()).PSendSysMessage("卷轴随机属性已注入目标装备。");
+        ChatHandler(player->GetSession()).PSendSysMessage("属性词条已注入目标装备。");
     }
 
     // withRandomProp=true 列出「有随机属性」的装备，false 列出「无随机属性」的装备
@@ -125,9 +129,8 @@ private:
                 return;
 
             ItemTemplate const* proto = pItem->GetTemplate();
-            // 只处理武器/护甲类装备，且排除饰品
-            if ((proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR)
-                || proto->InventoryType == INVTYPE_TRINKET)
+            // 装备部位判定与随机附魔（item_random_enchant.cpp）保持一致
+            if (!IsEquipmentSlot(proto->InventoryType))
                 return;
 
             bool has = pItem->GetItemRandomPropertyId() != 0;
@@ -138,9 +141,11 @@ private:
             ++itemCount;
         };
 
+        // 扫描玩家主背包（16 格）
         for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot != INVENTORY_SLOT_ITEM_END && itemCount < GOSSIP_MAX_MENU_ITEMS; ++slot)
             addItem(player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
 
+        // 扫描已装备的包内物品
         for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot != INVENTORY_SLOT_BAG_END && itemCount < GOSSIP_MAX_MENU_ITEMS; ++bagSlot)
             if (Bag* bag = player->GetBagByPos(bagSlot))
                 for (uint32 slot = 0; slot != bag->GetBagSize() && itemCount < GOSSIP_MAX_MENU_ITEMS; ++slot)

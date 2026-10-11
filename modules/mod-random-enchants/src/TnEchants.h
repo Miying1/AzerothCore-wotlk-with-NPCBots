@@ -37,6 +37,13 @@ class TnEchants
     //满级属性概率(1-100)
     float MaxAttrChance;
     float ReRandChance;
+
+    // --- 脚本侧配置缓存（InitConfig 时一次性读取，事件触发时不再查配置） ---
+    bool  ModuleEnable       = true;   // RandomEnchants.Enable（模块总开关）
+    bool  EnchantOnLoot      = true;   // RandomEnchants.OnLoot（拾取）
+    bool  EnchantOnCreate    = true;   // RandomEnchants.OnCreate（制造）
+    bool  EnchantOnGroupRoll = true;   // RandomEnchants.OnGroupRoll（团队 roll）
+    float LootEnchantChance  = 30.0f;  // RandomEnchants.LootEnchantChance1（触发概率%）
     std::unordered_map<uint32, ItemEnchants> ItemEnchantsStore; 
     std::map<uint8,EnchEffectGroup> EnchEffectStore;
 

@@ -1,12 +1,12 @@
 /*
  * 装备掉落随机附魔（按分组：法系 / 物理 / 防御 / 治疗）
  *
- * 分组数据存于自定义表 custom_random_enchant（entry, ench, attr, attr_type, tier, chance），
+ * 分组数据存于自定义表 mod_random_enchant（entry, ench, attr, attr_type, tier, chance），
  * 不走原版 item_enchantment_template，装备模板也无需绑定 RandomProperty。
  *
  * 流程：
- *   1. 世界启动时（OnLoadCustomDatabaseTable）把 custom_random_enchant 加载进内存；
- *   2. 物品创建时（OnItemCreate，覆盖掉落/任务/制造/购买）按主属性推断分组；
+ *   1. 世界启动时（OnLoadCustomDatabaseTable）把 mod_random_enchant 加载进内存；
+ *   2. 获得装备时（拾取 / 制造 / 团队 roll，时机同 RandomEnchantsScript.cpp）按主属性推断分组；
  *   3. 先等概率选属性，再在该属性内按装等动态权重（装等越高越偏大序号）挑一个组合；
  *   4. SetItemRandomProperties 把组合内的 SpellItemEnchantment 应用（附魔）到装备。
  *
@@ -20,6 +20,7 @@
 #include "Log.h"           // LOG_INFO / LOG_WARN
 #include "QueryResult.h"   // QueryResult / Field
 #include "Random.h"        // rand_norm / roll_chance_f
+#include "RandomEnchantCommon.h" // IsEquipmentSlot
 #include "ScriptMgr.h"     // WorldScript / MiscScript
 #include "Timer.h"         // getMSTime / GetMSTimeDiffToNow
 
@@ -30,12 +31,40 @@
 
 namespace
 {
-    // 分组入口 ID（对应 custom_random_enchant.entry）
+    // 分组入口 ID（对应 mod_random_enchant.entry）
     constexpr uint32 GROUP_CASTER   = 90001; // 法系
     constexpr uint32 GROUP_PHYSICAL = 90101; // 物理
     constexpr uint32 GROUP_DEFENSE  = 90201; // 防御
     constexpr uint32 GROUP_HEALER   = 90301; // 治疗
     constexpr uint32 GROUP_NONE     = 0;
+
+    // 配置缓存：仅在启动 / 配置重载时读取一次，触发时直接读内存，不再每次查配置。
+    struct RandomEnchantConfig
+    {
+        bool   onLoot        = true;   // RandomEnchants.OnLoot（拾取）
+        bool   onCreate      = true;   // RandomEnchants.OnCreate（制造）
+        bool   onGroupRoll   = true;   // RandomEnchants.OnGroupRoll（团队 roll）
+        bool   enable        = true;   // RandomEnchants.Custom.Enable
+        float  chance        = 50.0f;  // RandomEnchants.Custom.Chance
+        uint32 minItemLevel  = 220;    // RandomEnchants.Custom.MinItemLevel
+        uint32 weightMinLevel = 220;   // RandomEnchants.Custom.WeightMinLevel
+        uint32 weightMaxLevel = 284;   // RandomEnchants.Custom.WeightMaxLevel
+    };
+
+    RandomEnchantConfig g_config;
+
+    // 启动 / .reload config 时调用，一次性把配置读入缓存。
+    void LoadRandomEnchantConfig()
+    {
+        g_config.onLoot         = sConfigMgr->GetOption<bool>("RandomEnchants.OnLoot", true);
+        g_config.onCreate       = sConfigMgr->GetOption<bool>("RandomEnchants.OnCreate", true);
+        g_config.onGroupRoll    = sConfigMgr->GetOption<bool>("RandomEnchants.OnGroupRoll", true);
+        g_config.enable         = sConfigMgr->GetOption<bool>("RandomEnchants.Custom.Enable", true);
+        g_config.chance         = sConfigMgr->GetOption<float>("RandomEnchants.Custom.Chance", 50.0f);
+        g_config.minItemLevel   = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.MinItemLevel", 220);
+        g_config.weightMinLevel = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMinLevel", 220);
+        g_config.weightMaxLevel = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMaxLevel", 284);
+    }
 
     // 单个随机条目：ItemRandomProperties 组合 ID + 档位序号 + 权重
     struct RandomEnchEntry
@@ -63,10 +92,10 @@ namespace
         g_randomEnchGroups.clear();
 
         QueryResult result = WorldDatabase.Query(
-            "SELECT entry, ench, attr, attr_type, tier, chance FROM custom_random_enchant ORDER BY entry, attr, tier");
+            "SELECT entry, ench, attr, attr_type, tier, chance FROM mod_random_enchant ORDER BY entry, attr, tier");
         if (!result)
         {
-            LOG_WARN("server.loading", ">> Loaded 0 custom random enchant definitions. DB table `custom_random_enchant` is empty.");
+            LOG_WARN("server.loading", ">> Loaded 0 custom random enchant definitions. DB table `mod_random_enchant` is empty.");
             return;
         }
 
@@ -135,8 +164,8 @@ namespace
             return 0;
 
         // 高数值偏好因子 p：0=低数值占优，1=高数值占优（随装等线性过渡）。
-        uint32 wMin = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMinLevel", 220);
-        uint32 wMax = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMaxLevel", 284);
+        uint32 wMin = g_config.weightMinLevel;
+        uint32 wMax = g_config.weightMaxLevel;
         float p = 0.0f;
         if (wMax > wMin)
             p = std::clamp(float(itemLevel - wMin) / float(wMax - wMin), 0.0f, 1.0f);
@@ -172,10 +201,16 @@ namespace
     }
 
     // 根据物品主属性推断分组。
-    // 判断顺序：防御 > 物理 > 法系/治疗；法系与治疗再按命中/穿透/精神/回蓝细分。
+    // 判断顺序：
+    //   1) 附带防御评级（防御/躲闪/招架/格挡）→ 防御；
+    //   2) 附带力量 / 敏捷 / 攻强 → 物理；此时即使同时带智力也算物理
+    //      （猎人、增强萨的锁甲都是"敏捷 + 智力"，不能因为带智力就判为法系）；
+    //   3) 附带智力 / 法伤 → 法系或治疗（回蓝/精神为治疗，命中/穿透为法系）。
+    // 盾牌不单独归防御，按自身属性判定：防御盾（带防御评级）→ 防御，
+    // 治疗盾（智力 + 法伤 + 回蓝/精神）→ 治疗，法伤盾（智力 + 法伤 + 命中）→ 法系。
     uint32 GetRandomEnchantGroup(ItemTemplate const* proto)
     {
-        bool hasDefense  = false; // 防御类评级或盾牌
+        bool hasDefense  = false; // 防御类评级
         bool hasPhysical = false; // 力量 / 敏捷 / 攻强
         bool hasCaster   = false; // 智力 / 法伤
         bool hasSpirit   = false; // 精神
@@ -224,16 +259,12 @@ namespace
             }
         }
 
-        // 盾牌归防御。
-        if (proto->InventoryType == INVTYPE_SHIELD)
-            hasDefense = true;
-
-        // 1) 防御（坦克）优先。
+        // 1) 防御（坦克）优先：带防御类评级即坦克装（盾牌与是否有防御评级无关）。
         if (hasDefense)
             return GROUP_DEFENSE;
 
-        // 2) 物理（力量 / 敏捷 / 攻强）。
-        if (hasPhysical && !hasCaster)
+        // 2) 物理：力量 / 敏捷 / 攻强；同时带智力也算物理（猎人 / 增强萨锁甲）。
+        if (hasPhysical)
             return GROUP_PHYSICAL;
 
         // 3) 法系 / 治疗：命中/穿透为法系输出，回蓝/精神为治疗。
@@ -253,12 +284,18 @@ namespace
     }
 }
 
-// 世界脚本：启动时加载自定义分组表
+// 世界脚本：启动时加载自定义分组表，并在配置（重）加载时刷新配置缓存
 class custom_random_enchant_loader : public WorldScript
 {
 public:
     custom_random_enchant_loader()
-        : WorldScript("custom_random_enchant_loader", { WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
+        : WorldScript("custom_random_enchant_loader", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
+
+    // 启动与 .reload config 时各触发一次，配置只在这里读。
+    void OnAfterConfigLoad(bool /*reload*/) override
+    {
+        LoadRandomEnchantConfig();
+    }
 
     void OnLoadCustomDatabaseTable() override
     {
@@ -266,24 +303,54 @@ public:
     }
 };
 
-// 装备创建钩子：按分组随机附魔
-class item_random_enchant : public MiscScript
+// 装备获得钩子：按分组随机附魔。
+// 附魔时机与 RandomEnchantsScript.cpp 保持一致：
+//   拾取（OnPlayerLootItem）/ 制造（OnPlayerCreateItem）/ 团队 roll 奖励（OnPlayerGroupRollRewardItem），
+//   分别由 RandomEnchants.OnLoot / RandomEnchants.OnCreate / RandomEnchants.OnGroupRoll 开关控制。
+class item_random_enchant : public PlayerScript
 {
 public:
     item_random_enchant()
-        : MiscScript("item_random_enchant", { MISCHOOK_ON_ITEM_CREATE }) { }
+        : PlayerScript("item_random_enchant", { PLAYERHOOK_ON_LOOT_ITEM, PLAYERHOOK_ON_CREATE_ITEM, PLAYERHOOK_ON_GROUP_ROLL_REWARD_ITEM }) { }
 
-    void OnItemCreate(Item* item, ItemTemplate const* itemProto, Player const* /*owner*/) override
+    // 拾取物品后。
+    void OnPlayerLootItem(Player* /*player*/, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override
     {
-        if (!item || !itemProto)
+        if (g_config.onLoot)
+            TryApplyRandomEnchant(item);
+    }
+
+    // 制造物品后（专业技能产出）。
+    void OnPlayerCreateItem(Player* /*player*/, Item* item, uint32 /*count*/) override
+    {
+        if (g_config.onCreate)
+            TryApplyRandomEnchant(item);
+    }
+
+    // 队伍 roll 获得奖励后。
+    void OnPlayerGroupRollRewardItem(Player* /*player*/, Item* item, uint32 /*count*/, RollVote /*voteType*/, Roll* /*roll*/) override
+    {
+        if (g_config.onGroupRoll)
+            TryApplyRandomEnchant(item);
+    }
+
+private:
+    // 核心判定：过滤器 + 分组 + 随机组合，命中则附魔。
+    void TryApplyRandomEnchant(Item* item)
+    {
+        if (!item)
+            return;
+
+        ItemTemplate const* itemProto = item->GetTemplate();
+        if (!itemProto)
             return;
 
         // 模块总开关。
-        if (!sConfigMgr->GetOption<bool>("RandomEnchants.Custom.Enable", true))
+        if (!g_config.enable)
             return;
 
-        // 只处理装备（武器 / 护甲）。
-        if (itemProto->Class != ITEM_CLASS_WEAPON && itemProto->Class != ITEM_CLASS_ARMOR)
+        // 所有装备部位都处理（按装备槽判断，而非物品大类）。
+        if (!IsEquipmentSlot(itemProto->InventoryType))
             return;
 
         // 保留原生随机属性：已配置 RandomProperty / RandomSuffix 的装备不覆盖。
@@ -291,12 +358,11 @@ public:
             return;
 
         // 装备等级需严格大于 MinItemLevel（默认 220）。
-        uint32 minLevel = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.MinItemLevel", 220);
-        if (itemProto->ItemLevel <= minLevel)
+        if (itemProto->ItemLevel <= g_config.minItemLevel)
             return;
 
         // 触发概率（可配置）。
-        if (!roll_chance_f(sConfigMgr->GetOption<float>("RandomEnchants.Custom.Chance", 100.0f)))
+        if (!roll_chance_f(g_config.chance))
             return;
 
         uint32 groupEntry = GetRandomEnchantGroup(itemProto);

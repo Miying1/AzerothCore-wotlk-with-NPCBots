@@ -10,6 +10,13 @@ void TnEchants::InitConfig()
     RandRangeattrMaxPct = sConfigMgr->GetOption<float>("RandomEnchants.RandRangeattrMaxPct", 0.7f);
     MaxAttrChance = sConfigMgr->GetOption<float>("RandomEnchants.MaxAttrChance", 40.0f);
     ReRandChance = sConfigMgr->GetOption<float>("RandomEnchants.ReRandChance", 80.0f);
+
+    // 脚本侧开关与概率：启动 / .reload config 时读一次，事件触发时直接读内存。
+    ModuleEnable       = sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true);
+    EnchantOnLoot      = sConfigMgr->GetOption<bool>("RandomEnchants.OnLoot", true);
+    EnchantOnCreate    = sConfigMgr->GetOption<bool>("RandomEnchants.OnCreate", true);
+    EnchantOnGroupRoll = sConfigMgr->GetOption<bool>("RandomEnchants.OnGroupRoll", true);
+    LootEnchantChance  = sConfigMgr->GetOption<float>("RandomEnchants.LootEnchantChance1", 30.0f);
 }
 
 void TnEchants::InitData()

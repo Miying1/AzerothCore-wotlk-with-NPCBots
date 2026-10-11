@@ -5,6 +5,7 @@
 #include "Player.h"
 #include "Configuration/Config.h"
 #include "Chat.h"
+#include "DatabaseEnv.h"
 #include "TnEchants.h"
 
  
@@ -14,32 +15,29 @@ public:
     RandomEnchantsPlayer() : PlayerScript("RandomEnchantsPlayer") { }
      
     void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid /*lootguid*/) override {
-        if (sConfigMgr->GetOption<bool>("RandomEnchants.OnLoot", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
+        if (tnEchants->EnchantOnLoot)
             RollPossibleEnchant(player, item);
-        player->SaveToDB(false, false);
     }
 
     void OnPlayerCreateItem(Player* player, Item* item, uint32 /*count*/) override {
-        if (sConfigMgr->GetOption<bool>("RandomEnchants.OnCreate", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
+        if (tnEchants->EnchantOnCreate)
             RollPossibleEnchant(player, item);
     }
-     
 
     void OnPlayerGroupRollRewardItem(Player* player, Item* item, uint32 /*count*/, RollVote /*voteType*/, Roll* /*roll*/) override {
-       
-        if (sConfigMgr->GetOption<bool>("RandomEnchants.OnGroupRoll", true) && sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true))
+        if (tnEchants->EnchantOnGroupRoll)
             RollPossibleEnchant(player, item);
-        player->SaveToDB(false,false);
     }
 
+    // 配置已由 TnEchants::InitConfig() 缓存，这里只读内存；
+    // 只有真正附魔成功时才落库，避免每次拾取都整角色存档。
     void RollPossibleEnchant(Player* player, Item* item) {
         // Check global enable option
-        if (!sConfigMgr->GetOption<bool>("RandomEnchants.Enable", true)) {
+        if (!tnEchants->ModuleEnable) {
             return;
         }
         if (!item) return; 
-        float enchantChance1 = sConfigMgr->GetOption<float>("RandomEnchants.LootEnchantChance1", 30.0f);
-        if (rand_chance() > enchantChance1) return;
+        if (rand_chance() > tnEchants->LootEnchantChance) return;
 
         uint32 Quality = item->GetTemplate()->Quality;
         uint32 Class = item->GetTemplate()->Class;
@@ -53,7 +51,14 @@ public:
             ) {
             return;
         }
-        tnEchants->RandomEnchEffect(player, item);  
+        if (tnEchants->RandomEnchEffect(player, item))
+        {
+            // 附魔只改 item_instance 的 enchantments 字段，单件落库即可；
+            // 避免为一次附魔做整角色存档（登出/周期存档本就会保存，这里只为消除崩溃窗口）。
+            CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+            item->SaveToDB(trans);
+            CharacterDatabase.CommitTransaction(trans);
+        }
     }
      
 };
