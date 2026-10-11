@@ -1,16 +1,23 @@
 /*
  * 装备掉落随机附魔（按分组：法系 / 物理 / 防御 / 治疗）
  *
- * 分组数据存于自定义表 mod_random_enchant（entry, ench, attr, attr_type, tier, chance），
- * 不走原版 item_enchantment_template，装备模板也无需绑定 RandomProperty。
+ * 分组数据存于自定义表 mod_random_enchant（entry, ench, attr, attr_type, tier, chance）。
  *
  * 流程：
  *   1. 世界启动时（OnLoadCustomDatabaseTable）把 mod_random_enchant 加载进内存；
- *   2. 获得装备时（拾取 / 制造 / 团队 roll，时机同 RandomEnchantsScript.cpp）按主属性推断分组；
+ *   2. 拾取 / 制造 / 团队 roll 时（时机同 RandomEnchantsScript.cpp）按主属性推断分组；
  *   3. 先等概率选属性，再在该属性内按装等动态权重（装等越高越偏大序号）挑一个组合；
  *   4. SetItemRandomProperties 把组合内的 SpellItemEnchantment 应用（附魔）到装备。
  *
- * 前提：被附魔装备的 item_template.RandomProperty / RandomSuffix 必须为 0。
+ * 说明：随机属性只挂在**物品实例**上，物品模板的 RandomProperty / RandomSuffix 保持为 0。
+ * 服务端的链接校验（Acore::Hyperlinks::LinkTags::item::StoreTo）原本要求
+ * 「链接里 randomPropertyId 非 0 时，模板必须带同类随机属性」，否则整条聊天消息会被
+ * WorldSession::ValidateHyperlinksAndMaybeKick 丢弃（就是"装备链接发不出去"）。
+ * 该限制已在核心中去除：现在只要 ItemRandomProperties.dbc 里存在该条目即视为合法链接。
+ *
+ * 依赖（见 outputs/随机属性/，由 生成随机附魔数据.py 生成）：
+ *   - ItemRandomProperties.dbc / SpellItemEnchantment.dbc 需导入服务端与客户端；
+ *   - sql/world/custom_random_enchant.sql（分组表）。
  */
 
 #include "Configuration/Config.h" // sConfigMgr
@@ -25,6 +32,7 @@
 #include "Timer.h"         // getMSTime / GetMSTimeDiffToNow
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -49,6 +57,7 @@ namespace
         uint32 minItemLevel  = 220;    // RandomEnchants.Custom.MinItemLevel
         uint32 weightMinLevel = 220;   // RandomEnchants.Custom.WeightMinLevel
         uint32 weightMaxLevel = 284;   // RandomEnchants.Custom.WeightMaxLevel
+        float  lowTierBias   = 2.0f;   // RandomEnchants.Custom.LowTierBias
     };
 
     RandomEnchantConfig g_config;
@@ -64,6 +73,7 @@ namespace
         g_config.minItemLevel   = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.MinItemLevel", 220);
         g_config.weightMinLevel = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMinLevel", 220);
         g_config.weightMaxLevel = sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.WeightMaxLevel", 284);
+        g_config.lowTierBias    = sConfigMgr->GetOption<float>("RandomEnchants.Custom.LowTierBias", 2.0f);
     }
 
     // 单个随机条目：ItemRandomProperties 组合 ID + 档位序号 + 权重
@@ -80,6 +90,13 @@ namespace
         std::string attr;      // 属性名
         uint32      attrType;  // ItemModType
         std::vector<RandomEnchEntry> entries;
+
+        // 预计算的归一化权重（与 entries 一一对应，各自求和为 1）：
+        // 低装等分布 lowNorm（chance 取 LowTierBias 次幂）、高装等分布 highNorm（tier）。
+        // 只与 LowTierBias 有关，因此在加载分组表 / 配置重载时重建一次，
+        // 运行时的随机选择只做乘加，避免每次重复 3M 次 std::pow。
+        std::vector<double> lowNorm;
+        std::vector<double> highNorm;
     };
 
     // 分组数据：entry -> 属性列表
@@ -147,6 +164,45 @@ namespace
         LOG_INFO("server.loading", ">> Loaded {} custom random enchant definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     }
 
+    // 预计算单个属性下的两个归一化分布：
+    //   lowNorm  —— 低装等分布（chance 取 LowTierBias 次幂）
+    //   highNorm —— 高装等分布（tier）
+    // 两者量级差约 N 倍（chance^k 是 N^k 级、tier 是 N 级），必须先各自归一化，
+    // 运行时再按装等线性插值，否则过渡会被压缩到 p 接近 1 时才发生（低段几乎不变、到上限突变）。
+    void BuildAttributeWeights(RandomEnchAttribute& ra)
+    {
+        double lowTierBias = std::max(1.0, double(g_config.lowTierBias));
+
+        double lowSum  = 0.0;
+        double highSum = 0.0;
+        for (RandomEnchEntry const& e : ra.entries)
+        {
+            lowSum  += std::pow(double(e.chance), lowTierBias);
+            highSum += double(e.tier);
+        }
+
+        ra.lowNorm.clear();
+        ra.highNorm.clear();
+        if (lowSum <= 0.0 || highSum <= 0.0)
+            return;
+
+        ra.lowNorm.reserve(ra.entries.size());
+        ra.highNorm.reserve(ra.entries.size());
+        for (RandomEnchEntry const& e : ra.entries)
+        {
+            ra.lowNorm.push_back(std::pow(double(e.chance), lowTierBias) / lowSum);
+            ra.highNorm.push_back(double(e.tier) / highSum);
+        }
+    }
+
+    // 重建全部分组的预计算权重（加载分组表后、以及配置重载改变 LowTierBias 后各调用一次）。
+    void BuildAllAttributeWeights()
+    {
+        for (auto& group : g_randomEnchGroups)
+            for (RandomEnchAttribute& ra : group.second)
+                BuildAttributeWeights(ra);
+    }
+
     // 两级随机：先等概率选属性，再在该属性内按装等动态权重选条目。
     // 装等越高，高数值（大 tier）档位权重越大。
     uint32 GetRandomEnchantFromGroup(uint32 entry, uint32 itemLevel)
@@ -160,7 +216,7 @@ namespace
         // 第一次 roll：等概率选一个属性。
         RandomEnchAttribute const& ra = attrs[urand(uint32(0), uint32(attrs.size() - 1))];
 
-        if (ra.entries.empty())
+        if (ra.entries.empty() || ra.lowNorm.size() != ra.entries.size() || ra.highNorm.size() != ra.entries.size())
             return 0;
 
         // 高数值偏好因子 p：0=低数值占优，1=高数值占优（随装等线性过渡）。
@@ -172,29 +228,19 @@ namespace
         else if (itemLevel > wMin)
             p = 1.0f;
 
-        // 条目动态权重：低装等偏好低数值（chance 为基准），高装等偏好高数值（tier）。
-        auto weight = [p](RandomEnchEntry const& e) -> double
-        {
-            double lowBias  = double(e.chance); // 低装等基准权重（= 档位数 - tier + 1）
-            double highBias = double(e.tier);   // 高数值偏好
-            return (1.0 - double(p)) * lowBias + double(p) * highBias;
-        };
-
-        double totalWeight = 0.0;
-        for (RandomEnchEntry const& e : ra.entries)
-            totalWeight += weight(e);
-
-        if (totalWeight <= 0.0)
-            return 0;
-
         // 第二次 roll：属性内按动态权重选具体条目。
-        double roll = rand_norm() * totalWeight; // [0, totalWeight)
+        // 权重 = (1-p)*lowNorm[i] + p*highNorm[i]，两个分布各自归一化，故总权重恒为 1，
+        // 无需再求和，roll 直接取 [0,1)。预处理已消除运行时的 std::pow。
+        double lowFactor  = 1.0 - double(p);
+        double highFactor = double(p);
+
+        double roll = rand_norm(); // [0, 1)
         double acc  = 0.0;
-        for (RandomEnchEntry const& e : ra.entries)
+        for (size_t i = 0; i < ra.entries.size(); ++i)
         {
-            acc += weight(e);
+            acc += lowFactor * ra.lowNorm[i] + highFactor * ra.highNorm[i];
             if (roll < acc)
-                return e.ench;
+                return ra.entries[i].ench;
         }
 
         return ra.entries.back().ench; // 浮点误差兜底
@@ -295,11 +341,17 @@ public:
     void OnAfterConfigLoad(bool /*reload*/) override
     {
         LoadRandomEnchantConfig();
+
+        // LowTierBias 可能已变化，需要按新配置重建预计算权重。
+        // 启动阶段此时分组表尚未加载，BuildAllAttributeWeights 对空表是空操作，
+        // 权重会在 OnLoadCustomDatabaseTable 里一并构建。
+        BuildAllAttributeWeights();
     }
 
     void OnLoadCustomDatabaseTable() override
     {
         LoadCustomRandomEnchantTable();
+        BuildAllAttributeWeights();
     }
 };
 

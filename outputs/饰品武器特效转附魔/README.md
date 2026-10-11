@@ -137,9 +137,11 @@ modules/mod-random-enchants/
 | `EquippedItemSubclass` | `2090495` = 0~20 位除 9/11/12 外全部置位（单手/双手/主手/副手/远程/法杖/匕首等） |
 | `EquippedItemInvTypes` | `0`（真实武器附魔均为 0，目标过滤靠子类掩码） |
 | `BaseLevel` / `MaxLevel` | `0`（不限制目标装备等级/装等，避免 `SPELL_FAILED_LOWLEVEL` / `HIGHLEVEL`） |
-| `Name_Lang_*` / `Description_Lang_*` | `魄·<饰品名>` / `永久性地为一把武器附魔，使其获得「<饰品名>」的特效。` |
+| `Name_Lang_*` | `魄·<饰品名>`（中文写 deDE，enUS 留空） |
+| `Description_Lang_*` | **直接沿用原特效法术的中文描述**（`Spell.csv` 的 `Description_Lang_deDE`），只写 deDE；描述里的裸 `$s1` 会按原法术数值在生成阶段展开（跨法术引用如 `$67714s1` 保持原样，由客户端解析） |
 | `SpellIconID` / `ActiveIconID` | `241` / `0`（沿用模板法术 35793 的技能图标） |
-| 其余 | 全部沿用模板（`CastingTimeIndex=1`、`RangeIndex=1`、`SpellVisualID_1=3182` 等） |
+| `CastingTimeIndex` | `16`（1.5 秒，配合卷轴的 `ITEM_FLAG_PLAYERCAST` 显示读条）。`1` = 瞬发（暴雪原版卷轴）、`14` = 3 秒（磨刀石那类），见 `SPELL_CASTING_TIME_INDEX` |
+| 其余 | 全部沿用模板（`RangeIndex=1`、`InterruptFlags=15`、`SpellVisualID_1=3182` 等） |
 
 ### `item_template`（卷轴）
 
@@ -150,11 +152,19 @@ modules/mod-random-enchants/
 | `name` | `武器附魔·<饰品名>`（不带颜色码，紫色由 `Quality` 呈现） |
 | `displayid` | 11161（附魔卷轴图标，对应 `ItemDisplayInfo.dbc`） |
 | `Quality` | 4（紫色） |
+| `Flags` | **`64`** = `ITEM_FLAG_PLAYERCAST`（物品法术由玩家施放；**缺了它客户端不会施法，也就没有读条**） |
 | `stackable` | 1 |
 | `Material` | 8 |
+| `delay` | 0（与真实卷轴 33315 一致） |
 | `spellid_1` / `spelltrigger_1` | 附魔法术 ID / `0`（使用） |
+| `spellcharges_1` | **`-1`**（可消耗：施法成功后由 `Spell::TakeCastItem()` 销毁卷轴；**`0` 会导致永不消耗**） |
 | `spellcooldown_1` / `spellcategorycooldown_1` | `-1`（用默认值） |
 | 其余 | 数据库默认值 |
+
+> 这三个字段（`Flags=64` + `spellcharges_1=-1` + 施法时间）是「右键使用有读条、附魔成功后卷轴消失」的必要条件，
+> 对照参考：真实附魔卷轴 `33315 附魔武器死刑`（`Flags=64`、`spellcharges_1=-1`）与
+> `2862 劣质磨刀石`（`Flags=64`、`CastingTimeIndex=14`）。
+> 消耗判定见 `Spell::TakeCastItem()`：只有 `spellcharges_i != 0` 才会走「充能扣减 → 归零则销毁」。
 
 ### `spell_enchant_proc_data`
 

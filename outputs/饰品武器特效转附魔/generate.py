@@ -127,12 +127,20 @@ WEAPON_SUBCLASS_MASK = sum(1 << b for b in range(21) if b not in (9, 11, 12))
 EQUIPPED_ITEM_INV_TYPES = 0          # 真实武器附魔均为 0（过滤靠子类掩码）
 SPELL_BASE_LEVEL = 0                 # 0 = 不限制目标装备等级（Spell.cpp 中 requiredLevel < BaseLevel 才拦截）
 SPELL_MAX_LEVEL = 0                  # 0 = 不限制最高装等
+# 施法时间：卷轴物品带 ITEM_FLAG_PLAYERCAST，客户端会按这个值显示读条。
+#   1  = 瞬发（暴雪原版附魔卷轴 43005/35793 就是这样，没有读条）
+#   16 = 1.5 秒（本批采用，有可见读条）
+#   14 = 3 秒（磨刀石/平衡石/暗影之油 那类消耗品用的值）
+SPELL_CASTING_TIME_INDEX = 16
 SPELL_ICON_ID = 241                  # 技能图标：241 = 模板法术 35793（附魔武器 - 猫鼬）的图标
 SPELL_ACTIVE_ICON_ID = 0             # 高亮图标：0 = 默认
 
 # ============================================================
 # 六、卷轴物品模板（参考库内 29839「附魔卷轴」）
 # ============================================================
+SCROLL_FLAGS = 64                    # ITEM_FLAG_PLAYERCAST：物品法术由玩家施放（缺它客户端不施法、无读条）
+SCROLL_SPELL_CHARGES = -1            # -1 = 可消耗：施法成功后 Spell::TakeCastItem 销毁卷轴（0 = 永不消耗）
+SCROLL_DELAY = 0                     # 与真实卷轴 33315 一致（消耗品用不到武器攻速）
 SCROLL_DISPLAY_ID = 11161            # 附魔卷轴图标（ItemDisplayInfo.dbc）
 SCROLL_QUALITY = 4                   # 4 紫色品质（客户端按品质着色）
 SCROLL_MATERIAL = 8
@@ -253,6 +261,32 @@ def run_mysql(query):
     return [line.split("\t") for line in out.splitlines() if line.strip()]
 
 
+def csv_int(value, default=0):
+    """把 CSV 单元格安全转成 int。"""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def resolve_spell_placeholders(text, info):
+    """替换描述里的**自引用**占位符（$s1/$s2/$s3 等）。
+
+    描述文本取自原特效法术，其中 `$67714s1`、`$52419d` 这类「跨法术引用」客户端能自行解析，
+    保持原样即可；只有裸的 `$s1`（引用附魔法术自身，而它的 EffectBasePoints=0）会显示成 0，
+    所以按原法术的数值在生成阶段直接展开。
+    """
+    if not text or "$" not in text:
+        return text
+
+    out = text
+    for i, base in enumerate(info.get("bp", []), start=1):
+        out = out.replace("$s%d" % i, str(base + 1))   # $sN = EffectBasePoints_N + 1
+        out = out.replace("$o%d" % i, str(base + 1))
+        out = out.replace("$x%d" % i, str(base + 1))
+    return out
+
+
 def sql_quote(value):
     """转义为 SQL 字符串字面量。"""
     return "'" + str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
@@ -309,6 +343,9 @@ def load_spell_csv():
                 "chance": int(row[idx["ProcChance"]] or 0),
                 "zh": row[idx["Name_Lang_deDE"]] or row[idx["Name_Lang_zhCN"]],
                 "en": row[idx["Name_Lang_enUS"]],
+                "desc": row[idx["Description_Lang_deDE"]],
+                # 自引用占位符（$s1 / $o1 / $x1）需要原法术的数值
+                "bp": [csv_int(row[idx["EffectBasePoints_%d" % i]]) for i in (1, 2, 3)],
             }
     if TEMPLATE_SPELL_ID not in rows:
         sys.exit("Spell.csv 中找不到附魔法术模板 %d。" % TEMPLATE_SPELL_ID)
@@ -361,6 +398,8 @@ def classify(effects, spells):
             excluded.append(info)
             continue
         info["spell_zh"], info["spell_en"] = sp["zh"], sp["en"]
+        info["spell_desc"] = sp["desc"]
+        info["bp"] = sp["bp"]
         info["proc_mask"], info["proc_chance"] = sp["proc"], sp["chance"]
         info["item_name"] = pick_item_name(info)
         if info["trigger"] == TRIGGER_CHANCE_ON_HIT:
@@ -397,6 +436,7 @@ def build_spell_row(template_dict, spell_id, enchant_id, zh_name, en_name, zh_de
     row["EquippedItemInvTypes"] = str(EQUIPPED_ITEM_INV_TYPES)
     row["BaseLevel"] = str(SPELL_BASE_LEVEL)
     row["MaxLevel"] = str(SPELL_MAX_LEVEL)
+    row["CastingTimeIndex"] = str(SPELL_CASTING_TIME_INDEX)
     row["SpellIconID"] = str(SPELL_ICON_ID)
     row["ActiveIconID"] = str(SPELL_ACTIVE_ICON_ID)
     row["EffectMiscValue_1"] = str(enchant_id)
@@ -466,9 +506,10 @@ def main():
         # 本地化口径与 自定义混沌宝石/混沌宝石_Spell.dbc.csv 保持一致：
         #   中文名/中文描述只写 deDE 列；enUS 列放英文（本项目这些 proc 法术没有英文名，故留空）
         spell_name_en = info.get("spell_en", "").strip()
-        spell_zh_desc = "永久性地为一把武器附魔，使其获得「%s」的特效。" % (info["item_name"] or info["spell"])
-        spell_en_desc = ("Permanently enchants a weapon with the effect of \"%s\"." % spell_name_en) \
-            if spell_name_en else "Permanently enchants a weapon with a trinket's proc effect."
+        # 描述直接沿用「原特效法术」的中文描述；描述只保留中文，英文列留空
+        spell_zh_desc = resolve_spell_placeholders((info.get("spell_desc") or "").strip(), info) \
+            or "永久性地为一把武器附魔，使其获得「%s」的特效。" % (info["item_name"] or info["spell"])
+        spell_en_desc = ""
 
         # 1) 附魔定义
         enchant_rows.append({
@@ -494,14 +535,14 @@ def main():
         item_rows.append({
             "entry": info["item_id"], "class": 0, "subclass": 8, "SoundOverrideSubclass": -1,
             "name": scroll_item_name(info["item_name"]),
-            "displayid": SCROLL_DISPLAY_ID, "Quality": SCROLL_QUALITY, "Flags": 0,
+            "displayid": SCROLL_DISPLAY_ID, "Quality": SCROLL_QUALITY, "Flags": SCROLL_FLAGS,
             "BuyCount": 1, "BuyPrice": SCROLL_BUY_PRICE, "SellPrice": SCROLL_SELL_PRICE,
             "InventoryType": 0, "AllowableClass": -1, "AllowableRace": -1,
             "ItemLevel": SCROLL_ITEM_LEVEL, "RequiredLevel": SCROLL_REQUIRED_LEVEL,
             "stackable": SCROLL_STACKABLE, "bonding": SCROLL_BONDING, "Material": SCROLL_MATERIAL,
-            "delay": 1000,
+            "delay": SCROLL_DELAY,
             "description": "将「%s」的特效永久附魔到一把武器上。" % (info["item_name"] or info["spell"]),
-            "spellid_1": info["spell_id"], "spelltrigger_1": 0, "spellcharges_1": 0,
+            "spellid_1": info["spell_id"], "spelltrigger_1": 0, "spellcharges_1": SCROLL_SPELL_CHARGES,
             "spellppmRate_1": 0, "spellcooldown_1": -1, "spellcategory_1": 0,
             "spellcategorycooldown_1": -1,
         })

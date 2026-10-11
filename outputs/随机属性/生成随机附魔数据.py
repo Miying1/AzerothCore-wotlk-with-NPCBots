@@ -2,10 +2,10 @@
 """生成随机附魔（ItemRandomProperties）的服务端 SQL 与客户端 DBC CSV。
 
 数据链路（自上而下）：
-  装备掉落 → 脚本 item_random_enchant 按主属性推断分组（法系/物理/防御/治疗）
-        │ 从自定义表 custom_random_enchant 按 chance 加权随机挑一个组合
+  获得装备 → 脚本 item_random_enchant 按主属性推断分组（法系/物理/防御/治疗）
+        │ 从自定义表 mod_random_enchant 按 chance 加权随机挑一个组合
         ▼
-  custom_random_enchant.ench = ItemRandomProperties.dbc 的 ID（组合）
+  mod_random_enchant.ench = ItemRandomProperties.dbc 的 ID（组合）
         │ 每个组合 = 单条属性（一个 SpellItemEnchantment）
         ▼
   ItemRandomProperties.dbc.Enchant[0] = SpellItemEnchantment.dbc 的 ID（基础附魔）
@@ -21,9 +21,17 @@
 分组约定（entry）：
   90001 法系 / 90101 物理 / 90201 防御 / 90301 治疗
 
+名称约定：
+  - ItemRandomProperties.dbc：保持分组前缀「法· / 愈· / 攻· / 防·」，客户端显示在
+    装备名旁；该名称会拼进物品名与物品链接，因此不能带颜色码；
+  - SpellItemEnchantment.dbc：统一为「+数值 属性」格式（如「+10 力量」），
+    用于附魔窗口等展示。
+  两张 DBC 的名称均同时写入 deDE 与 zhCN 两列（客户端按本地化列读取，两列都写保险）。
+
 产物：
   - 两个 CSV 输出到本脚本目录（outputs/随机属性/）
-  - custom_random_enchant.sql 输出到 modules/mod-random-enchants/sql/world/
+  - mod_random_enchant 建表 SQL（custom_random_enchant.sql）
+    输出到 modules/mod-random-enchants/sql/world/
 """
 import csv
 import os
@@ -105,8 +113,17 @@ GROUP_DEFS = [
 ]
 
 # ============================================================
-# 分组名称前缀：ItemRandomProperties.dbc 的 Name 字段，
-# 客户端会将其作为随机属性装备的「名称前缀」显示（如「法·迅捷之刃」）。
+# 附魔描述名（SpellItemEnchantment.dbc 的 Name_Lang_*）：
+# 统一为「+数值 属性」（如 +10 力量），用于附魔窗口等展示。
+# ============================================================
+def display_name(attr_name, value):
+    return "+{} {}".format(value, attr_name)
+
+
+# ============================================================
+# 装备名标记（ItemRandomProperties.dbc 的 Name / Name_Lang_*）：
+# 保持分组前缀写法，客户端显示在装备名旁（如「法·迅捷之刃」）。
+# 该字段会拼进物品名与物品链接，不能带颜色码。
 # ============================================================
 GROUP_PREFIX = {
     "法系": "法·",
@@ -152,12 +169,11 @@ def generate():
 
 ENCHANTS, PROPERTIES, GROUPS, PROP_META = generate()
 
-# 组合ID -> 分组前缀（写入 ItemRandomProperties.dbc 的 Name 字段）
+# 组合ID -> 分组前缀（写入 ItemRandomProperties.dbc 的 Name 字段，如「法·」）
 PROP_PREFIX = {}
 for _entry, _gname, _combos in GROUPS:
-    _prefix = GROUP_PREFIX.get(_gname, "")
     for _cid in _combos:
-        PROP_PREFIX[_cid] = _prefix
+        PROP_PREFIX[_cid] = GROUP_PREFIX.get(_gname, "")
 
 
 def csv_cell(v):
@@ -182,7 +198,7 @@ ENCH_CSV_FIELDS = ["ID", "Charges", "Effect_1", "Effect_2", "Effect_3",
 def write_enchantment_csv():
     path = os.path.join(OUT, "随机属性_SpellItemEnchantment.dbc.csv")
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f, quoting=csv.QUOTE_ALL)
+        w = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator="\n")
         w.writerow(ENCH_CSV_FIELDS)
         for eid, name, stat_type, value in ENCHANTS:
             # type=STAT：EffectArg 填属性 ID，EffectPointsMin/Max 填数值
@@ -192,7 +208,9 @@ def write_enchantment_csv():
                 "EffectPointsMin_1": value, "EffectPointsMin_2": 0, "EffectPointsMin_3": 0,
                 "EffectPointsMax_1": value, "EffectPointsMax_2": 0, "EffectPointsMax_3": 0,
                 "EffectArg_1": stat_type, "EffectArg_2": 0, "EffectArg_3": 0,
-                "Name_Lang_deDE": f"{BLUE}{name} +{value}|r",
+                # 名称统一为「+数值 属性」；中文写 deDE，同时补写 zhCN（保险）
+                "Name_Lang_deDE": f"{BLUE}{display_name(name, value)}|r",
+                "Name_Lang_zhCN": f"{BLUE}{display_name(name, value)}|r",
                 "Name_Lang_Mask": NAME_LANG_MASK,
                 "ItemVisual": 0, "Flags": 0, "Src_ItemID": 0,
                 "Condition_Id": 0, "RequiredSkillID": 0, "RequiredSkillRank": 0, "MinLevel": 0,
@@ -216,16 +234,19 @@ PROP_CSV_FIELDS = ["ID", "Name",
 def write_properties_csv():
     path = os.path.join(OUT, "随机属性_ItemRandomProperties.dbc.csv")
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f, quoting=csv.QUOTE_ALL)
+        w = csv.writer(f, quoting=csv.QUOTE_ALL, lineterminator="\n")
         w.writerow(PROP_CSV_FIELDS)
         for pid, _name, enchants in PROPERTIES:
             ench = (enchants + [0] * 5)[:5]
+            # 分组前缀会显示在装备名旁（如「法·迅捷之刃」），不能带颜色码，
+            # 否则 | 会破坏物品链接；客户端按本地化列读取，故 deDE 与 zhCN 都写。
             prefix = PROP_PREFIX.get(pid, "")
             vals = {
                 "ID": pid, "Name": prefix,
                 "Enchant_1": ench[0], "Enchant_2": ench[1], "Enchant_3": ench[2],
                 "Enchant_4": ench[3], "Enchant_5": ench[4],
                 "Name_Lang_deDE": prefix,
+                "Name_Lang_zhCN": prefix,
                 "Name_Lang_Mask": NAME_LANG_MASK,
             }
             w.writerow([csv_cell(vals.get(c)) for c in PROP_CSV_FIELDS])
@@ -234,13 +255,14 @@ def write_properties_csv():
 
 # ============================================================
 # 3) custom_random_enchant.sql（自定义分组表，幂等）
+#    表名 mod_random_enchant，与 item_random_enchant.cpp 的查询保持一致；
 #    不走原版 item_enchantment_template，由脚本 item_random_enchant 读取
 # ============================================================
 def write_custom_table_sql():
     os.makedirs(SQL_OUT, exist_ok=True)
     path = os.path.join(SQL_OUT, "custom_random_enchant.sql")
     entries = [g[0] for g in GROUPS]
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("-- 自定义随机附魔分组表（脚本 item_random_enchant 读取）\n")
         f.write("-- entry    ：分组入口（90001 法系 / 90101 物理 / 90201 防御 / 90301 治疗）\n")
         f.write("-- ench     ：ItemRandomProperties.dbc 的组合ID\n")
@@ -248,8 +270,8 @@ def write_custom_table_sql():
         f.write("-- attr_type：属性类型（ItemModType，对应 SpellItemEnchantment 的 EffectArg）\n")
         f.write("-- tier     ：同属性内数值从小到大序号\n")
         f.write("-- chance   ：条目权重（同属性内序号越大权重越低）\n\n")
-        f.write("DROP TABLE IF EXISTS `custom_random_enchant`;\n")
-        f.write("CREATE TABLE `custom_random_enchant` (\n")
+        f.write("DROP TABLE IF EXISTS `mod_random_enchant`;\n")
+        f.write("CREATE TABLE `mod_random_enchant` (\n")
         f.write("  `entry` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT '分组入口',\n")
         f.write("  `ench` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'ItemRandomProperties.dbc 组合ID',\n")
         f.write("  `attr` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '属性名',\n")
@@ -260,7 +282,7 @@ def write_custom_table_sql():
         f.write(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义随机附魔分组';\n\n")
         for entry, gname, combos in GROUPS:
             f.write("-- {}组 entry={}（{} 个组合）\n".format(gname, entry, len(combos)))
-            f.write("INSERT INTO `custom_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES\n")
+            f.write("INSERT INTO `mod_random_enchant` (`entry`, `ench`, `attr`, `attr_type`, `tier`, `chance`) VALUES\n")
             rows = ["({}, {}, '{}', {}, {}, {})".format(entry, cid, PROP_META[cid][0], PROP_META[cid][3], PROP_META[cid][2], PROP_META[cid][4])
                     for cid in combos]
             f.write(",\n".join(rows) + ";\n\n")
@@ -271,4 +293,5 @@ if __name__ == "__main__":
     write_enchantment_csv()
     write_properties_csv()
     write_custom_table_sql()
-    print("完成。请用 WDBX 将两个 CSV 分别导入 SpellItemEnchantment.dbc 与 ItemRandomProperties.dbc。")
+    print("完成。请用 WDBX 将两个 CSV 分别导入 SpellItemEnchantment.dbc 与 ItemRandomProperties.dbc，")
+    print("并执行 sql/world/ 下的 custom_random_enchant.sql。")

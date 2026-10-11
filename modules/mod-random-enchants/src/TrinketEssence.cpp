@@ -33,12 +33,14 @@
 #include "Chat.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
+#include "DBCStores.h"
 #include "Item.h"
 #include "ItemTemplate.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
 #include "SharedDefines.h"
+#include "StringFormat.h"
 
 #include <sstream>
 #include <string>
@@ -48,6 +50,9 @@
 enum
 {
     ITEM_TRINKET_ESSENCE = 60105,   // 饰品特效提取器
+
+    // 关闭项 / 空列表提示项的 action：物品 guid 低 32 位不可能是 0，用它做哨兵值不会与真实物品撞车
+    ACTION_CLOSE = 0,
 };
 
 // 是否消耗提取器本身（true = 提取成功后消失）
@@ -130,6 +135,13 @@ public:
         if (item->GetEntry() != ITEM_TRINKET_ESSENCE)
             return;
 
+        // 关闭项 / 空列表提示项：点击后只关闭对话
+        if (action == ACTION_CLOSE)
+        {
+            CloseGossipMenuFor(player);
+            return;
+        }
+
         // action 存的是目标饰品的 guid 低 32 位
         Item* trinket = player->GetItemByGuid(ObjectGuid::Create<HighGuid::Item>(action));
         if (!trinket)
@@ -166,6 +178,18 @@ private:
         return false;
     }
 
+    // 物品图标：gossip 菜单项只支持固定的几个对话图标，拿不到物品图标，
+    // 所以用文本转义 |T 把图标内联进菜单文字里（与 ReEnchantsNpc.cpp 的写法一致），
+    // 图标名取自 ItemDisplayInfo.dbc 的 inventoryIcon（如 INV_Misc_Trinket_01）
+    std::string ItemIcon(ItemTemplate const* proto) const
+    {
+        ItemDisplayInfoEntry const* display = sItemDisplayInfoStore.LookupEntry(proto->DisplayInfoID);
+        if (!display || !display->inventoryIcon || !*display->inventoryIcon)
+            return "";
+
+        return Acore::StringFormat("|TInterface\\Icons\\{}:16|t", display->inventoryIcon);
+    }
+
     // 按物品品阶上色（|cAARRGGBB…|r），用于 gossip 菜单显示
     std::string ColoredItemName(ItemTemplate const* proto) const
     {
@@ -193,8 +217,9 @@ private:
             if (!FindScroll(proto, scroll))
                 return;
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, ColoredItemName(proto), GOSSIP_SENDER_MAIN,
-                             pItem->GetGUID().GetCounter());
+            // 菜单项 = 物品图标 + [品质着色的饰品名]
+            std::string const text = ItemIcon(proto) + Acore::StringFormat("[{}]", ColoredItemName(proto));
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, text, GOSSIP_SENDER_MAIN, pItem->GetGUID().GetCounter());
             ++itemCount;
         };
 
@@ -209,6 +234,14 @@ private:
             if (Bag* bag = player->GetBagByPos(bagSlot))
                 for (uint32 slot = 0; slot != bag->GetBagSize() && itemCount < GOSSIP_MAX_MENU_ITEMS; ++slot)
                     addItem(player->GetItemByPos(bagSlot, slot));
+
+        // 没有符合条件的饰品 → 提示项；有饰品 → 末尾追加「关闭」项。两者点击后都只关闭对话
+        if (!itemCount)
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT,
+                             Acore::StringFormat("（背包里没有装等不低于 {} 且可提取特效的饰品）", MIN_TRINKET_ITEM_LEVEL),
+                             GOSSIP_SENDER_MAIN, ACTION_CLOSE);
+        else
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "关闭", GOSSIP_SENDER_MAIN, ACTION_CLOSE);
     }
 
     void Extract(Player* player, Item* essence, Item* trinket)

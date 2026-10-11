@@ -78,3 +78,10 @@ RandomEnchants.Custom.WeightMinLevel = 230
 #        装备等级在 [WeightMinLevel, WeightMaxLevel] 之间线性过渡
 #        Default:     284
 RandomEnchants.Custom.WeightMaxLevel = 260
+
+#     RandomEnchants.Custom.LowTierBias
+#        低数值偏好强度（指数，>= 1.0）
+#        对低装等基准权重取幂，指数越大，低等级装备越集中在低数值档位
+#        1.0 = 原始线性权重；2.0 = 低等级装备抽到低级属性的权重明显提高
+#        Default:     2.0
+RandomEnchants.Custom.LowTierBias = 2.0

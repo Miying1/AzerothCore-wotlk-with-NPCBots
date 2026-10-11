@@ -148,9 +148,8 @@ bool Acore::Hyperlinks::LinkTags::item::StoreTo(ItemLinkData& val, std::string_v
 
     if (randomPropertyId < 0)
     {
-        if (!val.Item->RandomSuffix)
-            return false;
-
+        // 不再要求 item_template.RandomSuffix 非 0：随机属性可以只挂在物品实例上
+        // （例如 mod-random-enchants 的属性萃取/注入），只要 DBC 里存在该条目即视为合法链接。
         if (randomPropertyId < -static_cast<int32>(sItemRandomSuffixStore.GetNumRows()))
             return false;
 
@@ -164,9 +163,8 @@ bool Acore::Hyperlinks::LinkTags::item::StoreTo(ItemLinkData& val, std::string_v
     }
     else if (randomPropertyId > 0)
     {
-        if (!val.Item->RandomProperty)
-            return false;
-
+        // 不再要求 item_template.RandomProperty 非 0：随机属性可以只挂在物品实例上
+        // （例如 mod-random-enchants 的四分组随机附魔），只要 DBC 里存在该条目即视为合法链接。
         if (ItemRandomPropertiesEntry const* propEntry = sItemRandomPropertiesStore.LookupEntry(randomPropertyId))
         {
             val.RandomSuffix = nullptr;
