@@ -285,7 +285,6 @@ public:
             if (type != POINT_MOTION_TYPE || id != POINT_GO_BACK)
                 return;
 
-            me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_SUFFERING), 1500ms);
             me->SetTarget();
             me->SetFacingTo(M_PI / 2.0f);
         }
@@ -304,6 +303,8 @@ public:
                     me->GetMotionMaster()->Clear();
                     me->GetMotionMaster()->MovePoint(POINT_GO_BACK, me->GetHomePosition(), FORCED_MOVEMENT_NONE, 0.f, false);
                     scheduler.CancelAll();
+                    // 直接调度阶段转换，不再依赖 MovementInform，防止打太快时精华未走回出生点导致脱战
+                    me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_SUFFERING), 3s);
                 }
             }
         }
@@ -384,7 +385,6 @@ public:
             if (type != POINT_MOTION_TYPE || id != POINT_GO_BACK)
                 return;
 
-            me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_DESIRE), 1500ms);
             me->SetTarget();
             me->SetFacingTo(M_PI / 2.0f);
         }
@@ -402,6 +402,8 @@ public:
                     me->GetMotionMaster()->Clear();
                     me->GetMotionMaster()->MovePoint(POINT_GO_BACK, me->GetHomePosition(), FORCED_MOVEMENT_NONE, 0.f, false);
                     scheduler.CancelAll();
+                    // 直接调度阶段转换，不再依赖 MovementInform，防止打太快时精华未走回出生点导致脱战
+                    me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_DESIRE), 3s);
                 }
             }
         }
