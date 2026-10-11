@@ -925,10 +925,11 @@ BotAddResult BotMgr::AddBot(Creature* bot)
         ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_BOTADDFAIL_OWNED).c_str(), bot->GetName(), bot->GetBotOwner()->GetName());
         return BOT_ADD_NOT_AVAILABLE;
     }
-    if (!owned && owned_count >= BotCfg::GetMaxNpcBots(_owner->GetLevel()))
+    uint32 max_npc_bots = BotCfg::GetMaxNpcBots(_owner->GetLevel()) + _owner->GetVipBenefits().extra_botcount;
+    if (!owned && owned_count >= max_npc_bots)
     {
         ChatHandler ch(_owner->GetSession());
-        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), BotCfg::GetMaxNpcBots(_owner->GetLevel()));
+        ch.PSendSysMessage(bot_ai::LocalizedNpcText(GetOwner(), BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), max_npc_bots);
         return BOT_ADD_MAX_EXCEED;
     }
     if (!owned && BotCfg::GetMaxClassBots() && class_count >= BotCfg::GetMaxClassBots())

@@ -37,7 +37,7 @@ public:
     void OnPlayerLogin(Player* player) override
     {
         uint32 accountId = player->GetSession()->GetAccountId();
-        QueryResult result = LoginDatabase.Query("SELECT `vip_level`, `gold_loot_bonus`, `skill_max_count` FROM `account_vip` WHERE `account_id` = {}", accountId);
+        QueryResult result = LoginDatabase.Query("SELECT `vip_level`, `gold_loot_bonus`, `skill_max_count`, `extra_botcount` FROM `account_vip` WHERE `account_id` = {}", accountId);
         if (result)
         {
             Field* fields = result->Fetch();
@@ -45,6 +45,7 @@ public:
             benefits.vip_level = fields[0].Get<uint32>();
             benefits.gold_loot_bonus = std::min(fields[1].Get<uint32>(), MaxGoldLootBonus);
             benefits.skill_max_count = fields[2].Get<uint32>();
+            benefits.extra_botcount = fields[3].Get<uint32>();
         }
 
         player->RecalculatePrimaryProfessionPoints();

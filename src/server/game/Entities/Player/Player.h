@@ -1098,6 +1098,7 @@ struct PlayerVipBenefits
     uint32 vip_level = 0;
     uint32 gold_loot_bonus = 0;
     uint32 skill_max_count = 4;
+    uint32 extra_botcount = 0;
 };
 
 class Player : public Unit, public GridObject<Player>

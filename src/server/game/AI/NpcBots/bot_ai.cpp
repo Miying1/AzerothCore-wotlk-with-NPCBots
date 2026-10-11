@@ -8452,7 +8452,8 @@ bool bot_ai::OnGossipHello(Player* player, uint32 /*option*/)
             reason = -1;
         if (!reason && _botData->owner)
             reason = 1;
-        if (!reason && BotDataMgr::GetOwnedBotsCount(player->GetGUID()) >= BotCfg::GetMaxNpcBots(player->GetLevel()))
+        if (!reason && BotDataMgr::GetOwnedBotsCount(player->GetGUID()) >=
+            BotCfg::GetMaxNpcBots(player->GetLevel()) + player->GetVipBenefits().extra_botcount)
             reason = 2;
         if (!reason && !player->HasEnoughMoney(cost))
             reason = 3;
