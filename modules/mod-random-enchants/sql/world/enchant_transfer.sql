@@ -12,11 +12,11 @@ INSERT INTO `item_template`
      `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `bonding`,
      `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
 VALUES
-    (60103, 0, 0, '属性提取器', 48007, 4, 0, 1, 0, 0,
+    (60103, 0, 0, '属性提取器', 40557, 5, 0, 1, 0, 0,
      0, -1, -1, 1, 80, 1, 1,
      '右键使用：提取一件装备的蓝色属性词条，生成属性卷轴（原装备将被销毁）。',
      18282, 0, 'EnchantTransferItem'),
-    (60104, 0, 0, '属性卷轴', 39200, 4, 0, 1, 0, 0,
+    (60104, 0, 0, '属性卷轴', 11161, 4, 0, 1, 0, 0,
      0, -1, -1, 1, 80, 1, 1,
      '右键使用：将卷轴上的属性词条注入到一件装备上，卷轴将被消耗。',
      18282, 0, 'EnchantTransferItem');
