@@ -46,3 +46,32 @@ RandomEnchants.RandRangeattrMaxPct=0.50
  
 #最高等级属性洗练成功率
 RandomEnchants.MaxAttrChance=20.0
+
+#
+#     自定义装备段四分组随机附魔（item_random_enchant.cpp）
+#
+#     RandomEnchants.Custom.Enable
+#        是否启用该四分组方案（法系/物理/防御/治疗）
+#        Default:     1 (enabled)
+RandomEnchants.Custom.Enable = 1
+
+#     RandomEnchants.Custom.Chance
+#        装备等级超过 MinItemLevel 时，触发随机附魔的概率（百分比）
+#        Default:     100.0
+RandomEnchants.Custom.Chance = 100.0
+
+#     RandomEnchants.Custom.MinItemLevel
+#        触发附魔的最低装备等级（严格大于该值）
+#        Default:     220
+RandomEnchants.Custom.MinItemLevel = 220
+
+#     RandomEnchants.Custom.WeightMinLevel
+#        权重偏好下限：装备等级 <= 该值时，低数值档位权重最大
+#        Default:     220
+RandomEnchants.Custom.WeightMinLevel = 230
+
+#     RandomEnchants.Custom.WeightMaxLevel
+#        权重偏好上限：装备等级 >= 该值时，高数值档位权重最大
+#        装备等级在 [WeightMinLevel, WeightMaxLevel] 之间线性过渡
+#        Default:     284
+RandomEnchants.Custom.WeightMaxLevel = 260
