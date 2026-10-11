@@ -209,7 +209,8 @@ public:
             {
                 // 固定伤害/DoT在施法时已写入T1基线；武器倍率只作用于直接技能伤害，
                 // 不得再次放大同一混合法术附带的周期伤害。
-                if (damageType == SPELL_DIRECT_DAMAGE && tuning->WeaponDamageMultiplier > 1.0f)
+                // 倍率小于1表示削弱（武器基数过高的技能，如瞄准射击），必须与放大同样生效。
+                if (damageType == SPELL_DIRECT_DAMAGE)
                     multiplier *= tuning->WeaponDamageMultiplier;
             }
         }

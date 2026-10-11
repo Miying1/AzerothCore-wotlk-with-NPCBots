@@ -6,8 +6,8 @@
  *   RandomProperty / RandomSuffix），不依赖 tnEchants / mod_item_enchantment_result。
  *
  * 功能：
- *   1. 属性萃取仪（60103，非消耗）：右键使用，选择一件「有随机属性」的装备，
- *      将其随机属性萃取为「属性卷轴」，并销毁原装备。
+ *   1. 属性萃取仪（60103，消耗）：右键使用，选择一件「有随机属性」的装备，
+ *      将其随机属性萃取为「属性卷轴」，销毁原装备，并消耗一个萃取仪。
  *   2. 属性卷轴（60104，消耗）：右键使用，选择一件装备（不限是否已有随机属性，
  *      已有随机属性会被直接覆盖），将卷轴上的随机属性注入目标装备，并消耗卷轴。
  *
@@ -60,7 +60,7 @@
 // GOSSIP_SENDER_MAIN 由 ScriptedGossip.h 提供（= 1），此处不再重复定义
 enum
 {
-    ITEM_EXTRACTOR = 60103,   // 属性萃取仪（非消耗）
+    ITEM_EXTRACTOR = 60103,   // 属性萃取仪（消耗，成功萃取一次后消耗一个）
     ITEM_SCROLL    = 60104,   // 属性卷轴（消耗，携带随机属性）
 
     ITEMS_PER_PAGE = 14,      // 每页菜单条数
@@ -206,7 +206,7 @@ public:
             }
 
             if (forExtraction)
-                DoExtract(player, target);
+                DoExtract(player, item, target);
             else
                 DoInject(player, item, target);
             return;
@@ -234,7 +234,8 @@ private:
         return sConfigMgr->GetOption<uint32>("RandomEnchants.Custom.MinItemLevel", 220);
     }
 
-    void DoExtract(Player* player, Item* target)
+    // extractor：本次使用的萃取仪，成功萃取后消耗一个（放在最后销毁，销毁后指针失效）
+    void DoExtract(Player* player, Item* extractor, Item* target)
     {
         // 优先按装等过滤：菜单已过滤，这里再校验一次，防止伪造 action 绕过
         if (target->GetTemplate()->ItemLevel <= GetMinItemLevel())
@@ -259,12 +260,17 @@ private:
             return;
         }
 
+        // 萃取仪为一次性道具：成功萃取后消耗一个（叠放时只减 1，减到 0 才真正移除）；
+        // 先消耗萃取仪再动车源装备，避免萃取仪恰好在被销毁的容器里导致指针失效
+        uint32 consumed = 1;
+        player->DestroyItemCount(extractor, consumed, true);
+
         // 销毁源装备，生成携带随机属性的卷轴（randomPropertyId 会持久化入库）
         player->DestroyItem(target->GetBagSlot(), target->GetSlot(), true);
         player->StoreNewItem(dest, ITEM_SCROLL, true, rp);
 
         CloseGossipMenuFor(player);
-        ChatHandler(player->GetSession()).PSendSysMessage("属性词条已提取为卷轴，原装备被销毁。");
+        ChatHandler(player->GetSession()).PSendSysMessage("属性词条已提取为卷轴，原装备被销毁，萃取仪消耗一个。");
     }
 
     void DoInject(Player* player, Item* scroll, Item* target)
@@ -367,7 +373,7 @@ private:
     static std::string ConfirmText(uint32 sourceEntry, std::string const& itemName)
     {
         if (sourceEntry == ITEM_EXTRACTOR)
-            return Acore::StringFormat("确定萃取 {} 的随机属性吗？原装备将被销毁。", itemName);
+            return Acore::StringFormat("确定萃取 {} 的随机属性吗？原装备将被销毁，并消耗一个萃取仪。", itemName);
 
         return Acore::StringFormat("确定把卷轴上的随机属性注入 {} 吗？卷轴将被消耗。", itemName);
     }

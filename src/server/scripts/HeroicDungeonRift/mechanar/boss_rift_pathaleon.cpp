@@ -66,7 +66,8 @@ struct npc_rift_nether_wraith : public RiftLevel70SummonAI
     void ScheduleAbilities() override
     {
         _events.ScheduleEvent(1, 2500ms);
-        _events.ScheduleEvent(2, 20s);
+        // 虚空怨灵是成群召唤的，AOE首发与重复间隔都做随机化，避免同一波召唤物在同一瞬间集体引爆。
+        _events.ScheduleEvent(2, Milliseconds(urand(14000, 26000)));
     }
 
     void ExecuteAbility(uint32 eventId) override
@@ -80,7 +81,7 @@ struct npc_rift_nether_wraith : public RiftLevel70SummonAI
                 break;
             case 2:
                 DoCast(me, SpellWraithNetherExplosion);
-                _events.ScheduleEvent(2, 20s);
+                _events.ScheduleEvent(2, Milliseconds(urand(18000, 24000)));
                 break;
             default:
                 break;
@@ -154,7 +155,8 @@ struct boss_rift_pathaleon : public BossAIBase
                 {
                     me->Yell(PathaleonSummonText, LANG_UNIVERSAL);
                     me->PlayDirectSound(PathaleonSummonSound);
-                    uint32 summonCount = _tier + 2;
+                    // T1 3只、T2与T3均为4只：T3不再继续加量，避免多波叠加时群体AOE过载。
+                    uint32 summonCount = _tier == 1 ? 3 : 4;
                     for (uint32 i = 0; i < summonCount; ++i)
                         SummonTieredCreature(RiftEntryNetherWraith, me->GetRandomNearPosition(7.0f), 0.42f, 0.6f);
                 }
