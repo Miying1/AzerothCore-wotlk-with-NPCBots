@@ -71,6 +71,14 @@ enum WarlockBaseSpells
 
     RITUAL_OF_SUMMONING_1               = 698
 };
+
+//恶魔系核心技能（恶魔学识专精天赋点出）
+enum WarlockDemonologySpells
+{
+    METAMORPHOSIS_1                     = 47241,//恶魔变身：施法目标为自身，变形为恶魔
+    IMMOLATION_AURA_1                   = 50589,//恶魔献祭光环：施法目标为自身，持续对周围敌人造成火焰伤害
+    DEMONIC_EMPOWERMENT_1               = 47193//恶魔增效：施法目标为宠物，按宠物类型由核心脚本强化（spell_warl_demonic_empowerment）
+};
 enum WarlockPassives
 {
     IMPROVED_SHADOW_BOLT                = 17803,//rank 5
@@ -576,6 +584,25 @@ public:
             if (!CanBotAttackOnVehicle())
                 return;
 
+            //恶魔变身维护：恶魔学识专精战斗中主动开启（无变身光环时），冷却期间不重复施放
+            if (GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && GetSpell(METAMORPHOSIS_1) && IsSpellReady(METAMORPHOSIS_1, diff) &&
+                me->IsInCombat() && !me->HasAura(METAMORPHOSIS_1) && !IsCasting())
+            {
+                if (doCast(me, GetSpell(METAMORPHOSIS_1)))
+                    return;
+            }
+
+            //恶魔增效：冷却就绪即对宠物施放（恶魔系）
+            if (ct_demonicEmpowerment <= diff && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && pet && pet->IsAlive() &&
+                GetSpell(DEMONIC_EMPOWERMENT_1) && !me->HasAura(METAMORPHOSIS_1) && !IsCasting())
+            {
+                if (doCast(pet, GetSpell(DEMONIC_EMPOWERMENT_1)))
+                {
+                    ct_demonicEmpowerment = 60000; //1 min,与技能冷却一致
+                    return;
+                }
+            }
+
             //pet is killed or unreachable
             if (GC_Timer <= diff && !me->IsInCombat() && !me->IsMounted() && !me->GetVictim() && !IsCasting() && Rand() < 25 &&
                 (!pet || !pet->IsInWorld() || me->GetDistance2d(pet) > World::GetMaxVisibleDistanceOnContinents()))
@@ -866,60 +893,22 @@ public:
             if (!HasRole(BOT_ROLE_DPS))
                 return;
 
-            //Chaos Bolt
-            if (IsSpellReady(CHAOS_BOLT_1, diff) && can_do_fire && dist < CalcSpellMaxRange(CHAOS_BOLT_1))
-            {
-                if (doCast(mytar, GetSpell(CHAOS_BOLT_1)))
-                    return;
-            }
-            //Soul Fire 1
-            if (IsSpellReady(SOUL_FIRE_1, diff) && can_do_fire && Rand() < 150 && dist < CalcSpellMaxRange(SOUL_FIRE_1) &&
-                (mytar->IsPolymorphed() || me->HasAuraTypeWithAffectMask(SPELL_AURA_NO_REAGENT_USE, sSpellMgr->GetSpellInfo(SOUL_FIRE_1))))
+            //混沌心智（瞬发灵魂之火）/ 爆燃加速：恶魔、毁灭双系通用触发消耗
+            if (IsSpellReady(SOUL_FIRE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(SOUL_FIRE_1) &&
+                mytar->GetHealth() > me->GetMaxHealth()/8 * (1 + mytar->getAttackers().size()) &&
+                (me->HasAura(CHAOTIC_MIND_BUFF) || me->HasAura(BACKDRAFT_BUFF)))
             {
                 if (doCast(mytar, GetSpell(SOUL_FIRE_1)))
                     return;
             }
-            //Conflagrate (always glyphed, does not consume dot)
-            if (longCasted && IsSpellReady(CONFLAGRATE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(CONFLAGRATE_1) &&
-                mytar->HasAuraState(AURA_STATE_CONFLAGRATE) &&
-                mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()))
+            //熔火之心触发：优先烧尽（恶魔、毁灭双系通用，毁灭术点出后主要靠此补输出）
+            if (me->HasAura(MOLTEN_CORE_BUFF) && IsSpellReady(INCINERATE_1, diff) && can_do_fire &&
+                GetSpell(INCINERATE_1) && dist < CalcSpellMaxRange(INCINERATE_1))
             {
-                if (doCast(mytar, GetSpell(CONFLAGRATE_1)))
+                if (doCast(mytar, GetSpell(INCINERATE_1)))
                     return;
             }
-            //Shadowburn
-            if (longCasted && IsSpellReady(SHADOWBURN_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(SHADOWBURN_1) &&
-                mytar->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT))
-            {
-                if (doCast(mytar, GetSpell(SHADOWBURN_1)))
-                    return;
-            }
-            //Immolate
-            if (IsSpellReady(IMMOLATE_1, diff) && can_do_fire && Rand() < 85 && dist < CalcSpellMaxRange(IMMOLATE_1) &&
-                (GetSpec() != BOT_SPEC_WARLOCK_AFFLICTION || !GetSpell(UNSTABLE_AFFLICTION_1)) &&
-                (GetSpell(CONFLAGRATE_1) || mytar->GetHealth() > me->GetMaxHealth()/4 * (1 + mytar->getAttackers().size())) &&
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()))
-            {
-                if (doCast(mytar, GetSpell(IMMOLATE_1)))
-                    return;
-            }
-            //Haunt
-            if (IsSpellReady(HAUNT_1, diff) && can_do_shadow && Rand() < 125 && dist < CalcSpellMaxRange(HAUNT_1) &&
-                mytar->GetHealth() > me->GetMaxHealth()/4 * (1 + mytar->getAttackers().size()) &&
-                !mytar->GetAuraEffect(SPELL_AURA_MOD_DAMAGE_FROM_CASTER, SPELLFAMILY_WARLOCK, 0x0, 0x40000, 0x0, me->GetGUID()))
-            {
-                if (doCast(mytar, GetSpell(HAUNT_1)))
-                    return;
-            }
-            //Unstable Affliction
-            if (IsSpellReady(UNSTABLE_AFFLICTION_1, diff) && can_do_shadow && Rand() < 115 && dist < CalcSpellMaxRange(UNSTABLE_AFFLICTION_1) &&
-                mytar->GetHealth() > me->GetMaxHealth()/4 * (1 + mytar->getAttackers().size()) &&
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x0, 0x100, 0x0, me->GetGUID()))
-            {
-                if (doCast(mytar, GetSpell(UNSTABLE_AFFLICTION_1)))
-                    return;
-            }
-            //Seed of Corruption
+            //腐蚀之种（群体目标，三系通用）
             if (IsSpellReady(SEED_OF_CORRUPTION_1, diff) && Rand() < 85)
             {
                 Unit* target = FindAOETarget(CalcSpellMaxRange(SEED_OF_CORRUPTION_1));
@@ -931,59 +920,40 @@ public:
 
                 SetSpellCooldown(SEED_OF_CORRUPTION_1, 1000); //fail
             }
-            //Corruption
-            if (IsSpellReady(CORRUPTION_1, diff) && can_do_shadow && Rand() < 90 && dist < CalcSpellMaxRange(CORRUPTION_1) &&
-                mytar->GetHealth() > me->GetMaxHealth()/4 * (1 + mytar->getAttackers().size()) &&
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x2, 0x0, 0x0, me->GetGUID()) &&//corruption
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x0, 0x10, 0x0, me->GetGUID()))//seed of corruption
-            {
-                if (doCast(mytar, GetSpell(CORRUPTION_1)))
-                    return;
-            }
-            //Drain Soul: only if can quad damage
-            if (IsSpellReady(DRAIN_SOUL_1, diff) && can_do_shadow && mytar->IsCreature() &&
-                Rand() < (50 + 85 * me->GetMap()->IsDungeon()) && GetHealthPCT(mytar) < 25 &&
-                mytar->GetHealth() > me->GetMaxHealth() / 2 && dist < CalcSpellMaxRange(DRAIN_SOUL_1))
-            {
-                if (doCast(mytar, GetSpell(DRAIN_SOUL_1)))
-                    return;
-            }
-            //Soul Fire (conditional)
-            if (IsSpellReady(SOUL_FIRE_1, diff) && can_do_fire && Rand() < 90 && dist < CalcSpellMaxRange(SOUL_FIRE_1) &&
-                mytar->GetHealth() > me->GetMaxHealth()/8 * (1 + mytar->getAttackers().size()) && me->HasAura(BACKDRAFT_BUFF))
-            {
-                if (doCast(mytar, GetSpell(SOUL_FIRE_1)))
-                    return;
-            }
-            //Main: Shadow Bolt, Incinerate, Searing Pain (tank), checking destruction range
-            if (dist < CalcSpellMaxRange(SHADOW_BOLT_1))
-            {
-                uint32 boltinerate =
-                    IsTank() && GetSpell(SEARING_PAIN_1) ? SEARING_PAIN_1 :
-                    GetSpell(SHADOW_BOLT_1) && GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION ? SHADOW_BOLT_1 :
-                    GetSpell(INCINERATE_1) && mytar->HasAuraState(AURA_STATE_CONFLAGRATE) ?
-                    //mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0) &&
-                    //mytar->GetAuraEffect(SPELL_AURA_MOD_ATTACKER_SPELL_CRIT_CHANCE, SPELLFAMILY_WARLOCK, 213, 0) &&
-                    //(me->GetMap()->IsRaid() || !me->HasAura(SHADOW_TRANCE_BUFF)) ?
-                    INCINERATE_1 : SHADOW_BOLT_1;
 
-                bool can_cast_boltinerate;
-                switch (boltinerate)
-                {
-                    case SEARING_PAIN_1: case INCINERATE_1:
-                        can_cast_boltinerate = can_do_fire;
-                        break;
-                    case SHADOW_BOLT_1:
-                        can_cast_boltinerate = can_do_shadow;
-                        break;
-                    default:
-                        can_cast_boltinerate = true;
-                        break;
-                }
-
-                if (boltinerate && can_cast_boltinerate && doCast(mytar, GetSpell(boltinerate)))
+            //恶魔献祭光环：变身期间对身边敌人开启（恶魔系，近身人数达标才开）
+            if (IsSpellReady(IMMOLATION_AURA_1, diff) && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && GetSpell(IMMOLATION_AURA_1) &&
+                me->HasAura(METAMORPHOSIS_1) && !me->HasAura(IMMOLATION_AURA_1) && Rand() < 75)
+            {
+                std::list<Unit*> targets;
+                GetNearbyTargetsList(targets, 8.f, 0);
+                if (targets.size() >= 2 && doCast(me, GetSpell(IMMOLATION_AURA_1)))
                     return;
             }
+
+            //按专精运行对应的输出优先级
+            bool casted = false;
+            switch (GetSpec())
+            {
+                case BOT_SPEC_WARLOCK_AFFLICTION:
+                    casted = DoAfflictionRotation(diff, mytar, dist, can_do_shadow, can_do_fire);
+                    break;
+                case BOT_SPEC_WARLOCK_DEMONOLOGY:
+                    casted = DoDemonologyRotation(diff, mytar, dist, can_do_shadow, can_do_fire);
+                    break;
+                case BOT_SPEC_WARLOCK_DESTRUCTION:
+                    casted = DoDestructionRotation(diff, mytar, dist, can_do_shadow, can_do_fire);
+                    break;
+                default:
+                    break;
+            }
+
+            if (casted)
+                return;
+
+            //兜底填充：灼热之痛（坦克）/ 烧尽（毁灭）/ 暗影箭（其余）
+            if (DoFiller(diff, mytar, dist, can_do_shadow, can_do_fire))
+                return;
 
             if (Spell const* shot = me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
             {
@@ -993,6 +963,161 @@ public:
             else if (IsSpellReady(SHOOT_WAND, diff) && !me->isMoving() && me->GetDistance(mytar) < 30 && GetEquips(BOT_SLOT_RANGED) &&
                 doCast(mytar, SHOOT_WAND))
                 return;
+        }
+
+        //目标是否仍可用于施法：存在、存活、且与自身同地图
+        bool CanCastOnTarget(Unit const* target) const
+        {
+            return target && target->IsInWorld() && target->IsAlive() && me->GetMap() == target->FindMap();
+        }
+
+        //判断自身施放的持续伤害/减益是否缺失：只看光环是否存在，不按剩余时间刷新（避免无谓覆盖延长时长）
+        //randLimit：Rand() 阈值（沿用本模块惯例，数值越大触发概率越高），保留随机性避免 DoT 抢占用读条技能
+        //eff：目标身上的对应光环效果（已按施法者过滤）
+        bool AuraNeedsRefresh(AuraEffect const* eff, uint16 randLimit) const
+        {
+            return eff == nullptr && Rand() < randLimit; //不存在 → 按概率补；存在 → 不刷新
+        }
+
+        //自身是否已在目标身上施加了指定法术系别掩码的周期性伤害光环（用于避开同名 DoT 冲突）
+        bool HasMyDot(Unit const* target, uint32 familyFlags1, uint32 familyFlags2, uint32 familyFlags3) const
+        {
+            return target->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK,
+                familyFlags1, familyFlags2, familyFlags3, me->GetGUID()) != nullptr;
+        }
+
+        //目标血量是否足以让长持续 DoT 划算（短命目标跳过）
+        bool TargetWorthDotting(Unit const* target) const
+        {
+            return target->GetHealth() > me->GetMaxHealth() / 4 * (1 + target->getAttackers().size());
+        }
+
+        //兜底填充：灼热之痛（坦克）/ 烧尽（毁灭）/ 暗影箭（其余）
+        bool DoFiller(uint32 diff, Unit* mytar, float dist, bool can_do_shadow, bool can_do_fire)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            if (dist >= CalcSpellMaxRange(SHADOW_BOLT_1))
+                return false;
+
+            uint32 boltinerate =
+                IsTank() && GetSpell(SEARING_PAIN_1) ? SEARING_PAIN_1 :
+                GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION && GetSpell(INCINERATE_1) ? INCINERATE_1 :
+                GetSpell(SHADOW_BOLT_1) ? SHADOW_BOLT_1 : 0;
+
+            bool can_cast;
+            switch (boltinerate)
+            {
+                case SEARING_PAIN_1: case INCINERATE_1:
+                    can_cast = can_do_fire;
+                    break;
+                case SHADOW_BOLT_1:
+                    can_cast = can_do_shadow;
+                    break;
+                default:
+                    can_cast = true;
+                    break;
+            }
+
+            return boltinerate && can_cast && doCast(mytar, GetSpell(boltinerate));
+        }
+
+        //痛苦系单体：鬼影缠身 → 痛苦无常 → 腐蚀术 → 吸取灵魂斩杀 → 暗影箭填充
+        //DoT 刷新策略：只看光环是否存在，缺失才按概率补，不按剩余时间覆盖延长
+        bool DoAfflictionRotation(uint32 diff, Unit* mytar, float dist, bool can_do_shadow, bool can_do_fire)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //1) 鬼影缠身：仅缺失时补（自身施放判定）
+            if (IsSpellReady(HAUNT_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(HAUNT_1) &&
+                TargetWorthDotting(mytar) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_MOD_DAMAGE_FROM_CASTER, SPELLFAMILY_WARLOCK, 0x0, 0x40000, 0x0, me->GetGUID()), 125))
+                return doCast(mytar, GetSpell(HAUNT_1));
+
+            //2) 痛苦无常：仅缺失时补
+            if (IsSpellReady(UNSTABLE_AFFLICTION_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(UNSTABLE_AFFLICTION_1) &&
+                TargetWorthDotting(mytar) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x0, 0x100, 0x0, me->GetGUID()), 115))
+                return doCast(mytar, GetSpell(UNSTABLE_AFFLICTION_1));
+
+            //3) 腐蚀术：仅缺失时补（避开腐蚀之种同系光环）
+            if (IsSpellReady(CORRUPTION_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(CORRUPTION_1) &&
+                TargetWorthDotting(mytar) &&
+                !HasMyDot(mytar, 0x0, 0x10, 0x0) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x2, 0x0, 0x0, me->GetGUID()), 90))
+                return doCast(mytar, GetSpell(CORRUPTION_1));
+
+            //4) 吸取灵魂斩杀：目标进入 25% 斩杀线后作为主填充/引导技能
+            if (IsSpellReady(DRAIN_SOUL_1, diff) && can_do_shadow && mytar->IsCreature() &&
+                GetHealthPCT(mytar) < 25 && mytar->GetHealth() > me->GetMaxHealth() / 2 &&
+                dist < CalcSpellMaxRange(DRAIN_SOUL_1))
+                return doCast(mytar, GetSpell(DRAIN_SOUL_1));
+
+            //5) 填充：暗影箭
+            return DoFiller(diff, mytar, dist, can_do_shadow, can_do_fire);
+        }
+
+        //恶魔系单体：献祭/腐蚀术维持 → 灭杀灵魂之火 → 熔火之心烧尽 → 暗影箭填充
+        //DoT 刷新策略：只看光环是否存在，缺失才按概率补
+        bool DoDemonologyRotation(uint32 diff, Unit* mytar, float dist, bool can_do_shadow, bool can_do_fire)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //1) 献祭：仅缺失时补
+            if (IsSpellReady(IMMOLATE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(IMMOLATE_1) &&
+                TargetWorthDotting(mytar) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()), 85))
+                return doCast(mytar, GetSpell(IMMOLATE_1));
+
+            //2) 腐蚀术：仅缺失时补
+            if (IsSpellReady(CORRUPTION_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(CORRUPTION_1) &&
+                TargetWorthDotting(mytar) &&
+                !HasMyDot(mytar, 0x0, 0x10, 0x0) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x2, 0x0, 0x0, me->GetGUID()), 90))
+                return doCast(mytar, GetSpell(CORRUPTION_1));
+
+            //3) 灭杀触发：优先灵魂之火（低于 35% 血线或触发灭杀光环）
+            if (IsSpellReady(SOUL_FIRE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(SOUL_FIRE_1) &&
+                (me->HasAura(DECIMATION_BUFF) || mytar->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT)) &&
+                mytar->GetHealth() > me->GetMaxHealth()/8 * (1 + mytar->getAttackers().size()))
+                return doCast(mytar, GetSpell(SOUL_FIRE_1));
+
+            //4) 填充：暗影箭（熔火之心触发已在上方全局统一处理）
+            return DoFiller(diff, mytar, dist, can_do_shadow, can_do_fire);
+        }
+
+        //毁灭系单体：献祭维持 → 混乱之箭 → 燃烧 → 暗影灼烧斩杀 → 烧尽填充
+        //DoT 刷新策略：只看光环是否存在，缺失才按概率补
+        bool DoDestructionRotation(uint32 diff, Unit* mytar, float dist, bool can_do_shadow, bool can_do_fire)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //1) 献祭：仅缺失时补（燃烧与若干天赋依赖其存在）
+            if (IsSpellReady(IMMOLATE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(IMMOLATE_1) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()), 85))
+                return doCast(mytar, GetSpell(IMMOLATE_1));
+
+            //2) 混乱之箭：冷却就绪即放
+            if (IsSpellReady(CHAOS_BOLT_1, diff) && can_do_fire && dist < CalcSpellMaxRange(CHAOS_BOLT_1))
+                return doCast(mytar, GetSpell(CHAOS_BOLT_1));
+
+            //3) 燃烧：献祭有效时使用（雕文下不消耗献祭）
+            if (IsSpellReady(CONFLAGRATE_1, diff) && can_do_fire && dist < CalcSpellMaxRange(CONFLAGRATE_1) &&
+                mytar->HasAuraState(AURA_STATE_CONFLAGRATE) &&
+                mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()))
+                return doCast(mytar, GetSpell(CONFLAGRATE_1));
+
+            //4) 暗影灼烧斩杀
+            if (IsSpellReady(SHADOWBURN_1, diff) && can_do_shadow && dist < CalcSpellMaxRange(SHADOWBURN_1) &&
+                mytar->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT))
+                return doCast(mytar, GetSpell(SHADOWBURN_1));
+
+            //5) 填充：烧尽
+            return DoFiller(diff, mytar, dist, can_do_shadow, can_do_fire);
         }
 
         void ApplyClassSpellCritMultiplierAll(Unit const* victim, float& crit_chance, SpellInfo const* spellInfo, SpellSchoolMask /*schoolMask*/, WeaponAttackType /*attackType*/) const override
@@ -1089,8 +1214,8 @@ public:
                 lvl >= 55 && (baseId == INCINERATE_1 || baseId == CHAOS_BOLT_1) &&
                 damageinfo.target->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()))
                 pctbonus += 0.1f;
-            //Molten Core part 1: 18% bonus damage for Incinerate and Soul Fire
-            if ((GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) &&
+            //Molten Core part 1: 18% bonus damage for Incinerate and Soul Fire（熔火之心：恶魔、毁灭双系通用天赋）
+            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY || GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) &&
                 lvl >= 35 && (baseId == INCINERATE_1 || baseId == SOUL_FIRE_1))
             {
                 if (me->HasAura(MOLTEN_CORE_BUFF))
@@ -1890,6 +2015,7 @@ public:
             soulstoneTimer = 0;
             lifeTapCheckTimer = 0;
             curseCheckTimer = 0;
+            ct_demonicEmpowerment = 0;
 
             petSummonTimer = 5000;
 
@@ -1909,6 +2035,7 @@ public:
             if (soulstoneTimer > diff)              soulstoneTimer -= diff;
             if (lifeTapCheckTimer > diff)           lifeTapCheckTimer -= diff;
             if (curseCheckTimer > diff)             curseCheckTimer -= diff;
+            if (ct_demonicEmpowerment > diff)       ct_demonicEmpowerment -= diff;
 
             if (petSummonTimer > diff)              petSummonTimer -= diff;
         }
@@ -1926,7 +2053,7 @@ public:
         {
             uint8 lvl = me->GetLevel();
             bool isAffl = GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION;
-            //bool isDemo = GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY;
+            bool isDemo = GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY;
             bool isDest = GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION;
 
             InitSpellMap(CURSE_OF_WEAKNESS_1);
@@ -1974,6 +2101,10 @@ public:
   /*Talent*/lvl >= 40 && isDest ? InitSpellMap(CONFLAGRATE_1) : RemoveSpell(CONFLAGRATE_1);
   /*Talent*/lvl >= 50 && isDest ? InitSpellMap(SHADOWFURY_1) : RemoveSpell(SHADOWFURY_1);
   /*Talent*/lvl >= 60 && isDest ? InitSpellMap(CHAOS_BOLT_1) : RemoveSpell(CHAOS_BOLT_1);
+
+  /*Talent*/lvl >= 60 && isDemo ? InitSpellMap(METAMORPHOSIS_1) : RemoveSpell(METAMORPHOSIS_1);
+  /*Talent*/lvl >= 60 && isDemo ? InitSpellMap(IMMOLATION_AURA_1) : RemoveSpell(IMMOLATION_AURA_1);
+  /*Talent*/lvl >= 60 && isDemo ? InitSpellMap(DEMONIC_EMPOWERMENT_1) : RemoveSpell(DEMONIC_EMPOWERMENT_1);
         }
 
         void ApplyClassPassives() const override
@@ -2002,7 +2133,8 @@ public:
             RefreshAura(IMPROVED_SHADOW_BOLT, level >= 10 ? 1 : 0);
             RefreshAura(AFTERMATH, level >= 15 ? 1 : 0);
             RefreshAura(BACKLASH, level >= 30 ? 1 : 0);
-            RefreshAura(MOLTEN_CORE, isDest && level >= 35 ? 1 : 0);
+            //熔火之心：恶魔、毁灭双系通用触发天赋（毁灭术同样点出）
+            RefreshAura(MOLTEN_CORE, (isDemo || isDest) && level >= 35 ? 1 : 0);
             RefreshAura(NETHER_PROTECTION, isDest && level >= 35 ? 1 : 0);
             RefreshAura(SOUL_LEECH, isDest && level >= 40 ? 1 : 0);
             RefreshAura(PYROCLASM, isDest && level >= 40 ? 1 : 0);
@@ -2062,7 +2194,7 @@ public:
     private:
         //Timers
         uint32 fearTimer, banishTimer, unbanishTimer, drainManaTimer, healthstoneTimer,
-            soulstoneTimer, lifeTapCheckTimer, curseCheckTimer;
+            soulstoneTimer, lifeTapCheckTimer, curseCheckTimer, ct_demonicEmpowerment;
         //Pet
         uint32 myPetType;
         uint32 petSummonTimer;
