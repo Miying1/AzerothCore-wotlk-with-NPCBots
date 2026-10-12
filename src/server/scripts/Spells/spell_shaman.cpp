@@ -16,7 +16,9 @@
  */
 
 #include "GridNotifiers.h"
+#include "Creature.h"
 #include "ObjectAccessor.h"
+#include "bot_ai.h"
 #include "Player.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
@@ -2126,18 +2128,32 @@ class spell_sha_windfury_weapon : public AuraScript
         });
     }
 
+    Item* GetWeapon(Unit* actor) const
+    {
+        if (Player* player = actor->ToPlayer())
+            return player->GetItemByGuid(GetAura()->GetCastItemGUID());
+
+        if (Creature* creature = actor->ToCreature())
+            if (creature->IsNPCBot() && creature->GetBotAI())
+                return creature->GetBotAI()->GetEquipsByGuid(GetAura()->GetCastItemGUID());
+
+        return nullptr;
+    }
+
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        if (!player)
+        Unit* actor = eventInfo.GetActor();
+        if (!actor)
             return false;
 
-        Item* item = player->GetItemByGuid(GetAura()->GetCastItemGUID());
+        Item* item = GetWeapon(actor);
         if (!item || !item->IsEquipped())
             return false;
 
-        WeaponAttackType attType = Player::GetAttackBySlot(item->GetSlot());
-        if (attType != BASE_ATTACK && attType != OFF_ATTACK)
+        uint8 slot = item->GetSlot();
+        WeaponAttackType attType = slot == EQUIPMENT_SLOT_MAINHAND ? BASE_ATTACK :
+            slot == EQUIPMENT_SLOT_OFFHAND ? OFF_ATTACK : MAX_ATTACK;
+        if (attType == MAX_ATTACK)
             return false;
 
         if (((attType == BASE_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_DONE_MAINHAND_ATTACK)) ||
@@ -2151,25 +2167,27 @@ class spell_sha_windfury_weapon : public AuraScript
     {
         PreventDefaultAction();
 
-        Player* player = eventInfo.GetActor()->ToPlayer();
+        Unit* actor = eventInfo.GetActor();
         Unit* target = eventInfo.GetActionTarget();
-        if (!target)
+        if (!actor || !target)
             return;
 
-        Item* item = player->GetItemByGuid(GetAura()->GetCastItemGUID());
+        Item* item = GetWeapon(actor);
         if (!item)
             return;
 
-        uint8 slot = item->GetSlot();
-        bool mainHand = slot == EQUIPMENT_SLOT_MAINHAND;
+        bool mainHand = item->GetSlot() == EQUIPMENT_SLOT_MAINHAND;
+        if (!mainHand && item->GetSlot() != EQUIPMENT_SLOT_OFFHAND)
+            return;
+
         uint32 spellId = mainHand ? SPELL_SHAMAN_WINDFURY_ATTACK_MH : SPELL_SHAMAN_WINDFURY_ATTACK_OH;
 
         SpellInfo const* windfurySpellInfo = sSpellMgr->GetSpellInfo(SPELL_SHAMAN_WINDFURY_WEAPON_R1);
-        int32 bonus = windfurySpellInfo ? windfurySpellInfo->Effects[EFFECT_1].CalcValue(player) : 0;
-        bonus = int32(bonus * player->GetAttackTime(mainHand ? BASE_ATTACK : OFF_ATTACK) / 1000.f);
+        int32 bonus = windfurySpellInfo ? windfurySpellInfo->Effects[EFFECT_1].CalcValue(actor) : 0;
+        bonus = int32(bonus * actor->GetAttackTime(mainHand ? BASE_ATTACK : OFF_ATTACK) / 1000.f);
 
-        player->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, bonus, target, true, item, aurEff);
-        player->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, bonus, target, true, item, aurEff);
+        actor->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, bonus, target, true, item, aurEff);
+        actor->CastCustomSpell(spellId, SPELLVALUE_BASE_POINT0, bonus, target, true, item, aurEff);
     }
 
     void Register() override
