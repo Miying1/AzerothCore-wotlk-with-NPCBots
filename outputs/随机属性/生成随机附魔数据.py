@@ -62,6 +62,7 @@ ITEM_MOD_ARMOR_PENETRATION_RATING = 44
 ITEM_MOD_SPELL_POWER              = 45
 ITEM_MOD_SPELL_PENETRATION        = 47
 ITEM_MOD_BLOCK_VALUE              = 48
+ITEM_MOD_THREAT_MODIFIER          = 49  # 自定义：威胁值修正
 
 # 附魔类型：5 = 属性（STAT）
 ENCHANT_TYPE_STAT = 5
@@ -92,6 +93,7 @@ ATTRIBUTES = [
     ("法术强度",   ITEM_MOD_SPELL_POWER,              35,  120, 2),
     ("法术穿透",   ITEM_MOD_SPELL_PENETRATION,        20,   60, 1),
     ("格挡值",     ITEM_MOD_BLOCK_VALUE,             100,  300, 5),
+    ("威胁值",     ITEM_MOD_THREAT_MODIFIER,           2,    8, 1),
     ("每5秒法力回复", ITEM_MOD_MANA_REGENERATION,        10,   40, 1),
     ("力量",       ITEM_MOD_STRENGTH,                 20,   60, 1),
     ("敏捷",       ITEM_MOD_AGILITY,                  20,   60, 1),
@@ -109,14 +111,16 @@ GROUP_DEFS = [
     (90001, "法系", ["智力", "急速等级", "暴击等级", "命中等级", "法术强度", "法术穿透"]),
     (90301, "治疗", ["智力", "急速等级", "暴击等级", "法术强度", "每5秒法力回复"]),
     (90101, "物理", ["力量", "敏捷", "急速等级", "暴击等级", "护甲穿透", "攻击强度", "命中等级", "精准等级"]),
-    (90201, "防御", ["躲闪", "招架", "防御", "格挡值"]),
+    (90201, "防御", ["躲闪", "招架", "防御", "格挡值", "威胁值"]),
 ]
 
 # ============================================================
 # 附魔描述名（SpellItemEnchantment.dbc 的 Name_Lang_*）：
-# 统一为「+数值 属性」（如 +10 力量），用于附魔窗口等展示。
+# 统一为「+数值 属性」（如 +10 力量），威胁值显示为百分比形式。
 # ============================================================
 def display_name(attr_name, value):
+    if attr_name == "威胁值":
+        return "+{}% {}".format(value, attr_name)
     return "+{} {}".format(value, attr_name)
 
 
