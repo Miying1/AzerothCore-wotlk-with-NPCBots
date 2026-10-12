@@ -18,12 +18,24 @@
 #include "World.h"
 /*
 Druid NpcBot (reworked by Trickerer onlysuffering@gmail.com)
-Complete - 85-90%
-TODO: Resolve remaining bugs with wrong power type after death
-TODO2: PvP behaviour revamp (again, it's like 5th time?)
+Complete - 90%
+FIXED: Power type issues after death and form transitions (2026-10-12)
+OPTIMIZED: Balance Eclipse rotation with state machine + personality (2026-10-12)
+TODO: PvP behaviour revamp (again, it's like 5th time?)
+TODO: Improve Lifebloom "rolling bloom" mechanism
 */
 
 static constexpr uint8 MAX_TREANTS = 3;
+
+// Eclipse state machine for Balance rotation optimization
+enum EclipseState : uint8
+{
+    ECLIPSE_STATE_NONE          = 0,  // No eclipse buff active
+    ECLIPSE_STATE_LUNAR         = 1,  // Lunar Eclipse (Starfire favored)
+    ECLIPSE_STATE_SOLAR         = 2,  // Solar Eclipse (Wrath favored)
+    ECLIPSE_STATE_LUNAR_FADING  = 3,  // Lunar Eclipse < 3s remaining
+    ECLIPSE_STATE_SOLAR_FADING  = 4   // Solar Eclipse < 3s remaining
+};
 
 enum DruidBaseSpells
 {
@@ -417,18 +429,18 @@ public:
                         !member->IsAlive() || me->GetDistance(member) > 40)
                         continue;
                     if (gUnit->GetDistance(member) < 15 && (GetLostHP(member) > 2000 || GetHealthPCT(member) < 90))
-                        if (++LHPcount >= 3)
+                        if (++LHPcount >= 2)
                             break;
                 }
 
-                if (LHPcount >= 3)
+                if (LHPcount >= 2)
                 {
                     healTarget = gUnit;
                     break;
                 }
             }
 
-            if (LHPcount >= 3 && growt && healTarget &&
+            if (LHPcount >= 2 && growt && healTarget &&
                 doCast(healTarget, GetSpell(WILD_GROWTH_1)))
                 return true;
 
@@ -1076,6 +1088,7 @@ public:
                 doCast(mytar, FAERIE_FIRE_NORMAL_1))
                 return;
 
+            // === Priority 1: AOE abilities ===
             //Starfall
             if (IsSpellReady(STARFALL_1, diff) && Rand() < 40)
             {
@@ -1084,11 +1097,11 @@ public:
                 {
                     std::list<Unit*> targets;
                     GetNearbyTargetsList(targets, 30.f, 0);
-                if (targets.size() > 3)
-                    cast = true;
-            }
+                    if (targets.size() > 3)
+                        cast = true;
+                }
 
-            if (doCast(me, GetSpell(STARFALL_1)))
+                if (cast && doCast(me, GetSpell(STARFALL_1)))
                     return;
 
                 SetSpellCooldown(STARFALL_1, 1500); //fail
@@ -1115,6 +1128,7 @@ public:
                 SetSpellCooldown(TYPHOON_1, 1000); //fail
             }
 
+            // === Priority 2: Force of Nature ===
             if (IsSpellReady(FORCE_OF_NATURE_1, diff))
             {
                 SummonBotPet(mytar);
@@ -1122,47 +1136,184 @@ public:
                 return;
             }
 
-            //Faerie Fire (non-feral): moonkin or non-shapeshifted
-            if (IsSpellReady(FAERIE_FIRE_NORMAL_1, diff) && can_do_nature && mytar->getAttackers().size() > 2 && Rand() < 50 &&
+            // === Priority 3: Debuff maintenance ===
+            //Faerie Fire (improved: always maintain, not just in multi-target)
+            if (IsSpellReady(FAERIE_FIRE_NORMAL_1, diff) && can_do_nature &&
                 dist < CalcSpellMaxRange(FAERIE_FIRE_NORMAL_1) &&
-                !mytar->HasAuraTypeWithFamilyFlags(SPELL_AURA_MOD_RESISTANCE_PCT, SPELLFAMILY_DRUID, 0x400)
-                /*!HasAuraName(mytar, FAERIE_FIRE_ANY)*/)
+                !mytar->HasAuraTypeWithFamilyFlags(SPELL_AURA_MOD_RESISTANCE_PCT, SPELLFAMILY_DRUID, 0x400))
             {
                 if (doCast(mytar, GetSpell(FAERIE_FIRE_NORMAL_1)))
                     return;
             }
 
-            Unit const* u = mytar->GetVictim();
-            //Insect Swarm
-            if (IsSpellReady(INSECT_SWARM_1, diff) && can_do_nature && u && mytar->GetDistance(u) < 8 && Rand() < 30 &&
+            //Insect Swarm (improved: higher priority, no random gate)
+            if (IsSpellReady(INSECT_SWARM_1, diff) && can_do_nature &&
                 dist < CalcSpellMaxRange(INSECT_SWARM_1) &&
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x200000, 0x0, 0x0, me->GetGUID())
-                /*!HasAuraName(mytar, INSECT_SWARM_1, me->GetGUID())*/)
+                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x200000, 0x0, 0x0, me->GetGUID()))
             {
                 if (doCast(mytar, GetSpell(INSECT_SWARM_1)))
                     return;
             }
 
-            if (IsSpellReady(MOONFIRE_1, diff) && can_do_arcane && Rand() < 60 && dist < CalcSpellMaxRange(MOONFIRE_1) &&
-                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x2, 0x0, 0x0, me->GetGUID())
-                /*!HasAuraName(mytar, MOONFIRE_1, me->GetGUID())*/)
+            //Moonfire
+            if (IsSpellReady(MOONFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(MOONFIRE_1) &&
+                !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DRUID, 0x2, 0x0, 0x0, me->GetGUID()))
             {
                 if (doCast(mytar, GetSpell(MOONFIRE_1)))
                     return;
             }
-            //TODO: balance starfire/wrath frequency based on mana effeciency
-            if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
-            {
-                AuraEffect const* eclipeLunar = me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_DRUID, 0x0, 0x0, 0x4000);
-                int32 rand = 30 + 100 * (eclipeLunar && eclipeLunar->GetBase()->GetDuration() > 3000);
 
-                if (Rand() < rand && doCast(mytar, GetSpell(STARFIRE_1)))
-                    return;
-            }
-            if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+            // === Priority 4: Eclipse-based intelligent nuke rotation ===
+            EclipseState eclipseState = GetEclipseState();
+            uint8 manaPct = GetManaPCT(me);
+            uint16 botRand = Rand(); // Bot-specific personality seed
+
+            switch (eclipseState)
             {
-                if (doCast(mytar, GetSpell(WRATH_1)))
-                    return;
+                case ECLIPSE_STATE_LUNAR:
+                {
+                    // Lunar Eclipse: Starfire has +40% crit chance - spam it!
+                    // Base 75% + personality variance (0-20%)
+                    uint8 starfireChance = 75 + (botRand % 20);
+                    
+                    if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                    {
+                        if (Rand() < starfireChance && doCast(mytar, GetSpell(STARFIRE_1)))
+                            return;
+                    }
+                    
+                    // Filler: Wrath (better mana efficiency)
+                    if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                    {
+                        if (doCast(mytar, GetSpell(WRATH_1)))
+                            return;
+                    }
+                    break;
+                }
+                
+                case ECLIPSE_STATE_LUNAR_FADING:
+                {
+                    // Lunar Eclipse ending soon (<3s): try to squeeze in one more Starfire
+                    bool hasInstantCast = me->HasAura(ELUNES_WRATH_BUFF) || me->HasAura(NATURESGRACE);
+                    
+                    if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                    {
+                        // If we have instant cast, prioritize Starfire
+                        if (hasInstantCast && doCast(mytar, GetSpell(STARFIRE_1)))
+                            return;
+                        
+                        // Otherwise 50% chance to try a quick Starfire
+                        if (Rand() < 50 && doCast(mytar, GetSpell(STARFIRE_1)))
+                            return;
+                    }
+                    
+                    // Fallback: Wrath
+                    if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                    {
+                        if (doCast(mytar, GetSpell(WRATH_1)))
+                            return;
+                    }
+                    break;
+                }
+                
+                case ECLIPSE_STATE_SOLAR:
+                {
+                    // Solar Eclipse: Wrath has +40% damage - prioritize it!
+                    // Base 85% + personality variance (0-15%)
+                    uint8 wrathChance = 85 + (botRand % 15);
+                    
+                    if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                    {
+                        if (Rand() < wrathChance && doCast(mytar, GetSpell(WRATH_1)))
+                            return;
+                    }
+                    
+                    // Occasional Starfire to try triggering Lunar Eclipse
+                    if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                    {
+                        if (doCast(mytar, GetSpell(STARFIRE_1)))
+                            return;
+                    }
+                    break;
+                }
+                
+                case ECLIPSE_STATE_SOLAR_FADING:
+                {
+                    // Solar Eclipse ending: spam Wrath while we still have the buff
+                    if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                    {
+                        if (Rand() < 90 && doCast(mytar, GetSpell(WRATH_1)))
+                            return;
+                    }
+                    
+                    // Fallback: Starfire
+                    if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                    {
+                        if (doCast(mytar, GetSpell(STARFIRE_1)))
+                            return;
+                    }
+                    break;
+                }
+                
+                case ECLIPSE_STATE_NONE:
+                default:
+                {
+                    // No Eclipse buff: balance based on mana efficiency and personality
+                    
+                    // High mana (>60%): favor Starfire (higher burst)
+                    if (manaPct > 60)
+                    {
+                        // Base 50% + personality (0-20%)
+                        uint8 starfirePreference = 50 + (botRand % 20);
+                        
+                        if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                        {
+                            if (Rand() < starfirePreference && doCast(mytar, GetSpell(STARFIRE_1)))
+                                return;
+                        }
+                        
+                        if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                        {
+                            if (doCast(mytar, GetSpell(WRATH_1)))
+                                return;
+                        }
+                    }
+                    // Medium mana (30-60%): balanced rotation
+                    else if (manaPct > 30)
+                    {
+                        // Base 40% + personality (0-15%)
+                        uint8 starfirePreference = 40 + (botRand % 15);
+                        
+                        if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                        {
+                            if (Rand() < starfirePreference && doCast(mytar, GetSpell(STARFIRE_1)))
+                                return;
+                        }
+                        
+                        if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                        {
+                            if (doCast(mytar, GetSpell(WRATH_1)))
+                                return;
+                        }
+                    }
+                    // Low mana (<30%): favor Wrath (better mana efficiency: 2.14 vs 1.77 DPM)
+                    else
+                    {
+                        if (IsSpellReady(WRATH_1, diff) && can_do_nature)
+                        {
+                            // 75% Wrath when low on mana
+                            if (Rand() < 75 && doCast(mytar, GetSpell(WRATH_1)))
+                                return;
+                        }
+                        
+                        if (IsSpellReady(STARFIRE_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(STARFIRE_1))
+                        {
+                            if (doCast(mytar, GetSpell(STARFIRE_1)))
+                                return;
+                        }
+                    }
+                    break;
+                }
             }
         }
 
@@ -1615,14 +1766,18 @@ public:
         void setStats(BotStances form)
         {
             _form = form;
+            
+            // 修复形态切换时的能量类型转换异常
+            // 先强制设置能量类型，然后再刷新光环
             switch (form)
             {
                 case DRUID_BEAR_FORM:
-                    if (me->GetPowerType() != POWER_RAGE)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_RAGE");
-                        me->SetPowerType(POWER_RAGE);
-                    }
+                    // 强制设置为怒气，确保转换完成
+                    me->SetPowerType(POWER_RAGE);
+                    // 重置怒气值，避免继承之前形态的残留能量
+                    rage = 0;
+                    me->SetPower(POWER_RAGE, 0);
+                    
                     RefreshAura(MASTER_SHAPESHIFTER_BEAR_BUFF, me->GetLevel() >= 20);
                     if (GetSpec() == BOT_SPEC_DRUID_FERAL)
                     {
@@ -1632,13 +1787,16 @@ public:
                     }
                     break;
                 case DRUID_CAT_FORM:
-                    if (me->GetPowerType() != POWER_ENERGY)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_ENERGY");
-                        me->SetPowerType(POWER_ENERGY);
-                    }
+                    // 强制设置为能量，确保转换完成
+                    me->SetPowerType(POWER_ENERGY);
+                    // 根据激怒天赋设置能量值
+                    energy = me->GetLevel() >= 10 ? 20 : 0; // Furor 天赋效果
+                    me->SetPower(POWER_ENERGY, energy);
+                    // 重置连击点
+                    comboPoints = 0;
+                    
                     RefreshAura(MASTER_SHAPESHIFTER_CAT_BUFF, me->GetLevel() >= 20);
-                    RefreshAura(FERAL_SWIFTNESS, me->GetLevel() >= 20); //talents ignore forms for creatures so put that here
+                    RefreshAura(FERAL_SWIFTNESS, me->GetLevel() >= 20);
                     if (GetSpec() == BOT_SPEC_DRUID_FERAL)
                     {
                         RefreshAura(NURTURING_INSTINCT_BUFF, me->GetLevel() >= 30);
@@ -1646,49 +1804,29 @@ public:
                     }
                     break;
                 case DRUID_MOONKIN_FORM:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (moonkin)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
                     RefreshAura(MASTER_SHAPESHIFTER_MOONKIN_BUFF, me->GetLevel() >= 20);
                     RefreshAura(OWLKIN_FRENZY, me->GetLevel() >= 45);
                     break;
                 case DRUID_TREE_FORM:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (tree)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
                     RefreshAura(MASTER_SHAPESHIFTER_TREE_BUFF, me->GetLevel() >= 20);
                     break;
                 case DRUID_TRAVEL_FORM:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (travel)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
                     break;
                 case DRUID_AQUATIC_FORM:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (aquatic)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
                     break;
                 case DRUID_FLIGHT_FORM:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (flight)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
                     break;
                 case BOT_STANCE_NONE:
-                    if (me->GetPowerType() != POWER_MANA)
-                    {
-                        //BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): has to set powerType to POWER_MANA (deshape)");
-                        me->SetPowerType(POWER_MANA);
-                    }
+                    me->SetPowerType(POWER_MANA);
+                    // 清除野性能量残留
+                    rage = 0;
+                    energy = 0;
+                    comboPoints = 0;
                     break;
                 default:
                     BOT_LOG_ERROR("entities.player", "druid_bot::setStats(): NYI form {}", uint32(form));
@@ -2706,17 +2844,41 @@ public:
 
         void InitPowers() override
         {
-            switch (me->GetShapeshiftForm())
+            // 修复死亡后能量类型异常：优先使用 _form 而不是 GetShapeshiftForm()
+            // 因为死亡时 ShapeshiftForm 可能已被清除，但 _form 还保留着正确的状态
+            BotStances currentForm = _form != BOT_STANCE_NONE ? _form : BOT_STANCE_NONE;
+            
+            // 如果 _form 为 NONE，则根据实际的 ShapeshiftForm 来设置
+            if (currentForm == BOT_STANCE_NONE)
             {
-                case FORM_BEAR:
-                case FORM_DIREBEAR:
-                    me->SetPowerType(POWER_RAGE);
+                switch (me->GetShapeshiftForm())
+                {
+                    case FORM_BEAR:
+                    case FORM_DIREBEAR:
+                        currentForm = DRUID_BEAR_FORM;
+                        break;
+                    case FORM_CAT:
+                        currentForm = DRUID_CAT_FORM;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            // 根据形态设置能量类型
+            switch (currentForm)
+            {
+                case DRUID_BEAR_FORM:
+                    if (me->GetPowerType() != POWER_RAGE)
+                        me->SetPowerType(POWER_RAGE);
                     break;
-                case FORM_CAT:
-                    me->SetPowerType(POWER_ENERGY);
+                case DRUID_CAT_FORM:
+                    if (me->GetPowerType() != POWER_ENERGY)
+                        me->SetPowerType(POWER_ENERGY);
                     break;
                 default:
-                    me->SetPowerType(POWER_MANA);
+                    if (me->GetPowerType() != POWER_MANA)
+                        me->SetPowerType(POWER_MANA);
                     break;
             }
         }
@@ -2963,6 +3125,28 @@ public:
         }
 
     private:
+        // Eclipse state detection for Balance rotation
+        EclipseState GetEclipseState() const
+        {
+            // Check for Lunar Eclipse (48518): Starfire gets +40% crit chance
+            Aura const* lunarAura = me->GetAura(ECLIPSE_LUNAR_BUFF);
+            if (lunarAura)
+            {
+                uint32 remaining = lunarAura->GetDuration();
+                return remaining > 3000 ? ECLIPSE_STATE_LUNAR : ECLIPSE_STATE_LUNAR_FADING;
+            }
+            
+            // Check for Solar Eclipse (48517): Wrath gets +40% damage
+            Aura const* solarAura = me->GetAura(ECLIPSE_SOLAR_BUFF);
+            if (solarAura)
+            {
+                uint32 remaining = solarAura->GetDuration();
+                return remaining > 3000 ? ECLIPSE_STATE_SOLAR : ECLIPSE_STATE_SOLAR_FADING;
+            }
+            
+            return ECLIPSE_STATE_NONE;
+        }
+
         bool _isValidInnervateTarget(Unit const* unit) const
         {
             if (!unit || unit->GetPowerType() != POWER_MANA || !unit->IsInCombat() || !unit->IsInMap(me) || me->GetExactDist(unit) > 30.f ||

@@ -44,6 +44,7 @@ enum ShamanBaseSpells
     EARTH_SHOCK_1                       = 8042,
     FROST_SHOCK_1                       = 8056,
     STORMSTRIKE_1                       = 17364,
+    LAVA_LASH_1                         = 60103,
     LIGHTNING_BOLT_1                    = 403,
     CHAIN_LIGHTNING_1                   = 421,
     LAVA_BURST_1                        = 51505,
@@ -60,7 +61,7 @@ enum ShamanBaseSpells
     HEROISM_1                           = 32182,
     SHAMANISTIC_RAGE_1                  = 30823,
     NATURES_SWIFTNESS_1                 = 16188,//castegory = 1202
-    //ELEMENTAL_MASTERY_1                 = 16166,//castegory = 1202 NYI
+    ELEMENTAL_MASTERY_1                 = 16166,//castegory = 1202
     TIDAL_FORCE_1                       = 55198,
 
     GHOST_WOLF_1                        = 2645,
@@ -147,6 +148,7 @@ enum ShamanSpecial
     SHAMAN_FLAME_SHOCK_PASSIVE          = 75461,//flame shock damage can be critical in 3.3.5, innate
 
     ELEMENTAL_FOCUS_BUFF                = 16246,
+    ELEMENTAL_MASTERY_BUFF              = 16166,
     TIDAL_FORCE_BUFF                    = 55166,//Unit::HandleAuraDummy(): case 55198:
 
     MAELSTROM_WEAPON_BUFF               = 53817,
@@ -255,7 +257,7 @@ enum BotTotemType : uint32
 };
 
 static const std::vector<uint32> Shaman_spells_damage
-{ EARTH_SHOCK_1, FLAME_SHOCK_1, FROST_SHOCK_1, STORMSTRIKE_1, CHAIN_LIGHTNING_1, LAVA_BURST_1, LIGHTNING_BOLT_1,
+{ EARTH_SHOCK_1, FLAME_SHOCK_1, FROST_SHOCK_1, STORMSTRIKE_1, LAVA_LASH_1, CHAIN_LIGHTNING_1, LAVA_BURST_1, LIGHTNING_BOLT_1,
 FIRE_NOVA_1, MAGMA_TOTEM_1, SEARING_TOTEM_1, LIGHTNING_SHIELD_1, THUNDERSTORM_1, EARTH_ELEMENTAL_TOTEM_1, FIRE_ELEMENTAL_TOTEM_1 };
 static const std::vector<uint32> Shaman_spells_cc{ EARTHBIND_TOTEM_1, FROST_SHOCK_1, HEX_1, WIND_SHEAR_1 };
 static const std::vector<uint32> Shaman_spells_heal{ EARTH_SHIELD_1, CHAIN_HEAL_1, LESSER_HEALING_WAVE_1, HEALING_WAVE_1, RIPTIDE_1, HEALING_STREAM_TOTEM_1 };
@@ -934,7 +936,10 @@ public:
                 return;
 
             AuraApplication const* sh = me->GetAuraApplicationOfRankedSpell(SHIELD);
-            if (!sh || sh->GetBase()->GetCharges() < 5 || sh->GetBase()->GetDuration() < 30000 ||
+            uint8 minCharges = SHIELD == GetSpell(EARTH_SHIELD_1) ? 2 :
+                SHIELD == GetSpell(WATER_SHIELD_1) ? 1 : 0;
+            if (!sh || (minCharges && sh->GetBase()->GetCharges() < minCharges) ||
+                sh->GetBase()->GetDuration() < 30000 ||
                 sh->GetBase()->GetSpellInfo()->GetRank() < sSpellMgr->GetSpellInfo(SHIELD)->GetRank())
             {
                 if (doCast(me, SHIELD))
@@ -1042,30 +1047,32 @@ public:
                 if (doCast(mytar, GetSpell(STORMSTRIKE_1)))
                     return;
             }
-            //SHOCKS
-            if (GetSpellCooldown(EARTH_SHOCK_1) <= diff && HasRole(BOT_ROLE_DPS) &&
-                (GetSpell(FLAME_SHOCK_1) || GetSpell(EARTH_SHOCK_1) || GetSpell(FROST_SHOCK_1)) &&
-                dist < 25 && Rand() < 70)
+            //LAVA LASH - 熔岩猛击：副手武器攻击，如果有冰封武器则伤害提高
+            if (GetSpell(LAVA_LASH_1) && IsSpellReady(LAVA_LASH_1, diff) && can_do_fire && HasRole(BOT_ROLE_DPS) && IsMelee() && dist <= 5 && Rand() < 100)
             {
-                if (GetSpell(FLAME_SHOCK_1) && can_do_fire)
+                //检查是否有副手武器
+                Item* ohWeapon = GetEquips(BOT_SLOT_OFFHAND);
+                if (ohWeapon && ohWeapon->GetTemplate()->Class == ITEM_CLASS_WEAPON)
                 {
-                    AuraEffect const* fsh = mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, 0x10000000, 0x0, 0x0, me->GetGUID());
-                    if (!fsh || fsh->GetBase()->GetDuration() < 3000)
-                    {
-                        if (doCast(mytar, GetSpell(FLAME_SHOCK_1)))
-                            return;
-                    }
-                }
-
-                uint32 SHOCK = can_do_frost ? GetSpell(FROST_SHOCK_1) : 0;
-                if (!SHOCK && can_do_nature)
-                    SHOCK = GetSpell(EARTH_SHOCK_1);
-
-                if (SHOCK)
-                {
-                    if (doCast(mytar, SHOCK))
+                    if (doCast(mytar, GetSpell(LAVA_LASH_1)))
                         return;
                 }
+            }
+            //SHOCKS
+            if (HasRole(BOT_ROLE_DPS) && dist < 25 && Rand() < 70)
+            {
+                if (GetSpell(FLAME_SHOCK_1) && can_do_fire && IsSpellReady(FLAME_SHOCK_1, diff))
+                {
+                    AuraEffect const* fsh = mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, 0x10000000, 0x0, 0x0, me->GetGUID());
+                    if ((!fsh || fsh->GetBase()->GetDuration() < 3000) && doCast(mytar, GetSpell(FLAME_SHOCK_1)))
+                        return;
+                }
+
+                if (can_do_nature && IsSpellReady(EARTH_SHOCK_1, diff) && doCast(mytar, GetSpell(EARTH_SHOCK_1)))
+                    return;
+
+                if (can_do_frost && IsSpellReady(FROST_SHOCK_1, diff) && doCast(mytar, GetSpell(FROST_SHOCK_1)))
+                    return;
             }
 
             //Feral Spirit
@@ -1075,6 +1082,12 @@ public:
                 SetSpellCooldown(FERAL_SPIRIT_1, 180000);
                 return;
             }
+
+            //ELEMENTAL MASTERY
+            if (IsSpellReady(ELEMENTAL_MASTERY_1, diff) && HasRole(BOT_ROLE_DPS) &&
+                GetSpec() == BOT_SPEC_SHAMAN_ELEMENTAL && dist < CalcSpellMaxRange(LIGHTNING_BOLT_1) &&
+                doCast(me, GetSpell(ELEMENTAL_MASTERY_1)))
+                return;
 
             //LAVA BURST
             if (IsSpellReady(LAVA_BURST_1, diff) && can_do_fire && HasRole(BOT_ROLE_DPS) &&
@@ -1086,8 +1099,12 @@ public:
                     return;
             }
 
-            if (((MaelstromCount < 5 || MaelstromTimer == 0 || me->GetLevel() < 55) && IsMelee()) ||
-                (HasRole(BOT_ROLE_HEAL) && GetManaPCT(me) < 25))
+            Aura const* maelstrom = me->GetAura(MAELSTROM_WEAPON_BUFF);
+            uint8 maelstromStacks = maelstrom ? maelstrom->GetStackAmount() : 0;
+            if (maelstromStacks != MaelstromCount)
+                MaelstromCount = maelstromStacks;
+
+            if ((maelstromStacks < 5 && IsMelee()) || (HasRole(BOT_ROLE_HEAL) && GetManaPCT(me) < 25))
                 return;
 
             //CHAIN LIGHTNING
@@ -1469,7 +1486,7 @@ public:
 
             //SHAMAN_T8_ENCHANCEMENT_2P_BONUS: 20% bonus damage for Lava Lash and Stormstrike
             if (lvl >= 60 &&
-                (spellId == STORMSTRIKE_DAMAGE || spellId == STORMSTRIKE_DAMAGE_OFFHAND/* || spellId == LAVA_LASH*/))
+                (spellId == STORMSTRIKE_DAMAGE || spellId == STORMSTRIKE_DAMAGE_OFFHAND || spellId == GetSpell(LAVA_LASH_1)))
                 pctbonus += 0.2f;
 
             //custom bonus to make stormstrike useful
@@ -1656,11 +1673,11 @@ public:
             {
                 Aura* maelstrom = me->GetAura(MAELSTROM_WEAPON_BUFF);
                 if (maelstrom)
-                {
-                    pctbonus += 0.2f * maelstrom->GetStackAmount();
-                    maelUseUp = true;
+                    {
+                        pctbonus += 0.2f * maelstrom->GetStackAmount();
+                        maelUseUp = true;
+                    }
                 }
-            }
             //Tidal Waves (Healing Wave cast time)
             if (spellInfo->SpellFamilyFlags[0] & 0x40)
                 if (AuraEffect const* eff = me->GetAuraEffect(TIDAL_WAVES_BUFF, 0, me->GetGUID()))
@@ -2564,10 +2581,11 @@ public:
 
             InitSpellMap(REINCARNATION_1); //base lvl 30, 30 min cd
 
-  /*Talent*///lvl >= 40 && isElem ? InitSpellMap(ELEMENTAL_MASTERY_1) : RemoveSpell(ELEMENTAL_MASTERY_1);
+            lvl >= 40 && isElem ? InitSpellMap(ELEMENTAL_MASTERY_1) : RemoveSpell(ELEMENTAL_MASTERY_1);
   /*Talent*/lvl >= 60 && isElem ? InitSpellMap(THUNDERSTORM_1) : RemoveSpell(THUNDERSTORM_1);
 
   /*Talent*/lvl >= 40 && isEnha ? InitSpellMap(STORMSTRIKE_1) : RemoveSpell(STORMSTRIKE_1);
+  /*Talent*/lvl >= 40 && isEnha ? InitSpellMap(LAVA_LASH_1) : RemoveSpell(LAVA_LASH_1);
   /*Talent*/lvl >= 50 && isEnha ? InitSpellMap(SHAMANISTIC_RAGE_1) : RemoveSpell(SHAMANISTIC_RAGE_1);
   /*Talent*/lvl >= 60 && isEnha ? InitSpellMap(FERAL_SPIRIT_1) : RemoveSpell(FERAL_SPIRIT_1); //not casted
 
@@ -2653,7 +2671,7 @@ public:
                 case BLOODLUST_1:
                 case HEROISM_1:
                 case SHAMANISTIC_RAGE_1:
-                //case ELEMENTAL_MASTERY_1:
+                case ELEMENTAL_MASTERY_1:
                 case TIDAL_FORCE_1:
                 //Totems
                 //case EARTHBIND_TOTEM_1:
