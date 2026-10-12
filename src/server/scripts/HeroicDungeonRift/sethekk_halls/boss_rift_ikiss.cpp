@@ -74,7 +74,7 @@ struct boss_rift_ikiss : public BossAIBase
         me->Yell(AggroTexts[urand(0, 2)], LANG_UNIVERSAL);
         events.ScheduleEvent(EventArcaneVolley, 5s);
         events.ScheduleEvent(EventPolymorph, 8s);
-        events.ScheduleEvent(EventSlow, Milliseconds(urand(15000, 25000)));
+        events.ScheduleEvent(EventSlow, Milliseconds(urand(20000, 30000)));
         if (_tier >= 2)
             events.ScheduleEvent(EventArcaneBarrage, 13s);
         if (_tier >= 3)
@@ -147,7 +147,7 @@ struct boss_rift_ikiss : public BossAIBase
                 break;
             case EventSlow:
                 CastIfConfigured(me, SpellSlow);
-                events.ScheduleEvent(EventSlow, Milliseconds(urand(15000, 30000)));
+                events.ScheduleEvent(EventSlow, Milliseconds(urand(20000, 30000)));
                 break;
             case EventArcaneBarrage: // T2新增：低伤点名，避免与法力爆炸同秒
                 CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellArcaneBarrage, SPELLVALUE_BASE_POINT0,
