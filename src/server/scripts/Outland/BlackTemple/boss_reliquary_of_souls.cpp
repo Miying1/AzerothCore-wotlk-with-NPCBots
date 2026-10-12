@@ -137,6 +137,9 @@ public:
         {
             BossAI::Reset();
             me->SetStandState(UNIT_STAND_STATE_SLEEP);
+            // 主 BOSS 带 IMMUNE_TO_PC，所有威胁引用都是离线状态，
+            // 若保持 REACT_AGGRESSIVE，SelectVictim 会因无合法目标而兜底脱战
+            me->SetReactState(REACT_PASSIVE);
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -200,6 +203,17 @@ public:
                         }, i * 1200ms);
                 }
             }, 8s);
+        }
+
+        // IMMUNE_TO_PC 会让所有威胁引用处于离线状态，无法通过威胁列表触发交战，
+        // 因此改为在进入战斗时（combat reference 建立）直接触发交战，
+        // 以启用 BossAI 的 5 秒战斗脉冲（SetCombatPulseDelay），避免转阶段脱战
+        void JustEnteredCombat(Unit* who) override
+        {
+            if (IsEngaged())
+                return;
+
+            EngagementStart(who);
         }
 
         void JustEngagedWith(Unit* who) override
@@ -285,6 +299,7 @@ public:
             if (type != POINT_MOTION_TYPE || id != POINT_GO_BACK)
                 return;
 
+            me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_SUFFERING), 1500ms);
             me->SetTarget();
             me->SetFacingTo(M_PI / 2.0f);
         }
@@ -303,8 +318,6 @@ public:
                     me->GetMotionMaster()->Clear();
                     me->GetMotionMaster()->MovePoint(POINT_GO_BACK, me->GetHomePosition(), FORCED_MOVEMENT_NONE, 0.f, false);
                     scheduler.CancelAll();
-                    // 直接调度阶段转换，不再依赖 MovementInform，防止打太快时精华未走回出生点导致脱战
-                    me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_SUFFERING), 3s);
                 }
             }
         }
@@ -385,6 +398,7 @@ public:
             if (type != POINT_MOTION_TYPE || id != POINT_GO_BACK)
                 return;
 
+            me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_DESIRE), 1500ms);
             me->SetTarget();
             me->SetFacingTo(M_PI / 2.0f);
         }
@@ -402,8 +416,6 @@ public:
                     me->GetMotionMaster()->Clear();
                     me->GetMotionMaster()->MovePoint(POINT_GO_BACK, me->GetHomePosition(), FORCED_MOVEMENT_NONE, 0.f, false);
                     scheduler.CancelAll();
-                    // 直接调度阶段转换，不再依赖 MovementInform，防止打太快时精华未走回出生点导致脱战
-                    me->m_Events.AddEventAtOffset(new SuckBackEvent(*me, ACTION_ESSENCE_OF_DESIRE), 3s);
                 }
             }
         }
