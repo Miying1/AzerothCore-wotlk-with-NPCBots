@@ -2974,7 +2974,7 @@ void AuraEffect::HandleAuraCloneCaster(AuraApplication const* aurApp, uint8 mode
             return;
 
         // What must be cloned? at least display and scale
-        target->SetDisplayId(caster->GetDisplayId());
+        target->SetDisplayId(caster->GetDisplayId(), caster->GetObjectScale());
         target->SetUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE);
     }
     else

@@ -17,8 +17,9 @@
 #include "World.h"
 /*
 Warlock NpcBot (reworked by Trickerer onlysuffering@gmail.com)
-Complete - 85%
-TODO: rituals (not directly feasable), demonic circle, demonic empowerment, demonic pact, health funnel, healthstones for bots, etc...
+Complete - 90%
+TODO: rituals (not directly feasable), demonic circle, demonic empowerment, health funnel, healthstones for bots, etc...
+注：恶魔契约（demonic pact）已在 bpet_warlock.cpp 中实现
 */
 
 enum WarlockBaseSpells

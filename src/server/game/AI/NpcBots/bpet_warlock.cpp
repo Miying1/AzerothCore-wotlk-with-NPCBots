@@ -48,7 +48,8 @@ enum WarlockPetPassives
 
 enum WarlockPetSpecial
 {
-    SOUL_LINK_PET                       = 25228//split effect lvl 20 req
+    SOUL_LINK_PET                       = 25228,//split effect lvl 20 req
+    DEMONIC_PACT_PROC                   = 48090 //恶魔契约团队增益光环
 };
 
 class warlock_pet_bot : public CreatureScript
@@ -332,6 +333,27 @@ public:
         void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
         {
             bot_pet_ai::DamageDealt(victim, damage, damageType, damageSchoolMask);
+
+            //恶魔契约：宠物暴击后触发团队增益（仅恶魔学专精，55级+）
+            if (damage && petOwner && petOwner->GetBotAI() && 
+                damageType == SPELL_DIRECT_DAMAGE && //仅直接伤害
+                petOwner->GetLevel() >= 55 &&
+                petOwner->GetBotAI()->GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
+            {
+                //使用内部 CD 优化（60秒，平衡覆盖率约 75%）
+                if (IsSpellReady(DEMONIC_PACT_PROC, 0, false))
+                {
+                    //计算法术强度加成：8% 或 2% * 主人法术伤害
+                    int32 spBonus = petOwner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC);
+                    int32 bp = static_cast<int32>((petOwner->GetLevel() >= 60 ? 0.08f : 0.02f) * spBonus);
+                    
+                    if (bp > 0)
+                    {
+                        petOwner->CastCustomSpell(petOwner, DEMONIC_PACT_PROC, &bp, &bp, nullptr, true);
+                        SetSpellCooldown(DEMONIC_PACT_PROC, 60000); //60秒内置CD
+                    }
+                }
+            }
         }
 
         void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellSchoolMask /*schoolMask*/) override
