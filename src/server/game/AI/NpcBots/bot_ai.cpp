@@ -11894,10 +11894,34 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Waypoint Data>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 7);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Dump Key State>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 8);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<List Items>", GOSSIP_SENDER_EQUIPMENT_LIST, GOSSIP_ACTION_INFO_DEF + 1);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Generate Equip>", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP, GOSSIP_ACTION_INFO_DEF + 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "<Reload Config>", GOSSIP_SENDER_DEBUG_ACTION, GOSSIP_ACTION_INFO_DEF + 9);
 
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_BACK), 1, GOSSIP_ACTION_INFO_DEF + 1);
             break;
+        }
+        case GOSSIP_SENDER_DEBUG_GENERATE_EQUIP: // 装备等级选择子菜单
+        {
+            subMenu = true;
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "装备等级 230", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE, GOSSIP_ACTION_INFO_DEF + 230);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "装备等级 240", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE, GOSSIP_ACTION_INFO_DEF + 240);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "装备等级 250", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE, GOSSIP_ACTION_INFO_DEF + 250);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "装备等级 260", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE, GOSSIP_ACTION_INFO_DEF + 260);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "装备等级 270", GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE, GOSSIP_ACTION_INFO_DEF + 270);
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, LocalizedNpcText(player, BOT_TEXT_BACK), GOSSIP_SENDER_DEBUG, GOSSIP_ACTION_INFO_DEF + 1);
+            break;
+        }
+        case GOSSIP_SENDER_DEBUG_GENERATE_EQUIP_MAKE: // 按选定装备等级生成并换装
+        {
+            subMenu = true;
+
+            uint32 const target_ilvl = action - GOSSIP_ACTION_INFO_DEF;
+            _GenerateDebugEquip(player, target_ilvl);
+
+            // 生成结束后回到装备等级选择子菜单
+            return OnGossipSelect(player, creature, GOSSIP_SENDER_DEBUG_GENERATE_EQUIP, GOSSIP_ACTION_INFO_DEF + 1);
         }
         case GOSSIP_SENDER_SCAN:
         {
@@ -13863,6 +13887,88 @@ bool bot_ai::_isItemFitForGeneratedBot([[maybe_unused]] uint8 category, uint8 sl
     return true;
 }
 
+// debug 菜单：按指定装备等级(ItemLevel)为各槽位生成装备并换上
+// 复用现有 PVE 装备生成逻辑（BotDataMgr::GenerateWanderingBotItem）
+// 若 bot 有主人，则设置装备归属并落库，避免产生“幽灵装备”
+void bot_ai::_GenerateDebugEquip(Player* player, uint32 target_item_level)
+{
+    ChatHandler ch(player->GetSession());
+
+    uint8 const lvl = me->GetLevel();
+    // 说明：InitEquips() 只在 is_wanderer || me->IsSummon() 时才走随机生成（召唤 bot 必然在副本中，
+    // 故用 DUNGEON 类别）。本 debug 工具可在任意地图对雇佣 bot 使用，若沿用 DUNGEON 类别，
+    // 其物品池只含坦克属性装备（botdatamgr.cpp 中 DUNGEON 类别仅收录防御/躲闪/招架/格挡属性物品），
+    // 会导致 DPS/治疗 bot 几乎生成不出装备。因此这里统一使用 WANDERING 类别（含通用物品 + 韧性物品）。
+    uint8 const gen_category = BOT_GENERATED_WANDERING;
+
+    // 生成逻辑的 check 回调：先按精确装备等级(ItemLevel)过滤，再复用原有槽位/专精适配检查
+    auto fit_check = [gen_category, target_item_level, this](uint8 slot, ItemTemplate const* proto)
+    {
+        return proto->ItemLevel == target_item_level && _isItemFitForGeneratedBot(gen_category, slot, proto);
+    };
+
+    // 有主人的（雇佣）bot 需要落库：装备归属给主人（以 _botData->owner 为准）
+    ObjectGuid const owner_guid = _botData->owner ? ObjectGuid::Create<HighGuid::Player>(_botData->owner) : ObjectGuid::Empty;
+    // 旧装备交还目标：仅当主人对象在线可用时才交给主人
+    ObjectGuid const master_guid = (master && !IAmFree()) ? master->GetGUID() : ObjectGuid::Empty;
+
+    uint32 generated = 0;
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+    {
+        // 低等级槽位限制沿用 InitEquips 的规则
+        if (i == BOT_SLOT_OFFHAND && (!_canUseOffHand() || (lvl < 10 && BotDataMgr::IsCastingClass(_botclass))))
+            continue;
+        if ((i == BOT_SLOT_FINGER1 || i == BOT_SLOT_FINGER2 || i == BOT_SLOT_NECK || i == BOT_SLOT_SHOULDERS) && lvl < 20)
+            continue;
+        if ((i == BOT_SLOT_TRINKET1 || i == BOT_SLOT_TRINKET2 || i == BOT_SLOT_HEAD) && lvl < 30)
+            continue;
+
+        // 复用 PVE 装备生成逻辑，maxitemlevel 传 0（不限），品质/等级完全由 fit_check 控制
+        Item* item = BotDataMgr::GenerateWanderingBotItem(gen_category, i, _botclass, lvl, 0, fit_check);
+        if (!item)
+            continue;
+
+        if (GetSpec() != BOT_SPEC_DEFAULT)
+            BotDataMgr::GenerateWanderingBotItemEnchants(item, i, GetSpec());
+
+        // 有主人的（雇佣）bot：必须在装备前设置归属，因为 _equip() -> _updateEquips()
+        // -> UpdateNpcBotData(NPCBOT_UPDATE_EQUIPS) 会以 item->GetOwnerGUID() 为归属把
+        // 装备写入 item_instance 并回写 characters_npcbot.equips，无需再手动 SaveToDB
+        if (!owner_guid.IsEmpty())
+            item->SetOwnerGUID(owner_guid);
+
+        // 先按标准规则卸下旧装备：
+        // - 雇佣 bot：receiver 传主人，旧装备交还主人（背包/邮件），DB 记录随迁移被正确处理
+        // - 游荡/临时 bot：receiver 传空，旧装备由 _unequip 内部直接删除（原本就不落库）
+        // _unequip 返回失败时中止该槽位，避免丢装备
+        BotEquipResult unequip_result = _unequip(i, master_guid, false);
+        if (unequip_result != BotEquipResult::BOT_EQUIP_RESULT_OK)
+        {
+            BOT_LOG_WARN("npcbots", "bot_ai::_GenerateDebugEquip(): bot {} (id: {}) 槽位 {} 卸下旧装备失败，错误码 {}",
+                me->GetName().c_str(), me->GetEntry(), uint32(i), uint32(unequip_result));
+            delete item;
+            continue;
+        }
+
+        // 用标准换装流程穿上新装备
+        // receiver 必须传空：生成装备不在主人背包中，非空 receiver 会触发 HasItemCount 校验而失败
+        BotEquipResult result = _equip(i, item, ObjectGuid::Empty, false);
+        if (result != BotEquipResult::BOT_EQUIP_RESULT_OK)
+        {
+            BOT_LOG_WARN("npcbots", "bot_ai::_GenerateDebugEquip(): bot {} (id: {}) 槽位 {} 生成装备穿戴失败，错误码 {}",
+                me->GetName().c_str(), me->GetEntry(), uint32(i), uint32(result));
+            delete item;
+            continue;
+        }
+
+        ++generated;
+    }
+
+    if (generated)
+        ch.PSendSysMessage("已为机器人 {} 生成 {} 件装备（装备等级 {}）", me->GetName().c_str(), generated, target_item_level);
+    else
+        ch.PSendSysMessage("未能为机器人 {} 生成装备等级 {} 的装备（可能该等级无合适物品）", me->GetName().c_str(), target_item_level);
+}
 
 void bot_ai::_removeEquipment(uint8 slot)
 {
