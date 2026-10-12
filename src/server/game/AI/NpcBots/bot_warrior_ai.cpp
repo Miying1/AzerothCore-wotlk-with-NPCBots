@@ -890,8 +890,9 @@ public:
                 if (doCast(me, GetSpell(BLADESTORM_1)))
                     return;
             }
-            //WHIRLWIND
-            if (IsSpellReady(WHIRLWIND_1, diff) && can_do_normal && HasRole(BOT_ROLE_DPS) && !IsTank() && !CanBlock() && Rand() < 80 &&
+            //WHIRLWIND //武器战天赋不使用旋风斩
+            if (IsSpellReady(WHIRLWIND_1, diff) && can_do_normal && HasRole(BOT_ROLE_DPS) && !IsTank() &&
+                !CanBlock() && !isArms && Rand() < 80 &&
                 (isFury || mytar->IsControlledByPlayer() || me->GetLevel() < 60 || !me->GetMap()->IsDungeon()) &&
                 _inStance(3) && dist < 6.f &&
                 rage >= rcost(WHIRLWIND_1) && (isFury || rage >= 500 || FindSplashTarget(7.f, mytar, 15.f)))
@@ -1991,7 +1992,7 @@ public:
             InitSpellMap(CLEAVE_1);
             InitSpellMap(HAMSTRING_1);
             InitSpellMap(INTERVENE_1);
-            InitSpellMap(WHIRLWIND_1);
+  /*Talent*/!isArms ? InitSpellMap(WHIRLWIND_1) : RemoveSpell(WHIRLWIND_1); //武器战天赋不学习旋风斩
             InitSpellMap(BATTLE_SHOUT_1);
             InitSpellMap(REND_1);
             InitSpellMap(EXECUTE_1);

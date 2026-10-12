@@ -3595,6 +3595,14 @@ void Spell::EffectWeaponDmg(SpellEffIndex effIndex)
     if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH_TARGET)
         return;
 
+    //临时诊断：定位 NPCBot 利刃风暴无伤害问题（确认原因后可移除）
+    //50622 = 利刃风暴主手伤害, 1680 = 旋风斩（作为对照组，BOT 可正常造成伤害）
+    if (m_spellInfo->Id == 50622 || m_spellInfo->Id == 1680)
+        LOG_ERROR("spells.aura", "DIAG: {} weapon dmg by {} (isBot {}), target {} (type {}) alive {}, effectMode {}",
+            m_spellInfo->Id, m_caster->GetName(), m_caster->IsNPCBot(),
+            unitTarget ? unitTarget->GetName() : "null", unitTarget ? uint32(unitTarget->GetTypeId()) : 0,
+            unitTarget ? unitTarget->IsAlive() : false, uint32(effectHandleMode));
+
     if (!unitTarget || !unitTarget->IsAlive())
         return;
 

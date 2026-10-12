@@ -1199,14 +1199,22 @@ public:
             if (me->isMoving())
                 return;
 
-            Item* mhWeapon = GetEquips(BOT_SLOT_MAINHAND);
-            Item* ohWeapon = GetEquips(BOT_SLOT_OFFHAND);
+            ApplyWeaponEnchants();
+        }
+
+        // 选择并施加武器附魔。一次只能施放一个法术（施法期间无法再施放下一个），
+        // 没附上的那只手会在之后的 DoNonCombatActions() 里补上。
+        // onlySlot < 0 时主手优先依次处理，否则只处理指定槽位
+        bool ApplyWeaponEnchants(int8 onlySlot = -1)
+        {
+            Item* mhWeapon = onlySlot < 0 || onlySlot == BOT_SLOT_MAINHAND ? GetEquips(BOT_SLOT_MAINHAND) : nullptr;
+            Item* ohWeapon = onlySlot < 0 || onlySlot == BOT_SLOT_OFFHAND ? GetEquips(BOT_SLOT_OFFHAND) : nullptr;
             //item must be non-standard, otherwise combat spells won't be rolled anyway
             bool mhReady = mhWeapon && !mhWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
             bool ohReady = ohWeapon && !ohWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
 
             if (!mhReady && !ohReady)
-                return; //no ecnhantable weapons
+                return false; //no ecnhantable weapons
 
             //OK choose the enchants
             //MH 1+ Rockbiter, 10+ Flametongue, 30+ Windfury/Earthliving
@@ -1252,14 +1260,27 @@ public:
                 targetWeapon = ohWeapon;
                 targetInfo = OhEnchantInfo;
             }
-            if (targetWeapon)
-            {
-                Spell* spell = new Spell(me, targetInfo, TRIGGERED_NONE);
-                SpellCastTargets targets;
-                targets.SetItemTarget(targetWeapon);
-                spell->prepare(&targets);
+            if (!targetWeapon)
+                return false;
+
+            Spell* spell = new Spell(me, targetInfo, TRIGGERED_NONE);
+            SpellCastTargets targets;
+            targets.SetItemTarget(targetWeapon);
+            spell->prepare(&targets);
+            return true;
+        }
+
+        // 对话菜单选定附魔后立即换掉该手上的附魔，不用等 bot 脱战静止时才自动刷新
+        void RefreshWeaponEnchants(uint8 slot) override
+        {
+            if (slot != BOT_SLOT_MAINHAND && slot != BOT_SLOT_OFFHAND)
                 return;
-            }
+
+            // 先清掉旧附魔（连同物品上残留的数据），再按新的选择重新施加
+            RemoveItemClassEnchantment(slot, true);
+
+            if (!IsCasting())
+                ApplyWeaponEnchants(int8(slot));
         }
 
         bool BuffTarget(Unit* target, uint32 /*diff*/) override

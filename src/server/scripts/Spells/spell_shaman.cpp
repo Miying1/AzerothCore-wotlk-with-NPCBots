@@ -1536,6 +1536,59 @@ class spell_sha_astral_shift_visual_dummy : public AuraScript
     }
 };
 
+// 萨满武器附魔（火舌/风怒）光环是由物品（武器）施放的，下面两个辅助函数用于在玩家和 NPCBot 上
+// 都能正确定位武器。NPCBot 使用的是自定义装备槽（BOT_SLOT_MAINHAND / BOT_SLOT_OFFHAND），
+// 装备物品从来没有调用过 Item::SetSlot()，因此 Item::GetSlot() 恒为 0（即头部槽），
+// 直接按槽位判断会得到 MAX_ATTACK，导致附魔效果永远无法触发，必须改用它自己的装备表来比对
+
+// 通过光环的施放物品 GUID 找到被附魔的武器
+static Item* GetEnchantedWeapon(Unit* actor, ObjectGuid const& itemGuid)
+{
+    if (Player* player = actor->ToPlayer())
+        return player->GetItemByGuid(itemGuid);
+
+    if (Creature* creature = actor->ToCreature())
+        if (creature->IsNPCBot())
+            return creature->GetBotEquipsByGuid(itemGuid);
+
+    return nullptr;
+}
+
+// 获取武器所在的手（主手/副手），非武器返回 MAX_ATTACK
+static WeaponAttackType GetWeaponAttackType(Unit const* actor, Item const* item)
+{
+    if (Creature const* creature = actor->ToCreature())
+    {
+        if (creature->IsNPCBot() && creature->GetBotAI())
+        {
+            if (item == creature->GetBotEquips(BOT_SLOT_MAINHAND))
+                return BASE_ATTACK;
+
+            if (item == creature->GetBotEquips(BOT_SLOT_OFFHAND))
+                return OFF_ATTACK;
+
+            return MAX_ATTACK;
+        }
+    }
+
+    uint8 slot = item->GetSlot();
+    return slot == EQUIPMENT_SLOT_MAINHAND ? BASE_ATTACK :
+           slot == EQUIPMENT_SLOT_OFFHAND ? OFF_ATTACK : MAX_ATTACK;
+}
+
+// 获取指定手上的武器
+static Item* GetWeaponForAttackType(Unit* actor, WeaponAttackType attType)
+{
+    if (Player* player = actor->ToPlayer())
+        return player->GetWeaponForAttack(attType);
+
+    if (Creature* creature = actor->ToCreature())
+        if (creature->IsNPCBot() && creature->GetBotAI())
+            return creature->GetBotEquips(attType == OFF_ATTACK ? BOT_SLOT_OFFHAND : BOT_SLOT_MAINHAND);
+
+    return nullptr;
+}
+
 // -10400 - Flametongue Weapon (Passive)
 class spell_sha_flametongue_weapon : public AuraScript
 {
@@ -1548,16 +1601,16 @@ class spell_sha_flametongue_weapon : public AuraScript
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        Player* player = eventInfo.GetActor()->ToPlayer();
-        if (!player)
+        Unit* actor = eventInfo.GetActor();
+        if (!actor)
             return false;
 
-        Item* item = player->GetItemByGuid(GetAura()->GetCastItemGUID());
+        Item* item = GetEnchantedWeapon(actor, GetAura()->GetCastItemGUID());
         if (!item || !item->IsEquipped())
             return false;
 
-        WeaponAttackType attType = Player::GetAttackBySlot(item->GetSlot());
-        if (attType != BASE_ATTACK && attType != OFF_ATTACK)
+        WeaponAttackType attType = GetWeaponAttackType(actor, item);
+        if (attType == MAX_ATTACK)
             return false;
 
         if (((attType == BASE_ATTACK) && !(eventInfo.GetTypeMask() & PROC_FLAG_DONE_MAINHAND_ATTACK)) ||
@@ -1571,20 +1624,23 @@ class spell_sha_flametongue_weapon : public AuraScript
     {
         PreventDefaultAction();
 
-        Player* player = eventInfo.GetActor()->ToPlayer();
+        Unit* actor = eventInfo.GetActor();
         Unit* target = eventInfo.GetActionTarget();
+        if (!actor || !target)
+            return;
+
         WeaponAttackType attType = BASE_ATTACK;
         if (eventInfo.GetTypeMask() & PROC_FLAG_DONE_OFFHAND_ATTACK)
             attType = OFF_ATTACK;
 
-        Item* item = player->GetWeaponForAttack(attType);
+        Item* item = GetWeaponForAttackType(actor, attType);
         if (!item)
             return;
 
         float basePoints = GetSpellInfo()->Effects[aurEff->GetEffIndex()].CalcValue();
 
         // Flametongue max damage is normalized based on a 4.0 speed weapon
-        float attackSpeed = player->GetAttackTime(attType) / 1000.f;
+        float attackSpeed = actor->GetAttackTime(attType) / 1000.f;
         float fireDamage = basePoints / 100.0f;
         fireDamage *= attackSpeed;
 
@@ -1592,14 +1648,14 @@ class spell_sha_flametongue_weapon : public AuraScript
         RoundToInterval(fireDamage, basePoints / 77.0f, basePoints / 25.0f);
 
         // Calculate Spell Power scaling
-        float spellPowerBonus = player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
+        float spellPowerBonus = actor->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE);
         spellPowerBonus += target->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_DAMAGE_TAKEN, SPELL_SCHOOL_MASK_FIRE);
 
         float const spCoeff = 0.03811f;
         spellPowerBonus *= spCoeff * attackSpeed;
 
         int32 totalDamage = int32(fireDamage + spellPowerBonus);
-        player->CastCustomSpell(SPELL_SHAMAN_FLAMETONGUE_ATTACK, SPELLVALUE_BASE_POINT0, totalDamage, target, true, item, aurEff);
+        actor->CastCustomSpell(SPELL_SHAMAN_FLAMETONGUE_ATTACK, SPELLVALUE_BASE_POINT0, totalDamage, target, true, item, aurEff);
     }
 
     void Register() override
@@ -2128,31 +2184,17 @@ class spell_sha_windfury_weapon : public AuraScript
         });
     }
 
-    Item* GetWeapon(Unit* actor) const
-    {
-        if (Player* player = actor->ToPlayer())
-            return player->GetItemByGuid(GetAura()->GetCastItemGUID());
-
-        if (Creature* creature = actor->ToCreature())
-            if (creature->IsNPCBot() && creature->GetBotAI())
-                return creature->GetBotAI()->GetEquipsByGuid(GetAura()->GetCastItemGUID());
-
-        return nullptr;
-    }
-
     bool CheckProc(ProcEventInfo& eventInfo)
     {
         Unit* actor = eventInfo.GetActor();
         if (!actor)
             return false;
 
-        Item* item = GetWeapon(actor);
+        Item* item = GetEnchantedWeapon(actor, GetAura()->GetCastItemGUID());
         if (!item || !item->IsEquipped())
             return false;
 
-        uint8 slot = item->GetSlot();
-        WeaponAttackType attType = slot == EQUIPMENT_SLOT_MAINHAND ? BASE_ATTACK :
-            slot == EQUIPMENT_SLOT_OFFHAND ? OFF_ATTACK : MAX_ATTACK;
+        WeaponAttackType attType = GetWeaponAttackType(actor, item);
         if (attType == MAX_ATTACK)
             return false;
 
@@ -2172,13 +2214,15 @@ class spell_sha_windfury_weapon : public AuraScript
         if (!actor || !target)
             return;
 
-        Item* item = GetWeapon(actor);
+        Item* item = GetEnchantedWeapon(actor, GetAura()->GetCastItemGUID());
         if (!item)
             return;
 
-        bool mainHand = item->GetSlot() == EQUIPMENT_SLOT_MAINHAND;
-        if (!mainHand && item->GetSlot() != EQUIPMENT_SLOT_OFFHAND)
+        WeaponAttackType attType = GetWeaponAttackType(actor, item);
+        if (attType == MAX_ATTACK)
             return;
+
+        bool mainHand = attType == BASE_ATTACK;
 
         uint32 spellId = mainHand ? SPELL_SHAMAN_WINDFURY_ATTACK_MH : SPELL_SHAMAN_WINDFURY_ATTACK_OH;
 

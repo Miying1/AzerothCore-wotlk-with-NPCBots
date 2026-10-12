@@ -242,6 +242,7 @@ public:
             _botclass = BOT_CLASS_WARLOCK;
 
             myPetType = 0;
+            petTypeManual = false;
 
             InitUnitFlags();
         }
@@ -901,8 +902,9 @@ public:
                 if (doCast(mytar, GetSpell(SOUL_FIRE_1)))
                     return;
             }
-            //熔火之心触发：优先烧尽（恶魔、毁灭双系通用，毁灭术点出后主要靠此补输出）
-            if (me->HasAura(MOLTEN_CORE_BUFF) && IsSpellReady(INCINERATE_1, diff) && can_do_fire &&
+            //熔火之心触发：优先烧尽（熔火之心为恶魔学识天赋，仅限恶魔系使用）
+            if (GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY && me->HasAura(MOLTEN_CORE_BUFF) &&
+                IsSpellReady(INCINERATE_1, diff) && can_do_fire &&
                 GetSpell(INCINERATE_1) && dist < CalcSpellMaxRange(INCINERATE_1))
             {
                 if (doCast(mytar, GetSpell(INCINERATE_1)))
@@ -1126,8 +1128,8 @@ public:
             uint32 baseId = spellInfo->GetFirstRankSpell()->Id;
             uint8 lvl = me->GetLevel();
 
-            //Molten Core part 2.2: 15% additional critical chance for Soul Fire
-            if (lvl >= 35 && baseId == SOUL_FIRE_1)
+            //Molten Core part 2.2: 15% additional critical chance for Soul Fire（熔火之心为恶魔学识天赋）
+            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && lvl >= 35 && baseId == SOUL_FIRE_1)
             {
                 moltencore = me->HasAura(MOLTEN_CORE_BUFF);
                 if (moltencore)
@@ -1139,13 +1141,11 @@ public:
                 lvl >= 30 && spellInfo->SpellFamilyName == SPELLFAMILY_WARLOCK &&
                 ((spellInfo->SpellFamilyFlags[0] & 0x3E5) || (spellInfo->SpellFamilyFlags[1] & 0x8310C0)))
                 crit_chance += 5.f;
-            //Fire and Brimstone part 2: 25% additional critical chance for Conflagrate
+            //Fire and Brimstone part 2: 10% additional critical chance for Conflagrate (rank 2)
             if ((GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) && lvl >= 55 && baseId == CONFLAGRATE_1)
-                crit_chance += 25.f;
-            //Malediction part 2: 9% additional critical chance for Corruption and Unstable Affliction
-            if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) &&
-                lvl >= 45 && (baseId == CORRUPTION_1 || baseId == UNSTABLE_AFFLICTION_1))
-                crit_chance += 9.f;
+                crit_chance += 10.f;
+            //注：恶意（Malediction）原为全法术 +3% 伤害，已在伤害修正中实现；其并无暴击效果，
+            //且腐蚀术/痛苦无常为周期性伤害不吃暴击，故此处不再额外加成
             //Glyph of Shadowburn: 20% additional critical chance for Shadowburn on targets 35% hp and below
             if (lvl >= 20 && baseId == SHADOWBURN_1 && victim && victim->HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT))
                 crit_chance += 20.f;
@@ -1214,8 +1214,8 @@ public:
                 lvl >= 55 && (baseId == INCINERATE_1 || baseId == CHAOS_BOLT_1) &&
                 damageinfo.target->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARLOCK, 0x4, 0x0, 0x0, me->GetGUID()))
                 pctbonus += 0.1f;
-            //Molten Core part 1: 18% bonus damage for Incinerate and Soul Fire（熔火之心：恶魔、毁灭双系通用天赋）
-            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY || GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) &&
+            //Molten Core part 1: 18% bonus damage for Incinerate and Soul Fire（熔火之心为恶魔学识天赋）
+            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
                 lvl >= 35 && (baseId == INCINERATE_1 || baseId == SOUL_FIRE_1))
             {
                 if (me->HasAura(MOLTEN_CORE_BUFF))
@@ -1238,7 +1238,7 @@ public:
 
             //Empowered Corruption: 36% spellpower bonus for Corruption
             if (lvl >= 25 && baseId == CORRUPTION_1)
-                fdamage += me->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * 0.86f * me->CalculateDefaultCoefficient(spellInfo, DOT) * me->CalculateLevelPenalty(spellInfo);
+                fdamage += me->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC) * 0.36f * me->CalculateDefaultCoefficient(spellInfo, DOT) * me->CalculateLevelPenalty(spellInfo);
             //Shadow and Flame: 20% spellpower bonus for Shadow Bolt, Shadowburn, Chaos Bolt and Incineration
             if ((GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) && lvl >= 45 &&
                 (baseId == SHADOW_BOLT_1 || baseId == CHAOS_BOLT_1 || baseId == SHADOWBURN_1 || baseId == INCINERATE_1))
@@ -1257,10 +1257,10 @@ public:
                 pctbonus += 0.1f;
             //Improved Corruption and Immolate (Updated) (61992): 5% bonus damage for Corruption and Immolate
             if (lvl >= 10 && (baseId == CORRUPTION_1 || baseId == IMMOLATE_1))
-                pctbonus += 0.15f;
+                pctbonus += 0.05f;
             //Improved Curse of Agony: 10% bonus damage for Curse of Agony
             if (lvl >= 10 && baseId == CURSE_OF_AGONY_1)
-                pctbonus += 0.6f;
+                pctbonus += 0.2f;
             //Shadow Mastery: 15% bonus damage for Shadow Spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_AFFLICTION) &&
                 lvl >= 35 && ((spellInfo->SpellFamilyFlags[0] & 0x80091) || spellInfo->SpellFamilyFlags[1] & 0x451910))
@@ -1278,15 +1278,14 @@ public:
                 pctbonus += 0.1f;
             //Warlock T94P Bonus (67231): 10% bonus damage for Immolate, Corruption and Unstable Affliction
             if (lvl >= 80 && (baseId == IMMOLATE_1 || baseId == CORRUPTION_1 || baseId == UNSTABLE_AFFLICTION_1))
-                pctbonus += 0.2f;
+                pctbonus += 0.1f;
 
             //Glyph of Immolate: 10% bonus damage for Immolate
             if (lvl >= 15 && baseId == IMMOLATE_1)
-                pctbonus += 0.5f;
+                pctbonus += 0.2f;
 
-            //Demonic Pact part 1: 10% bonus damage for all spells
-            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && lvl >= 55)
-                pctbonus *= 1.1f;
+            //注：恶魔契约（Demonic Pact）由宠物暴击触发的团队法伤增益实现，见 bpet_warlock.cpp，
+            //此处不再重复计入 10% 伤害加成
             //Master Demonologist part 1.1 (me): 5% bonus damage for Fire spells
             if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) &&
                 lvl >= 35 && GetBotsPet() && myPetType == BOT_PET_IMP && (spellInfo->GetSchoolMask() & SPELL_SCHOOL_MASK_FIRE))
@@ -1382,8 +1381,8 @@ public:
                 if (backdraft)
                     pctbonus += 0.3f;
             }
-            //Molten Core part 2.1: -30% cast time for Incinerate
-            if (lvl >= 35 && baseId == INCINERATE_1)
+            //Molten Core part 2.1: -30% cast time for Incinerate（熔火之心为恶魔学识天赋）
+            if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && lvl >= 35 && baseId == INCINERATE_1)
             {
                 moltencore = me->HasAura(MOLTEN_CORE_BUFF);
                 if (moltencore)
@@ -1629,8 +1628,8 @@ public:
                 hasSoulstone = true;
             }
 
-            //Glyph of Soul Link: +5% increased effect
-            if (baseId == SOUL_LINK_PET)
+            //Glyph of Soul Link: +5% increased effect（灵魂链接为恶魔学识天赋，其余专精不生效）
+            if (baseId == SOUL_LINK_PET && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
             {
                 if (AuraEffect* link = me->GetAuraEffect(spellId, 0))
                     link->ChangeAmount(link->GetAmount() + 5);
@@ -1764,8 +1763,8 @@ public:
                 {
                     //Improved Corruption and Immolate (37380): +3 sec duration for Immolate and Corruption
                     uint32 dur = per->GetDuration() + 3000;
-                    //Molten Core: + 9 sec duration for Immolate
-                    if ((GetSpec() == BOT_SPEC_WARLOCK_DESTRUCTION) && lvl >= 35 && baseId == IMMOLATE_1)
+                    //Molten Core: + 9 sec duration for Immolate（熔火之心为恶魔学识天赋）
+                    if ((GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY) && lvl >= 35 && baseId == IMMOLATE_1)
                         dur += 9000;
                     per->SetDuration(dur);
                     per->SetMaxDuration(dur);
@@ -1848,10 +1847,12 @@ public:
 
             uint32 entry;
 
-            if (myPetType)
-                entry = myPetType;
-            else if (me->GetLevel() >= 50 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
+            //恶魔学识专精：达到等级后优先召唤恶魔卫士（玩家手动指定宠物类型时除外）
+            if (!petTypeManual && me->GetLevel() >= 50 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
                 entry = BOT_PET_FELGUARD;
+            //沿用已选定的宠物类型（恶魔卫士为恶魔学识专属，洗点后需重新选择）
+            else if (myPetType && !(myPetType == BOT_PET_FELGUARD && GetSpec() != BOT_SPEC_WARLOCK_DEMONOLOGY))
+                entry = myPetType;
             else if (!IAmFree())
             {
                 if (me->GetLevel() >= 30 && master->GetMaxPower(POWER_MANA) > 1 &&
@@ -1872,7 +1873,7 @@ public:
                     entry = BOT_PET_IMP;
             }
             else
-                entry = urand(BOT_PET_WARLOCK_START, BOT_PET_WARLOCK_END);
+                entry = urand(BOT_PET_WARLOCK_START, BOT_PET_WARLOCK_END - 1); //恶魔卫士不参与随机
 
             //ensurance
             if ((entry == BOT_PET_VOIDWALKER && me->GetLevel() < 10) ||
@@ -1994,6 +1995,8 @@ public:
                     break;
                 case BOTAI_MISC_PET_TYPE:
                     myPetType = value;
+                    //0 = 自动（随等级/专精/队伍需求选择），其余（含"无宠物"）均视为手动指定
+                    petTypeManual = (value != 0);
                     UnsummonAll(false);
                     break;
                 default:
@@ -2133,8 +2136,8 @@ public:
             RefreshAura(IMPROVED_SHADOW_BOLT, level >= 10 ? 1 : 0);
             RefreshAura(AFTERMATH, level >= 15 ? 1 : 0);
             RefreshAura(BACKLASH, level >= 30 ? 1 : 0);
-            //熔火之心：恶魔、毁灭双系通用触发天赋（毁灭术同样点出）
-            RefreshAura(MOLTEN_CORE, (isDemo || isDest) && level >= 35 ? 1 : 0);
+            //熔火之心：恶魔学识天赋，仅恶魔系生效
+            RefreshAura(MOLTEN_CORE, isDemo && level >= 35 ? 1 : 0);
             RefreshAura(NETHER_PROTECTION, isDest && level >= 35 ? 1 : 0);
             RefreshAura(SOUL_LEECH, isDest && level >= 40 ? 1 : 0);
             RefreshAura(PYROCLASM, isDest && level >= 40 ? 1 : 0);
@@ -2198,6 +2201,7 @@ public:
         //Pet
         uint32 myPetType;
         uint32 petSummonTimer;
+        bool petTypeManual; //宠物类型是否由玩家（或存档）手动指定，手动指定优先于专精默认宠物
         //Special
         mutable bool backlash, shadowtrance, backdraft, moltencore, chaoticmind;
         bool canShadowWard;

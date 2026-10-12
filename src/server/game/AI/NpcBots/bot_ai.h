@@ -405,6 +405,11 @@ protected:
     virtual bool HealTarget(Unit* /*target*/, uint32 /*diff*/) { return false; }
     virtual bool BuffTarget(Unit* /*target*/, uint32 /*diff*/) { return false; }
 
+    // 武器临时附魔（萨满武器附魔、盗贼毒药）立即刷新：对话菜单选定后调用，
+    // 否则只能等到 bot 脱战静止时由 DoNonCombatActions() 自动施加。默认无实现，
+    // 由需要武器附魔的职业（萨满等）覆盖
+    virtual void RefreshWeaponEnchants(uint8 /*slot*/) {}
+
     void BuffAndHealGroup(uint32 diff);
     void ResurrectGroup(uint32 REZZ);
     void CureGroup(uint32 cureSpell, uint32 diff);
@@ -582,7 +587,8 @@ protected:
     void ReportSpellCast(uint32 spellId, const std::string& followedByString, Player const* target) const;
 
     void ApplyItemEnchantment(Item* item, EnchantmentSlot eslot, uint8 slot);
-    void RemoveItemClassEnchantment(uint8 slot);
+    // force = true 时跳过"计时器为 0 就不清理"的判断，用于卸下装备等必须清干净的场景
+    void RemoveItemClassEnchantment(uint8 slot, bool force = false);
 
     bool IsCastingOnMyParty(Unit const* unit, int32 cast_time = 0) const;
 

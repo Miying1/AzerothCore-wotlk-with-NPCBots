@@ -6319,6 +6319,12 @@ void AuraEffect::HandlePeriodicTriggerSpellAuraTick(Unit* target, Unit* caster) 
             if (GetSpellInfo()->Effects[GetEffIndex()].TargetA.GetCheckType() == TARGET_CHECK_ENTRY || GetSpellInfo()->Effects[GetEffIndex()].TargetB.GetCheckType() == TARGET_CHECK_ENTRY)
                 triggerFlags = TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST);
 
+            //临时诊断：定位 NPCBot 利刃风暴无伤害问题（确认原因后可移除）
+            if (auraId == 46924 || triggeredSpellInfo->Id == 50622)
+                LOG_ERROR("spells.aura", "DIAG: periodic aura {} triggers {}, triggerCaster {} isBot {}, unit target {}",
+                    auraId, triggeredSpellInfo->Id, triggerCaster->GetName(), triggerCaster->IsNPCBot(),
+                    targets.GetUnitTarget() ? targets.GetUnitTarget()->GetName() : "null");
+
             triggerCaster->CastSpell(targets, triggeredSpellInfo, nullptr, triggerFlags, nullptr, this);
             LOG_DEBUG("spells.aura", "AuraEffect::HandlePeriodicTriggerSpellAuraTick: Spell {} Trigger {}", GetId(), triggeredSpellInfo->Id);
         }

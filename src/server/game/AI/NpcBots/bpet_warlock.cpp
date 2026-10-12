@@ -1,6 +1,7 @@
 #include "bot_ai.h"
 #include "bpet_ai.h"
 #include "botmgr.h"
+#include "Log.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
@@ -66,6 +67,17 @@ public:
     {
         warlock_botpetAI(Creature* creature) : bot_pet_ai(creature) { }
 
+        //恶魔契约内置冷却（毫秒），独立于法术冷却表管理
+        uint32 _demonicPactCd{0};
+
+        void ReduceCD(uint32 diff) override
+        {
+            if (_demonicPactCd > diff)
+                _demonicPactCd -= diff;
+            else
+                _demonicPactCd = 0;
+        }
+
         void JustEngagedWith(Unit* u) override { bot_pet_ai::JustEngagedWith(u); }
         void KilledUnit(Unit* u) override { bot_pet_ai::KilledUnit(u); }
         void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override { bot_pet_ai::EnterEvadeMode(why); }
@@ -82,9 +94,27 @@ public:
 
         void DoPetActions(uint32 diff)
         {
-            if (GetSpell(SOUL_LINK_PET) && !petOwner->HasAuraTypeWithCaster(SPELL_AURA_SPLIT_DAMAGE_PCT, me->GetGUID()))
+            //恶魔契约：战斗中按需触发（DamageDealt 回调之外的兜底）
+            TryDemonicPact();
+
+            //灵魂链接（Soul Link）属于恶魔学识天赋：仅恶魔学识专精可用，痛苦/毁灭天赋下不使用
+            bool const soulLinkAllowed =
+                petOwner->GetBotAI() &&
+                petOwner->GetBotAI()->GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY &&
+                petOwner->GetLevel() >= 20;
+
+            if (soulLinkAllowed && GetSpell(SOUL_LINK_PET) &&
+                !petOwner->HasAuraTypeWithCaster(SPELL_AURA_SPLIT_DAMAGE_PCT, me->GetGUID()))
             {
                 me->CastSpell(me, SOUL_LINK_PET, false);
+                return;
+            }
+            //非恶魔学识专精（含洗点后）时清除残留的灵魂链接光环
+            if (!soulLinkAllowed &&
+                (me->HasAura(SOUL_LINK_PET) || petOwner->HasAuraTypeWithCaster(SPELL_AURA_SPLIT_DAMAGE_PCT, me->GetGUID())))
+            {
+                me->RemoveAurasDueToSpell(SOUL_LINK_PET);
+                petOwner->RemoveAurasDueToSpell(SOUL_LINK_PET, me->GetGUID());
                 return;
             }
             if (myType == BOT_PET_IMP)
@@ -334,26 +364,42 @@ public:
         {
             bot_pet_ai::DamageDealt(victim, damage, damageType, damageSchoolMask);
 
-            //恶魔契约：宠物暴击后触发团队增益（仅恶魔学专精，55级+）
-            if (damage && petOwner && petOwner->GetBotAI() && 
-                damageType == SPELL_DIRECT_DAMAGE && //仅直接伤害
-                petOwner->GetLevel() >= 55 &&
-                petOwner->GetBotAI()->GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
+            //恶魔契约：宠物造成直接伤害（近战白字或法术）时尝试触发
+            if (damage && (damageType == DIRECT_DAMAGE || damageType == SPELL_DIRECT_DAMAGE))
+                TryDemonicPact();
+        }
+
+        //恶魔契约（Demonic Pact）：给术士及其小队/团队施加法术强度增益
+        void TryDemonicPact()
+        {
+            if (_demonicPactCd || !petOwner || !petOwner->GetBotAI())
+                return;
+
+            //宠物正在攻击目标时触发（术士或宠物任一进入战斗即可）
+            if (!me->GetVictim() || (!petOwner->IsInCombat() && !me->IsInCombat()))
+                return;
+
+            if (petOwner->GetLevel() < 55 || petOwner->GetBotAI()->GetSpec() != BOT_SPEC_WARLOCK_DEMONOLOGY)
+                return;
+
+            //法术强度加成：术士法伤的 10%（60级起），未满 60 级给 2%
+            int32 spBonus = petOwner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC);
+            int32 bp = static_cast<int32>((petOwner->GetLevel() >= 60 ? 0.10f : 0.02f) * spBonus);
+            if (bp <= 0)
+                return;
+
+            //48090 的目标为 TARGET_UNIT_CASTER_AREA_RAID，由术士自身施放才能覆盖到本人及队友
+            petOwner->CastCustomSpell(petOwner, DEMONIC_PACT_PROC, &bp, &bp, nullptr, true);
+            //统一光环时长，配合 60 秒内置 CD 稳定在约 75% 覆盖率
+            if (Aura* pact = petOwner->GetAura(DEMONIC_PACT_PROC, petOwner->GetGUID()))
             {
-                //使用内部 CD 优化（60秒，平衡覆盖率约 75%）
-                if (IsSpellReady(DEMONIC_PACT_PROC, 0, false))
-                {
-                    //计算法术强度加成：8% 或 2% * 主人法术伤害
-                    int32 spBonus = petOwner->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_MAGIC);
-                    int32 bp = static_cast<int32>((petOwner->GetLevel() >= 60 ? 0.08f : 0.02f) * spBonus);
-                    
-                    if (bp > 0)
-                    {
-                        petOwner->CastCustomSpell(petOwner, DEMONIC_PACT_PROC, &bp, &bp, nullptr, true);
-                        SetSpellCooldown(DEMONIC_PACT_PROC, 60000); //60秒内置CD
-                    }
-                }
+                pact->SetDuration(45000);
+                pact->SetMaxDuration(45000);
             }
+            _demonicPactCd = 60000;
+
+            LOG_DEBUG("npcbots.pet", "Demonic Pact: pet {} grants {} spell power to owner {}",
+                me->GetName(), bp, petOwner->GetName());
         }
 
         void DamageTaken(Unit* u, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellSchoolMask /*schoolMask*/) override

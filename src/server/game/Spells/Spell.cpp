@@ -3592,6 +3592,12 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     SpellCastResult result = CheckCast(true);
     if (result != SPELL_CAST_OK && !IsAutoRepeat())          //always cast autorepeat dummy for triggering
     {
+        //临时诊断：定位 NPCBot 利刃风暴无伤害问题（确认原因后可整段移除）
+        if (m_spellInfo->Id == 50622 || m_spellInfo->Id == 46924 || (triggeredByAura && triggeredByAura->GetId() == 46924))
+            LOG_ERROR("spells.aura", "DIAG: spell {} CheckCast failed: result {}, caster {} isBot {} triggeredByAura {}",
+                m_spellInfo->Id, uint32(result), m_caster->GetName(), m_caster->IsNPCBot(),
+                triggeredByAura ? triggeredByAura->GetId() : 0);
+
         // Periodic auras should be interrupted when aura triggers a spell which can't be cast
         // for example bladestorm aura should be removed on disarm as of patch 3.3.5
         // channeled periodic spells should be affected by this (arcane missiles, penance, etc)

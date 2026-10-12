@@ -19,6 +19,9 @@
  *   - 物品通过 item_template.ScriptName 绑定脚本；
  *     spellid_1 = 18282（无效果触发法术）使客户端把礼包当作「可使用」物品，
  *     OnUse 返回 true 会阻止该法术施放，因此礼包不会被默认消耗。
+ *   - 发放时不用 Player::AddItem（它只触发 OnPlayerStoreNewItem），而是手动入库拿到
+ *     Item* 并触发 OnPlayerCreateItem，使装备能被 mod-random-enchants 随机附魔
+ *     （由 RandomEnchants.OnCreate 开关控制）。
  */
 
 #include "Chat.h"
@@ -442,12 +445,29 @@ void GiveRandomGift(Player* player, Item* item, std::vector<GiftCandidate> const
     uint32 entry = entries[urand(0, uint32(entries.size()) - 1)];
     ItemTemplate const* proto = sObjectMgr->GetItemTemplate(entry);
 
-    // 背包空间不足时 AddItem 会自行提示，此处不扣除礼包，允许玩家重新选择
-    if (!player->AddItem(entry, 1))
+    // 不用 Player::AddItem：它只触发 OnPlayerStoreNewItem，随机附魔模块不会处理，
+    // 发放出来的装备会是白板。这里手动入库拿到 Item*，先触发 OnPlayerCreateItem
+    // 让装备走一次随机附魔（由 RandomEnchants.OnCreate 开关控制），再把物品发给
+    // 客户端，保证玩家第一次看到的就是带随机属性的成品。
+    ItemPosCountVec dest;
+    InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry, 1);
+    if (msg != EQUIP_ERR_OK || dest.empty())
+    {
+        // 背包空间不足时不扣除礼包，允许玩家重新选择
+        CloseGossipMenuFor(player);
+        ChatHandler(player->GetSession()).PSendSysMessage("你的背包没有空间了.");
+        return;
+    }
+
+    Item* newItem = player->StoreNewItem(dest, entry, true);
+    if (!newItem)
     {
         CloseGossipMenuFor(player);
         return;
     }
+
+    sScriptMgr->OnPlayerCreateItem(player, newItem, 1);
+    player->SendNewItem(newItem, 1, true, false);
 
     CloseGossipMenuFor(player);
     player->DestroyItemCount(item->GetEntry(), 1, true);

@@ -3442,10 +3442,10 @@ void bot_ai::SetStats(bool force)
                 //Fel Armor + Demonic Aegis - 39% Spirit to spell power
                 value += 0.39f * _getTotalBotStat(BOT_STAT_MOD_SPIRIT);
             }
-            //Demonic Knowledge
+            //Demonic Knowledge: 宠物耐力与智力之和的 12% 转化为法术伤害
             if (Creature* pet = GetBotsPet())
                 if (pet->IsAlive() && mylevel >= 40 && GetSpec() == BOT_SPEC_WARLOCK_DEMONOLOGY)
-                    value += 0.12f * pet->GetStat(STAT_STAMINA) + pet->GetStat(STAT_INTELLECT);
+                    value += 0.12f * (pet->GetStat(STAT_STAMINA) + pet->GetStat(STAT_INTELLECT));
             //Glyph of Life Tap: 20% of spirit to spellpower
             if (me->GetAuraEffect(SPELL_AURA_MOD_SPELL_DAMAGE_OF_STAT_PERCENT, SPELLFAMILY_WARLOCK, 208, 0))
                 value += 0.2f * _getTotalBotStat(BOT_STAT_MOD_SPIRIT);
@@ -9362,6 +9362,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 {
                     uint32 baseId = action - GOSSIP_ACTION_INFO_DEF;
                     SetAIMiscValue(BOTAI_MISC_ENCHANT_CURRENT_MH, baseId);
+                    // 立刻换掉主手现有的附魔，否则要等 bot 脱战静止时才会自动刷新
+                    RefreshWeaponEnchants(BOT_SLOT_MAINHAND);
                     break;
                 }
             }
@@ -9381,6 +9383,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 {
                     uint32 baseId = action - GOSSIP_ACTION_INFO_DEF;
                     SetAIMiscValue(BOTAI_MISC_ENCHANT_CURRENT_OH, baseId);
+                    // 立刻换掉副手现有的附魔，否则要等 bot 脱战静止时才会自动刷新
+                    RefreshWeaponEnchants(BOT_SLOT_OFFHAND);
                     break;
                 }
             }
@@ -13981,6 +13985,12 @@ void bot_ai::_removeEquipment(uint8 slot)
     RemoveItemBonuses(slot);
     ApplyItemSetBonuses(item, false);
 
+    // 卸下武器时把临时附魔（萨满武器附魔、盗贼毒药）的数据一起清掉。
+    // 只清光环是不够的：物品上残留的 TEMP 槽附魔 id 会让 bot 认为武器已经有附魔，
+    // 于是重新装备同一把武器后再也不会重新施加附魔
+    if (slot < BOT_FIRST_NON_MELEE_SLOT)
+        RemoveItemClassEnchantment(slot, true);
+
     if (slot == BOT_SLOT_OFFHAND)
     {
         if (me->CanDualWield())
@@ -14628,11 +14638,11 @@ void bot_ai::RemoveItemEnchantment(Item const* item, EnchantmentSlot eslot)
     }
 }
 
-void bot_ai::RemoveItemClassEnchantment(uint8 slot)
+void bot_ai::RemoveItemClassEnchantment(uint8 slot, bool force/* = false*/)
 {
     uint8 eslot = TEMP_ENCHANTMENT_SLOT;
 
-    if (!GetAIMiscValue(slot == BOT_SLOT_MAINHAND ? BOTAI_MISC_ENCHANT_TIMER_MH : BOTAI_MISC_ENCHANT_TIMER_OH))
+    if (!force && !GetAIMiscValue(slot == BOT_SLOT_MAINHAND ? BOTAI_MISC_ENCHANT_TIMER_MH : BOTAI_MISC_ENCHANT_TIMER_OH))
         return;
 
     Item* weap = _equips[slot];
@@ -14643,12 +14653,15 @@ void bot_ai::RemoveItemClassEnchantment(uint8 slot)
 
     for (auto s : NPCBots::index_array<uint8, MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS>)
         weap->SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + eslot*MAX_ENCHANTMENT_OFFSET + s, 0);
+
+    // 附魔已经清掉了，重置刷新计时器，避免它到期后再次清理时误伤新附的魔
+    SetAIMiscValue(slot == BOT_SLOT_MAINHAND ? BOTAI_MISC_ENCHANT_TIMER_MH : BOTAI_MISC_ENCHANT_TIMER_OH, 0);
 }
 
 void bot_ai::RemoveItemClassEnchantments()
 {
     for (auto slot : NPCBots::index_array<uint8, BOT_FIRST_NON_MELEE_SLOT>)
-        RemoveItemClassEnchantment(slot);
+        RemoveItemClassEnchantment(slot, true);
 }
 
 void bot_ai::ApplyItemEquipSpells(Item* item, bool apply)
