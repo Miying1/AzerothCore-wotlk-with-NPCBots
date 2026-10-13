@@ -16,8 +16,8 @@
 #include "TemporarySummon.h"
 /*
 Priest NpcBot (reworked by Trickerer onlysuffering@gmail.com)
-Complete - Around 90%
-TODO: Mana Burn, Binding Heal, Lightwell
+Complete - Around 95%
+战斗逻辑按专精拆分（戒律 / 神圣 / 暗影），风格参考术士 BOT 重构
 */
 
 enum PriestBaseSpells
@@ -43,6 +43,7 @@ enum PriestBaseSpells
     GREATER_HEAL_1                      = 2060,
     RENEW_1                             = 139,
     FLASH_HEAL_1                        = 2061,
+    BINDING_HEAL_1                      = 32546,
     PRAYER_OF_HEALING_1                 = 596,
     CIRCLE_OF_HEALING_1                 = 34861,
     DIVINE_HYMN_1                       = 64843,
@@ -54,6 +55,7 @@ enum PriestBaseSpells
     SHADOW_PROTECTION_1                 = 976,
     DIVINE_SPIRIT_1                     = 14752,
     HOLY_FIRE_1                         = 14914,
+    HOLY_NOVA_1                         = 15237,
     SMITE_1                             = 585,
     SW_PAIN_1                           = 589,
     MIND_BLAST_1                        = 8092,
@@ -66,6 +68,8 @@ enum PriestBaseSpells
     DESPERATE_PRAYER_1                  = 19236,
     POWER_INFUSION_1                    = 10060,
     HYMN_OF_HOPE_1                      = 64901,
+    MANA_BURN_1                         = 8129,
+    LIGHTWELL_1                         = 724,
 
     LEVITATE_1                          = 1706
 };
@@ -79,7 +83,7 @@ enum PriestPassives
     QH_ANYANSHU = 15317,//rank 2强化暗言术：痛
     QH_JIZHONG = 15328,//暗影集中
     QH_XINGLINGBAOZHENG = 15316,//强化心灵震爆
-    QH_ZHEBIZHIYING = 15311,//遮蔽之影 
+    QH_ZHEBIZHIYING = 15311,//遮蔽之影
     SHADOW_WEAVING1                 = 15257,//暗影交织
     SHADOW_WEAVING2                 = 15331,
     SHADOW_WEAVING3                 = 15332,
@@ -128,17 +132,18 @@ enum PriestPassives
     NENGLIANGJIZHONG = 33190,//能量集中
     QIDI = 34910,//启迪
     KUAISUZHIL = 63506,//强化快速治疗
-    KEWANG = 47508,//渴望 
+    KEWANG = 47508,//渴望
 //Glyphs
-    //GLYPH_SW_PAIN                   = 55681,
+    GLYPH_SW_PAIN                   = 55681,//痛点雕文：暗言术：痛 +10% 爆击
     GLYPH_KUXIU = 63235,//苦修雕文
     GLYPH_PW_SHIELD                 = 55672,
     GLYPH_DISPEL_MAGIC              = 55677,
     GLYPH_PRAYER_OF_HEALING         = 55680,
     GLYPH_SHADOW                    = 55689,//暗影雕文
     GLYPH_BIANCHI = 55687,//精神鞭笞雕文
-//other
-    PRIEST_T10_2P_BONUS             = 70770 //33% renew
+//套装与其他
+    PRIEST_T10_2P_BONUS             = 70770,//T10 2件套：恢复 33% 额外治疗
+    PRIEST_T10_SHADOW_2P_BONUS      = 49868 //T10 暗影 2件套：吸血鬼之触 +6 秒持续时间
 };
 enum PriestSpecial
 {
@@ -156,20 +161,21 @@ enum PriestSpecial
     IMPROVED_MIND_BLAST_DEBUFF      = 48301,//Mind Trauma
     HYMN_OF_HOPE_BUFF               = 64904,
 
+    MISERY_DEBUFF                   = 33198,//悲惨：目标受到法术伤害 +3%
     SHADOWFIEND_1                   = 34433
 };
 
 static const std::vector<uint32> Priest_spells_damage
-{ DEVOURING_PLAGUE_1, HOLY_FIRE_1, MIND_BLAST_1, MIND_FLAY_1, MIND_SEAR_1, PENANCE_1, SMITE_1, SW_PAIN_1, SW_DEATH_1, VAMPIRIC_TOUCH_1 };
+{ DEVOURING_PLAGUE_1, HOLY_FIRE_1, HOLY_NOVA_1, MIND_BLAST_1, MIND_FLAY_1, MIND_SEAR_1, PENANCE_1, SMITE_1, SW_PAIN_1, SW_DEATH_1, VAMPIRIC_TOUCH_1 };
 static const std::vector<uint32> Priest_spells_cc
 { PSYCHIC_HORROR_1, PSYCHIC_SCREAM_1, SHACKLE_UNDEAD_1, SILENCE_1 };
 static const std::vector<uint32> Priest_spells_heal
-{ RENEW_1, FLASH_HEAL_1, LESSER_HEAL_1, NORMAL_HEAL_1, GREATER_HEAL_1, PRAYER_OF_HEALING_1, PRAYER_OF_MENDING_1,
-GUARDIAN_SPIRIT_1, PENANCE_1, DIVINE_HYMN_1, CIRCLE_OF_HEALING_1, DESPERATE_PRAYER_1 };
+{ RENEW_1, FLASH_HEAL_1, BINDING_HEAL_1, LESSER_HEAL_1, NORMAL_HEAL_1, GREATER_HEAL_1, PRAYER_OF_HEALING_1, PRAYER_OF_MENDING_1,
+GUARDIAN_SPIRIT_1, PENANCE_1, DIVINE_HYMN_1, CIRCLE_OF_HEALING_1, DESPERATE_PRAYER_1, LIGHTWELL_1 };
 static const std::vector<uint32> Priest_spells_support
 { PW_FORTITUDE_1, DIVINE_SPIRIT_1, SHADOW_PROTECTION_1, ABOLISH_DISEASE_1, CURE_DISEASE_1,
 DISPEL_MAGIC_1, MASS_DISPEL_1, DISPERSION_1, FADE_1, FEAR_WARD_1, HYMN_OF_HOPE_1, INNER_FIRE_1, INNER_FOCUS_1,
-LEVITATE_1, PAIN_SUPPRESSION_1, POWER_INFUSION_1, PW_SHIELD_1, RESURRECTION_1, SHADOWFORM_1, VAMPIRIC_EMBRACE_1 };
+LEVITATE_1, PAIN_SUPPRESSION_1, POWER_INFUSION_1, PW_SHIELD_1, RESURRECTION_1, SHADOWFORM_1, VAMPIRIC_EMBRACE_1, MANA_BURN_1 };
 
 class priest_bot : public CreatureScript
 {
@@ -278,7 +284,8 @@ public:
                     if (++LHPcount2 > 3)
                         break;
                 }
-                if (canCirc && pct < 85 && dist < 40 && (!castTarget || castTarget->GetDistance(member) < 18))
+                //治疗之环放宽：≥1 人 <80% 且 15 码内有第二个低血单位（5 人小队可正常触发）
+                if (canCirc && pct < 80 && dist < 40 && (!castTarget || castTarget->GetDistance(member) < 15))
                 {
                     if (++LHPcount3 > 1)
                         break;
@@ -377,6 +384,77 @@ public:
             return false;
         }
 
+        //戒律系：为坦克/被点名目标维持真言术：盾，用于激活新生希望与争分夺秒（G2）
+        //返回 true 表示为戒律系并已接管坦克盾职责（此时 ShieldGroup 无需重复遍历）
+        bool MaintainWeakenedSoul(uint32 diff)
+        {
+            if (GetSpec() != BOT_SPEC_PRIEST_DISCIPLINE)
+                return false;
+            if (!IsSpellReady(PW_SHIELD_1, false, diff) || IsCasting())
+                return true;
+
+            Group const* gr = !IAmFree() ? master->GetGroup() : GetGroup();
+            if (!gr)
+                return true;
+
+            for (Unit* member : BotMgr::GetAllGroupMembers(gr))
+            {
+                if (me->GetMap() != member->FindMap() || !member->IsAlive() || !member->IsInCombat() ||
+                    member->isPossessed() || member->IsCharmed() || (member->IsNPCBot() && member->ToCreature()->IsTempBot()) ||
+                    (!IsTank(member) && !IsPointedHealTarget(member)))
+                    continue;
+                //虚弱灵魂与已有盾的判重统一由 ShieldTarget 处理，避免此处重复查询光环
+                if (ShieldTarget(member, diff))
+                    break;
+            }
+
+            return true;
+        }
+
+        //光明之泉：团队低血量时放置，供队友自行点击治疗（G5）
+        void CheckLightwell(uint32 diff)
+        {
+            if (!GetSpell(LIGHTWELL_1) || Lightwell_Timer > diff || IsCasting() || Rand() > 25)
+                return;
+
+            Lightwell_Timer = urand(15000, 25000);
+
+            Group const* gr = !IAmFree() ? master->GetGroup() : GetGroup();
+            if (!gr)
+                return;
+
+            uint8 lowCount = 0;
+            for (Unit const* member : BotMgr::GetAllGroupMembers(gr))
+            {
+                if (me->GetMap() != member->FindMap() || !member->IsAlive() || !member->IsInCombat() ||
+                    me->GetDistance(member) > 30)
+                    continue;
+                if (GetHealthPCT(member) < 70 && ++lowCount > 1)
+                    break;
+            }
+
+            if (lowCount > 1 && doCast(me, GetSpell(LIGHTWELL_1)))
+                return;
+        }
+
+        //法力燃烧：对高蓝量法系目标抽取法力（G5）
+        void CheckManaBurn(uint32 diff)
+        {
+            if (!GetSpell(MANA_BURN_1) || ManaBurn_Timer > diff || IsCasting() || Rand() > 40)
+                return;
+
+            ManaBurn_Timer = urand(1000, 2000);
+
+            if (Unit* target = me->GetVictim())
+            {
+                if (target->GetPowerType() == POWER_MANA && GetManaPCT(target) > 30 &&
+                    target->GetMaxPower(POWER_MANA) > me->GetMaxPower(POWER_MANA) &&
+                    me->GetDistance(target) < CalcSpellMaxRange(MANA_BURN_1) &&
+                    doCast(target, GetSpell(MANA_BURN_1)))
+                    return;
+            }
+        }
+
         void StartAttack(Unit* u, bool force = false)
         {
             if (!bot_ai::StartAttack(u, force))
@@ -446,23 +524,40 @@ public:
 
             doDefend(diff);
 
-            if (me->GetMap()->IsRaid())
+            //治疗系（戒律/神圣）：团刷 → 维持坦克虚弱灵魂/盾 → 愈合祷言 → 单体治疗
+            if (HasRole(BOT_ROLE_HEAL) && GetSpec() != BOT_SPEC_PRIEST_SHADOW)
             {
-                CureGroup(GetSpell(DISPEL_MAGIC_1), diff);
-                CureGroup(GetSpell(ABOLISH_DISEASE_1) ? GetSpell(ABOLISH_DISEASE_1) : GetSpell(CURE_DISEASE_1), diff);
-                MassGroupHeal(diff);
-                ShieldGroup(diff);
-                CheckMending(diff);
-                BuffAndHealGroup(diff);
+                //戒律系由 MaintainWeakenedSoul 接管坦克盾，跳过 ShieldGroup 以免重复遍历全团
+                bool tankShieldHandled =
+                    (GetSpec() == BOT_SPEC_PRIEST_DISCIPLINE) && MaintainWeakenedSoul(diff);
+
+                if (me->GetMap()->IsRaid())
+                {
+                    CureGroup(GetSpell(DISPEL_MAGIC_1), diff);
+                    CureGroup(GetSpell(ABOLISH_DISEASE_1) ? GetSpell(ABOLISH_DISEASE_1) : GetSpell(CURE_DISEASE_1), diff);
+                    MassGroupHeal(diff);
+                    if (!tankShieldHandled)
+                        ShieldGroup(diff);
+                    CheckMending(diff);
+                    CheckLightwell(diff);
+                    BuffAndHealGroup(diff);
+                }
+                else
+                {
+                    MassGroupHeal(diff);
+                    if (!tankShieldHandled)
+                        ShieldGroup(diff);
+                    CheckMending(diff);
+                    CheckLightwell(diff);
+                    BuffAndHealGroup(diff);
+                    CureGroup(GetSpell(DISPEL_MAGIC_1), diff);
+                    CureGroup(GetSpell(CURE_DISEASE_1), diff);
+                }
             }
             else
             {
-                MassGroupHeal(diff);
-                ShieldGroup(diff);
-                CheckMending(diff);
                 BuffAndHealGroup(diff);
                 CureGroup(GetSpell(DISPEL_MAGIC_1), diff);
-                CureGroup(GetSpell(CURE_DISEASE_1), diff);
             }
 
             if (master->IsInCombat() || me->IsInCombat())
@@ -470,6 +565,7 @@ public:
                 CheckSilence(diff);
                 CheckDispel(diff);
                 CheckHymnOfHope(diff);
+                CheckManaBurn(diff);
             }
 
             Counter(diff);
@@ -485,7 +581,9 @@ public:
             if (IsCasting())
                 return;
 
-            if (IsSpellReady(SHADOWFORM_1, diff) && HasRole(BOT_ROLE_DPS) && !HasRole(BOT_ROLE_HEAL))
+            //暗影形态维护：纯输出暗影牧战斗中主动进入
+            if (IsSpellReady(SHADOWFORM_1, diff) && HasRole(BOT_ROLE_DPS) && !HasRole(BOT_ROLE_HEAL) &&
+                me->GetShapeshiftForm() != FORM_SHADOW)
             {
                 if (doCast(me, SHADOWFORM_1))
                     return;
@@ -499,10 +597,36 @@ public:
 
             CheckUsableItems(diff);
 
-            Attack(diff);
+            DoNormalAttack(diff);
         }
 
-        void Attack(uint32 diff)
+        //目标是否仍可用于施法：存在、存活、且与自身同地图
+        bool CanCastOnTarget(Unit const* target) const
+        {
+            return target && target->IsInWorld() && target->IsAlive() && me->GetMap() == target->FindMap();
+        }
+
+        //判断自身施放的 DoT 是否需补：光环缺失，或剩余时间 ≤ 1 秒（避免断档）时按概率补
+        //randLimit：Rand() 阈值（Rand() 取值 0~100，越大触发概率越高）
+        bool AuraNeedsRefresh(AuraEffect const* eff, uint16 randLimit) const
+        {
+            return (!eff || eff->GetBase()->GetDuration() < 1000) && Rand() < randLimit;
+        }
+
+        //光环是否缺失或即将到期（剩余 < remainMs）：用于延长类 DoT/HoT 的提前补刷
+        bool AuraExpiringSoon(AuraEffect const* eff, uint32 remainMs) const
+        {
+            return !eff || eff->GetBase()->GetDuration() < int32(remainMs);
+        }
+
+        //目标血量是否足以让长持续 DoT 划算（短命目标跳过）
+        bool TargetWorthDotting(Unit const* target) const
+        {
+            return target->GetHealth() > me->GetMaxHealth() / 4 * (1 + target->getAttackers().size());
+        }
+
+        //单体输出入口：控制 → 反射破除 → 按专精分发循环 → 兜底填充（魔杖）
+        void DoNormalAttack(uint32 diff)
         {
             Unit* mytar = opponent ? opponent : disttarget ? disttarget : nullptr;
             if (!mytar)
@@ -525,6 +649,7 @@ public:
 
             auto [can_do_shadow, can_do_holy] = CanAffectVictimBools(mytar, SPELL_SCHOOL_SHADOW, SPELL_SCHOOL_HOLY);
 
+            //心灵恐慌：反制持械近战目标
             if (IsSpellReady(PSYCHIC_HORROR_1, diff) && can_do_shadow && Rand() < 20 &&
                 mytar->GetHealth() > me->GetMaxHealth()/8 && !CCed(mytar) &&
                 !mytar->HasAuraType(SPELL_AURA_MOD_DISARM) &&
@@ -544,61 +669,45 @@ public:
             if (!HasRole(BOT_ROLE_DPS))
                 return;
 
-            if (IsSpellReady(SHADOWFIEND_1, diff) && GetManaPCT(me) < 50)
+            //暗影魔：蓝量吃紧或爆发期召唤（配合 Veiled Shadows 缩短 CD）
+            if (GetSpec() == BOT_SPEC_PRIEST_SHADOW && IsSpellReady(SHADOWFIEND_1, diff) && GetManaPCT(me) < 60)
             {
                 SummonBotPet(mytar);
-                SetSpellCooldown(SHADOWFIEND_1, 180000); // (5 - 2) min with Veiled Shadows
+                SetSpellCooldown(SHADOWFIEND_1, 180000); //基础 5 分钟，Veiled Shadows -2 分钟
+                return;
             }
 
-            if (!HasRole(BOT_ROLE_HEAL) || GetManaPCT(me) > 35 || GetBotsPet())
+            //混合角色的蓝量门控：蓝量过低且无宠物回蓝时暂停输出（保留 1 分蓝量给治疗）
+            if (HasRole(BOT_ROLE_HEAL) && GetManaPCT(me) <= 35 && !GetBotsPet())
+                return;
+
+            //AOE 输出分支：神圣新星（神圣/戒律，近身多目标）
+            if (DoAoeRotation(diff, mytar, can_do_holy))
+                return;
+
+            //按专精运行对应的输出优先级
+            bool casted = false;
+            switch (GetSpec())
             {
-                if (IsSpellReady(SW_DEATH_1, diff) && can_do_shadow && Rand() < 90 && GetHealthPCT(me) > 50 &&
-                    (me->GetMap()->IsRaid() || GetHealthPCT(mytar) < 15 || mytar->GetHealth() < me->GetMaxHealth()/8) &&
-                    doCast(mytar, GetSpell(SW_DEATH_1)))
-                    return;
-                if (IsSpellReady(VAMPIRIC_TOUCH_1, diff) && can_do_shadow && Rand() < 80 &&
-                    mytar->GetHealth() > me->GetMaxHealth()/4 * (1 + mytar->getAttackers().size()) &&
-                    !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x0, 0x400, 0x0, me->GetGUID()) &&
-                    doCast(mytar, GetSpell(VAMPIRIC_TOUCH_1)))
-                    return;
-                if (IsSpellReady(SW_PAIN_1, diff) && can_do_shadow && Rand() < 100 &&
-                    mytar->GetHealth() > me->GetMaxHealth()/2 * (1 + mytar->getAttackers().size()) &&
-                    !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x8000, 0x0, 0x0, me->GetGUID()))
-                {
-                    AuraEffect const* weav = me->GetAuraEffect(SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, SPELLFAMILY_PRIEST, 0x0, 0x8, 0x0);
-                    if (me->GetLevel() < 60 || (weav && weav->GetBase()->GetStackAmount() >= 4))
-                        if (doCast(mytar, GetSpell(SW_PAIN_1)))
-                            return;
-                }
-                if (IsSpellReady(DEVOURING_PLAGUE_1, diff) && can_do_shadow && !Devcheck && Rand() < 100 &&
-                    (GetSpec() == BOT_SPEC_PRIEST_SHADOW || mytar->IsControlledByPlayer()) &&
-                    mytar->GetHealth() > me->GetMaxHealth()/2 * (1 + mytar->getAttackers().size()) &&
-                    !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_INFECTED-1)))) &&
-                    !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_LEECH, SPELLFAMILY_PRIEST, 0x02000000, 0x0, 0x0, me->GetGUID()) &&
-                    doCast(mytar, GetSpell(DEVOURING_PLAGUE_1)))
-                    return;
-                if (IsSpellReady(MIND_BLAST_1, diff) && can_do_shadow &&
-                    doCast(mytar, GetSpell(MIND_BLAST_1)))
-                    return;
-                if (IsSpellReady(MIND_SEAR_1, diff) && can_do_shadow && (!me->isMoving() || Rand() < 80) &&
-                    mytar->GetVictim() && mytar->GetVictim()->getAttackers().size() > 3)
-                {
-                    if (Unit* u = FindSplashTarget(CalcSpellMaxRange(MIND_SEAR_1), mytar, 14.f, 3)) //glyphed, cluster of 4
-                        if (doCast(u, GetSpell(MIND_SEAR_1)))
-                            return;
-                }
-                if (IsSpellReady(HOLY_FIRE_1, diff) && can_do_holy &&
-                    (HasRole(BOT_ROLE_HEAL) || me->GetShapeshiftForm() != FORM_SHADOW) &&
-                    doCast(mytar, GetSpell(HOLY_FIRE_1)))
-                    return;
-                if (IsSpellReady(MIND_FLAY_1, diff) && can_do_shadow &&
-                    (!HasRole(BOT_ROLE_HEAL) || mytar->GetHealth() < me->GetMaxHealth()/2) &&
-                    doCast(mytar, GetSpell(MIND_FLAY_1)))
-                    return;
-                if (IsSpellReady(SMITE_1, diff) && can_do_holy && me->GetLevel() < 20 &&//MF is lvl 20, MB is lvl 10
-                    doCast(mytar, GetSpell(SMITE_1)))
-                    return;
+                case BOT_SPEC_PRIEST_DISCIPLINE:
+                    casted = DoDisciplineRotation(diff, mytar, can_do_shadow, can_do_holy);
+                    break;
+                case BOT_SPEC_PRIEST_HOLY:
+                    casted = DoHolyRotation(diff, mytar, can_do_holy);
+                    break;
+                case BOT_SPEC_PRIEST_SHADOW:
+                    casted = DoShadowRotation(diff, mytar, can_do_shadow);
+                    break;
+                default:
+                    casted = DoShadowRotation(diff, mytar, can_do_shadow);
+                    break;
             }
+
+            if (casted)
+                return;
+
+            if (DoFiller(diff, mytar, can_do_shadow, can_do_holy))
+                return;
 
             if (Spell const* shot = me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
             {
@@ -608,6 +717,151 @@ public:
             else if (IsSpellReady(SHOOT_WAND, diff) && !me->isMoving() && me->GetDistance(mytar) < 30 && GetEquips(BOT_SLOT_RANGED) &&
                 doCast(mytar, SHOOT_WAND))
                 return;
+        }
+
+        //AOE 输出分支：神圣新星（神圣/戒律，近身 ≥3 目标且自身血量安全）
+        bool DoAoeRotation(uint32 diff, Unit* mytar, bool can_do_holy)
+        {
+            if (GetSpec() == BOT_SPEC_PRIEST_SHADOW || !can_do_holy)
+                return false;
+            if (!GetSpell(HOLY_NOVA_1) || !IsSpellReady(HOLY_NOVA_1, diff))
+                return false;
+            if (GetHealthPCT(me) < 60 || me->GetDistance(mytar) > 10.f)
+                return false;
+
+            std::list<Unit*> targets;
+            GetNearbyTargetsList(targets, 10.f, 0);
+            if (targets.size() < 3)
+                return false;
+
+            if (doCast(me, GetSpell(HOLY_NOVA_1)))
+                return true;
+
+            return false;
+        }
+
+        //兜底填充：暗影形态下用心灵鞭笞，否则用惩击（圣光涌动触发时优先瞬发免蓝）
+        bool DoFiller(uint32 diff, Unit* mytar, bool can_do_shadow, bool can_do_holy)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //圣光涌动：瞬发惩击出口（神圣/戒律）
+            if (me->HasAura(SURGE_OF_LIGHT_BUFF) && IsSpellReady(SMITE_1, diff) && can_do_holy &&
+                GetSpec() != BOT_SPEC_PRIEST_SHADOW && me->GetDistance(mytar) < CalcSpellMaxRange(SMITE_1))
+                return doCast(mytar, GetSpell(SMITE_1));
+
+            if (me->GetShapeshiftForm() == FORM_SHADOW && can_do_shadow && IsSpellReady(MIND_FLAY_1, diff) &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(MIND_FLAY_1))
+                return doCast(mytar, GetSpell(MIND_FLAY_1));
+
+            //非暗影形态（含 1~20 级尚未学会暗影形态）用惩击输出
+            if (can_do_holy && GetSpell(SMITE_1) && GetSpec() != BOT_SPEC_PRIEST_SHADOW &&
+                IsSpellReady(SMITE_1, diff) && me->GetDistance(mytar) < CalcSpellMaxRange(SMITE_1))
+                return doCast(mytar, GetSpell(SMITE_1));
+
+            return false;
+        }
+
+        //戒律系单体：苦修 → 神圣之火 → 惩击（DPS 形态）；带 DoT 时优先痛
+        bool DoDisciplineRotation(uint32 diff, Unit* mytar, bool can_do_shadow, bool can_do_holy)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //暗言术：痛（即时挂，不绑定暗影交织层数）
+            if (IsSpellReady(SW_PAIN_1, diff) && can_do_shadow && TargetWorthDotting(mytar) &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(SW_PAIN_1) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x8000, 0x0, 0x0, me->GetGUID()), 100))
+                return doCast(mytar, GetSpell(SW_PAIN_1));
+
+            //苦修（DPS 形态视为神圣伤害输出技能）
+            if (IsSpellReady(PENANCE_1, diff) && can_do_holy && me->GetDistance(mytar) < CalcSpellMaxRange(PENANCE_1))
+                return doCast(mytar, GetSpell(PENANCE_1));
+
+            //神圣之火（DoT + 直伤）
+            if (IsSpellReady(HOLY_FIRE_1, diff) && can_do_holy && me->GetDistance(mytar) < CalcSpellMaxRange(HOLY_FIRE_1))
+                return doCast(mytar, GetSpell(HOLY_FIRE_1));
+
+            //圣光涌动瞬发惩击
+            if (me->HasAura(SURGE_OF_LIGHT_BUFF) && IsSpellReady(SMITE_1, diff) && can_do_holy &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(SMITE_1))
+                return doCast(mytar, GetSpell(SMITE_1));
+
+            return false;//交由 DoNormalAttack 统一兜底填充
+        }
+
+        //神圣系单体：神圣之火 → 惩击（圣光涌动瞬发优先）；非暗影形态
+        bool DoHolyRotation(uint32 diff, Unit* mytar, bool can_do_holy)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //神圣之火
+            if (IsSpellReady(HOLY_FIRE_1, diff) && can_do_holy && me->GetDistance(mytar) < CalcSpellMaxRange(HOLY_FIRE_1) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x1, 0x0, 0x0, me->GetGUID()), 95))
+                return doCast(mytar, GetSpell(HOLY_FIRE_1));
+
+            //圣光涌动瞬发惩击
+            if (me->HasAura(SURGE_OF_LIGHT_BUFF) && IsSpellReady(SMITE_1, diff) && can_do_holy &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(SMITE_1))
+                return doCast(mytar, GetSpell(SMITE_1));
+
+            return false;//交由 DoNormalAttack 统一兜底填充
+        }
+
+        //暗影系单体：吸血鬼之触 → 痛 → 噬灵疫病 → 心灵震爆 → 灭(斩杀) → 心灵灼烧(AOE) → 心灵鞭笞填充
+        bool DoShadowRotation(uint32 diff, Unit* mytar, bool can_do_shadow)
+        {
+            if (!CanCastOnTarget(mytar))
+                return false;
+
+            //1) 吸血鬼之触（回蓝 + DoT，优先）
+            if (IsSpellReady(VAMPIRIC_TOUCH_1, diff) && can_do_shadow && me->GetDistance(mytar) < CalcSpellMaxRange(VAMPIRIC_TOUCH_1) &&
+                TargetWorthDotting(mytar) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x0, 0x400, 0x0, me->GetGUID()), 100))
+                return doCast(mytar, GetSpell(VAMPIRIC_TOUCH_1));
+
+            //2) 暗言术：痛（立即挂，不绑定暗影交织层数：短血目标/爆发期也要保持）
+            if (IsSpellReady(SW_PAIN_1, diff) && can_do_shadow && me->GetDistance(mytar) < CalcSpellMaxRange(SW_PAIN_1) &&
+                mytar->GetHealth() > me->GetMaxHealth()/2 * (1 + mytar->getAttackers().size()) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_PRIEST, 0x8000, 0x0, 0x0, me->GetGUID()), 100))
+                return doCast(mytar, GetSpell(SW_PAIN_1));
+
+            //3) 噬灵疫病（暗影系专属，避开免疫感染目标）
+            if (IsSpellReady(DEVOURING_PLAGUE_1, diff) && can_do_shadow && !Devcheck &&
+                (GetSpec() == BOT_SPEC_PRIEST_SHADOW || mytar->IsControlledByPlayer()) &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(DEVOURING_PLAGUE_1) &&
+                mytar->GetHealth() > me->GetMaxHealth()/2 * (1 + mytar->getAttackers().size()) &&
+                !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_INFECTED-1)))) &&
+                AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_LEECH, SPELLFAMILY_PRIEST, 0x02000000, 0x0, 0x0, me->GetGUID()), 100))
+                return doCast(mytar, GetSpell(DEVOURING_PLAGUE_1));
+
+            //4) 暗言术：灭 斩杀期（反噬安全：自身血量 > 50%）
+            if (IsSpellReady(SW_DEATH_1, diff) && can_do_shadow && GetHealthPCT(me) > 50 &&
+                me->GetDistance(mytar) < CalcSpellMaxRange(SW_DEATH_1) &&
+                (me->GetMap()->IsRaid() || GetHealthPCT(mytar) < 15 || mytar->GetHealth() < me->GetMaxHealth()/8) &&
+                Rand() < 90)
+                return doCast(mytar, GetSpell(SW_DEATH_1));
+
+            //5) 心灵震爆（卡 CD）
+            if (IsSpellReady(MIND_BLAST_1, diff) && can_do_shadow && me->GetDistance(mytar) < CalcSpellMaxRange(MIND_BLAST_1))
+                return doCast(mytar, GetSpell(MIND_BLAST_1));
+
+            //6) 心灵灼烧（≥3 目标聚团）
+            if (IsSpellReady(MIND_SEAR_1, diff) && can_do_shadow && (!me->isMoving() || Rand() < 80) &&
+                mytar->GetVictim() && mytar->GetVictim()->getAttackers().size() > 3)
+            {
+                if (Unit* u = FindSplashTarget(CalcSpellMaxRange(MIND_SEAR_1), mytar, 14.f, 3)) //glyphed, cluster of 4
+                    if (doCast(u, GetSpell(MIND_SEAR_1)))
+                        return true;
+            }
+
+            //7) 填充：心灵鞭笞（暗牧基础填充，移除 HEAL 角色耦合）
+            if (IsSpellReady(MIND_FLAY_1, diff) && can_do_shadow && me->GetDistance(mytar) < CalcSpellMaxRange(MIND_FLAY_1))
+                return doCast(mytar, GetSpell(MIND_FLAY_1));
+
+            return false;//交由 DoNormalAttack 统一兜底填充
         }
 
         bool HealTarget(Unit* target, uint32 diff) override
@@ -623,7 +877,8 @@ public:
                 (!target->IsInCombat() || target->getAttackers().empty() || !IsTank(target) || !me->GetMap()->IsRaid()))
                 return false;
 
-            int32 hps = GetHPS(target);
+            //掉血速率外推：按 2.0~2.5 秒窗口预判，攻击者越多掉血越快
+            int32 hps = int32(GetHPS(target) * (1.f + target->getAttackers().size() * 0.3f));
             int32 xphp = target->GetHealth() + hps * (me->GetLevel() < 60 ? 2.5f : 2.0f);
             int32 hppctps = int32(hps * 100.f / float(target->GetMaxHealth()));
             int32 xphploss = xphp > int32(target->GetMaxHealth()) ? 0 : abs(int32(xphp - target->GetMaxHealth()));
@@ -676,7 +931,7 @@ public:
             }
 
             if (target == me && IsSpellReady(DESPERATE_PRAYER_1, diff) && hp <= 50 && Rand() < 45 &&
-                int32(GetLostHP(me)) > _heals[DESPERATE_PRAYER_1])
+                int32(GetLostHP(me)) > GetHealAmount(DESPERATE_PRAYER_1))
             {
                 me->InterruptNonMeleeSpells(false);
                 if (doCast(target, GetSpell(DESPERATE_PRAYER_1)))
@@ -688,16 +943,31 @@ public:
 
             Unit const* u = target->GetVictim();
             bool tanking = u && IsTank(target) && u->IsCreature() && u->ToCreature()->isWorldBoss();
+            //联结治疗可用性：神圣系天赋，且自身也处于低血（收益翻倍）
+            bool canBinding = GetSpec() == BOT_SPEC_PRIEST_HOLY && GetSpell(BINDING_HEAL_1) &&
+                GetHealthPCT(me) < hp + 10 && me->GetDistance(target) < CalcSpellMaxRange(BINDING_HEAL_1);
 
-            //Penance
+            //联结治疗：自己与目标同时低血（按目标最高效的单体治疗）
+            if (canBinding && IsSpellReady(BINDING_HEAL_1, diff) && hp <= 75 &&
+                xphploss > GetHealAmount(BINDING_HEAL_1) &&
+                doCast(target, GetSpell(BINDING_HEAL_1)))
+                return true;
+
+            //苦修（戒律治疗核心：快速高效）
             if (IsSpellReady(PENANCE_1, diff) && !target->IsCharmed() && !target->isPossessed() && hp <= 80 &&
-                Rand() < 90 && xphploss > _heals[PENANCE_1])
-            {
-                if (doCast(target, GetSpell(PENANCE_1)))
-                    return true;
-            }
-            //Big Heal
-            if (IsSpellReady(HEAL, diff) && (xppct > 15 || !GetSpell(FLASH_HEAL_1)) && (tanking || xphploss > _heals[HEAL]))
+                Rand() < 90 && xphploss > GetHealAmount(PENANCE_1) &&
+                doCast(target, GetSpell(PENANCE_1)))
+                return true;
+
+            //神圣系：先刷快速治疗堆好运，再放强效治疗术（缩短施法时间）
+            if (GetSpec() == BOT_SPEC_PRIEST_HOLY && IsSpellReady(FLASH_HEAL_1, diff) &&
+                IsSpellReady(HEAL, diff) && hp > 40 && !me->HasAura(SERENDIPITY_BUFF) &&
+                xphploss > GetHealAmount(HEAL) && Rand() < 60 &&
+                doCast(target, GetSpell(FLASH_HEAL_1)))
+                return true;
+
+            //强效治疗术
+            if (IsSpellReady(HEAL, diff) && (xppct > 15 || !GetSpell(FLASH_HEAL_1)) && (tanking || xphploss > GetHealAmount(HEAL)))
             {
                 if (me->IsInCombat() && IsSpellReady(INNER_FOCUS_1, diff) && GetManaPCT(me) < 70 &&
                     doCast(me, GetSpell(INNER_FOCUS_1)))
@@ -705,22 +975,41 @@ public:
                 if (doCast(target, GetSpell(HEAL)))
                     return true;
             }
-            //Renew
+            //恢复（HoT 治疗）：缺失或剩余 <3 秒时提前补（避免断档，尤其坦克）
             if (IsSpellReady(RENEW_1, diff) && (tanking || !target->getAttackers().empty() || me->GetMap()->IsDungeon()) &&
-                !target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_PRIEST, 0x40, 0x0, 0x0, me->GetGUID())
-                /*!target->HasAura(GetSpell(RENEW_1), me->GetGUID())*/)
+                AuraExpiringSoon(target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_PRIEST, 0x40, 0x0, 0x0, me->GetGUID()), 3000))
             {
                 if (doCast(target, GetSpell(RENEW_1)))
                     return true;
             }
-            //Flash Heal
-            if (IsSpellReady(FLASH_HEAL_1, diff) && xphploss > _heals[FLASH_HEAL_1])
+            //快速治疗
+            if (IsSpellReady(FLASH_HEAL_1, diff) && xphploss > GetHealAmount(FLASH_HEAL_1))
             {
                 if (doCast(target, GetSpell(FLASH_HEAL_1)))
                     return true;
             }
 
             return false;
+        }
+
+        //估算指定治疗法术的治疗量（G3：不使用初始化快照，改为动态估算）
+        //法强取缓存值（GetBotSpellPower，随装备/等级更新而非每 tick 计算），
+        //按 3.5 秒标准施法时间的系数折算，即：基础治疗 + 法强 * 施法时长 / 3500
+        int32 GetHealAmount(uint32 spellId) const
+        {
+            uint32 spell = InitSpell(me, spellId);
+            if (!spell)
+                return 0;
+
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spell);
+            if (!spellInfo)
+                return 0;
+
+            int32 base = spellInfo->Effects[0].CalcValue(me);
+            int32 castTime = spellInfo->CastTimeEntry ? spellInfo->CastTimeEntry->CastTime : 0;
+            float coef = castTime > 0 ? std::min(1.f, float(castTime) / 3500.f) : 0.f;
+
+            return base + int32(GetBotSpellPower() * coef);
         }
 
         bool BuffTarget(Unit* target, uint32 diff) override
@@ -1035,10 +1324,10 @@ public:
                         return;
                 }
             }
-            // Heal myself
+            // Heal myself（保持统一的套盾判定：虚弱灵魂期间不再重复套盾）
             if ((GetHealthPCT(me) < 95 && !b_attackers.empty()) || (IsWanderer() && IsFlagCarrier(me)))
             {
-                if (ShieldTarget(me, diff)) return;
+                if (!me->HasAura(WEAKENED_SOUL_DEBUFF) && ShieldTarget(me, diff)) return;
 
                 if (IsSpellReady(FADE_1, diff) && me->IsInCombat() && !b_attackers.empty())
                 {
@@ -1135,6 +1424,9 @@ public:
                 lvl >= 45 && (baseId == FLASH_HEAL_1 || baseId == HEAL || baseId == PENANCE_HEAL_1) &&
                 victim->HasAuraTypeWithFamilyFlags(SPELL_AURA_MECHANIC_IMMUNITY, SPELLFAMILY_PRIEST, 0x20000000))
                 crit_chance += 4.f;
+            //Glyph of Shadow Word: Pain (G7): +10% additional critical chance for SW: Pain
+            if (lvl >= 15 && baseId == SW_PAIN_1)
+                crit_chance += 10.f;
         }
 
         void ApplyClassDamageMultiplierSpell(int32& damage, SpellNonMeleeDamage& damageinfo, SpellInfo const* spellInfo, WeaponAttackType /*attackType*/, bool iscrit) const override
@@ -1448,9 +1740,9 @@ public:
                 pctbonus += 0.2f;
 
             //flat mods
-            //Veiled Shadows part 2
-            //if (lvl >= 25 && baseId == SHADOWFIEND_1)
-            //    timebonus += 120000;
+            //Veiled Shadows part 2: 暗影魔 CD -2 分钟
+            if (lvl >= 25 && baseId == SHADOWFIEND_1)
+                timebonus += 120000;
             //Glyph of Dispersion:
             if (lvl >= 60 && baseId == DISPERSION_1)
                 timebonus += 45000;
@@ -1651,6 +1943,14 @@ public:
             if ((GetSpec() == BOT_SPEC_PRIEST_SHADOW) && lvl >= 20 && baseId == MIND_BLAST_1)
                 me->CastSpell(target, IMPROVED_MIND_BLAST_DEBUFF, true);
 
+            //悲惨（Misery）：暗言术：痛 / 心灵震爆 / 心灵鞭笞 命中后使目标受到法术伤害 +3%（团队易伤）
+            if ((GetSpec() == BOT_SPEC_PRIEST_SHADOW) && lvl >= 45 &&
+                (baseId == SW_PAIN_1 || baseId == MIND_BLAST_1 || baseId == MIND_FLAY_1))
+            {
+                if (!target->HasAura(MISERY_DEBUFF, me->GetGUID()))
+                    me->CastSpell(target, MISERY_DEBUFF, true);
+            }
+
             //Weakened Soul Reduction (id: 33333): -2 sec to Weakened Soul duration
             if (lvl >= 51 && baseId == WEAKENED_SOUL_DEBUFF)
             {
@@ -1814,6 +2114,8 @@ public:
 
             Shackle_Timer = 0;
             Mend_Timer = 0;
+            Lightwell_Timer = 0;
+            ManaBurn_Timer = 0;
 
             DispelcheckTimer = 0;
             DevcheckTimer = 0;
@@ -1829,6 +2131,8 @@ public:
         {
             if (Shackle_Timer > diff)               Shackle_Timer -= diff;
             if (Mend_Timer > diff)                  Mend_Timer -= diff;
+            if (Lightwell_Timer > diff)             Lightwell_Timer -= diff;
+            if (ManaBurn_Timer > diff)              ManaBurn_Timer -= diff;
 
             if (DispelcheckTimer > diff)            DispelcheckTimer -= diff;
             if (DevcheckTimer > diff)               DevcheckTimer -= diff;
@@ -1871,12 +2175,14 @@ public:
             InitSpellMap(SHADOW_PROTECTION_1);
             InitSpellMap(DIVINE_SPIRIT_1);
             InitSpellMap(HOLY_FIRE_1);
+            InitSpellMap(HOLY_NOVA_1);
             InitSpellMap(SMITE_1);
             InitSpellMap(SW_PAIN_1);
             InitSpellMap(MIND_BLAST_1);
             InitSpellMap(SW_DEATH_1);
             InitSpellMap(DEVOURING_PLAGUE_1);
             InitSpellMap(HYMN_OF_HOPE_1);
+            InitSpellMap(MANA_BURN_1);
             InitSpellMap(LEVITATE_1);
             InitSpellMap(SHADOWFIEND_1); //not casted
 
@@ -1886,8 +2192,10 @@ public:
   /*Talent*/lvl >= 60 && isDisc ? InitSpellMap(PENANCE_1) : RemoveSpell(PENANCE_1);
 
   /*Talent*/lvl >= 20 && isHoly ? InitSpellMap(DESPERATE_PRAYER_1) : RemoveSpell(DESPERATE_PRAYER_1);
+  /*Talent*/lvl >= 40 && isHoly ? InitSpellMap(BINDING_HEAL_1) : RemoveSpell(BINDING_HEAL_1);
   /*Talent*/lvl >= 50 && isHoly ? InitSpellMap(CIRCLE_OF_HEALING_1) : RemoveSpell(CIRCLE_OF_HEALING_1);
   /*Talent*/lvl >= 60 && isHoly ? InitSpellMap(GUARDIAN_SPIRIT_1) : RemoveSpell(GUARDIAN_SPIRIT_1);
+  /*Talent*/lvl >= 40 && (isHoly || isDisc) ? InitSpellMap(LIGHTWELL_1) : RemoveSpell(LIGHTWELL_1);
 
   /*Talent*/lvl >= 20 && isShad ? InitSpellMap(MIND_FLAY_1) : RemoveSpell(MIND_FLAY_1);
   /*Talent*/lvl >= 30 && isShad ? InitSpellMap(SILENCE_1) : RemoveSpell(SILENCE_1);
@@ -1911,22 +2219,22 @@ public:
             RefreshAura(SHUANGSHENGJIELV, level >= 10 ? 1 : 0);
             RefreshAura(UNBREAKABLE_WILL, level >= 10 ? 1 : 0);
             RefreshAura(XINGLINGZHIHUO, level >= 60 ? 1 : 0);
-            RefreshAura(SHENSHENGZHUANJING, level >= 50 ? 1 : 0);
             RefreshAura(MEDITATION, level >= 20 ? 1 : 0);
             RefreshAura(RENEWED_HOPE, isDisc && level >= 45 ? 1 : 0);
             RefreshAura(RAPTURE, isDisc && level >= 45 ? 1 : 0);
             RefreshAura(DIVINE_AEGIS, isDisc && level >= 50 ? 1 : 0);
             RefreshAura(GRACE, isDisc && level >= 50 ? 1 : 0);
             RefreshAura(BORROWED_TIME, isDisc && level >= 55 ? 1 : 0);
-            RefreshAura(QH_DUN, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(QH_SHEMINA, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(JINGSHENMINGRUI, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(XINGLINGZHILI, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(XINGLINGSHOUHU, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(NENGLIANGJIZHONG, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(QIDI, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(KUAISUZHIL, isDisc && level >= 70 ? 1 : 0);
-            RefreshAura(KEWANG, isDisc && level >= 70 ? 1 : 0);
+            //戒律系天赋等级门槛（G1 修正：>=70 → 各自正确需求等级）
+            RefreshAura(QIDI, isDisc && level >= 10 ? 1 : 0);
+            RefreshAura(QH_DUN, isDisc && level >= 20 ? 1 : 0);
+            RefreshAura(QH_SHEMINA, isDisc && level >= 20 ? 1 : 0);
+            RefreshAura(JINGSHENMINGRUI, isDisc && level >= 20 ? 1 : 0);
+            RefreshAura(XINGLINGZHILI, isDisc && level >= 30 ? 1 : 0);
+            RefreshAura(XINGLINGSHOUHU, isDisc && level >= 30 ? 1 : 0);
+            RefreshAura(KUAISUZHIL, isDisc && level >= 40 ? 1 : 0);
+            RefreshAura(NENGLIANGJIZHONG, isDisc && level >= 50 ? 1 : 0);
+            RefreshAura(KEWANG, isDisc && level >= 60 ? 1 : 0);
 
             RefreshAura(INSPIRATION3, isHoly && level >= 25 ? 1 : 0);
             RefreshAura(INSPIRATION2, isHoly && level >= 23 && level < 25 ? 1 : 0);
@@ -1938,15 +2246,16 @@ public:
             RefreshAura(EMPOWERED_RENEW3, isHoly && level >= 55 ? 1 : 0);
             RefreshAura(EMPOWERED_RENEW2, isHoly && level >= 53 && level < 55 ? 1 : 0);
             RefreshAura(EMPOWERED_RENEW1, isHoly && level >= 50 && level < 53 ? 1 : 0);
-            RefreshAura(QH_ZHILIAOSHU, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(QH_ZHILIAOQIDAO, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(JINGSHENZHIYING, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(JINGSHENZHILIAO, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(QUANXINGQUANYI, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(ZHILIAOZENGXIAO, isHoly && level >= 70 ? 1 : 0);
-            RefreshAura(SHENSHENGJUANGU, isHoly && level >= 70 ? 1 : 0);
-
-
+            //神圣系 7 项天赋（G1 修正：>=70 → >=60）
+            RefreshAura(QH_ZHILIAOSHU, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(QH_ZHILIAOQIDAO, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(JINGSHENZHIYING, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(JINGSHENZHILIAO, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(QUANXINGQUANYI, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(ZHILIAOZENGXIAO, isHoly && level >= 60 ? 1 : 0);
+            RefreshAura(SHENSHENGJUANGU, isHoly && level >= 60 ? 1 : 0);
+            //神圣专精（G1 修正：50 → 10）
+            RefreshAura(SHENSHENGZHUANJING, isHoly && level >= 10 ? 1 : 0);
 
             RefreshAura(SPIRIT_TAP, isShad && level >= 10 ? 1 : 0);
             RefreshAura(IMPROVED_SPIRIT_TAP, isShad && level >= 10 ? 1 : 0);
@@ -1958,21 +2267,21 @@ public:
             RefreshAura(MISERY3, isShad && level >= 50 ? 1 : 0);
             RefreshAura(MISERY2, isShad && level >= 48 && level < 50 ? 1 : 0);
             RefreshAura(MISERY1, isShad && level >= 45 && level < 48 ? 1 : 0);
-            RefreshAura(HEIAN, isShad ? 1 : 0);
-            RefreshAura(QH_ANYANSHU, isShad ? 1 : 0);
-            RefreshAura(QH_JIZHONG, isShad ? 1 : 0);
-            RefreshAura(QH_XINGLINGBAOZHENG, isShad ? 1 : 0);
-            RefreshAura(QH_ZHEBIZHIYING, isShad ? 1 : 0);
-            RefreshAura(QH_XIXUEGUI, isShad ? 1 : 0);
-            RefreshAura(QH_RONGHUA, isShad ? 1 : 0);
-            RefreshAura(QH_ANYINGNENGLIANG, isShad ? 1 : 0);
-            RefreshAura(QH_ANYINGXINGTAI, isShad ? 1 : 0);
-            RefreshAura(IMPROVED_DEVOURING_PLAGUE, isShad ? 1 : 0);
-            RefreshAura(BAOSHOUZHEMO, isShad ? 1 : 0);
-            RefreshAura(NIUQUXINGYANG, isShad ? 1 : 0);
-            RefreshAura(49868, isShad ? 1 : 0);
+            //暗影系天赋补等级门控（P2）
+            RefreshAura(HEIAN, isShad && level >= 10 ? 1 : 0);
+            RefreshAura(QH_ANYANSHU, isShad && level >= 15 ? 1 : 0);
+            RefreshAura(QH_JIZHONG, isShad && level >= 15 ? 1 : 0);
+            RefreshAura(QH_XINGLINGBAOZHENG, isShad && level >= 20 ? 1 : 0);
+            RefreshAura(QH_ZHEBIZHIYING, isShad && level >= 20 ? 1 : 0);
+            RefreshAura(QH_XIXUEGUI, isShad && level >= 30 ? 1 : 0);
+            RefreshAura(QH_RONGHUA, isShad && level >= 35 ? 1 : 0);
+            RefreshAura(QH_ANYINGNENGLIANG, isShad && level >= 40 ? 1 : 0);
+            RefreshAura(QH_ANYINGXINGTAI, isShad && level >= 45 ? 1 : 0);
+            RefreshAura(BAOSHOUZHEMO, isShad && level >= 50 ? 1 : 0);
+            RefreshAura(NIUQUXINGYANG, isShad && level >= 55 ? 1 : 0);
+            RefreshAura(PRIEST_T10_SHADOW_2P_BONUS, isShad && level >= 70 ? 1 : 0);
 
-            //RefreshAura(GLYPH_SW_PAIN, level >= 15 ? 1 : 0);
+            RefreshAura(GLYPH_SW_PAIN, level >= 15 ? 1 : 0);//G7：痛点雕文启用
             RefreshAura(GLYPH_KUXIU, isDisc && level >= 75 ? 1 : 0);
             RefreshAura(GLYPH_PW_SHIELD, level >= 15 ? 1 : 0);
             RefreshAura(GLYPH_DISPEL_MAGIC, level >= 18 ? 1 : 0);
@@ -2007,6 +2316,10 @@ public:
                 case FEAR_WARD_1:
                 case FLASH_HEAL_1:
                 case GREATER_HEAL_1:
+                case BINDING_HEAL_1:
+                case LIGHTWELL_1:
+                case MANA_BURN_1:
+                case HOLY_NOVA_1:
                 case LEVITATE_1:
                     return true;
                 case NORMAL_HEAL_1:
@@ -2037,49 +2350,14 @@ public:
             return &Priest_spells_support;
         }
 
-        void InitHeals() override
-        {
-            SpellInfo const* spellInfo;
-            if (InitSpell(me, HEAL))
-            {
-                spellInfo = sSpellMgr->GetSpellInfo(InitSpell(me, HEAL));
-                _heals[HEAL] = me->SpellHealingBonusDone(me, spellInfo, spellInfo->Effects[0].CalcValue(me), DamageEffectType::HEAL, 0);
-            }
-            else
-                _heals[HEAL] = 0;
-
-            if (InitSpell(me, FLASH_HEAL_1))
-            {
-                spellInfo = sSpellMgr->GetSpellInfo(InitSpell(me, FLASH_HEAL_1));
-                _heals[FLASH_HEAL_1] = me->SpellHealingBonusDone(me, spellInfo, spellInfo->Effects[0].CalcValue(me), DamageEffectType::HEAL, 0);
-            }
-            else
-                _heals[FLASH_HEAL_1] = 0;
-
-            if (InitSpell(me, PENANCE_HEAL_1))
-            {
-                spellInfo = sSpellMgr->GetSpellInfo(InitSpell(me, PENANCE_HEAL_1));
-                _heals[PENANCE_1] = me->SpellHealingBonusDone(me, spellInfo, spellInfo->Effects[0].CalcValue(me), DamageEffectType::HEAL, 0);
-            }
-            else
-                _heals[PENANCE_1] = 0;
-
-            if (InitSpell(me, DESPERATE_PRAYER_1))
-            {
-                spellInfo = sSpellMgr->GetSpellInfo(InitSpell(me, DESPERATE_PRAYER_1));
-                _heals[DESPERATE_PRAYER_1] = me->SpellHealingBonusDone(me, spellInfo, spellInfo->Effects[0].CalcValue(me), DamageEffectType::HEAL, 0);
-            }
-            else
-                _heals[DESPERATE_PRAYER_1] = 0;
-        }
+        //治疗量改为 GetHealAmount 动态估算，不再缓存初始化快照
+        void InitHeals() override {}
 
     private:
         uint32 HEAL;
         uint32 Shackle_Timer, Mend_Timer, DispelcheckTimer, DevcheckTimer, ShackcheckTimer;
+        uint32 Lightwell_Timer, ManaBurn_Timer;
 /*Misc*/bool Devcheck, Shackcheck;
-
-        using HealMap = std::unordered_map<uint32 /*baseId*/, int32 /*amount*/>;
-        HealMap _heals;
     };
 };
 
