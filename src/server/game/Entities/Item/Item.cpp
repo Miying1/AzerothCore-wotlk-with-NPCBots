@@ -786,7 +786,10 @@ void Item::RemoveFromUpdateQueueOf(Player* player)
     if (player->m_itemUpdateQueueBlocked)
         return;
 
-    player->m_itemUpdateQueue[uQueuePos] = nullptr;
+    // 边界校验：队列可能已被 _SaveInventory 的 clear() 清空，此时 uQueuePos 是失效的旧索引，
+    // 直接下标赋值会造成堆越界写。仅当索引仍在队列范围内时才置空槽位，无论如何都要复位标记。
+    if (static_cast<std::size_t>(uQueuePos) < player->m_itemUpdateQueue.size())
+        player->m_itemUpdateQueue[uQueuePos] = nullptr;
     uQueuePos = -1;
 }
 
