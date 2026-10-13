@@ -1092,19 +1092,27 @@ public:
             //Starfall（多目标必放，单体 40% 概率；站位由 GetSpellAttackRange 控制在 18 码内）
             if (IsSpellReady(STARFALL_1, diff))
             {
-                bool isAoe = (mytar->IsPlayer() || me->getAttackers().size() > 1);
-                if (!isAoe)
+                //只在距离达标后处理施放：距离不足时不设失败冷却，
+                //否则 IsSpellReady() 会持续为 false，GetSpellAttackRange() 会退回默认站位导致 bot 无法靠近
+                if (me->GetDistance(mytar) < 20.f)
                 {
-                    std::list<Unit*> targets;
-                    GetNearbyTargetsList(targets, 30.f, 0);
-                    if (targets.size() > 3)
-                        isAoe = true;
+                    bool isAoe = (mytar->IsPlayer() || me->getAttackers().size() > 1);
+                    if (!isAoe)
+                    {
+                        std::list<Unit*> targets;
+                        GetNearbyTargetsList(targets, 30.f, 0);
+                        if (targets.size() > 3)
+                            isAoe = true;
+                    }
+
+                    if (isAoe || Rand() < 40)
+                    {
+                        if (doCast(me, GetSpell(STARFALL_1)))
+                            return;
+
+                        SetSpellCooldown(STARFALL_1, 1500); //施放失败才进短冷却
+                    }
                 }
-
-                if ((isAoe || Rand() < 40) && me->GetDistance(mytar) < 20.f && doCast(me, GetSpell(STARFALL_1)))
-                    return;
-
-                SetSpellCooldown(STARFALL_1, 1500); //fail
             }
             //Hurricane
             if (IsSpellReady(HURRICANE_1, diff) && !JumpingOrFalling() && Rand() < 50)
