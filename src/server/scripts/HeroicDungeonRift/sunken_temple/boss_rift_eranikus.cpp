@@ -60,7 +60,8 @@ struct boss_rift_eranikus : public BossAIBase
                 events.ScheduleEvent(EventWarStomp, 25000ms);
                 break;
             case EventDeepSlumber:
-                CastIfConfigured(SelectRandomPlayer(30.0f), SpellDeepSlumber);
+                // 排除当前坦克，避免深度沉睡落在最高仇恨目标上
+                CastIfConfigured(SelectRandomPlayer(30.0f, false, false), SpellDeepSlumber);
                 events.ScheduleEvent(EventDeepSlumber, 23000ms);
                 break;
             case EventAcidBreath:

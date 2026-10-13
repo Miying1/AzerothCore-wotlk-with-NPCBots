@@ -1353,8 +1353,8 @@ public:
             }
 
             //英勇打击：BOT 伤害 -25%（仅在此处生效，玩家施法不经过本函数，故不影响玩家）
-            if (baseId == HEROIC_STRIKE_1)
-                pctbonus *= 0.75f;
+            // if (baseId == HEROIC_STRIKE_1)
+            //     pctbonus *= 0.75f;
 
             damage = int32(fdamage * pctbonus);
         }
