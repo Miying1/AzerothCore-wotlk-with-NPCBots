@@ -3578,6 +3578,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         InventoryResult msg = CanStoreItem(dstbag, dstslot, dest, pNewItem, false);
         if (msg != EQUIP_ERR_OK)
         {
+            pNewItem->RemoveFromUpdateQueueOf(this);
             delete pNewItem;
             pSrcItem->SetCount(pSrcItem->GetCount() + count);
             SendEquipError(msg, pSrcItem, nullptr);
@@ -3598,6 +3599,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         InventoryResult msg = CanBankItem(dstbag, dstslot, dest, pNewItem, false);
         if (msg != EQUIP_ERR_OK)
         {
+            pNewItem->RemoveFromUpdateQueueOf(this);
             delete pNewItem;
             pSrcItem->SetCount(pSrcItem->GetCount() + count);
             SendEquipError(msg, pSrcItem, nullptr);
@@ -3618,6 +3620,7 @@ void Player::SplitItem(uint16 src, uint16 dst, uint32 count)
         InventoryResult msg = CanEquipItem(dstslot, dest, pNewItem, false);
         if (msg != EQUIP_ERR_OK)
         {
+            pNewItem->RemoveFromUpdateQueueOf(this);
             delete pNewItem;
             pSrcItem->SetCount(pSrcItem->GetCount() + count);
             SendEquipError(msg, pSrcItem, nullptr);
