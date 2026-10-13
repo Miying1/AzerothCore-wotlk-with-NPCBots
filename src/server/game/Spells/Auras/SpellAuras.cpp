@@ -821,6 +821,11 @@ int32 Aura::CalcMaxDuration(Unit* caster) const
     // IsPermanent() checks max duration (which we are supposed to calculate here)
     if (maxDuration != -1 && modOwner)
         modOwner->ApplySpellMod(GetId(), SPELLMOD_DURATION, maxDuration);
+
+    //npcbot - apply bot spell duration mods (光环时长)
+    if (maxDuration != -1 && caster && caster->IsNPCBot())
+        caster->ToCreature()->ApplyCreatureSpellMods(m_spellInfo, SPELLMOD_DURATION, maxDuration);
+    //end npcbot
     return maxDuration;
 }
 
@@ -829,8 +834,14 @@ void Aura::SetDuration(int32 duration, bool withMods)
     if (withMods)
     {
         if (Unit* caster = GetCaster())
+        {
             if (Player* modOwner = caster->GetSpellModOwner())
                 modOwner->ApplySpellMod(GetId(), SPELLMOD_DURATION, duration);
+            //npcbot - apply bot spell duration mods (光环时长)
+            else if (caster->IsNPCBot())
+                caster->ToCreature()->ApplyCreatureSpellMods(m_spellInfo, SPELLMOD_DURATION, duration);
+            //end npcbot
+        }
     }
     m_duration = duration;
     SetNeedClientUpdateForTargets();

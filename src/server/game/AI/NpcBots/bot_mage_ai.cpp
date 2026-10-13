@@ -11,6 +11,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "Random.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
@@ -29,6 +30,7 @@ enum MageBaseSpells
     ARCANEINTELLECT_1 = 1459,
     ARCANEMISSILES_1 = 5143,
     ARCANE_BLAST_1 = 30451,
+    ARCANE_BARRAGE_1 = 44425,//奥术弹幕
     POLYMORPH_1 = 118,
     COUNTERSPELL_1 = 2139,
     SPELLSTEAL_1 = 30449,
@@ -95,6 +97,9 @@ enum MagePassives
     AOSHUXINZHI = 12503,//rank 奥术心智
     XINLINGZHANGWO = 31588,//心灵掌握
     LINGFENGFUMIAN = 44403,//灵风拂面
+    ARCANE_SUBTLETY = 12592,//rank 2奥术精妙（奥术法术仇恨 -40%）
+    ARCANE_FORTITUDE = 28574,//奥术坚韧（护甲 = 50% 智力）
+    PRISMATIC_CLOAK = 31575,//rank 2多彩屏障（受到伤害 -5%）
 
 
     IMPACT = 12358,//rank 3冲击
@@ -149,6 +154,8 @@ enum MageSpecial
     FINGERS_OF_FROST_BUFF               = 44544,
     ARCANE_BLAST_DEBUFF                 = 36032,
     MISSILE_BARRAGE_BUFF                = 44401,
+    BLOODLUST_1                         = 2825,//嗜血
+    HEROISM_1                           = 32182,//英勇
     IMPROVED_BLIZZARD_CHILL             = 12486,//rank 3
     FROSTBITE_TRIGGERED                 = 12494,
     WINTERS_CHILL_TRIGGERED             = 12579,
@@ -156,8 +163,9 @@ enum MageSpecial
 };
 
 static const std::vector<uint32> Mage_spells_damage
-{ ARCANEMISSILES_1, ARCANE_BLAST_1, BLAST_WAVE_1, BLIZZARD_1, CONE_OF_COLD_1, DEEP_FREEZE_1, DRAGON_BREATH_1, FIREBALL_1,
-FIRE_BLAST_1, FLAMESTRIKE_1, FROSTBOLT_1, FROSTFIRE_BOLT_1, FROST_NOVA_1, ICE_LANCE_1, LIVING_BOMB_1, PYROBLAST_1, SCORCH_1 };
+{ ARCANEMISSILES_1, ARCANE_BLAST_1, ARCANE_BARRAGE_1, BLAST_WAVE_1, BLIZZARD_1, CONE_OF_COLD_1, DEEP_FREEZE_1,
+DRAGON_BREATH_1, FIREBALL_1, FIRE_BLAST_1, FLAMESTRIKE_1, FROSTBOLT_1, FROSTFIRE_BOLT_1, FROST_NOVA_1, ICE_LANCE_1,
+LIVING_BOMB_1, PYROBLAST_1, SCORCH_1 };
 static const std::vector<uint32> Mage_spells_cc{ COUNTERSPELL_1, DRAGON_BREATH_1, DEEP_FREEZE_1, FROST_NOVA_1, POLYMORPH_1 };
 static const std::vector<uint32> Mage_spells_support
 { AMPLIFYMAGIC_1, ARCANEINTELLECT_1, BLINK_1, COMBUSTION_1, DAMPENMAGIC_1, EVOCATION_1, FIRE_WARD_1, FROST_WARD_1,
@@ -432,11 +440,12 @@ public:
                 if (doCast(me, GetSpell(ICY_VEINS_1)))
                     return;
             }
-            //ARCANE POWER (no GCD, not with PoM)
+            //奥术强化（无 GCD，不与气定神闲同时开启）：2 分钟核心爆发，不再随机跳过
             if (IsSpellReady(ARCANE_POWER_1, diff, false) && me->IsInCombat() && manaPct > 50 &&
-                (mytar->GetMaxHealth() > master->GetMaxHealth() * 2 ||
-                (mytar->IsCreature() && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL)) &&
-                Rand() < 75 && !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x20, 0x0))
+                (mytar->IsPlayer() ||
+                (mytar->IsCreature() && mytar->ToCreature()->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL) ||
+                b_attackers.size() > 1) &&
+                !me->GetAuraEffect(SPELL_AURA_ADD_PCT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x20, 0x0))
             {
                 if (doCast(me, GetSpell(ARCANE_POWER_1)))
                     return;
@@ -613,34 +622,106 @@ public:
                 if (doCast(mytar, GetSpell(FROSTFIREBOLT)))
                     return;
             }
-            if (GetSpec() == BOT_SPEC_MAGE_ARCANE) {
-                //Main rotation
-                //Arcane Missiles (arcane spec only) 
-                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1) && manaPct > 30 &&
-                     me->HasAura(12042) )
+            if (GetSpec() == BOT_SPEC_MAGE_ARCANE)
+            {
+                //奥术充能：实时读取（debuff 硬上限 4 层）
+                Aura* const blastDebuff = me->GetAura(ARCANE_BLAST_DEBUFF);
+                uint8 const blastStack = blastDebuff ? blastDebuff->GetStackAmount() : 0;
+
+                //层数未满：重置本轮"赌飞弹速射"状态
+                if (blastStack < 4)
                 {
-                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                    arcaneBlastOverstack = 0;
+                    arcaneBlastOverstackLimit = 0;//0 = 本轮尚未随机额度
+                }
+
+                bool const has_barrage_proc = me->HasAura(MISSILE_BARRAGE_BUFF);//飞弹速射
+                bool const in_burst = me->HasAura(ARCANE_POWER_1) || me->HasAura(BLOODLUST_1) || me->HasAura(HEROISM_1);
+                bool const evo_ready = IsSpellReady(EVOCATION_1, diff, false);//唤醒可用（续航后盾）
+                bool const moving = me->isMoving();
+                bool const burn_phase = in_burst || (evo_ready && manaPct > 40) || manaPct > 80;
+
+                bool const can_barrage = GetSpell(ARCANE_BARRAGE_1) && IsSpellReady(ARCANE_BARRAGE_1, diff) &&
+                    can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BARRAGE_1);
+                bool const can_missiles = IsSpellReady(ARCANEMISSILES_1, diff) &&
+                    can_do_arcane && dist < CalcSpellMaxRange(ARCANEMISSILES_1);
+                bool const can_blast = IsSpellReady(ARCANE_BLAST_1, diff) &&
+                    can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1);
+
+                if (GetSpell(ARCANE_BLAST_1))
+                {
+                    //气定神闲：优先打瞬发奥术冲击（叠层与泄蓝都受益）
+                    if (me->HasAura(PRESENCE_OF_MIND_1) && can_blast && doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                        return;
+
+                    //1. 飞弹速射 proc：无论层数立即打（瞬发增伤 + 消层）
+                    if (has_barrage_proc && can_missiles && doCast(mytar, GetSpell(ARCANEMISSILES_1)))
+                    {
+                        arcaneBlastOverstack = 0;
+                        return;
+                    }
+
+                    //2. 已满 4 层（debuff 硬上限即 4，故用 >= 4 判定）
+                    if (blastStack >= 4)
+                    {
+                        //本轮随机额度：赌 1~2 次额外奥冲
+                        if (arcaneBlastOverstackLimit == 0)
+                            arcaneBlastOverstackLimit = uint8(urand(1, 2));
+
+                        //2a. 移动中：弹幕瞬发
+                        if (moving && can_barrage && doCast(mytar, GetSpell(ARCANE_BARRAGE_1)))
+                        {
+                            arcaneBlastOverstack = 0;
+                            return;
+                        }
+                        //2b. 泄蓝阶段：保持 4 层持续奥冲（不限次数），蓝尽交给唤醒
+                        if (burn_phase)
+                        {
+                            arcaneBlastOverstack = 0;//泄蓝结束回常规后可重新获得额度
+                            if (can_blast && doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                                return;
+                        }
+                        //2c. 常规且蓝 > 60%：按本轮随机额度继续奥冲赌飞弹速射
+                        if (manaPct > 60 && arcaneBlastOverstack < arcaneBlastOverstackLimit && can_blast)
+                        {
+                            if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                            {
+                                ++arcaneBlastOverstack;
+                                return;
+                            }
+                        }
+                        //2d. 消层：奥术飞弹（本服数据中唯一会移除奥术充能的法术，且受层数增伤）
+                        if (can_missiles && doCast(mytar, GetSpell(ARCANEMISSILES_1)))
+                        {
+                            arcaneBlastOverstack = 0;
+                            return;
+                        }
+                        //2e. 消层备选：奥术弹幕（瞬发省蓝，不消耗充能，仅作廉价的填充/移动手段）
+                        if (can_barrage && doCast(mytar, GetSpell(ARCANE_BARRAGE_1)))
+                        {
+                            arcaneBlastOverstack = 0;
+                            return;
+                        }
+                        //2f. 兜底：只能继续奥冲
+                        if (can_blast && doCast(mytar, GetSpell(ARCANE_BLAST_1)))
+                            return;
+                    }
+
+                    //3. 移动中（未满层）：弹幕瞬发
+                    if (moving && can_barrage && doCast(mytar, GetSpell(ARCANE_BARRAGE_1)))
+                        return;
+
+                    //4. 叠层：奥术冲击
+                    if (can_blast && doCast(mytar, GetSpell(ARCANE_BLAST_1)))
                         return;
                 }
-                if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
-                    ((manaPct < 15 && arcaneBlastStack >= 2) || (manaPct < 30 && arcaneBlastStack >= 3) || (arcaneBlastStack >= 4 && me->HasAura(MISSILE_BARRAGE_BUFF))))
-                {
-                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
-                        return;
-                }
-              /*  if (IsSpellReady(ARCANEMISSILES_1, diff) && can_do_arcane &&dist < CalcSpellMaxRange(ARCANEMISSILES_1) &&
-                    (me->GetLevel() < 45 ||
-                        ((!GetSpell(ARCANE_BLAST_1) || arcaneBlastStack >= 4 || sSpellMgr->GetSpellInfo(ARCANE_BLAST_1)->CalcPowerCost(me, SPELL_SCHOOL_MASK_ARCANE) > int(me->GetPower(POWER_MANA))) &&
-                            me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))))
-                {
-                    if (doCast(mytar, GetSpell(ARCANEMISSILES_1)))
-                        return;
-                }*/
-                if (IsSpellReady(ARCANE_BLAST_1, diff) && can_do_arcane && dist < CalcSpellMaxRange(ARCANE_BLAST_1))
-                {
-                    if (doCast(mytar, GetSpell(ARCANE_BLAST_1)))
-                        return;
-                }
+                else if (can_missiles && doCast(mytar, GetSpell(ARCANEMISSILES_1)))//低级无奥冲
+                    return;
+
+                //5. 极低蓝且非泄蓝期：寒冰箭省蓝回蓝
+                if (!burn_phase && manaPct < 15 && IsSpellReady(FROSTBOLT_1, diff) && can_do_frost &&
+                    dist < CalcSpellMaxRange(FROSTBOLT_1) && doCast(mytar, GetSpell(FROSTBOLT_1)))
+                    return;
             }
             if (GetSpec() != BOT_SPEC_MAGE_ARCANE || !GetSpell(ARCANE_BLAST_1))
             {
@@ -704,26 +785,25 @@ public:
             if (me->IsMounted() || IsCasting())
                 return;
 
-            if (IsPotionReady())
+            if (IsPotionReady() && GetHealthPCT(me) < 50)
+                DrinkPotion(false);
+
+            //唤醒：泄蓝循环的续航核心，蓝 < 35% 且环境安全即用
+            if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 35 &&
+                uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
             {
-                if (GetHealthPCT(me) < 50)
-                    DrinkPotion(false);
+                if (doCast(me, GetSpell(EVOCATION_1)))
+                    return;
             }
-            if (Rand() < 35)
+            //法力宝石：唤醒不可用时的补充
+            if (manaGemCharges > 0 && GetManaPCT(me) < 60 && IsSpellReady(MANA_GEM_1, diff, false))
             {
-                if (IsSpellReady(EVOCATION_1, diff) && GetManaPCT(me) < 32 && uint8(me->getAttackers().size()) < (shielded ? 3 : 1))
-                {
-                    if (doCast(me, GetSpell(EVOCATION_1)))
-                        return;
-                }
-                if (manaGemCharges > 0 && GetManaPCT(me) < 50 && IsSpellReady(MANA_GEM_1, diff, false))
-                {
-                    if (doCast(me, GetSpell(MANA_GEM_1)))
-                        return;
-                }
-                if (IsPotionReady() && GetManaPCT(me) < 40)
-                    DrinkPotion(true);
+                if (doCast(me, GetSpell(MANA_GEM_1)))
+                    return;
             }
+            //法力药水
+            if (IsPotionReady() && GetManaPCT(me) < 40)
+                DrinkPotion(true);
         }
 
         void CheckBlink(uint32 diff)
@@ -967,11 +1047,20 @@ public:
                 if (Aura* combustion = me->GetAura(COMBUSTION_BUFF))
                     crit_chance += float(combustion->GetStackAmount() * 10);
 
-            //Incineration: 6% additional crit chance for Fire Blast, Scorch, Arcane Blast and Cone of Cold
-            if (lvl >= 10 &&
-                (baseId == FIRE_BLAST_1 || baseId == SCORCH_1 ||
-                baseId == ARCANE_BLAST_1 || baseId == CONE_OF_COLD_1))
+            //法术冲撞（奥术天赋）: 奥术冲击 +6% 暴击
+            if ((GetSpec() == BOT_SPEC_MAGE_ARCANE) && lvl >= 10 && baseId == ARCANE_BLAST_1)
                 crit_chance += 6.f;
+            //Incineration（火系天赋）: 火焰冲击、灼烧 +6% 暴击
+            if ((GetSpec() == BOT_SPEC_MAGE_FIRE) && lvl >= 10 &&
+                (baseId == FIRE_BLAST_1 || baseId == SCORCH_1))
+                crit_chance += 6.f;
+            //冰锥术 +6% 暴击（原火系天赋 Incineration 的组成部分）：冰法沿用改动前行为
+            if ((GetSpec() == BOT_SPEC_MAGE_FIRE || GetSpec() == BOT_SPEC_MAGE_FROST) &&
+                lvl >= 10 && baseId == CONE_OF_COLD_1)
+                crit_chance += 6.f;
+            //奥术动荡 part 2: 全法术 +3% 暴击（part 1 的 +3% 伤害在伤害函数中模拟）
+            if ((GetSpec() == BOT_SPEC_MAGE_ARCANE) && lvl >= 35)
+                crit_chance += 3.f;
             //World In Flames: 6% additional critical chance for Flamestrike, Pyroblast, Blast Wave, Dragon's Breath, Living Bomb, Blizzard and Arcane Explosion
             if (lvl >= 15 &&
                 (baseId == FLAMESTRIKE_1 || baseId == PYROBLAST_1 ||
@@ -1189,9 +1278,10 @@ public:
             if (lvl >= 45 && baseId == FROSTBOLT_1)
                 timebonus += 200;
 
-            //Missile Barrage: -2.5 sec channeling time, -0.5 sec for every tick
-            if (baseId == ARCANEMISSILES_1 && me->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_MAGE, 0x0, 0x2, 0x0))
-                timebonus += casttime / 2;
+            //Missile Barrage（飞弹速射）的引导时长 -2.5 秒与每跳间隔 -0.5 秒不再在这里模拟：
+            //奥术飞弹施法时间为 0，本函数对它无效；现由 Creature::ApplyCreatureSpellMods 走
+            //Spell::handle_immediate / Aura::CalcMaxDuration / Aura::SetDuration /
+            //AuraEffect::CalculatePeriodic 四处统一应用（见 44401 的 SPELLMOD_DURATION / ACTIVATION_TIME）
 
             casttime = std::max<int32>(casttime - timebonus, 0);
         }
@@ -1241,6 +1331,9 @@ public:
             //Arcane Flows part 2: -2 min cooldown for Evocation
             if ((GetSpec() == BOT_SPEC_MAGE_ARCANE) && lvl >= 45 && baseId == EVOCATION_1)
                 timebonus += 120000;
+            //Arcane Flows part 1: -24 sec cooldown for Presence of Mind
+            if ((GetSpec() == BOT_SPEC_MAGE_ARCANE) && lvl >= 45 && baseId == PRESENCE_OF_MIND_1)
+                timebonus += 24000;
             //Glyph of Water Elemental: -30 sec cooldown for Summon Water Elemental
             if (lvl >= 50 && baseId == SUMMON_WATER_ELEMENTAL_1)
                 timebonus += 30000;
@@ -1327,12 +1420,9 @@ public:
             //Mana gem conjure and use
             if (baseId == CONJURE_MANA_GEM_1)
             {
-                //ItemTemplate const* gem = sObjectMgr->GetItemTemplate(spellInfo->Effects[0].ItemType);
-                //ASSERT(gem);
-                //manaGemCharges = uint8(abs(gem->Spells[1].SpellCharges)); //at index 1
-
-                //Do not bother with this crap
-                manaGemCharges = 3;
+                //按制造出的宝石真实充能数设置（索引 1 为宝石的使用法术），取不到时回退为 3
+                ItemTemplate const* gem = sObjectMgr->GetItemTemplate(spellInfo->Effects[EFFECT_0].ItemType);
+                manaGemCharges = gem && gem->Spells[1].SpellCharges > 0 ? uint8(gem->Spells[1].SpellCharges) : 3;
             }
             if (baseId == MANA_GEM_1)
             {
@@ -1580,10 +1670,6 @@ public:
 
             uint32 baseId = spell->GetFirstRankSpell()->Id;
 
-            if (baseId == ARCANE_BLAST_DEBUFF)
-                if (Aura* blas = me->GetAura(spell->Id))
-                    arcaneBlastStack = blas->GetStackAmount();
-
             //Ward helper
             if (spell->HasEffect(SPELL_EFFECT_SCHOOL_DAMAGE) || spell->HasAura(SPELL_AURA_PERIODIC_DAMAGE))
             {
@@ -1686,7 +1772,8 @@ public:
             fmCheckTimer = 0;
             iceblockCheckTimer = 0;
             shieldCheckTimer = 0;
-            arcaneBlastStack = 0;
+            arcaneBlastOverstack = 0;
+            arcaneBlastOverstackLimit = 0;
             manaGemCharges = 0;
 
             poly = false;
@@ -1756,6 +1843,7 @@ public:
   /*Talent*/lvl >= 20 ? InitSpellMap(FOCUS_MAGIC_1) : RemoveSpell(FOCUS_MAGIC_1);
   /*Talent*/lvl >= 30 && (isArca || isFire) ? InitSpellMap(PRESENCE_OF_MIND_1) : RemoveSpell(PRESENCE_OF_MIND_1);
   /*Talent*/lvl >= 40 && isArca ? InitSpellMap(ARCANE_POWER_1) : RemoveSpell(ARCANE_POWER_1);
+  /*Talent*/lvl >= 60 && isArca ? InitSpellMap(ARCANE_BARRAGE_1) : RemoveSpell(ARCANE_BARRAGE_1);
 
   /*Talent*/lvl >= 20 ? InitSpellMap(PYROBLAST_1) : RemoveSpell(PYROBLAST_1);
   /*Talent*/lvl >= 30 && isFire ? InitSpellMap(BLAST_WAVE_1) : RemoveSpell(BLAST_WAVE_1);
@@ -1798,6 +1886,9 @@ public:
             RefreshAura(AOSHUXINZHI, isArca && level >= 75 ? 1 : 0);
             RefreshAura(XINLINGZHANGWO, isArca && level >= 75 ? 1 : 0);
             RefreshAura(LINGFENGFUMIAN, isArca && level >= 75 ? 1 : 0);
+            RefreshAura(ARCANE_SUBTLETY, isArca && level >= 10 ? 1 : 0);//奥术精妙
+            RefreshAura(ARCANE_FORTITUDE, isArca && level >= 15 ? 1 : 0);//奥术坚韧
+            RefreshAura(PRISMATIC_CLOAK, isArca && level >= 30 ? 1 : 0);//多彩屏障
 
             RefreshAura(IGNITE, level >= 15 ? 1 : 0);
             RefreshAura(BURNING_DETERMINATION, level >= 15 ? 1 : 0);
@@ -1897,7 +1988,8 @@ public:
         //Timers
 /*exc.*/uint32 polyCheckTimer, fmCheckTimer, iceblockCheckTimer, shieldCheckTimer;
         //Counters
-/*exc.*/uint8 arcaneBlastStack;
+/*exc.*/uint8 arcaneBlastOverstack;      //满 4 层后已额外施放的奥冲次数
+/*exc.*/uint8 arcaneBlastOverstackLimit; //本轮随机额度（1~2，0 = 尚未生成）
 /*exc.*/uint8 manaGemCharges;
         //Check
 /*exc.*/bool poly, shielded, fbCasted;

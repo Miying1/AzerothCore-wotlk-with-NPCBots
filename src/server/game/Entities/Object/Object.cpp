@@ -2372,6 +2372,18 @@ TempSummon* Map::SummonCreature(uint32 entry, Position const& pos, SummonPropert
                 summon->SetControlledByPlayer(true);
             }
         }
+        //npcbot: 机器人通过法术召唤的守护者(如法师镜像，生物 31216)
+        //通用法术召唤路径不会补上"归属主人玩家"的信息，导致 GetAffectingPlayer()/GetReactionTo()
+        //无法将其识别为玩家队伍单位，跨阵营组队时会被队友当作可攻击的敌对目标。
+        //这里参照其它 bot 宠物/召唤物的做法补齐；owner 仍保持为 bot 本身，
+        //以免破坏依赖 bot->m_Controlled 的召唤物初始化(如法术 58836 查找镜像)。
+        else if (mask == UNIT_MASK_GUARDIAN && !summoner->ToCreature()->IsFreeBot())
+        {
+            summon->SetCreator(summoner->ToCreature()->GetBotOwner()); //内存中的创建者(主人玩家)
+            summon->SetPvP(summoner->ToCreature()->IsPvP());
+            summon->SetUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED);
+            summon->SetControlledByPlayer(true);
+        }
     }
     //end npcbot
 

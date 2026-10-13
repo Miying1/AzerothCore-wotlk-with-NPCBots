@@ -1089,19 +1089,19 @@ public:
                 return;
 
             // === Priority 1: AOE abilities ===
-            //Starfall
-            if (IsSpellReady(STARFALL_1, diff) && Rand() < 40)
+            //Starfall（多目标必放，单体 40% 概率；站位由 GetSpellAttackRange 控制在 18 码内）
+            if (IsSpellReady(STARFALL_1, diff))
             {
-                bool cast = (mytar->IsPlayer() || me->getAttackers().size() > 1);
-                if (!cast)
+                bool isAoe = (mytar->IsPlayer() || me->getAttackers().size() > 1);
+                if (!isAoe)
                 {
                     std::list<Unit*> targets;
                     GetNearbyTargetsList(targets, 30.f, 0);
                     if (targets.size() > 3)
-                        cast = true;
+                        isAoe = true;
                 }
 
-                if (cast && doCast(me, GetSpell(STARFALL_1)))
+                if ((isAoe || Rand() < 40) && me->GetDistance(mytar) < 20.f && doCast(me, GetSpell(STARFALL_1)))
                     return;
 
                 SetSpellCooldown(STARFALL_1, 1500); //fail
@@ -2221,9 +2221,9 @@ public:
             //Glyph of Typhoon: -3 sec cooldown for Typhoon
             if (lvl >= 70 && baseId == TYPHOON_1)
                 timebonus += 3000;
-            //Starfall: increase cooldown for bots
+            //Glyph of Starfall: -30 sec cooldown for Starfall (90 sec -> 60 sec)
             if (baseId == STARFALL_1)
-                timebonus -= 90000; //x2
+                timebonus += 30000;
 
             cooldown = std::max<int32>(int32((float(cooldown) * (1.0f - pctbonus)) - timebonus), 0);
         }
@@ -2266,8 +2266,7 @@ public:
             //Starfall
             if (spellId == STARFALL_DUMMY_AOE_4)
                 flatbonus -= 10.f; //20 = 36 talented - 18 glyphed + 2 custom
-            if (spellId == STARFALL_DAMAGE_AOE_4)
-                flatbonus += 4.f; //5 nominal + 4 custom
+
 
             radius = radius * (1.0f + pctbonus) + flatbonus;
         }
@@ -2587,12 +2586,12 @@ public:
                 if (sur)
                     sur->ChangeAmount(sur->GetAmount() + 15);
             }
-            //Starfall: duration
+            //Starfall: duration (20 sec)
             if (baseId == STARFALL_1)
             {
                 if (Aura* sta = me->GetAura(spellId))
                 {
-                    uint32 dur = sta->GetDuration() * 3;
+                    uint32 dur = 20000;
                     sta->SetDuration(dur);
                     sta->SetMaxDuration(dur);
                 }
@@ -2679,6 +2678,11 @@ public:
 
         float GetSpellAttackRange(bool longRange) const override
         {
+            //星落可用时希望贴近到 19 码内施放（CalculateAttackPos 会在此基础上再 -5）
+            //注意 IsSpellReady() 对未初始化过的法术会返回 true，故先用 GetSpell() 确认确实拥有星落
+            if (_form != DRUID_BEAR_FORM && _form != DRUID_CAT_FORM && GetSpell(STARFALL_1) &&
+                IsSpellReady(STARFALL_1, GetLastDiff(), false))
+                return 24.f;
             return longRange ? CalcSpellMaxRange(WRATH_1) : 20.f;
         }
 

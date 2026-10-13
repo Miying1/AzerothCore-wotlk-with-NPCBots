@@ -4200,6 +4200,11 @@ void Spell::handle_immediate()
             if (Player* modOwner = m_caster->GetSpellModOwner())
                 modOwner->ApplySpellMod(m_spellInfo->Id, SPELLMOD_DURATION, duration);
 
+            //npcbot - apply bot spell duration mods (引导时长)
+            if (m_caster->IsNPCBot())
+                m_caster->ToCreature()->ApplyCreatureSpellMods(m_spellInfo, SPELLMOD_DURATION, duration);
+            //end npcbot
+
             // Apply haste mods
             if (m_caster->HasAuraTypeWithAffectMask(SPELL_AURA_PERIODIC_HASTE, m_spellInfo) || m_spellInfo->HasAttribute(SPELL_ATTR5_SPELL_HASTE_AFFECTS_PERIODIC))
                 duration = int32(duration * m_caster->GetFloatValue(UNIT_MOD_CAST_SPEED));

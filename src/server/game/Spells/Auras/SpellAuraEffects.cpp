@@ -650,6 +650,11 @@ void AuraEffect::CalculatePeriodic(Unit* caster, bool create, bool load)
         if (modOwner)
             modOwner->ApplySpellMod(GetId(), SPELLMOD_ACTIVATION_TIME, m_amplitude);
 
+        //npcbot - apply bot periodic activation time mods (每跳间隔)
+        if (caster && caster->IsNPCBot())
+            caster->ToCreature()->ApplyCreatureSpellMods(m_spellInfo, SPELLMOD_ACTIVATION_TIME, m_amplitude);
+        //end npcbot
+
         if (caster)
         {
             if (caster->HasAuraTypeWithAffectMask(SPELL_AURA_PERIODIC_HASTE, m_spellInfo) || m_spellInfo->HasAttribute(SPELL_ATTR5_SPELL_HASTE_AFFECTS_PERIODIC))

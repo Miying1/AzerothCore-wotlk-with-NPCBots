@@ -4519,6 +4519,37 @@ void Creature::ApplyCreatureSpellCastTimeMods(SpellInfo const* spellInfo, int32&
     if (bot_AI)
         bot_AI->ApplyBotSpellCastTimeMods(spellInfo, casttime);
 }
+void Creature::ApplyCreatureSpellMods(SpellInfo const* spellInfo, SpellModOp op, int32& value) const
+{
+    //通用法术修正：NPCBot 是 Creature（没有 spellmod owner），核心里的 Player::ApplySpellMod 调用会被跳过，
+    //这里按同样的语义直接从 bot 自身光环中取 ADD_FLAT/ADD_PCT_MODIFIER 效果
+    //（目前用于飞弹速射 44401 的引导时长 -2.5 秒与每跳间隔 -0.5 秒）
+    if (!bot_AI || !spellInfo || !value)
+        return;
+
+    //与 SpellInfo::IsAffectedBySpellMod 一致：非时长类修正只作用于允许施法者修正的法术
+    if (op != SPELLMOD_DURATION && !spellInfo->IsAffectedBySpellMods())
+        return;
+
+    float totalmul = 1.0f;
+    int32 totalflat = 0;
+
+    for (AuraEffect const* aurEff : GetAuraEffectsByType(SPELL_AURA_ADD_FLAT_MODIFIER))
+        if (aurEff->GetMiscValue() == int32(op) && aurEff->IsAffectedOnSpell(spellInfo))
+            totalflat += aurEff->GetAmount();
+
+    for (AuraEffect const* aurEff : GetAuraEffectsByType(SPELL_AURA_ADD_PCT_MODIFIER))
+        if (aurEff->GetMiscValue() == int32(op) && aurEff->IsAffectedOnSpell(spellInfo))
+            totalmul += CalculatePct(1.0f, aurEff->GetAmount());
+
+    if (totalmul == 1.0f && !totalflat)
+        return;
+
+    if (op == SPELLMOD_CASTING_TIME || op == SPELLMOD_DURATION)
+        value = (value + totalflat) > 0 ? int32(float(value + totalflat) * totalmul) : 0;
+    else
+        value = int32(float(value) * totalmul) + totalflat;
+}
 void Creature::ApplyCreatureSpellNotLoseCastTimeMods(SpellInfo const* spellInfo, int32& delayReduce) const
 {
     if (bot_AI)
