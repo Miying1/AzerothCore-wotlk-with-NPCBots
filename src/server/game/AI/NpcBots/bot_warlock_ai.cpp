@@ -1921,6 +1921,9 @@ public:
                     break;
             }
             botPetGUID = myPet->GetGUID();
+
+            // 补发召唤法术日志，让 DPS 插件把恶魔的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, SUMMON_DEMON_VISUAL);
         }
 
         void UnsummonAll(bool savePets = true) override

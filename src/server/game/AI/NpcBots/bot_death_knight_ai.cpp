@@ -72,6 +72,7 @@ enum DeathKnightBaseSpells
 
     DANCING_RUNE_DEAPON_1               = 49028,
     SUMMON_GARGOYLE_1                   = 49206,
+    RAISE_DEAD_1                        = 46584,//亡者复生，仅用于向客户端补发召唤日志
 
     BLOOD_PRESENCE_1                    = 48266,
     FROST_PRESENCE_1                    = 48263,
@@ -1745,6 +1746,9 @@ public:
             myPet->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPetGUID = myPet->GetGUID();
+
+            // 补发召唤法术日志，让 DPS 插件把食尸鬼的伤害并入 DK(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, RAISE_DEAD_1);
         }
 
         void JustSummoned(Creature* summon) override

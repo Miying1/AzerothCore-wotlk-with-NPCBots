@@ -621,6 +621,10 @@ public:
             }
 
             myPet->GetAI()->SetData(BOTPETAI_MISC_MAXLEVEL, me->GetLevel());
+
+            // 补发召唤法术日志，让 DPS 插件把腐尸甲虫的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, CARRION_BEETLES_1);
+
             _minions.insert(myPet);
         }
 
@@ -648,6 +652,9 @@ public:
             locust->SetByteValue(UNIT_FIELD_BYTES_2, 1, master->GetByteValue(UNIT_FIELD_BYTES_2, 1));
 
             locust->SetUInt32Value(UNIT_CREATED_BY_SPELL, LOCUST_SWARM_1);
+
+            // 补发召唤法术日志，让 DPS 插件把蝗虫群的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, locust, LOCUST_SWARM_1);
 
             locust->GetMotionMaster()->MovePoint(1, pos, FORCED_MOVEMENT_NONE, 0.0f, false);
 

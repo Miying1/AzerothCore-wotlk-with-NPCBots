@@ -29,6 +29,9 @@ enum HunterBaseSpells
     ARCANE_SHOT_1                       = 3044,
     TRANQ_SHOT_1                        = 19801,
     BLACK_ARROW_1                       = 3674,
+    // 仅用于向客户端补发召唤日志：必须使用客户端存在的召唤类法术，否则客户端不会生成
+    // 战斗日志的 SPELL_SUMMON 事件，DPS 插件也就无法把宠物伤害并入主人
+    PET_SUMMON_LOG_SPELL_1              = 46584,
     SILENCING_SHOT_1                    = 34490,
     CHIMERA_SHOT_1                      = 53209,
     AIMED_SHOT_1                        = 19434,
@@ -2201,6 +2204,9 @@ public:
                     break;
             }
             botPetGUID = myPet->GetGUID();
+
+            // 补发召唤法术日志，让 DPS 插件把宠物的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, PET_SUMMON_LOG_SPELL_1);
         }
 
         void UnsummonAll(bool savePets = true) override

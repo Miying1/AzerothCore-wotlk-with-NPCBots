@@ -441,6 +441,9 @@ public:
             //myPet->CastSpell(myPet, SPELL_INFERNO_IMPACT_EXPLOSION, true); //visual
             myPet->CastSpell(myPet, IMMOLATION, true);
             botPetGUID = myPet->GetGUID();
+
+            // 补发召唤法术日志，让 DPS 插件把地狱火的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, INFERNO_1);
         }
 
         void UnsummonAll(bool savePets = true) override

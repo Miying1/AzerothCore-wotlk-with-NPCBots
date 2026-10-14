@@ -2686,10 +2686,11 @@ public:
 
         float GetSpellAttackRange(bool longRange) const override
         {
-            //星落可用时希望贴近到 19 码内施放（CalculateAttackPos 会在此基础上再 -5）
+            //星落就绪、或星落正在生效（持续时间内）时都保持贴近（CalculateAttackPos 会在此基础上再 -5）
             //注意 IsSpellReady() 对未初始化过的法术会返回 true，故先用 GetSpell() 确认确实拥有星落
-            if (_form != DRUID_BEAR_FORM && _form != DRUID_CAT_FORM && GetSpell(STARFALL_1) &&
-                IsSpellReady(STARFALL_1, GetLastDiff(), false))
+            uint32 starfallId = GetSpell(STARFALL_1);
+            if (_form != DRUID_BEAR_FORM && _form != DRUID_CAT_FORM && starfallId &&
+                (IsSpellReady(STARFALL_1, GetLastDiff(), false) || me->HasAura(starfallId)))
                 return 24.f;
             return longRange ? CalcSpellMaxRange(WRATH_1) : 20.f;
         }
@@ -2729,6 +2730,9 @@ public:
                 myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, FORCE_OF_NATURE_1);
                 myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
                 //自然之力召唤物为多宠物集合，不记录为单一宠物。
+
+                // 补发召唤法术日志，让 DPS 插件把树人的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+                bot_ai::SendSummonCombatLog(me, myPet, FORCE_OF_NATURE_1);
 
                 myPet->Attack(target, true);
                 if (!HasBotCommandState(BOT_COMMAND_MASK_UNCHASE))

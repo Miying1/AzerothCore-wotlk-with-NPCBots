@@ -819,8 +819,8 @@ public:
                     return;
             }
             //SUNDER ARMOR
-            if (IsSpellReady(SUNDER_ARMOR_1, diff) && !IAmFree() && can_do_normal && dist < 5 && Rand() < 45 &&
-                (IsTank() ? (mytar->GetHealth() > me->GetMaxHealth()) : (Rand() < 25 && mytar->GetHealth() > me->GetMaxHealth() * 2)) &&
+            if (IsSpellReady(SUNDER_ARMOR_1, diff) && !IAmFree() && can_do_normal && dist < 5 &&
+                (IsTank() ? (mytar->GetHealth() > me->GetMaxHealth()) : (Rand() < 70 && mytar->GetHealth() > me->GetMaxHealth() * 2)) &&
                 (!HasRole(BOT_ROLE_DPS) || !CanBlock() || !GetSpell(DEVASTATE_1)) &&
                 (IsTank() || master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_WARRIOR_PROTECTION, false)) && rage >= rcost(SUNDER_ARMOR_1))
             {

@@ -125,6 +125,7 @@ enum RoguePassives
     UNFAIR_ADVANTAGE                    = 51674,//rank 2
     SURPRISE_ATTACKS                    = 32601,
     PREY_ON_THE_WEAK                    = 51689,//rank 5
+    IMPROVED_SLICE_AND_DICE             = 14166,//rank 2（切割持续时间延长 50%）
     MASTER_OF_DECEPTION                 = 13971,//rank 3
     SETUP                               = 14071,//rank 3
     INITIATIVE                          = 13980,//rank 3
@@ -243,6 +244,7 @@ static constexpr RogueTalentDef RogueTalents[] =
     { BOT_SPEC_ROGUE_COMBAT,        50,  0, UNFAIR_ADVANTAGE },
     { BOT_SPEC_ROGUE_COMBAT,        50,  0, SURPRISE_ATTACKS },
     { BOT_SPEC_ROGUE_COMBAT,        55,  0, PREY_ON_THE_WEAK },
+    { BOT_SPEC_ROGUE_COMBAT,        25,  0, IMPROVED_SLICE_AND_DICE },
     //敏锐
     { BOT_SPEC_ROGUE_SUBTLETY,      25,  0, SETUP },
     { BOT_SPEC_ROGUE_SUBTLETY,      25,  0, INITIATIVE },
@@ -263,16 +265,19 @@ struct RoguePoisonPlan
     uint32 oh;
 };
 
-//PVE 涂毒方案（保持既有策略：刺杀主速效/副致命，其余主致伤、副致残/速效/麻醉）
+//PVE 涂毒方案（纯伤害向）
+//刺杀：主手致命、副手速效——致命放主手（触发率最高）以便快速叠满 5 层供 Envenom 消耗
+//战斗 / 敏锐：主手速效、副手致命——主手速效直伤，副手致命叠层持续伤害
+//致命毒药 30 级才学会，故 20-29 级三系均先用双速效过渡；
+//不再使用致残（减速）/麻醉（减攻速）等非伤害毒药，功能性毒药只留给 PVP 方案
 static constexpr RoguePoisonPlan RoguePoisonPlansPVE[] =
 {
-    { BOT_SPEC_ROGUE_ASSASINATION, 20,  0, INSTANT_POISON_1, DEADLY_POISON_1 },
-    { BOT_SPEC_ROGUE_COMBAT,       20, 32, INSTANT_POISON_1, CRIPPLING_POISON_1 },
-    { BOT_SPEC_ROGUE_COMBAT,       32, 68, WOUND_POISON_1,   INSTANT_POISON_1 },
-    { BOT_SPEC_ROGUE_COMBAT,       68,  0, WOUND_POISON_1,   ANESTHETIC_POISON_1 },
-    { BOT_SPEC_ROGUE_SUBTLETY,     20, 32, INSTANT_POISON_1, CRIPPLING_POISON_1 },
-    { BOT_SPEC_ROGUE_SUBTLETY,     32, 68, WOUND_POISON_1,   INSTANT_POISON_1 },
-    { BOT_SPEC_ROGUE_SUBTLETY,     68,  0, WOUND_POISON_1,   ANESTHETIC_POISON_1 },
+    { BOT_SPEC_ROGUE_ASSASINATION, 20, 30, INSTANT_POISON_1, INSTANT_POISON_1 },
+    { BOT_SPEC_ROGUE_ASSASINATION, 30,  0, DEADLY_POISON_1,  INSTANT_POISON_1 },
+    { BOT_SPEC_ROGUE_COMBAT,       20, 30, INSTANT_POISON_1, INSTANT_POISON_1 },
+    { BOT_SPEC_ROGUE_COMBAT,       30,  0, INSTANT_POISON_1, DEADLY_POISON_1 },
+    { BOT_SPEC_ROGUE_SUBTLETY,     20, 30, INSTANT_POISON_1, INSTANT_POISON_1 },
+    { BOT_SPEC_ROGUE_SUBTLETY,     30,  0, INSTANT_POISON_1, DEADLY_POISON_1 },
 };
 
 //PVP 涂毒方案（仅战场 / 竞技场生效：主致残减速，副脑麻痹降法速）
@@ -291,11 +296,16 @@ inline bool RoguePoisonPlanMatches(RoguePoisonPlan const& p, uint8 spec, uint8 l
 }
 
 //输出循环阈值常量（替代散落的魔法数字）
-static constexpr uint32 ROGUE_SND_REFRESH_MS = 4000;      //切割剩余时长刷新阈值
-//割裂基础时长显著短于切割，阈值过大会导致被提前覆盖、浪费连击点，
-//因此仅在临近断档时补（1000ms）
-static constexpr uint32 ROGUE_RUPTURE_REFRESH_MS = 1000;  //割裂剩余时长刷新阈值
-static constexpr int32  ROGUE_SS_ENERGY_MARGIN = 15;      //邪恶攻击能量余量
+//切割剩余时长刷新阈值：未断档时只有剩余低于该值（且连击点足够）才刷新
+static constexpr uint32 ROGUE_SND_REFRESH_MS = 3000;
+//割裂基础时长显著短于切割，刷新窗口过窄容易被 tick 错过导致覆盖率过低；
+//放宽到 6000ms，给“5 星割裂”留出攒星时间（覆盖率优先于“不提前覆盖”）
+static constexpr uint32 ROGUE_RUPTURE_REFRESH_MS = 6000;  //割裂剩余时长刷新阈值
+//满连击点时若切割 / 割裂剩余都很充裕，连击点将无处可用（会溢出），
+//此时允许用刺骨消化溢出星（战斗系常规循环不打刺骨的例外条件）
+static constexpr uint32 ROGUE_STAR_OVERFLOW_SND_MS = 15000;      //切割剩余阈值
+static constexpr uint32 ROGUE_STAR_OVERFLOW_RUPTURE_MS = 10000;  //割裂剩余阈值
+static constexpr int32  ROGUE_SS_ENERGY_MARGIN = 10;      //影袭能量余量
 static constexpr uint32 ROGUE_COUNTER_CHECK_INTERVAL = 150; //打断检查定频(ms)
 static constexpr uint8  ROGUE_DEADLY_STACKS_ENOUGH = 4;   //Envenom 所需的致命毒层数
 
@@ -970,9 +980,10 @@ public:
                     return true;
             }
 
-            //Slice and Dice：剩余 < 阈值且 CP >= 1 时才刷新，避免满时长白刷
+            //Slice and Dice：按攻略用固定 3 星切割（未断档时需 >= 3 星且剩余不足才刷新，可提前补）；
+            //断档时允许低连击点应急补，避免 buff 空窗
             if (IsSpellReady(SLICE_DICE_1, diff) && comboPoints > 0 && energy >= ecost(SLICE_DICE_1) && snap.dist < 10 &&
-                (!snap.hasSnD || snap.snDRemainMs < ROGUE_SND_REFRESH_MS) &&
+                (!snap.hasSnD || (comboPoints >= 3 && snap.snDRemainMs < ROGUE_SND_REFRESH_MS)) &&
                 (me->getAttackers().size() <= 1 || !IsSpellReady(BLADE_FLURRY_1, diff)))
             {
                 if (doCast(mytar, GetSpell(SLICE_DICE_1)))
@@ -983,16 +994,20 @@ public:
             if (TryExposeArmor(snap, diff))
                 return true;
 
-            //Rupture：临近断档时补，且预计可完整跳完
-            //门槛对齐旧版（存在流血加成的刺杀需至少 2 点，其余 1 点即可），
-            //避免因强求满连击点而让割裂长时间断档
-            uint8 const minRuptureCP = (snap.hasHfB || !GetSpell(HUNGER_FOR_BLOOD_1)) ? 2 : 1;
+            //Rupture：战斗系按攻略用 5 星割裂（时长最大化）；割裂已消失时降为 4 星应急补，
+            //避免为等满 5 星而长时间空窗（覆盖率优先）；
+            //刺杀维持原有门槛（存在流血加成时至少 2 点）
+            uint8 const minRuptureCP = GetSpec() == BOT_SPEC_ROGUE_COMBAT ?
+                (snap.hasRupture ? 5 : 4) :
+                ((snap.hasHfB || !GetSpell(HUNGER_FOR_BLOOD_1)) ? 2 : 1);
             if (GetSpell(RUPTURE_1) && comboPoints >= minRuptureCP && energy >= ecost(RUPTURE_1) &&
                 (!snap.hasRupture || snap.ruptureRemainMs < ROGUE_RUPTURE_REFRESH_MS) &&
                 mytar->CanHaveThreatList() && !mytar->IsPlayer() && snap.targetCCDuration < 2000 &&
                 mytar->GetHealth() > me->GetMaxHealth() / 4 * (1 + mytar->getAttackers().size()) &&
                 !(snap.hasHfB && GetSpec() == BOT_SPEC_ROGUE_ASSASINATION && GetSpell(ENVENOM_1)) &&
-                (comboPoints < 4 || !GetSpell(KIDNEY_SHOT_1) || snap.stunDrv > DIMINISHING_LEVEL_2))
+                //连击点 < 4 或割裂将断才补：满连击点不再无条件让位（原 comboPoints < 4 限制
+                //会与新的切割门槛互相锁死——连击点一到 4 就只剩刺骨，割裂永远排不上）
+                (comboPoints < 4 || snap.ruptureRemainMs < ROGUE_RUPTURE_REFRESH_MS))
             {
                 if (doCast(mytar, GetSpell(RUPTURE_1)))
                     return true;
@@ -1069,6 +1084,15 @@ public:
             else if (GetSpell(EVISCERATE_1))
                 finisher = EVISCERATE_1;
 
+            //战斗系常规循环不打刺骨（DPE 不如影袭，连击点优先供给 3 星切割 / 5 星割裂）；
+            //例外：斩杀阶段、冲动期间，或“切割 / 割裂剩余都很充裕且已满连击点”（星将溢出，
+            //用刺骨消化优于空转）
+            if (finisher == EVISCERATE_1 && GetSpec() == BOT_SPEC_ROGUE_COMBAT && !snap.isExecutePhase &&
+                GetSpell(ADRENALINE_RUSH_1) && !me->GetAura(GetSpell(ADRENALINE_RUSH_1)) &&
+                !(comboPoints >= 5 && snap.snDRemainMs > ROGUE_STAR_OVERFLOW_SND_MS &&
+                  snap.ruptureRemainMs > ROGUE_STAR_OVERFLOW_RUPTURE_MS))
+                return false;
+
             if (finisher && IsSpellReady(finisher, diff) && energy >= ecost(finisher) &&
                 (comboPoints >= 4 || (snap.isExecutePhase && comboPoints >= 3)))
             {
@@ -1110,8 +1134,9 @@ public:
                     return true;
             }
 
-            //Sinister Strike
-            if (GetSpell(SINISTER_STRIKE_1) && comboPoints < 5 &&
+            //Sinister Strike：战斗系允许满连击点继续影袭（割裂未到补点时星会溢出，
+            //按攻略“溢出的星改打影袭”，避免 5 星时只打白字空转）
+            if (GetSpell(SINISTER_STRIKE_1) && (comboPoints < 5 || GetSpec() == BOT_SPEC_ROGUE_COMBAT) &&
                 (!isdaggerMH || snap.isTank || (mytar->GetVictim() == me && energy >= 60 && mytar->HasInArc(float(M_PI), me)) || !GetSpell(BACKSTAB_1)) &&
                 energy >= ecost(SINISTER_STRIKE_1) + ROGUE_SS_ENERGY_MARGIN)
             {
@@ -1290,8 +1315,43 @@ public:
                 ohEnchant = plan ? plan->oh : 0;
         }
 
+        //清掉双手现有的毒药并要求下次按方案重新选择（PvP-PvE 场景切换时调用），
+        //之后由 DoNonCombatActions() 的涂毒流程重新施加对应方案
+        void ResetPoisonEnchants()
+        {
+            RemoveItemClassEnchantment(BOT_SLOT_MAINHAND, true);
+            RemoveItemClassEnchantment(BOT_SLOT_OFFHAND, true);
+            needChooseMHEnchant = true;
+            needChooseOHEnchant = true;
+        }
+
+        // 专精切换后毒药方案会变（各专精对应不同毒药组合），切回自动选择并置清理计时器，
+        // 由下一轮非战斗动作清掉旧毒药再按新专精施加
+        void OnSpecChanged() override
+        {
+            needChooseMHEnchant = true;
+            needChooseOHEnchant = true;
+            mhEnchantExpireTimer = std::min<uint32>(mhEnchantExpireTimer, 1);
+            ohEnchantExpireTimer = std::min<uint32>(ohEnchantExpireTimer, 1);
+        }
+
+        //PvP/PvE 场景切换（进出战场或竞技场）时自动改涂对应方案：
+        //检测到场景变化就清掉旧毒药并重新选择，战场/竞技场使用致残 + 脑麻痹
+        void CheckPoisonContext()
+        {
+            bool const pvp = IsPvpContext();
+            if (pvp == _poisonPvpContext)
+                return;
+
+            _poisonPvpContext = pvp;
+            ResetPoisonEnchants();
+        }
+
         void DoNonCombatActions(uint32 diff)
         {
+            //PvP/PvE 场景切换时自动切换毒药方案
+            CheckPoisonContext();
+
             if (GC_Timer > diff || me->IsMounted() || IsCasting() || !RogueRoll(25))
                 return;
 
@@ -1303,17 +1363,26 @@ public:
             // Weapon Enchants
             if (me->isMoving())
                 return;
-            uint8 lvl = me->GetLevel();
-            if (lvl < 20)
-                return;
 
-            Item* mhWeapon = GetEquips(BOT_SLOT_MAINHAND);
-            Item* ohWeapon = GetEquips(BOT_SLOT_OFFHAND);
+            ApplyPoisons();
+        }
+
+        // 选择并施加毒药。一次只施放一个法术（施法期间无法再施放下一个），
+        // 没涂上的那只手会在之后的 DoNonCombatActions() 里补上。
+        // onlySlot < 0 时主手优先，否则只处理指定槽位
+        bool ApplyPoisons(int8 onlySlot = -1)
+        {
+            uint8 const lvl = me->GetLevel();
+            if (lvl < 20)
+                return false; //20 级起有毒药
+
+            Item* mhWeapon = onlySlot < 0 || onlySlot == BOT_SLOT_MAINHAND ? GetEquips(BOT_SLOT_MAINHAND) : nullptr;
+            Item* ohWeapon = onlySlot < 0 || onlySlot == BOT_SLOT_OFFHAND ? GetEquips(BOT_SLOT_OFFHAND) : nullptr;
 
             bool mhReady = mhWeapon && !mhWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
             bool ohReady = ohWeapon && !ohWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
             if (!mhReady && !ohReady)
-                return; //no ecnhantable weapons
+                return false; //no ecnhantable weapons
 
             //按描述表选择毒药（PVP 场景使用致残 / 脑麻痹）
             ChoosePoisons(lvl, mhReady, ohReady);
@@ -1337,14 +1406,41 @@ public:
                 targetWeapon = ohWeapon;
                 targetInfo = OhPoisonInfo;
             }
-            if (targetWeapon)
+            if (!targetWeapon)
+                return false;
+
+            Spell* spell = new Spell(me, targetInfo, TRIGGERED_NONE);
+            // 与萨满同理：把武器作为 castItem 传入，让附魔 proc 相关的 AuraScript 能通过
+            // GetAura()->GetCastItemGUID() 定位附魔武器（Spell::TakeCastItem() 对非玩家不会消耗物品）
+            spell->m_CastItem = targetWeapon;
+            SpellCastTargets targets;
+            targets.SetItemTarget(targetWeapon);
+            spell->prepare(&targets);
+            return true;
+        }
+
+        // 对话菜单选定毒药后立即换掉该手上的毒药，不用等旧毒药到期
+        void RefreshWeaponEnchants(uint8 slot) override
+        {
+            if (slot != BOT_SLOT_MAINHAND && slot != BOT_SLOT_OFFHAND)
+                return;
+
+            // 清理必须无条件先做：留着旧的 TEMP 附魔数据会让 ApplyPoisons()
+            // 认为这只手"已经有毒药"而跳过，换上来的武器就再也没有毒药效果
+            RemoveItemClassEnchantment(slot, true);
+
+            // 正在施法时无法立刻重涂（Spell::prepare 会被拒绝），标记待刷新，
+            // 交给下一轮非战斗动作补上
+            if (IsCasting())
             {
-                Spell* spell = new Spell(me, targetInfo, TRIGGERED_NONE);
-                SpellCastTargets targets;
-                targets.SetItemTarget(targetWeapon);
-                spell->prepare(&targets);
+                if (slot == BOT_SLOT_MAINHAND)
+                    mhEnchantExpireTimer = 1;
+                else
+                    ohEnchantExpireTimer = 1;
                 return;
             }
+
+            ApplyPoisons(int8(slot));
         }
 
         //消失兜底：无输出目标时仍需能靠消失脱离（Attack() 无目标会直接 return）
@@ -1831,10 +1927,10 @@ public:
             if (baseId == CRIPPLING_POISON_1 || baseId == INSTANT_POISON_1 || baseId == DEADLY_POISON_1 ||
                 baseId == WOUND_POISON_1 || baseId == ANESTHETIC_POISON_1 || baseId == MIND_NUMBING_POISON_1)
             {
-                //We set duration to 2 seconds to prevent exploiting unequip mechanic
-                //to get enchanted weapons for player (for non-shaman bots it won't work)
+                //持续时间 20 秒（见 ITEM_ENCHANTMENT_UNEQUIP_DURATION）：
+                //防止玩家卸下并拿走附魔武器白嫖永久毒药
                 uint32 slot = TEMP_ENCHANTMENT_SLOT;
-                uint32 duration = 2 * IN_MILLISECONDS;
+                uint32 duration = ITEM_ENCHANTMENT_UNEQUIP_DURATION;
                 uint32 charges = 0;
                 uint32 enchant_id = spellInfo->Effects[0].MiscValue;
                 //SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
@@ -2023,6 +2119,16 @@ public:
                     {
                         garrEff->ChangeAmount(int32(garrEff->GetAmount() * 1.44f)); //not a mistake
                     }
+                }
+            }
+            //Glyph of Rupture：割裂持续时间 +4 秒（对齐攻略“雕文割裂 20 秒”）
+            if (lvl >= 20 && baseId == RUPTURE_1)
+            {
+                if (Aura* rupt = target->GetAura(spellId, me->GetGUID()))
+                {
+                    uint32 dur = rupt->GetMaxDuration() + 4000;
+                    rupt->SetDuration(dur);
+                    rupt->SetMaxDuration(dur);
                 }
             }
             //Glyph of Deadly Throw
@@ -2482,6 +2588,7 @@ public:
         uint8 comboPoints;
         bool combopointsSpent;
         bool isdaggerMH, isdaggerOH;
+        bool _poisonPvpContext = false; //上次记录的涂毒场景（是否战场/竞技场），用于检测 PvP/PvE 切换
         uint32 mhEnchantExpireTimer, ohEnchantExpireTimer;
         uint32 mhEnchant, ohEnchant;
         bool needChooseMHEnchant, needChooseOHEnchant;

@@ -516,6 +516,10 @@ public:
             }
 
             myPet->GetAI()->SetData(BOTPETAI_MISC_MAXLEVEL, maxLevel);
+
+            // 补发召唤法术日志，让 DPS 插件把黑暗爪牙的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, BLACK_ARROW_1);
+
             _minions.insert(myPet);
         }
 

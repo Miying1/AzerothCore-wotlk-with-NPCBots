@@ -14164,6 +14164,11 @@ BotEquipResult bot_ai::_equip(uint8 slot, Item* newItem, ObjectGuid receiver, bo
 
     _updateEquips(slot, newItem);
 
+    // 武器装好后立即按当前专精 / 角色重新施加附魔（卸下时附魔数据已被清除），
+    // 避免重新装备后要等下一轮非战斗动作才补上附魔
+    if (slot <= BOT_SLOT_RANGED && me->IsInWorld())
+        RefreshWeaponEnchants(uint8(slot));
+
     if (IsUsableItem(newItem))
     {
         uint32 slotMask = 1ul << slot;
@@ -14481,10 +14486,12 @@ void bot_ai::ApplyItemEnchantment(Item* item, EnchantmentSlot eslot, uint8 slot)
                         }
                     }
                     // Cast custom spell vs all equal basepoints got from enchant_amount
+                    // 与玩家侧 Player::ApplyEnchantment() 保持一致：装备附魔法术必须按 triggered 施放，
+                    // 否则被动光环类附魔（如饰品特效转附魔）会因施法检查不通过而完全不生效
                     if (basepoints)
-                        me->CastCustomSpell(me, enchant_spell_id, &basepoints, &basepoints, &basepoints, false, item);
+                        me->CastCustomSpell(me, enchant_spell_id, &basepoints, &basepoints, &basepoints, true, item);
                     else
-                        me->CastSpell(me, enchant_spell_id, false, item);
+                        me->CastSpell(me, enchant_spell_id, true, item);
                 }
                 break;
             case ITEM_ENCHANTMENT_TYPE_RESISTANCE:
@@ -14753,10 +14760,12 @@ void bot_ai::ApplyItemEquipEnchantmentSpells(Item* item)
                         }
                     }
                     // Cast custom spell vs all equal basepoints got from enchant_amount
+                    // 与玩家侧 Player::ApplyEnchantment() 保持一致：装备附魔法术必须按 triggered 施放，
+                    // 否则被动光环类附魔（如饰品特效转附魔）会因施法检查不通过而完全不生效
                     if (basepoints)
-                        me->CastCustomSpell(me, enchant_spell_id, &basepoints, &basepoints, &basepoints, false, item);
+                        me->CastCustomSpell(me, enchant_spell_id, &basepoints, &basepoints, &basepoints, true, item);
                     else
-                        me->CastSpell(me, enchant_spell_id, false, item);
+                        me->CastSpell(me, enchant_spell_id, true, item);
                     break;
                 }
                 default:
@@ -15736,6 +15745,9 @@ void bot_ai::ToggleRole(uint32 role, bool force)
 
     //Update passives
     shouldUpdateStats = true;
+
+    //角色变化会影响依赖角色选择的武器附魔（如萨满图腾附魔），通知职业 AI 重刷
+    OnRolesChanged();
 }
 
 bool bot_ai::IsTank(Unit const* unit) const
@@ -16042,7 +16054,6 @@ void bot_ai::SetSpec(uint8 spec, bool activate)
         removeShapeshiftForm();
         //from DefaultInit
         me->RemoveAllAurasExceptType(SPELL_AURA_CONTROL_VEHICLE);
-        //RemoveItemClassEnchants();
         ApplyItemsSpells();
         ApplyRacials();
         //from SetStats
@@ -16050,6 +16061,10 @@ void bot_ai::SetSpec(uint8 spec, bool activate)
         InitSpells();
         ApplyClassPassives();
         InitHeals();
+
+        //专精已切换：通知职业 AI 重刷依赖专精的武器附魔（盗贼毒药 / 萨满武器附魔）。
+        //由各职业在下一轮非战斗动作里先清理再按新专精重新施加，避免战斗中清掉后无法补涂
+        OnSpecChanged();
 
         me->SetPower(POWER_MANA, 0);
         me->SetPower(POWER_RAGE, 0);
@@ -17091,6 +17106,22 @@ bool bot_ai::SummonGameobject(uint32 entry, uint32 spell_id, int32 life_time, ui
         BotWhisper(LocalizedNpcText(forPlayer, text_id), forPlayer);
 
     return true;
+}
+
+void bot_ai::SendSummonCombatLog(Unit* summoner, WorldObject* summon, uint32 spellId)
+{
+    if (!summoner || !summon)
+        return;
+
+    // 包格式与 Spell::SendLogExecute() 保持一致，客户端收到后会生成 CLEU 的 SPELL_SUMMON 事件
+    WorldPacket data(SMSG_SPELLLOGEXECUTE, (8 + 4 + 4 + 4 + 4 + 8));
+    data << summoner->GetPackGUID();
+    data << uint32(spellId);                // 召唤法术
+    data << uint32(1);                      // 效果数量
+    data << uint32(SPELL_EFFECT_SUMMON);    // 效果类型：召唤
+    data << uint32(1);                      // 目标数量
+    data << summon->GetPackGUID();          // 被召唤物
+    summoner->SendMessageToSet(&data, true);
 }
 
 void bot_ai::UnsummonCreature(ObjectGuid guid, bool save)

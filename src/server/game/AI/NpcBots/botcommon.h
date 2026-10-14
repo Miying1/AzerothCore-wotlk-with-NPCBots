@@ -58,6 +58,7 @@ enum BotCommonValues
     REGEN_CD                            = 1000, //update hp/mana every X milliseconds
 //COMMON TIMERS
     ITEM_ENCHANTMENT_EXPIRE_TIMER       = 3600000, //1 Hour
+    ITEM_ENCHANTMENT_UNEQUIP_DURATION   = 20000,   //20 sec，武器临时附魔写入物品的持续时间
     REVIVE_TIMER_DEFAULT                = 180000, //3 Minutes
     REVIVE_TIMER_MEDIUM                 = 90000, //1.5 Minutes
     REVIVE_TIMER_SHORT                  = 60000, //1 Minute

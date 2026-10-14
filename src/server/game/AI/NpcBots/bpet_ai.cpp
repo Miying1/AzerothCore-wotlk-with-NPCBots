@@ -1,4 +1,5 @@
 #include "bpet_ai.h"
+#include "bot_ai.h"
 #include "bot_GridNotifiers.h"
 #include "botconfig.h"
 #include "botlogtraits.h"
@@ -16,6 +17,8 @@
 NpcBot Pet System by Trickerer (https://github.com/trickerer/Trinity-Bots; onlysuffering@gmail.com)
 */
 
+// 部分 bot 宠物未设置 UNIT_CREATED_BY_SPELL，补发召唤日志时用该值占位(客户端存在的法术)
+static constexpr uint32 BOT_PET_SUMMON_LOG_FALLBACK_SPELL = 30416;//CALL_PET_VISUAL
 static constexpr uint32 SHAMAN_MAX_PET_POSITIONS = 2;
 static constexpr uint32 DRUID_MAX_PET_POSITIONS = 3;
 static constexpr uint32 DK_MAX_PET_POSITIONS = 10;
@@ -2228,6 +2231,25 @@ void bot_pet_ai::IsSummonedBy(WorldObject* summoner)
     //Send group update if not a minion
     if (petOwner->GetBotAI()->GetBotsPet() == me && petOwner->GetBotAI()->GetGroup())
         BotMgr::SetBotGroupUpdateFlag(petOwner, GROUP_UPDATE_PET);
+}
+
+void bot_pet_ai::JustEngagedWith(Unit* /*u*/)
+{
+    // 进入战斗时双方单位在客户端一定都已同步，补发一次召唤日志，
+    // 保证常驻宠物(猎人宠物/术士恶魔等)的伤害也能被并入 bot
+    SendSummonLogToOwner();
+}
+
+void bot_pet_ai::SendSummonLogToOwner()
+{
+    if (!petOwner || !petOwner->IsInWorld() || !me->IsInWorld())
+        return;
+
+    uint32 spellId = me->GetUInt32Value(UNIT_CREATED_BY_SPELL);
+    if (!spellId)
+        spellId = BOT_PET_SUMMON_LOG_FALLBACK_SPELL;
+
+    bot_ai::SendSummonCombatLog(petOwner, me, spellId);
 }
 //This function is called after Spell::SendSpellCooldown() and Spell::DoAllEffects...() call
 void bot_pet_ai::OnBotPetSpellGo(Spell const* spell, bool ok)

@@ -1728,6 +1728,9 @@ public:
             myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, SUMMON_WATER_ELEMENTAL_1);
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPetGUID = myPet->GetGUID();
+
+            // 补发召唤法术日志，让 DPS 插件把水元素的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, SUMMON_WATER_ELEMENTAL_1);
         }
 
         void UnsummonAll(bool savePets = true) override

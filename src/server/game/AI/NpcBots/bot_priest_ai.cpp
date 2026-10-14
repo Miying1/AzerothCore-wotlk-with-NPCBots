@@ -2074,6 +2074,9 @@ public:
             myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
             botPetGUID = myPet->GetGUID();
 
+            // 补发召唤法术日志，让 DPS 插件把暗影魔的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, SHADOWFIEND_1);
+
             myPet->Attack(target, true);
             if (!HasBotCommandState(BOT_COMMAND_MASK_UNCHASE))
                 myPet->GetMotionMaster()->MoveChase(target);

@@ -1606,7 +1606,13 @@ class spell_sha_flametongue_weapon : public AuraScript
             return false;
 
         Item* item = GetEnchantedWeapon(actor, GetAura()->GetCastItemGUID());
-        if (!item || !item->IsEquipped())
+        if (!item)
+            return false;
+
+        // NPCBot 的装备由 bot 自己的装备表管理，不走标准装备槽位：从玩家背包移交过来的武器
+        // 会保留背包槽位与容器指针，Item::IsEquipped() 恒为 false，因此对 bot 跳过该检查
+        // （能通过 GetEnchantedWeapon 在装备表中定位到武器，就说明它当前处于装备状态）
+        if (!actor->IsNPCBot() && !item->IsEquipped())
             return false;
 
         WeaponAttackType attType = GetWeaponAttackType(actor, item);
@@ -2191,7 +2197,13 @@ class spell_sha_windfury_weapon : public AuraScript
             return false;
 
         Item* item = GetEnchantedWeapon(actor, GetAura()->GetCastItemGUID());
-        if (!item || !item->IsEquipped())
+        if (!item)
+            return false;
+
+        // NPCBot 的装备由 bot 自己的装备表管理，不走标准装备槽位：从玩家背包移交过来的武器
+        // 会保留背包槽位与容器指针，Item::IsEquipped() 恒为 false，因此对 bot 跳过该检查
+        // （能通过 GetEnchantedWeapon 在装备表中定位到武器，就说明它当前处于装备状态）
+        if (!actor->IsNPCBot() && !item->IsEquipped())
             return false;
 
         WeaponAttackType attType = GetWeaponAttackType(actor, item);

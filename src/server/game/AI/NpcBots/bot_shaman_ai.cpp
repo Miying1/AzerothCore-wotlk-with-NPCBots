@@ -1202,6 +1202,27 @@ public:
             ApplyWeaponEnchants();
         }
 
+        // 武器附魔选择：显式治疗角色或恢复专精用大地生命，显式远程角色或元素专精用火舌，
+        // 其余（增强等近战）用风怒。等级不足时回退火舌（10 级），10 级以下无附魔
+        // （主手 30 级可用风怒 / 大地生命，副手 20 级额外可用冰封）
+        uint32 SelectWeaponEnchant(bool offhand) const
+        {
+            uint8 const lvl = me->GetLevel();
+            bool const earthliving = HasRole(BOT_ROLE_HEAL) || GetSpec() == BOT_SPEC_SHAMAN_RESTORATION;
+            bool const flametongue = !earthliving &&
+                (HasRole(BOT_ROLE_RANGED) || GetSpec() == BOT_SPEC_SHAMAN_ELEMENTAL);
+
+            if (earthliving)
+                return lvl >= 30 ? EARTHLIVING_WEAPON_1 : lvl >= 10 ? FLAMETONGUE_WEAPON_1 : 0/*ROCKBITER_WEAPON_1*/;
+            if (flametongue)
+                return lvl >= 10 ? FLAMETONGUE_WEAPON_1 : 0/*ROCKBITER_WEAPON_1*/;
+            if (lvl >= 30)
+                return WINDFURY_WEAPON_1;
+            if (offhand && lvl >= 20)
+                return FROSTBRAND_WEAPON_1;
+            return lvl >= 10 ? FLAMETONGUE_WEAPON_1 : 0/*ROCKBITER_WEAPON_1*/;
+        }
+
         // 选择并施加武器附魔。一次只能施放一个法术（施法期间无法再施放下一个），
         // 没附上的那只手会在之后的 DoNonCombatActions() 里补上。
         // onlySlot < 0 时主手优先依次处理，否则只处理指定槽位
@@ -1217,29 +1238,11 @@ public:
                 return false; //no ecnhantable weapons
 
             //OK choose the enchants
-            //MH 1+ Rockbiter, 10+ Flametongue, 30+ Windfury/Earthliving
-            //OH 1+ Rockbiter, 10+ Flametongue, 20+ Frostbrand, 30+ Windfury/Earthliving
             if (needChooseMHEnchant && mhReady)
-                mhEnchant = HasRole(BOT_ROLE_HEAL) ? (me->GetLevel() >= 30 ? EARTHLIVING_WEAPON_1 :
-                    me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/) :
-                    HasRole(BOT_ROLE_RANGED) ? (me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/) :
-                    (me->GetLevel() >= 30 ? WINDFURY_WEAPON_1 :
-                    //me->GetLevel() >= 20 ? FROSTBRAND_WEAPON_1 :
-                    me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/);
+                mhEnchant = SelectWeaponEnchant(false);
 
             if (needChooseOHEnchant && ohReady) //basically only lvl 40+
-                ohEnchant = HasRole(BOT_ROLE_HEAL) ? (me->GetLevel() >= 30 ? EARTHLIVING_WEAPON_1 :
-                    me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/) :
-                    HasRole(BOT_ROLE_RANGED) ? (me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/) :
-                    (me->GetLevel() >= 30 ? WINDFURY_WEAPON_1 :
-                    me->GetLevel() >= 20 ? FROSTBRAND_WEAPON_1 :
-                    me->GetLevel() >= 10 ? FLAMETONGUE_WEAPON_1 :
-                    0/*ROCKBITER_WEAPON_1*/);
+                ohEnchant = SelectWeaponEnchant(true);
 
             uint32 MhEnchant = !mhReady ? 0 : GetSpell(mhEnchant);
             uint32 OhEnchant = !ohReady ? 0 : GetSpell(ohEnchant);
@@ -1264,23 +1267,59 @@ public:
                 return false;
 
             Spell* spell = new Spell(me, targetInfo, TRIGGERED_NONE);
+            // 把武器作为 castItem 传入：风怒/火舌的触发逻辑在 spell_shaman.cpp 的 AuraScript 里，
+            // 它用 GetAura()->GetCastItemGUID() 定位附魔武器并判定主/副手；不传的话光环的
+            // castItemGUID 为空、CheckProc 永远失败，bot 的武器附魔就完全没有效果。
+            // 武器是装备中的物品，且 Spell::TakeCastItem() 对非玩家施法者直接返回，不会被消耗
+            spell->m_CastItem = targetWeapon;
             SpellCastTargets targets;
             targets.SetItemTarget(targetWeapon);
             spell->prepare(&targets);
             return true;
         }
 
-        // 对话菜单选定附魔后立即换掉该手上的附魔，不用等 bot 脱战静止时才自动刷新
+        // 装备武器或对话菜单选定附魔后立即重做该手的附魔，不用等 bot 脱战静止时才自动刷新。
+        // 不管武器上原本有没有附魔，都先清空再施加，保证走的是一遍完整附魔
         void RefreshWeaponEnchants(uint8 slot) override
         {
             if (slot != BOT_SLOT_MAINHAND && slot != BOT_SLOT_OFFHAND)
                 return;
 
-            // 先清掉旧附魔（连同物品上残留的数据），再按新的选择重新施加
+            // 清理必须无条件先做：留着旧的 TEMP 附魔数据会让 ApplyWeaponEnchants()
+            // 认为这只手"已经有附魔"而跳过，换上来的武器就再也没有附魔效果
             RemoveItemClassEnchantment(slot, true);
 
-            if (!IsCasting())
-                ApplyWeaponEnchants(int8(slot));
+            // 正在施法时无法立刻重涂（Spell::prepare 会被拒绝），标记待刷新，
+            // 交给下一轮非战斗动作补上
+            if (IsCasting())
+            {
+                if (slot == BOT_SLOT_MAINHAND)
+                    mhEnchantExpireTimer = 1;
+                else
+                    ohEnchantExpireTimer = 1;
+                return;
+            }
+
+            ApplyWeaponEnchants(int8(slot));
+        }
+
+        // 角色（BOT_ROLE_*）切换后武器附魔的选择会变（治疗用大地生命 / 远程用火舌 / 其他用风怒），
+        // 置清理计时器让下一轮非战斗动作清掉旧附魔并按新角色重新选择施加；
+        // 不立即清理是为了避开战斗 / 施法 / 坐骑状态（与 Reset() 同一手法）
+        void OnRolesChanged() override
+        {
+            mhEnchantExpireTimer = std::min<uint32>(mhEnchantExpireTimer, 1);
+            ohEnchantExpireTimer = std::min<uint32>(ohEnchantExpireTimer, 1);
+        }
+
+        // 专精切换后武器附魔方案会变（增强风怒 / 元素火舌 / 恢复大地生命），
+        // 切回自动选择并置清理计时器，由下一轮非战斗动作清掉旧附魔再按新专精施加
+        void OnSpecChanged() override
+        {
+            needChooseMHEnchant = true;
+            needChooseOHEnchant = true;
+            mhEnchantExpireTimer = std::min<uint32>(mhEnchantExpireTimer, 1);
+            ohEnchantExpireTimer = std::min<uint32>(ohEnchantExpireTimer, 1);
         }
 
         bool BuffTarget(Unit* target, uint32 /*diff*/) override
@@ -1974,10 +2013,10 @@ public:
             if (/*baseId == ROCKBITER_WEAPON_1 || */baseId == FLAMETONGUE_WEAPON_1 || baseId == FROSTBRAND_WEAPON_1 ||
                 baseId == WINDFURY_WEAPON_1 || baseId == EARTHLIVING_WEAPON_1)
             {
-                //We set duration to 2 seconds to prevent exploiting unequip mechanic
-                //to get enchanted weapons for player (for non-shaman bots it won't work)
+                //持续时间 20 秒（见 ITEM_ENCHANTMENT_UNEQUIP_DURATION）：
+                //防止玩家卸下并拿走附魔武器白嫖永久附魔
                 uint32 slot = TEMP_ENCHANTMENT_SLOT;
-                uint32 duration = 2 * IN_MILLISECONDS;
+                uint32 duration = ITEM_ENCHANTMENT_UNEQUIP_DURATION;
                 uint32 charges = 0;
                 uint32 enchant_id = spellInfo->Effects[0].MiscValue;
                 //SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
@@ -2175,6 +2214,9 @@ public:
                 myPet->SetUInt32Value(UNIT_CREATED_BY_SPELL, FERAL_SPIRIT_1);
                 myPet->SetFloatValue(UNIT_FIELD_COMBATREACH, 2.0f * DEFAULT_COMBAT_REACH * me->GetObjectScale());
                 //野性狼召唤物为多宠物集合，不记录为单一宠物。
+
+                // 补发召唤法术日志，让 DPS 插件把幽魂之狼的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+                bot_ai::SendSummonCombatLog(me, myPet, FERAL_SPIRIT_1);
 
                 myPet->Attack(target, true);
                 if (!HasBotCommandState(BOT_COMMAND_MASK_UNCHASE))

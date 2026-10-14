@@ -649,6 +649,10 @@ public:
             }
 
             myPet->GetAI()->SetData(BOTPETAI_MISC_MAXLEVEL, me->GetLevel());
+
+            // 补发召唤法术日志，让 DPS 插件把骷髅的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, RAISE_DEAD_1);
+
             _minions.insert(myPet);
         }
 

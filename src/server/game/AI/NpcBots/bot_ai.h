@@ -86,6 +86,11 @@ public:
 
     bool SummonGameobject(uint32 entry, uint32 spell_id, int32 life_time, uint32 cooldown = 0, uint32 text_id = 0, Player* forPlayer = nullptr, bool report_fail = false);
 
+    // 补发一条召唤法术日志(SMSG_SPELLLOGEXECUTE)：直接 SummonCreature 创建召唤物时
+    // 客户端收不到 CLEU 的 SPELL_SUMMON 事件，DPS 插件会把召唤物当成独立单位统计，
+    // 这里手动补上该事件，插件才会把召唤物的伤害/治疗并入 bot
+    static void SendSummonCombatLog(Unit* summoner, WorldObject* summon, uint32 spellId);
+
     virtual void OnBotSummon(Creature* /*summon*/) {}
     virtual void OnBotDespawn(Creature* /*summon*/) {}
 
@@ -410,6 +415,14 @@ protected:
     // 否则只能等到 bot 脱战静止时由 DoNonCombatActions() 自动施加。默认无实现，
     // 由需要武器附魔的职业（萨满等）覆盖
     virtual void RefreshWeaponEnchants(uint8 /*slot*/) {}
+
+    // 角色（BOT_ROLE_*）发生变化后调用：供武器附魔选择依赖角色的职业（萨满）标记需要重刷。
+    // 默认无实现，由需要该通知的职业覆盖
+    virtual void OnRolesChanged() {}
+
+    // 专精切换生效（SetSpec）后调用：供武器附魔方案依赖专精的职业（盗贼毒药 / 萨满武器附魔）
+    // 重新选择并施加。默认无实现，由需要该通知的职业覆盖
+    virtual void OnSpecChanged() {}
 
     void BuffAndHealGroup(uint32 diff);
     void ResurrectGroup(uint32 REZZ);

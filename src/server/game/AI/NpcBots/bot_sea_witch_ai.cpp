@@ -642,6 +642,9 @@ public:
             cmData.Flight = CreatureFlightMovementType::None;
 
             _minions.insert(myPet);
+
+            // 补发召唤法术日志，让 DPS 插件把龙卷风的伤害并入 bot(见 bot_ai::SendSummonCombatLog)
+            bot_ai::SendSummonCombatLog(me, myPet, TORNADO_1);
         }
 
         void UnsummonAll(bool savePets = true) override

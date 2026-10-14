@@ -29,7 +29,7 @@ public:
     void JustDied(Unit*) override;
     void KilledUnit(Unit* u) override;
     void AttackStart(Unit* u) override;
-    //virtual void JustEngagedWith(Unit* u) override;
+    void JustEngagedWith(Unit* u) override;
     void MoveInLineOfSight(Unit* /*u*/) override {}
     void DamageDealt(Unit* victim, uint32& damage, DamageEffectType damageType, SpellSchoolMask /*damageSchoolMask*/) override;
     void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/, DamageEffectType /*damageType*/, SpellSchoolMask /*schoolMask*/) override { }
@@ -96,6 +96,9 @@ protected:
     void SetPetStats(bool force);
 
     void OnOwnerDamagedBy(Unit* attacker);
+
+    // 向周围玩家补发召唤法术日志(见 bot_ai::SendSummonCombatLog)
+    void SendSummonLogToOwner();
 
     bool IsPetMelee() const;
     uint8 Spec() const;
