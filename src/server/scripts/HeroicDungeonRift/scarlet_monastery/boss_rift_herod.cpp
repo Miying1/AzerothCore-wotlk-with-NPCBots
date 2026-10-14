@@ -5,6 +5,7 @@
 #include "../rift_boss_base.h"
 
 #include "Creature.h"
+#include "GameObject.h"
 #include "ScriptMgr.h"
 
 namespace HeroicDungeonRift
@@ -24,6 +25,11 @@ enum Spells : uint32
     SpellWhirlwind = 8989, // 旋风斩（原版/T1基础）
     SpellEnrage = 8269     // 狂乱（原版/T1基础；生命值低于40%时触发）
 };
+
+// 军械库最后Boss（赫洛德）房间前面的门。原版需要玩家拉动杠杆（101855）才会开启，
+// 而裂隙玩家会被直接传送到门与Boss之间的战斗区域，因此需要在Boss就位时直接开门。
+constexpr uint32 HerodDoorEntry = 101854;
+constexpr float HerodDoorSearchRange = 100.0f;
 }
 
 struct npc_rift_scarlet_trainee : public ScriptedAI
@@ -54,6 +60,7 @@ struct boss_rift_herod : public BossAIBase
         BossAIBase::Reset();
         _enraged = false;
         _finalWave = false;
+        OpenHerodDoor();
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -104,6 +111,14 @@ struct boss_rift_herod : public BossAIBase
     }
 
 private:
+    // 裂隙军械库不再保留原版的拉杆开门流程，Boss就位时直接把门设为开启状态，
+    // 避免门关闭时把玩家挡在门外、无法接近赫洛德。
+    void OpenHerodDoor()
+    {
+        if (GameObject* door = me->FindNearestGameObject(HerodDoorEntry, HerodDoorSearchRange))
+            door->SetGoState(GO_STATE_ACTIVE);
+    }
+
     uint32 CountAliveTrainees() const
     {
         uint32 count = 0;
