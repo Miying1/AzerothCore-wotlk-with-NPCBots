@@ -19,6 +19,7 @@ NpcBot System by Trickerer (onlysuffering@gmail.com)
 */
 
 class BotPositionControl;
+class BotMgr;
 class bot_mgr_service;
 class TeleportHomeEvent;
 class TeleportFinishEvent;
@@ -926,6 +927,24 @@ public:
 
 private:
     void _processQueuedActions();
+
+    // 打断目标认领的 RAII 守卫
+    // 作用域结束（含提前 return / 异常）时自动释放认领，避免遗漏出口导致目标被永久占位
+    // mgr 为空（野外无主机器人）时不做任何事
+    class InterruptClaimGuard
+    {
+    public:
+        InterruptClaimGuard(BotMgr* mgr, ObjectGuid target_guid, ObjectGuid bot_guid);
+        ~InterruptClaimGuard();
+
+        InterruptClaimGuard(InterruptClaimGuard const&) = delete;
+        InterruptClaimGuard& operator=(InterruptClaimGuard const&) = delete;
+
+    private:
+        BotMgr* _mgr;
+        ObjectGuid _target_guid;
+        ObjectGuid _bot_guid;
+    };
 
     using ActionsQueue = std::set<BotAction>;
     ActionsQueue _action_queue;

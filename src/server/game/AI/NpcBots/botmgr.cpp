@@ -16,6 +16,7 @@
 #include "Chat.h"
 #include "CombatPackets.h"
 #include "Config.h"
+#include "GameTime.h"
 #include "GroupMgr.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
@@ -192,6 +193,91 @@ bool BotMgr::IsWanderingWorldBot(Creature const* bot)
     return bot->IsWandererBot() && (!bot->FindMap() || !bot->GetMap()->GetEntry() || bot->GetMap()->GetEntry()->IsWorldMap());
 }
 
+bool BotMgr::ClaimInterruptTarget(ObjectGuid target_guid, ObjectGuid bot_guid)
+{
+    // 认领表跨线程共享：地图线程（bot AI）读写，主线程（命令行/登出）通过 RemoveBot 清理，
+    // 与 _bots 一样用 _botsMutex（递归锁）保护，避免并发读写 unordered_map 导致未定义行为
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
+    if (target_guid.IsEmpty() || bot_guid.IsEmpty())
+        return false;
+
+    const TimePoint now = GameTime::Now();
+    auto it = _interruptClaims.find(target_guid);
+    if (it == _interruptClaims.end())
+    {
+        _interruptClaims.emplace(target_guid, InterruptClaim{ bot_guid, now });
+        return true;
+    }
+
+    //已由本机器人认领则续期
+    if (it->second.bot_guid == bot_guid)
+    {
+        it->second.claim_time = now;
+        return true;
+    }
+
+    //他人认领且未超时，抢占失败
+    if (it->second.claim_time + Milliseconds(BOT_INTERRUPT_CLAIM_TIMEOUT_MS) > now)
+        return false;
+
+    it->second.bot_guid = bot_guid;
+    it->second.claim_time = now;
+    return true;
+}
+
+bool BotMgr::ReleaseInterruptClaim(ObjectGuid target_guid, ObjectGuid bot_guid)
+{
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
+    if (target_guid.IsEmpty())
+        return false;
+
+    auto it = _interruptClaims.find(target_guid);
+    if (it == _interruptClaims.end())
+        return false;
+
+    //仅认领者本人可释放，防止误清他人认领
+    if (it->second.bot_guid != bot_guid)
+        return false;
+
+    _interruptClaims.erase(it);
+    return true;
+}
+
+void BotMgr::ClearInterruptClaims(ObjectGuid bot_guid)
+{
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
+    if (bot_guid.IsEmpty())
+        return;
+
+    for (auto it = _interruptClaims.begin(); it != _interruptClaims.end();)
+    {
+        if (it->second.bot_guid == bot_guid)
+            it = _interruptClaims.erase(it);
+        else
+            ++it;
+    }
+}
+
+void BotMgr::ExpireInterruptClaims()
+{
+    std::lock_guard<std::recursive_mutex> guard(_botsMutex);
+
+    if (_interruptClaims.empty())
+        return;
+
+    const TimePoint now = GameTime::Now();
+    for (auto it = _interruptClaims.begin(); it != _interruptClaims.end();)
+    {
+        if (it->second.claim_time + Milliseconds(BOT_INTERRUPT_CLAIM_TIMEOUT_MS) <= now)
+            it = _interruptClaims.erase(it);
+        else
+            ++it;
+    }
+}
+
 void BotMgr::Update(uint32 diff)
 {
     _dpstracker->Update(diff);
@@ -214,6 +300,12 @@ void BotMgr::Update(uint32 diff)
         _aoespots.clear();
         _creatureHazardStates.clear();
     }
+
+    // 打断目标认领同样只在战斗中有效，脱战清空；战斗中定期清理超时项
+    if (!partyCombat)
+        _interruptClaims.clear();
+    else
+        ExpireInterruptClaims();
 
     ++_botsIterateDepth;
 
@@ -753,6 +845,11 @@ void BotMgr::CleanupsBeforeBotDelete(ObjectGuid guid, uint8 removetype)
 
 void BotMgr::CleanupsBeforeBotDelete(Creature* bot)
 {
+    // 清理该机器人的打断目标认领，避免目标被已移除的机器人永久占位
+    if (Player* owner = bot->GetBotOwner())
+        if (BotMgr* mgr = owner->GetBotMgr())
+            mgr->ClearInterruptClaims(bot->GetGUID());
+
     //don't allow removing bots while they are teleporting
     if (!bot->IsInWorld())
         bot->GetBotAI()->AbortTeleport();
@@ -2009,6 +2106,11 @@ void BotMgr::OnBotWandererKilled(GameObject* go)
 
 void BotMgr::OnBotKilled(Creature const* bot, Unit* attacker/* = nullptr*/)
 {
+    // 机器人死亡后立即释放其持有的打断目标认领
+    if (Player* owner = bot->GetBotOwner())
+        if (BotMgr* mgr = owner->GetBotMgr())
+            mgr->ClearInterruptClaims(bot->GetGUID());
+
     bot->GetBotAI()->OnDeath(attacker);
 }
 

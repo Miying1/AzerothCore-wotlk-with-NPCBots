@@ -17494,6 +17494,19 @@ void bot_ai::CastBotItemCombatSpell(DamageInfo const& damageInfo, Item* item, It
     }
 }
 //DELAYED ACTIONS
+bot_ai::InterruptClaimGuard::InterruptClaimGuard(BotMgr* mgr, ObjectGuid target_guid, ObjectGuid bot_guid)
+    : _mgr(mgr), _target_guid(target_guid), _bot_guid(bot_guid)
+{
+    if (_mgr)
+        _mgr->ClaimInterruptTarget(_target_guid, _bot_guid);
+}
+
+bot_ai::InterruptClaimGuard::~InterruptClaimGuard()
+{
+    if (_mgr)
+        _mgr->ReleaseInterruptClaim(_target_guid, _bot_guid);
+}
+
 bool bot_ai::EnqueueAction(BotAction&& action, bool is_order)
 {
     if (is_order && GetActionsQueueSize() >= (is_order ? MAX_BOT_ORDERS_QUEUE_SIZE : MAX_BOT_ACTIONS_QUEUE_SIZE))
@@ -17546,6 +17559,10 @@ void bot_ai::CompleteAction(BotAction const& action)
 void bot_ai::CancelAllActions()
 {
     RemoveBotCommandState(BOT_COMMAND_ISSUED_ORDER);
+    // 丢弃队列中未执行的打断动作时，必须同步释放打断目标认领，否则目标会被本机器人占位
+    if (!IAmFree())
+        if (BotMgr* mgr = master->GetBotMgr())
+            mgr->ClearInterruptClaims(me->GetGUID());
     _action_queue.clear();
 }
 bool bot_ai::HasQueuedAction(BotActionTypes action_type, ObjectGuid guid_param, uint32 uparam, Optional<bool> bparam) const
@@ -17600,12 +17617,30 @@ bool bot_ai::IsActionNext(BotActionTypes action_type, uint32 param1, ObjectGuid 
 }
 bool bot_ai::EnqueueCounterSpellAction(ObjectGuid target_guid, uint32 base_spell, bool interrupt_self_cast)
 {
+    // 团队内打断去重：同一目标同期只允许一个机器人认领并打断
+    // 野外的无主机器人没有共同的 BotMgr，无法协调，保持各自独立行为
+    BotMgr* mgr = nullptr;
+    if (!IAmFree())
+    {
+        mgr = master->GetBotMgr();
+        if (mgr && !mgr->ClaimInterruptTarget(target_guid, me->GetGUID()))
+            return false;
+    }
+
     const auto delay_roll = IAmFree() ? Milliseconds(urand(BOT_ACTION_COUNTERSPELL_DELAY_RANGE.first, BOT_ACTION_COUNTERSPELL_DELAY_RANGE.second)) : 0ms;
     auto action = BotAction(BotActionTypes::BOT_ACTION_SPELLCAST, delay_roll, 700ms);
     action.params.spell_cast_params.target_guid = target_guid;
     action.params.spell_cast_params.base_spell = base_spell;
     action.params.spell_cast_params.interrupt_self = interrupt_self_cast;
-    return EnqueueAction(std::move(action), false);
+    if (!EnqueueAction(std::move(action), false))
+    {
+        // 入队失败必须回滚认领，否则目标会被本机器人永久占位
+        if (mgr)
+            mgr->ReleaseInterruptClaim(target_guid, me->GetGUID());
+        return false;
+    }
+
+    return true;
 }
 void bot_ai::_processQueuedActions()
 {
@@ -17688,6 +17723,11 @@ void bot_ai::_processQueuedActions()
             if (spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) ||
                 (spellInfo->HasEffect(SPELL_EFFECT_APPLY_AURA) && spellInfo->GetEffect(EFFECT_0).ApplyAuraName == SPELL_AURA_MOD_SILENCE))
             {
+                // 打断动作：用 RAII 守卫持有目标认领
+                // 本作用域内任意 return 或正常结束都会自动释放，避免遗漏出口导致目标被永久占位
+                BotMgr* claim_mgr = IAmFree() ? nullptr : master->GetBotMgr();
+                [[maybe_unused]] InterruptClaimGuard interrupt_guard(claim_mgr, target->GetGUID(), me->GetGUID());
+
                 if (!target->IsAlive())
                 {
                     CancelAction(action);

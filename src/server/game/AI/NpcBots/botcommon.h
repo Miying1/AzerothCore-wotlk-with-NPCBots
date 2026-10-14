@@ -669,6 +669,10 @@ static_assert(BOT_ACTION_COUNTERSPELL_DELAY_RANGE.first < BOT_ACTION_COUNTERSPEL
 inline constexpr uint32 BOT_ACTION_MAX_AFTERCAST_INTERRUPT_TIME_MS = 300;
 inline constexpr uint32 BOT_ACTION_COUNTERCAST_TIME_WINDOW_EXTENSION_MS = 800;
 
+//同一队伍内打断目标认领的默认有效期（毫秒）
+//必须大于 打断入队随机延迟 + 施法时间，否则会被误回收导致同一读条被重复打断
+inline constexpr uint32 BOT_INTERRUPT_CLAIM_TIMEOUT_MS = 2000;
+
 inline constexpr std::array BOT_ACTION_RETRY_DELAYS{
     static_cast<uint32>(100),
     static_cast<uint32>(200)

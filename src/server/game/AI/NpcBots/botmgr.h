@@ -4,12 +4,14 @@
 #include "botcommon.h"
 #include "Hazards/NPCBotHazardMgr.h"
 #include "DBCEnums.h"
+#include "Duration.h"
 
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <string_view>
+#include <unordered_map>
 
 class bot_ai;
 class BotPositionControl;
@@ -265,6 +267,16 @@ public:
     AoeSpotsVec const& GetAoeSpots() const { return _aoespots; }
     AoeSpotsVec& GetAoeSpots() { return _aoespots; }
 
+    //打断目标认领：同一队伍内同一目标同一时段只允许一个机器人打断
+    //返回 true 表示认领成功（含本机器人已持有该目标认领的情况）
+    bool ClaimInterruptTarget(ObjectGuid target_guid, ObjectGuid bot_guid);
+    //仅认领者本人可释放
+    bool ReleaseInterruptClaim(ObjectGuid target_guid, ObjectGuid bot_guid);
+    //清理指定机器人的全部认领（死亡、脱战、被移除时调用）
+    void ClearInterruptClaims(ObjectGuid bot_guid);
+    //清理超时或目标已失效的认领
+    void ExpireInterruptClaims();
+
     void UpdateTargetIconName(uint8 id, std::string_view name);
     void ResetTargetIconNames();
 
@@ -291,11 +303,19 @@ private:
     NpcBotMgrData* _data;
 
     bool _quickrecall;
-    std::recursive_mutex _botsMutex;   // 跨线程保护 _bots 与 _delayedRemoveList 的访问
+    std::recursive_mutex _botsMutex;   // 跨线程保护 _bots、_delayedRemoveList 与 _interruptClaims 的访问
     uint32 _botsIterateDepth{0};       // _bots 遍历嵌套深度，>0 表示正在遍历（用于延迟移除，避免迭代器失效）
 
     AoeSpotsVec _aoespots;
     NPCBotCreatureHazardStateMap _creatureHazardStates;
+
+    //打断目标认领表：key 为目标 guid
+    struct InterruptClaim
+    {
+        ObjectGuid bot_guid;   //认领者
+        TimePoint claim_time;  //认领时刻
+    };
+    std::unordered_map<ObjectGuid /*target*/, InterruptClaim> _interruptClaims;
 
     std::array<std::string_view, TARGET_ICON_NAMES_CACHE_SIZE> _targetIconNamesCache;
 };
