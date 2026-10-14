@@ -1,0 +1,109 @@
+﻿效果名称,来源类型,已知ID,ID类型,载体,出现位置,目标路径,迁移后提供方式,状态
+Remorseless Attacks,天赋,272,Talent,A,bot_rogue_ai.cpp:211,1(光环),构筑rank派生后 RefreshAura,待迁移
+Dual Wield Specialization,天赋,221,Talent,A+B,bot_rogue_ai.cpp:212 / :1558,1(光环)+2(数值),光环走构筑 + 数值走构筑反查,待迁移(跨载体-重点)
+Master of Deception,天赋,241,Talent,A,bot_rogue_ai.cpp:213,1(光环),构筑rank派生后 RefreshAura,待迁移
+Glyph of Backstab,雕文,393,Glyph,A,bot_rogue_ai.cpp:214,1(光环),构筑rank派生后 RefreshAura,待迁移
+Vigor,天赋,382,Talent,A,bot_rogue_ai.cpp:215,1(光环),构筑rank派生后 RefreshAura,待迁移
+Vigor (Gladiator),非迁移,-,套装,A,bot_rogue_ai.cpp:216,-,保留（不在天赋/雕文迁移范围）,非迁移(白名单)
+Quick Recovery r1,天赋,1762,Talent,A,bot_rogue_ai.cpp:218,1(光环),构筑rank派生后 RefreshAura,待迁移
+Quick Recovery r2,天赋,1762,Talent,A,bot_rogue_ai.cpp:219,1(光环),构筑rank派生后 RefreshAura,待迁移
+Improved Kidney Shot,天赋,279,Talent,A,bot_rogue_ai.cpp:220,1(光环),构筑rank派生后 RefreshAura,待迁移
+Fleet Footed,天赋,1721,Talent,A,bot_rogue_ai.cpp:221,1(光环),构筑rank派生后 RefreshAura,待迁移
+Seal Fate r1,天赋,283,Talent,A,bot_rogue_ai.cpp:222,1(光环),构筑rank派生后 RefreshAura,待迁移
+Seal Fate r2,天赋,283,Talent,A,bot_rogue_ai.cpp:223,1(光环),构筑rank派生后 RefreshAura,待迁移
+Seal Fate r3,天赋,283,Talent,A,bot_rogue_ai.cpp:224,1(光环),构筑rank派生后 RefreshAura,待迁移
+Seal Fate r4,天赋,283,Talent,A,bot_rogue_ai.cpp:225,1(光环),构筑rank派生后 RefreshAura,待迁移
+Seal Fate r5,天赋,283,Talent,A,bot_rogue_ai.cpp:226,1(光环),构筑rank派生后 RefreshAura,待迁移
+Murder,天赋,274,Talent,A+B,bot_rogue_ai.cpp:227 / :1540,1(光环)+2(数值),光环走构筑 + 数值走构筑反查,待迁移(跨载体-重点)
+Deadly Brew,天赋,2065,Talent,A,bot_rogue_ai.cpp:228,1(光环),构筑rank派生后 RefreshAura,待迁移
+Overkill,天赋,281,Talent,A,bot_rogue_ai.cpp:229,1(光环),构筑rank派生后 RefreshAura,待迁移
+Master Poisoner,天赋,1715,Talent,A,bot_rogue_ai.cpp:230,1(光环),构筑rank派生后 RefreshAura,待迁移
+Improved Kick,天赋,206,Talent,A,bot_rogue_ai.cpp:232,1(光环),构筑rank派生后 RefreshAura,待迁移
+Improved Sprint,天赋,222,Talent,A,bot_rogue_ai.cpp:233,1(光环),构筑rank派生后 RefreshAura,待迁移
+Hack and Slash,天赋,242,Talent,A,bot_rogue_ai.cpp:234,1(光环),构筑rank派生后 RefreshAura,待迁移
+Vitality,天赋,1705,Talent,A,bot_rogue_ai.cpp:235,1(光环),构筑rank派生后 RefreshAura,待迁移
+Nerves of Steel,天赋,1707,Talent,A,bot_rogue_ai.cpp:236,1(光环),构筑rank派生后 RefreshAura,待迁移
+Combat Potency r1,天赋,1825,Talent,A,bot_rogue_ai.cpp:237,1(光环),构筑rank派生后 RefreshAura,待迁移
+Combat Potency r2,天赋,1825,Talent,A,bot_rogue_ai.cpp:238,1(光环),构筑rank派生后 RefreshAura,待迁移
+Combat Potency r3,天赋,1825,Talent,A,bot_rogue_ai.cpp:239,1(光环),构筑rank派生后 RefreshAura,待迁移
+Combat Potency r4,天赋,1825,Talent,A,bot_rogue_ai.cpp:240,1(光环),构筑rank派生后 RefreshAura,待迁移
+Combat Potency r5,天赋,1825,Talent,A,bot_rogue_ai.cpp:241,1(光环),构筑rank派生后 RefreshAura,待迁移
+Throwing Specialization,天赋,2072,Talent,A,bot_rogue_ai.cpp:242,1(光环),构筑rank派生后 RefreshAura,待迁移
+Unfair Advantage,天赋,2073,Talent,A,bot_rogue_ai.cpp:243,1(光环),构筑rank派生后 RefreshAura,待迁移
+Surprise Attacks,天赋,1709,Talent,A+B,bot_rogue_ai.cpp:244 / :1564,1(光环)+2(数值),光环走构筑 + 数值走构筑反查,待迁移(跨载体-重点)
+Prey on the Weak,天赋,2075,Talent,A,bot_rogue_ai.cpp:245,1(光环),构筑rank派生后 RefreshAura,待迁移
+Setup,天赋,246,Talent,A,bot_rogue_ai.cpp:247,1(光环),构筑rank派生后 RefreshAura,待迁移
+Initiative,天赋,245,Talent,A,bot_rogue_ai.cpp:248,1(光环),构筑rank派生后 RefreshAura,待迁移
+Dirty Deeds,天赋,265,Talent,A+B,bot_rogue_ai.cpp:249 / :1614,1(光环)+2(数值),光环走构筑 + 数值走构筑反查,待迁移(跨载体-重点)
+Master of Subtlety,天赋,1713,Talent,A,bot_rogue_ai.cpp:250,1(光环),构筑rank派生后 RefreshAura,待迁移
+Cheat Death,天赋,1722,Talent,A,bot_rogue_ai.cpp:251,1(光环),构筑rank派生后 RefreshAura,待迁移
+Enveloping Shadows,天赋,1711,Talent,A,bot_rogue_ai.cpp:252,1(光环),构筑rank派生后 RefreshAura,待迁移
+Turn the Tables,天赋,2066,Talent,A+B,bot_rogue_ai.cpp:2392 / :1506-1509,1(光环)+2(数值),光环走构筑 + 数值走构筑反查,待迁移(跨载体-重点)
+Rogue Passive DND,非迁移,-,技能自带,A,bot_rogue_ai.cpp:2395,-,保留（不在天赋/雕文迁移范围）,非迁移(白名单)
+Puncturing Wounds (Backstab),天赋,277,Talent,B,bot_rogue_ai.cpp:1489-1493,2(数值),暴击率走构筑rank查询,待迁移
+Puncturing Wounds (Mutilate),天赋,277,Talent,B,bot_rogue_ai.cpp:1494-1497,2(数值),同上,待迁移
+Glyph of Eviscerate,雕文,398,Glyph,B,bot_rogue_ai.cpp:1500-1501,2(数值),暴击率走槽位数值查询,待迁移(重点:仅B类)
+Improved Ambush,天赋,263,Talent,B,bot_rogue_ai.cpp:1503-1504,2(数值),暴击率走构筑rank查询,待迁移
+Lethality,天赋,269,Talent,B,bot_rogue_ai.cpp:1529-1533,2(数值),暴击加成走构筑rank查询,待迁移
+DeathDealer (set) 4P,非迁移,-,套装,B,bot_rogue_ai.cpp:1537-1538,-,保留（套装，非天赋/雕文）,非迁移(白名单)
+Find Weakness,天赋,1718,Talent,B,bot_rogue_ai.cpp:1540-1541,2(数值),增伤走构筑rank查询,待迁移
+Improved Eviscerate,天赋,276,Talent,B,bot_rogue_ai.cpp:1543-1544,2(数值),同上,待迁移
+Opportunity,天赋,261,Talent,B,bot_rogue_ai.cpp:1546-1549,2(数值),同上,待迁移
+Aggression,天赋,1122,Talent,B,bot_rogue_ai.cpp:1551-1553,2(数值),同上,待迁移
+Blood Spatter,天赋,2068,Talent,B,bot_rogue_ai.cpp:1555-1556,2(数值),同上,待迁移
+Vile Poisons,天赋,682,Talent,B,bot_rogue_ai.cpp:1558-1559,2(数值),同上,待迁移
+Serrated Blades part2,天赋,1123,Talent,B,bot_rogue_ai.cpp:1561-1562,2(数值),同上,待迁移
+Blade Twisting,天赋,1706,Talent,B,bot_rogue_ai.cpp:1569-1570,2(数值),同上,待迁移
+Sinister Calling,天赋,1712,Talent,B,bot_rogue_ai.cpp:1573-1574,2(数值),同上,待迁移
+Glyph of Fan of Knives,雕文,731,Glyph,B,bot_rogue_ai.cpp:1576-1577,2(数值),增伤走槽位查询,待迁移(重点:仅B类)
+Glyph of Sinister Strike,雕文,409,Glyph,B,bot_rogue_ai.cpp:1581 + :1952-1956,2(数值)+3(行为),CP 触发率走槽位查询,待迁移(重点:跨B+C)
+Glyph of Blade Flurry,雕文,394,Glyph,B,bot_rogue_ai.cpp:1598-1599,2(数值),能量消耗走槽位查询,待迁移(重点:仅B类)
+Dirty Tricks (cost/range),天赋,265,Talent,B,bot_rogue_ai.cpp:1603-1604 / :1779-1780,2(数值),消耗+射程走构筑rank查询,待迁移(同效果拆两处)
+Improved Expose Armor,天赋,278,Talent,B,bot_rogue_ai.cpp:1608-1609,2(数值),能量消耗走构筑rank查询,待迁移
+Improved Sinister Strike,天赋,201,Talent,B,bot_rogue_ai.cpp:1611-1612,2(数值),同上,待迁移
+Filthy Tricks (cost/cd),天赋,2079,Talent,B,bot_rogue_ai.cpp:1617-1619 / :1687-1689,2(数值),消耗+冷却走构筑rank查询,待迁移(同效果拆两处)
+Slaughter from the Shadows,天赋,2080,Talent,B,bot_rogue_ai.cpp:1621-1625,2(数值),能量消耗走构筑rank查询,待迁移
+Glyph of Feint,雕文,400,Glyph,B,bot_rogue_ai.cpp:1627-1628,2(数值),能量消耗走槽位查询,待迁移(重点:仅B类)
+Glyph of Gouge,雕文,403,Glyph,B,bot_rogue_ai.cpp:1630-1631,2(数值),同上,待迁移(重点:仅B类)
+Glyph of Mutilate,雕文,733,Glyph,B,bot_rogue_ai.cpp:1633-1634,2(数值),同上,待迁移(重点:仅B类)
+Glyph of Pick Lock,雕文,465,Glyph,B,bot_rogue_ai.cpp:1656-1657,2(数值),施法时间走槽位查询,待迁移(重点:仅B类)
+Elusiveness part2/3,天赋,262,Talent,B,bot_rogue_ai.cpp:1681-1685,2(数值),冷却走构筑rank查询,待迁移(同效果拆两处)
+Filthy Tricks part3,天赋,2079,Talent,B,bot_rogue_ai.cpp:1691-1692,2(数值),同上,待迁移
+Glyph of Killing Spree,雕文,715,Glyph,B,bot_rogue_ai.cpp:1694-1695,2(数值),冷却走槽位查询,待迁移(重点:仅B类)
+Endurance,天赋,204,Talent,B,bot_rogue_ai.cpp:1710-1711,2(数值),冷却走构筑rank查询,待迁移
+Elusiveness part1,天赋,262,Talent,B,bot_rogue_ai.cpp:1713-1714,2(数值),同上,待迁移(同效果拆两处)
+Camouflage part2,天赋,1700,Talent,B,bot_rogue_ai.cpp:1716-1717,2(数值),同上,待迁移
+Throwing Specialization (range),天赋,2072,Talent,B,bot_rogue_ai.cpp:1776-1777,2(数值),射程走构筑rank查询,待迁移(同效果拆两处)
+Glyph of Ambush,雕文,392,Glyph,B,bot_rogue_ai.cpp:1782-1783,2(数值),射程走槽位查询,待迁移(重点:仅B类)
+Disarm Trap (range),非迁移,-,技能自带,B,bot_rogue_ai.cpp:1784-1785,-,保留（技能自带）,非迁移(白名单)
+Camouflage part1,天赋,1700,Talent,B,bot_rogue_ai.cpp:1900-1906,2(数值),潜行移速走构筑rank查询,待迁移
+Glyph of Garrote,雕文,401,Glyph,B,bot_rogue_ai.cpp:2015-2027,2(数值),时长+伤害走槽位查询,待迁移(重点:仅B类)
+Glyph of Deadly Throw,雕文,396,Glyph,B,bot_rogue_ai.cpp:2029-2035,2(数值),减速走槽位查询,待迁移(重点:仅B类)
+Glyph of Hunger for Blood,雕文,714,Glyph,B,bot_rogue_ai.cpp:2037-2043,2(数值),加成走槽位查询,待迁移(重点:仅B类)
+Glyph of Cloak of Shadows,雕文,734,Glyph,B,bot_rogue_ai.cpp:2045-2051,2(数值),物免走槽位查询,待迁移(重点:仅B类)
+Glyph of Sprint,雕文,411,Glyph,B,bot_rogue_ai.cpp:2053-2059,2(数值),移速走槽位查询,待迁移(重点:仅B类)
+Glyph of Vanish,雕文,469,Glyph,B,bot_rogue_ai.cpp:2061-2067,2(数值),移速走槽位查询,待迁移(重点:仅B类)
+Glyph of Adrenaline Rush,雕文,391,Glyph,B,bot_rogue_ai.cpp:2069-2077,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Glyph of Evasion,雕文,397,Glyph,B,bot_rogue_ai.cpp:2079-2087,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Glyph of Slice and Dice,雕文,410,Glyph,B,bot_rogue_ai.cpp:2090-2099,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Improved Slice and Dice,天赋,1827,Talent,B,bot_rogue_ai.cpp:2090-2099,2(数值),时长走构筑rank查询,待迁移(与雕文同处)
+Glyph of Shadow Dance,雕文,716,Glyph,B,bot_rogue_ai.cpp:2101-2109,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Glyph of Rupture,雕文,406,Glyph,B,bot_rogue_ai.cpp:2111-2119,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Glyph of Expose Armor,雕文,399,Glyph,B,bot_rogue_ai.cpp:2121-2129,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Improved Gouge (duration),天赋,203,Talent,B,bot_rogue_ai.cpp:2131-2139,2(数值),时长走构筑rank查询,待迁移
+Glyph of Tricks of the Trade,雕文,732,Glyph,B,bot_rogue_ai.cpp:2141-2149,2(数值),时长走槽位查询,待迁移(重点:仅B类)
+Cut to the Chase,天赋,2070,Talent,B,bot_rogue_ai.cpp:2152-2160,2(数值),SnD 时长走构筑rank查询,待迁移
+Waylay,天赋,2077,Talent,B,bot_rogue_ai.cpp:2162-2163,2(数值),debuff 走构筑rank查询,待迁移
+Serrated Blades part1,天赋,1123,Talent,B,bot_rogue_ai.cpp:2421-2423,2(数值),破甲走构筑rank查询,待迁移
+Mace Specialization,天赋,184,Talent,B,bot_rogue_ai.cpp:2425-2429,2(数值),破甲走构筑rank查询,待迁移
+Glyph of Sinister Strike (CP proc),雕文,409,Glyph,B+C,bot_rogue_ai.cpp:1581 / :1952-1956,2(数值)+3(行为),槽位查询 + 行为分支,待迁移(重点:跨B+C)
+Cold Blood (crit 100%),天赋,280,Talent,B,bot_rogue_ai.cpp:1484-1486 / :1076-1077,2(数值),保留 buff 判定（技能自带）,待迁移
+Ruthlessness (CP proc),天赋,273,Talent,C,bot_rogue_ai.cpp:1977-1984 + :190 常量,3(行为),触发率走构筑rank查询,待迁移
+Relentless Strikes (CP proc),天赋,2244,Talent,C,bot_rogue_ai.cpp:1816-1826 + :191 常量,3(行为),触发率走构筑rank查询,待迁移
+Seal Fate (CP proc),天赋,283,Talent,C,bot_rogue_ai.cpp:1927-1937 (SEAL_FATE_EFFECT),3(行为),效果来源已由光环提供，CP 计数保留,待迁移
+Setup / Initiative / HAT (CP proc),天赋,246/245/2078,Talent,C,bot_rogue_ai.cpp:1927-1937,3(行为),同上,待迁移
+Improved Sap (range),天赋,265,Talent,B,bot_rogue_ai.cpp:1779-1780,2(数值),射程走构筑rank查询,待迁移
+Improved Blind (range),天赋,265,Talent,B,bot_rogue_ai.cpp:1779-1780,2(数值),同上,待迁移
+Find Stun Target (Improved Blind range),天赋,265,Talent,C,"bot_rogue_ai.cpp:1373 //improved always (base 10, improved 15)",3(行为),射程常量走构筑rank查询,待迁移(行为类)
+InitSpells 专精门槛,非迁移,-,技能自带,C,bot_rogue_ai.cpp:2353-2367,-,保留：技能可用性由训练师数据+专精决定,非迁移(白名单)
+Thistle Tea,非迁移,-,技能自带,C,bot_rogue_ai.cpp:2378,-,保留（物品）,非迁移(白名单)
