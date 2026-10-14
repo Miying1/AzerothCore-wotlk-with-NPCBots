@@ -1960,24 +1960,30 @@ uint32 Map::GetPlayersCountExceptGMs(bool aliveOnly /*= false*/) const
 {
     uint32 count = 0;
     for (auto const& ref : m_mapRefMgr)
-        if (Player* player = ref.GetSource())
-            if (!player->IsGameMaster() && (!aliveOnly || (player->IsAlive() && !player->HasSpiritOfRedemptionAura())))
-            //npcbot - count npcbots (event if not in group)
+    {
+        Player* player = ref.GetSource();
+        if (!player || player->IsGameMaster())
+            continue;
+
+        // npcbot - 统计 npcbots（即使主人不在队伍中）
+        // 注意：bot 统计必须独立于主人是否存活。若主人死亡但 bot 仍存活，
+        // 也应计入存活数，否则波次/团灭判定会误判为"无存活单位"而错误重置战斗。
+        if (player->HaveBot() && BotMgr::LimitBots(this))
+        {
+            for (auto const& [bguid, bot] : *player->GetBotMgr()->GetBotMap())
             {
-                if (player->HaveBot() && BotMgr::LimitBots(this))
-                {
-                    for (auto const& [bguid, bot] : *player->GetBotMgr()->GetBotMap())
-                    {
-                        if (!bot || !bot->IsInWorld() || bot->FindMap() != this || bot->IsTempBot() || (aliveOnly && (!bot->IsAlive() || bot->HasSpiritOfRedemptionAura())))
-                            continue;
-                        ++count;
-                    }
-                }
-            //end npcbot
+                if (!bot || !bot->IsInWorld() || bot->FindMap() != this || bot->IsTempBot() ||
+                    (aliveOnly && (!bot->IsAlive() || bot->HasSpiritOfRedemptionAura())))
+                    continue;
                 ++count;
-            //npcbot
             }
-            //end npcbot
+        }
+        // end npcbot
+
+        // 统计玩家自身（aliveOnly 时仅统计存活且非救赎之魂形态的玩家）
+        if (!aliveOnly || (player->IsAlive() && !player->HasSpiritOfRedemptionAura()))
+            ++count;
+    }
     return count;
 }
 
