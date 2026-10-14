@@ -7734,6 +7734,23 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
             Item* test = GetItemByPos(item->GetBagSlot(), item->GetSlot());
             if (!test)
             {
+                // 账号银行扩展：区分「Player::RemoveItem 的瞬时中间态」与「真正的脏数据 / 作弊」。
+                // RemoveItem 会把物品的 m_slot 置为 NULL_SLOT(255) 并清空 contained，但刻意不改 state、
+                // 也不摘出 m_itemUpdateQueue——调用方必须紧接重新入库（StoreItem/BankItem/EquipItem）或
+                // 摘队列+销毁。若某个操作中途把物品留在了这个「已摘出位置但仍在队列」的状态，原逻辑会
+                // 直接判为作弊并删除 item_instance，造成玩家真实物品丢失（DB 中该物品会凭空消失）。
+                // 这里对 slot == NULL_SLOT 的瞬时未链接物品采取安全策略：保留物品（DB 旧位置映射不动，
+                // 下次登录仍可恢复），仅跳过本次落库并把它移出更新队列，避免每次保存重复告警。
+                if (item->GetSlot() == NULL_SLOT)
+                {
+                    // 用 ERROR 级别：与原来的「误删物品」告警保持同一可见性（Logger.root 默认只放行 Fatal/Error），
+                    // 否则默认配置下 WARN 会被过滤、问题被静默掩盖。
+                    LOG_ERROR("entities.player", "Player(GUID: {} Name: {})::_SaveInventory - item {} (entry {}, state {}) is temporarily unlinked (slot NULL), skipping its inventory save instead of deleting it.",
+                              guid, GetName(), item->GetGUID().ToString(), item->GetEntry(), (int32)item->GetState());
+                    item->RemoveFromUpdateQueueOf(this);
+                    continue;
+                }
+
                 ObjectGuid::LowType bagTestGUID = 0;
                 if (Item* test2 = GetItemByPos(INVENTORY_SLOT_BAG_0, item->GetBagSlot()))
                     bagTestGUID = test2->GetGUID().GetCounter();
