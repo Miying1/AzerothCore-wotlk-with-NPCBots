@@ -255,12 +255,14 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 (38550, 63100, 0, 50, 0, 1, 5, 1, 1, '烂肠（25人英雄） - 源力碎片');
 
 -- 普崔塞德教授（Professor Putricide）
-DELETE FROM `creature_loot_template` WHERE `Entry` IN (36678, 38431, 38585, 38586) AND `Item` IN (63100, 63101);
+DELETE FROM `creature_loot_template` WHERE `Entry` IN (36678, 38431, 38585, 38586) AND `Item` IN (63100, 63101,36678);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (36678, 63101, 0, 5, 0, 1, 5, 1, 1, '普崔塞德教授（10人普通） - 源力核心'),
 (36678, 63100, 0, 95, 0, 1, 5, 1, 1, '普崔塞德教授（10人普通） - 源力碎片'),
+(36678, 60105, 0, 5, 0, 1, 0, 1, 1, '普崔塞德教授（10人普通） - 饰品特效提取器'),
 (38431, 63101, 0, 25, 0, 1, 5, 1, 1, '普崔塞德教授（25人普通） - 源力核心'),
 (38431, 63100, 0, 75, 0, 1, 5, 1, 1, '普崔塞德教授（25人普通） - 源力碎片'),
+(38431, 60105, 0, 10, 0, 1, 0, 1, 1, '普崔塞德教授（25人普通） - 饰品特效提取器'),
 (38585, 63101, 0, 25, 0, 1, 5, 1, 1, '普崔塞德教授（10人英雄） - 源力核心'),
 (38585, 63100, 0, 75, 0, 1, 5, 1, 1, '普崔塞德教授（10人英雄） - 源力碎片'),
 (38586, 63101, 0, 50, 0, 1, 5, 1, 1, '普崔塞德教授（25人英雄） - 源力核心'),
@@ -355,13 +357,15 @@ INSERT INTO `gameobject_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, 
 -- ============================================================
 
 -- 阿努巴拉克（Anub'arak）——尾王
-DELETE FROM `creature_loot_template` WHERE `Entry` IN (34564, 34566, 35615, 35616) AND `Item` IN (63100, 63101);
+DELETE FROM `creature_loot_template` WHERE `Entry` IN (34564, 34566, 35615, 35616) AND `Item` IN (63100, 63101,60105);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(34564, 63101, 0, 25, 0, 1, 5, 1, 1, '阿努巴拉克（10人普通） - 源力核心'),
+(34564, 63101, 0, 10, 0, 1, 5, 1, 1, '阿努巴拉克（10人普通） - 源力核心'),
 (34564, 63100, 0, 75, 0, 1, 5, 1, 1, '阿努巴拉克（10人普通） - 源力碎片'),
 (34566, 63101, 0, 50, 0, 1, 5, 1, 1, '阿努巴拉克（25人普通） - 源力核心'),
 (34566, 63100, 0, 50, 0, 1, 5, 1, 1, '阿努巴拉克（25人普通） - 源力碎片'),
+(34566, 60105, 0, 10, 0, 1, 0, 1, 1, '阿努巴拉克（25人普通） - 饰品特效提取器'),
 (35615, 63101, 0, 40, 0, 1, 5, 1, 1, '阿努巴拉克（10人英雄） - 源力核心'),
+(35615, 60105, 0, 5, 0, 1, 5, 1, 1, '阿努巴拉克（10人英雄） - 饰品特效提取器'),
 (35615, 63100, 0, 60, 0, 1, 5, 1, 1, '阿努巴拉克（10人英雄） - 源力碎片'),
 (35616, 63101, 0, 50, 0, 1, 5, 4, 2, '阿努巴拉克（25人英雄） - 源力核心'),
 (35616, 63100, 0, 50, 0, 1, 5, 1, 5, '阿努巴拉克（25人英雄） - 源力碎片');
@@ -369,7 +373,7 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 -- 冰吼（Icehowl）——诺森德野兽
 DELETE FROM `creature_loot_template` WHERE `Entry` IN (35447, 35448, 35449) AND `Item` IN (63100, 63101);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(35447, 63101, 0, 25, 0, 1, 5, 1, 1, '冰吼·诺森德野兽（25人普通） - 源力核心'),
+(35447, 63101, 0, 10, 0, 1, 5, 1, 1, '冰吼·诺森德野兽（25人普通） - 源力核心'),
 (35447, 63100, 0, 75, 0, 1, 5, 1, 1, '冰吼·诺森德野兽（25人普通） - 源力碎片'),
 (35448, 63101, 0, 15, 0, 1, 5, 1, 1, '冰吼·诺森德野兽（10人英雄） - 源力核心'),
 (35448, 63100, 0, 85, 0, 1, 5, 1, 1, '冰吼·诺森德野兽（10人英雄） - 源力碎片'),
@@ -379,7 +383,7 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 -- 加拉克苏斯大王（Lord Jaraxxus）
 DELETE FROM `creature_loot_template` WHERE `Entry` IN (35216, 35268, 35269) AND `Item` IN (63100, 63101);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(35216, 63101, 0, 25, 0, 1, 5, 1, 1, '加拉克苏斯大王（25人普通） - 源力核心'),
+(35216, 63101, 0, 10, 0, 1, 5, 1, 1, '加拉克苏斯大王（25人普通） - 源力核心'),
 (35216, 63100, 0, 75, 0, 1, 5, 1, 1, '加拉克苏斯大王（25人普通） - 源力碎片'),
 (35268, 63101, 0, 15, 0, 1, 5, 1, 1, '加拉克苏斯大王（10人英雄） - 源力核心'),
 (35268, 63100, 0, 85, 0, 1, 5, 1, 1, '加拉克苏斯大王（10人英雄） - 源力碎片'),
@@ -389,7 +393,7 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 -- 瓦格里双子（Val'kyr Twins）
 DELETE FROM `creature_loot_template` WHERE `Entry` IN (35347, 35349, 35351) AND `Item` IN (63100, 63101);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(35347, 63101, 0, 25, 0, 1, 5, 1, 1, '瓦格里双子（25人普通） - 源力核心'),
+(35347, 63101, 0, 10, 0, 1, 5, 1, 1, '瓦格里双子（25人普通） - 源力核心'),
 (35347, 63100, 0, 75, 0, 1, 5, 1, 1, '瓦格里双子（25人普通） - 源力碎片'),
 (35351, 63101, 0, 15, 0, 1, 5, 1, 1, '瓦格里双子（10人英雄） - 源力核心'),
 (35351, 63100, 0, 85, 0, 1, 5, 1, 1, '瓦格里双子（10人英雄） - 源力碎片'),
@@ -399,7 +403,7 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 -- 阵营冠军宝箱（Champions' Cache）
 DELETE FROM `gameobject_loot_template` WHERE `Entry` IN (27503, 27335, 27356) AND `Item` IN (63100, 63101);
 INSERT INTO `gameobject_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(27503, 63101, 0, 25, 0, 1, 5, 1, 1, '阵营冠军宝箱（25人普通） - 源力核心'),
+(27503, 63101, 0, 10, 0, 1, 5, 1, 1, '阵营冠军宝箱（25人普通） - 源力核心'),
 (27503, 63100, 0, 75, 0, 1, 5, 1, 1, '阵营冠军宝箱（25人普通） - 源力碎片'),
 (27335, 63101, 0, 15, 0, 1, 5, 1, 1, '阵营冠军宝箱（10人英雄） - 源力核心'),
 (27335, 63100, 0, 85, 0, 1, 5, 1, 1, '阵营冠军宝箱（10人英雄） - 源力碎片'),
@@ -413,25 +417,25 @@ INSERT INTO `gameobject_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, 
 -- 玛克扎尔王子（Prince Malchezaar）
 DELETE FROM `creature_loot_template` WHERE `Entry` = 15690 AND `Item` IN (63100, 63101);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(15690, 63101, 0, 25, 0, 1, 5, 1, 1, '玛克扎尔王子 - 源力核心'),
-(15690, 63100, 0, 75, 0, 1, 5, 1, 1, '玛克扎尔王子 - 源力碎片');
+(15690, 63101, 0, 15, 0, 1, 5, 1, 1, '玛克扎尔王子 - 源力核心'),
+(15690, 63100, 0, 85, 0, 1, 5, 1, 1, '玛克扎尔王子 - 源力碎片');
 
 -- 夜之魇（Nightbane）
-DELETE FROM `creature_loot_template` WHERE `Entry` = 17225 AND `Item` IN (63100, 63101);
+DELETE FROM `creature_loot_template` WHERE `Entry` = 17225 AND `Item` IN (63100, 63101,60105);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (17225, 63101, 0, 50, 0, 1, 5, 1, 1, '夜之魇 - 源力核心'),
-(17225, 63100, 0, 50, 0, 1, 5, 1, 1, '夜之魇 - 源力碎片');
-
+(17225, 63100, 0, 50, 0, 1, 5, 1, 1, '夜之魇 - 源力碎片'),
+(17225, 60105, 0, 5, 0, 1, 0, 1, 1, '夜之魇 - 饰品特效提取器');
 -- ============================================================
 -- 四、祖阿曼——源力核心 / 源力碎片（同组 5，互斥）
 -- ============================================================
 
 -- 祖尔金（Zul'jin）
-DELETE FROM `creature_loot_template` WHERE `Entry` = 23863 AND `Item` IN (63100, 63101);
+DELETE FROM `creature_loot_template` WHERE `Entry` = 23863 AND `Item` IN (63100, 63101,60105);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(23863, 63101, 0, 25, 0, 1, 5, 1, 1, '祖尔金 - 源力核心'),
-(23863, 63100, 0, 75, 0, 1, 5, 1, 1, '祖尔金 - 源力碎片');
-
+(23863, 63101, 0, 15, 0, 1, 5, 1, 1, '祖尔金 - 源力核心'),
+(23863, 63100, 0, 85, 0, 1, 5, 1, 1, '祖尔金 - 源力碎片'),
+(23863, 60105, 0, 3, 0, 1, 0, 1, 1, '祖尔金 - 饰品特效提取器');
 -- ============================================================
 -- 五、卡拉赞其他 BOSS——源力碎片（独立掉落 40%）
 -- ============================================================
