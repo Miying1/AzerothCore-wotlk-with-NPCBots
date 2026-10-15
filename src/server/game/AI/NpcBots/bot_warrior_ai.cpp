@@ -832,8 +832,10 @@ public:
                         doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
                         return;
                 }
-                //输出战士：队里已有防护天赋战士时由它负责破甲，自己不参与
-                else if (Rand() < 70 && !master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_WARRIOR_PROTECTION, false))
+                //输出战士：只对 BOSS 目标破甲，且队里已有防护天赋战士时由它负责，自己不参与
+                else if (Rand() < 70 && mytar->IsCreature() &&
+                    (mytar->ToCreature()->IsDungeonBoss() || mytar->ToCreature()->isWorldBoss()) &&
+                    !master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_WARRIOR_PROTECTION, false))
                 {
                     //目标身上没有破甲效果，先打一发
                     if (!sunder)
