@@ -485,7 +485,7 @@ public:
             return false;
         }
         Creature* creature = target->ToCreature();
-        if (!creature || creature->IsNPCBot()) {
+        if (!creature) {
             ch.SendSysMessage("这是一个无效的目标");
             //target->Whisper("这是一个无效的目标", LANG_UNIVERSAL, player, true);
             return false;
@@ -497,11 +497,11 @@ public:
             return false;
         }
         //ctemp->type_flags|
-        if ((ctemp->rank == 3 || creature->isWorldBoss()) && creature->HealthAbovePct(40)) {
-            ch.SendSysMessage("这个目标他太强大了，你需要先削弱他！");
-            //target->Whisper("这是一个目标他太强大了，你需要先削弱他！", LANG_UNIVERSAL, player, true);
-            return false;
-        }
+        // if ((ctemp->rank == 3 || creature->isWorldBoss()) && creature->HealthAbovePct(40)) {
+        //     ch.SendSysMessage("这个目标他太强大了，你需要先削弱他！");
+        //     //target->Whisper("这是一个目标他太强大了，你需要先削弱他！", LANG_UNIVERSAL, player, true);
+        //     return false;
+        // }
 
         uint16 account_id = player->GetSession()->GetAccountId();
         if (auto data = pTransmog->AddModelData(account_id, creature)) {
