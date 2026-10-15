@@ -5895,9 +5895,9 @@ class spell_item_tiny_abomination_in_a_jar : public AuraScript
 
         caster->RemoveAurasDueToSpell(SPELL_MOTE_OF_ANGER);
         uint32 spellId = SPELL_MANIFEST_ANGER_MAIN_HAND;
-        if (Player* player = caster->ToPlayer())
-            if (player->GetWeaponForAttack(OFF_ATTACK, true) && roll_chance_i(50))
-                spellId = SPELL_MANIFEST_ANGER_OFF_HAND;
+        // 用 haveOffhandWeapon() 兼容玩家与 NPCBot：玩家看副手武器，bot/生物看 CanDualWield()
+        if (caster->haveOffhandWeapon() && roll_chance_i(50))
+            spellId = SPELL_MANIFEST_ANGER_OFF_HAND;
 
         caster->CastSpell(target, spellId, true, nullptr, aurEff);
     }
@@ -5937,9 +5937,9 @@ class spell_item_tiny_abomination_in_a_jar_hero : public AuraScript
 
         caster->RemoveAurasDueToSpell(SPELL_MOTE_OF_ANGER);
         uint32 spellId = SPELL_MANIFEST_ANGER_MAIN_HAND;
-        if (Player* player = caster->ToPlayer())
-            if (player->GetWeaponForAttack(OFF_ATTACK, true) && roll_chance_i(50))
-                spellId = SPELL_MANIFEST_ANGER_OFF_HAND;
+        // 用 haveOffhandWeapon() 兼容玩家与 NPCBot：玩家看副手武器，bot/生物看 CanDualWield()
+        if (caster->haveOffhandWeapon() && roll_chance_i(50))
+            spellId = SPELL_MANIFEST_ANGER_OFF_HAND;
 
         caster->CastSpell(target, spellId, true, nullptr, aurEff);
     }
