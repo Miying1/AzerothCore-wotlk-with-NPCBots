@@ -21,7 +21,7 @@ namespace HeroicDungeonRift
 namespace
 {
 constexpr uint32 RiftFragmentItem = 60106;
-constexpr uint64 RiftTier1GoldCost = 100 * GOLD;
+constexpr uint64 RiftTier1GoldCost = 250 * GOLD;
 
 uint32 GetTierFragmentCost(uint8 tier)
 {
@@ -39,7 +39,7 @@ void SendTierConfirmation(Player* player, Creature* creature, uint8 tier)
     uint32 action = GossipConfirmTier1 + tier - 1;
     ClearGossipMenuFor(player);
     if (tier == 1)
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "确认进入 T1（消耗 100 金币）", GOSSIP_SENDER_MAIN, action);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "确认进入 T1（消耗 250 金币）", GOSSIP_SENDER_MAIN, action);
     else
     {
         uint32 cost = GetTierFragmentCost(tier);

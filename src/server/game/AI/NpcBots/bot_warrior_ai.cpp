@@ -820,14 +820,33 @@ public:
             }
             //SUNDER ARMOR
             if (IsSpellReady(SUNDER_ARMOR_1, diff) && !IAmFree() && can_do_normal && dist < 5 &&
-                (IsTank() ? (mytar->GetHealth() > me->GetMaxHealth()) : (Rand() < 70 && mytar->GetHealth() > me->GetMaxHealth() * 2)) &&
                 (!HasRole(BOT_ROLE_DPS) || !CanBlock() || !GetSpell(DEVASTATE_1)) &&
-                (IsTank() || master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_WARRIOR_PROTECTION, false)) && rage >= rcost(SUNDER_ARMOR_1))
+                rage >= rcost(SUNDER_ARMOR_1))
             {
                 AuraEffect const* sunder = mytar->GetAuraEffect(SUNDER_ARMOR_DEBUFF, 0);
-                if ((!sunder || sunder->GetBase()->GetStackAmount() < 5 || sunder->GetBase()->GetDuration() < 6000) &&
-                    doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
-                    return;
+                if (IsTank())
+                {
+                    //坦克：目标血量高于自身，且破甲未满 5 层或即将过期（6 秒）时补层
+                    if (mytar->GetHealth() > me->GetMaxHealth() &&
+                        (!sunder || sunder->GetBase()->GetStackAmount() < 5 || sunder->GetBase()->GetDuration() < 6000) &&
+                        doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
+                        return;
+                }
+                //输出战士：队里已有防护天赋战士时由它负责破甲，自己不参与
+                else if (Rand() < 70 && !master->GetBotMgr()->HasBotWithSpec(BOT_SPEC_WARRIOR_PROTECTION, false))
+                {
+                    //目标身上没有破甲效果，先打一发
+                    if (!sunder)
+                    {
+                        if (doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
+                            return;
+                    }
+                    //破甲由自己施加时保持 5 层：层数不足或满层后剩余不足 5 秒则补打一次
+                    else if (sunder->GetBase()->GetCasterGUID() == me->GetGUID() &&
+                        (sunder->GetBase()->GetStackAmount() < 5 || sunder->GetBase()->GetDuration() < 5000) &&
+                        doCast(mytar, GetSpell(SUNDER_ARMOR_1)))
+                        return;
+                }
             }
             //SWEEPING STRIKES //no GCD
             if (IsSpellReady(SWEEPING_STRIKES_1, diff, false) && HasRole(BOT_ROLE_DPS) && !IsTank() && Rand() < 65 &&
