@@ -147,8 +147,12 @@ private:
     void ChannelDistiller()
     {
         me->Yell(KalithreshRageText, LANG_UNIVERSAL);
+        // 31543是12秒引导法术，督军之怒(36453)只在31543的光环自然到期(AURA_REMOVE_BY_EXPIRE)时才由
+        // AuraScript施加。蒸馏器存活时间必须明显长于引导时长，否则其despawn会走
+        // Unit::CleanupBeforeRemoveFromMap -> InterruptNonMeleeSpells 中断引导，光环以非自然到期方式移除，
+        // 督军拿不到任何buff。同时保持被动状态：原版蒸馏器只负责引导，需要玩家主动击杀来阻止。
         if (Creature* distiller = SummonTieredCreature(RiftEntryNagaDistiller, me->GetRandomNearPosition(6.0f),
-            0.35f, 0.1f, TEMPSUMMON_TIMED_DESPAWN, 12 * IN_MILLISECONDS))
+            0.245f, 0.1f, TEMPSUMMON_TIMED_DESPAWN, 30 * IN_MILLISECONDS, true /*保持被动，不进入战斗*/))
         {
             // 原版由可被击杀的蒸馏器向Boss施加督军之怒；玩家通过击杀蒸馏器阻止其完整生效。
             distiller->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);

@@ -503,10 +503,14 @@ FROM `creature_template_model` src WHERE src.CreatureID=@RIFT_ENTRY_NPC_SOURCE_E
 -- 父Aura触发子法术时，父法术BasePoint不会自动传给子法术；以下脚本只在裂隙Boss施放时接管伤害。
 DELETE FROM `spell_script_names`
 WHERE (`spell_id`=15790 AND `ScriptName`='spell_rift_doan_arcane_missiles')
-   OR (`spell_id`=16247 AND `ScriptName`='spell_rift_lethtendris_curse_of_thorns');
+   OR (`spell_id`=16247 AND `ScriptName`='spell_rift_lethtendris_curse_of_thorns')
+   OR (`spell_id`=21909 AND `ScriptName`='spell_rift_theradras_dust_field')
+   OR (`spell_id`=15636 AND `ScriptName`='spell_rift_thaurissan_avatar_of_flame');
 INSERT INTO `spell_script_names` (`spell_id`,`ScriptName`) VALUES
 (15790,'spell_rift_doan_arcane_missiles'),
-(16247,'spell_rift_lethtendris_curse_of_thorns');
+(16247,'spell_rift_lethtendris_curse_of_thorns'),
+(21909,'spell_rift_theradras_dust_field'),
+(15636,'spell_rift_thaurissan_avatar_of_flame');
 
 -- ============================================================================
 -- 9. 审核查询

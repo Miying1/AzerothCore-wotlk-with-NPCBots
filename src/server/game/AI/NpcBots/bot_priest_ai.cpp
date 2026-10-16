@@ -385,17 +385,17 @@ public:
         }
 
         //戒律系：为坦克/被点名目标维持真言术：盾，用于激活新生希望与争分夺秒（G2）
-        //返回 true 表示为戒律系并已接管坦克盾职责（此时 ShieldGroup 无需重复遍历）
+        //返回 true 表示本次已施放盾；未施放时交由 ShieldGroup 继续为全团补盾（无队伍时亦由此兜底）
         bool MaintainWeakenedSoul(uint32 diff)
         {
             if (GetSpec() != BOT_SPEC_PRIEST_DISCIPLINE)
                 return false;
             if (!IsSpellReady(PW_SHIELD_1, false, diff) || IsCasting())
-                return true;
+                return false;
 
             Group const* gr = !IAmFree() ? master->GetGroup() : GetGroup();
             if (!gr)
-                return true;
+                return false;
 
             for (Unit* member : BotMgr::GetAllGroupMembers(gr))
             {
@@ -405,10 +405,10 @@ public:
                     continue;
                 //虚弱灵魂与已有盾的判重统一由 ShieldTarget 处理，避免此处重复查询光环
                 if (ShieldTarget(member, diff))
-                    break;
+                    return true;
             }
 
-            return true;
+            return false;
         }
 
         //光明之泉：团队低血量时放置，供队友自行点击治疗（G5）
@@ -524,20 +524,19 @@ public:
 
             doDefend(diff);
 
-            //治疗系（戒律/神圣）：团刷 → 维持坦克虚弱灵魂/盾 → 愈合祷言 → 单体治疗
+            //治疗系（戒律/神圣）：团刷 → 戒律先保坦克盾 → 全团补盾 → 愈合祷言 → 单体治疗
             if (HasRole(BOT_ROLE_HEAL) && GetSpec() != BOT_SPEC_PRIEST_SHADOW)
             {
-                //戒律系由 MaintainWeakenedSoul 接管坦克盾，跳过 ShieldGroup 以免重复遍历全团
-                bool tankShieldHandled =
-                    (GetSpec() == BOT_SPEC_PRIEST_DISCIPLINE) && MaintainWeakenedSoul(diff);
+                //戒律系优先为坦克/被点名目标维持盾（新生希望与争分夺秒），随后仍由 ShieldGroup 覆盖其余成员
+                if (GetSpec() == BOT_SPEC_PRIEST_DISCIPLINE)
+                    MaintainWeakenedSoul(diff);
 
                 if (me->GetMap()->IsRaid())
                 {
                     CureGroup(GetSpell(DISPEL_MAGIC_1), diff);
                     CureGroup(GetSpell(ABOLISH_DISEASE_1) ? GetSpell(ABOLISH_DISEASE_1) : GetSpell(CURE_DISEASE_1), diff);
                     MassGroupHeal(diff);
-                    if (!tankShieldHandled)
-                        ShieldGroup(diff);
+                    ShieldGroup(diff);
                     CheckMending(diff);
                     CheckLightwell(diff);
                     BuffAndHealGroup(diff);
@@ -545,8 +544,7 @@ public:
                 else
                 {
                     MassGroupHeal(diff);
-                    if (!tankShieldHandled)
-                        ShieldGroup(diff);
+                    ShieldGroup(diff);
                     CheckMending(diff);
                     CheckLightwell(diff);
                     BuffAndHealGroup(diff);

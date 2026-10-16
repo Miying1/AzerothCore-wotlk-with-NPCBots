@@ -2127,10 +2127,38 @@ bool bot_pet_ai::IsTank(Unit const* unit) const
         {
             Group::MemberSlotList const& slots = gr->GetMemberSlots();
             for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
-                if (itr->guid == unit->GetGUID())
-                    return itr->flags & MEMBER_FLAG_MAINTANK;
+            {
+                if (itr->guid != unit->GetGUID())
+                    continue;
+                //勾选了主坦克/主助理图标时直接认定为坦克，否则继续按职业、天赋与装备判定
+                if (itr->flags & (MEMBER_FLAG_MAINTANK | MEMBER_FLAG_MAINASSIST))
+                    return true;
+                break;
+            }
             if (gr->isLFGGroup() && sLFGMgr->GetRoles(unit->GetGUID()) & lfg::PLAYER_ROLE_TANK)
                 return true;
+        }
+        switch (player->GetClass())
+        {
+            case CLASS_WARRIOR:
+                if (player->GetShield() && const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_WARRIOR_PROTECTION)
+                    return true;
+                break;
+            case CLASS_PALADIN:
+                if (player->GetShield() && const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_PALADIN_PROTECTION)
+                    return true;
+                break;
+            case CLASS_DRUID:
+                if ((player->GetShapeshiftForm() == FORM_BEAR || player->GetShapeshiftForm() == FORM_DIREBEAR) &&
+                    const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_DRUID_FERAL_COMBAT)
+                    return true;
+                break;
+            case CLASS_DEATH_KNIGHT:
+                if (player->GetAuraEffect(SPELL_AURA_MOD_THREAT, SPELLFAMILY_DEATHKNIGHT, 0x8000, 0x0, 0x0) && player->GetRatingBonusValue(CR_DEFENSE_SKILL) > 0.0f)
+                    return true;
+                break;
+            default:
+                break;
         }
     }
 
@@ -2148,9 +2176,37 @@ bool bot_pet_ai::IsOffTank(Unit const* unit) const
             if (gr->isRaidGroup())
             {
                 for (auto const& slot : gr->GetMemberSlots())
-                    if (slot.guid == unit->GetGUID())
-                        return slot.flags & MEMBER_FLAG_MAINASSIST;
+                {
+                    if (slot.guid != unit->GetGUID())
+                        continue;
+                    //勾选了主助理图标时直接认定为副坦，否则继续按职业、天赋与装备判定
+                    if (slot.flags & MEMBER_FLAG_MAINASSIST)
+                        return true;
+                    break;
+                }
             }
+        }
+        switch (player->GetClass())
+        {
+            case CLASS_WARRIOR:
+                if (player->GetShield() && const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_WARRIOR_PROTECTION)
+                    return true;
+                break;
+            case CLASS_PALADIN:
+                if (player->GetShield() && const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_PALADIN_PROTECTION)
+                    return true;
+                break;
+            case CLASS_DRUID:
+                if ((player->GetShapeshiftForm() == FORM_BEAR || player->GetShapeshiftForm() == FORM_DIREBEAR) &&
+                    const_cast<Player*>(player)->GetSpec(player->GetActiveSpec()) == TALENT_TREE_DRUID_FERAL_COMBAT)
+                    return true;
+                break;
+            case CLASS_DEATH_KNIGHT:
+                if (player->GetAuraEffect(SPELL_AURA_MOD_THREAT, SPELLFAMILY_DEATHKNIGHT, 0x8000, 0x0, 0x0) && player->GetRatingBonusValue(CR_DEFENSE_SKILL) > 0.0f)
+                    return true;
+                break;
+            default:
+                break;
         }
     }
 

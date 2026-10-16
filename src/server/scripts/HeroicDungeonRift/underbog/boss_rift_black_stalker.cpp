@@ -6,6 +6,7 @@
 
 #include "Creature.h"
 #include "ScriptMgr.h"
+#include "SpellScript.h"
 
 namespace HeroicDungeonRift
 {
@@ -118,10 +119,49 @@ struct boss_rift_black_stalker : public BossAIBase
     }
 };
 
+// 31716 - 静电充能的跳跃伤害
+// 31715的第三个效果是每1秒触发的PERIODIC_TRIGGER_SPELL，核心在SpellAuraEffects.cpp里因31716
+// 不需要显式单位目标而改用"光环承受者"（被点名的玩家）施放该子法术，于是这份伤害既不过
+// BossAIBase::DamageDealt（没有Tier倍率），也不受核心的非玩家施法等级缩放，恒为DBC原始值。
+// 这里在命中时按31715光环施法者（裂隙Boss）的Tier重写伤害，使其与主DoT保持同一T1基线与倍率。
+class spell_rift_black_stalker_static_charge : public SpellScript
+{
+    PrepareSpellScript(spell_rift_black_stalker_static_charge);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SpellStaticCharge });
+    }
+
+    void HandleDamage(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(SpellStaticCharge);
+        if (!caster || !tuning)
+            return;
+
+        Aura* charge = caster->GetAura(SpellStaticCharge);
+        Creature* boss = charge && charge->GetCaster() ? charge->GetCaster()->ToCreature() : nullptr;
+        TierConfig const* tierConfig = boss ? GetTierConfigForCreature(boss) : nullptr;
+        if (!tierConfig)
+            return; // 非裂隙Boss（例如原版幽暗沼泽的黑色潜猎者）保留DBC原始伤害
+
+        int32 damage = int32(std::lround(double(tuning->EffectBasePoints[0]) * double(tierConfig->DamageMultiplier)));
+        SetEffectValue(std::max<int32>(1, damage));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_rift_black_stalker_static_charge::HandleDamage,
+            EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 void AddSC_boss_rift_black_stalker()
 {
     RegisterCreatureAI(boss_rift_black_stalker);
     RegisterCreatureAI(npc_rift_spore_strider);
+    RegisterSpellScript(spell_rift_black_stalker_static_charge);
 }
 
 } // namespace HeroicDungeonRift

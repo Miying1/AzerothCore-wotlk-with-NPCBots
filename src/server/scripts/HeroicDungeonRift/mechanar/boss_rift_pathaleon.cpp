@@ -155,12 +155,12 @@ struct boss_rift_pathaleon : public BossAIBase
                 {
                     me->Yell(PathaleonSummonText, LANG_UNIVERSAL);
                     me->PlayDirectSound(PathaleonSummonSound);
-                    // T1 3只、T2与T3均为4只：T3不再继续加量，避免多波叠加时群体AOE过载。
-                    uint32 summonCount = _tier == 1 ? 3 : 4;
+                    // 各难度统一每波召唤 3 只虚空怨灵。
+                    constexpr uint32 summonCount = 3;
                     for (uint32 i = 0; i < summonCount; ++i)
                         SummonTieredCreature(RiftEntryNetherWraith, me->GetRandomNearPosition(7.0f), 0.42f, 0.6f);
                 }
-                events.ScheduleEvent(EventSummonWraiths, Milliseconds(urand(45000, 50000)));
+                events.ScheduleEvent(EventSummonWraiths, Milliseconds(urand(55000, 60000)));
                 break;
             case EventManaTap:
                 if (Unit* target = SelectRandomPlayer(40.0f))

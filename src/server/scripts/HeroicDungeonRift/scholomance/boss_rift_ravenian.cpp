@@ -66,7 +66,7 @@ struct boss_rift_ravenian : public BossAIBase
                 break;
             case EventTier2Skill: // T2新增：致死打击，瞬发
                 CastIfConfigured(me->GetVictim(), SpellMortalStrike, true);
-                events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 10s : 12s);
+                events.ScheduleEvent(EventTier2Skill, _tier == 3 ? 15s : 18s);
                 break;
             case EventTier3Skill: // T3新增：破甲顺劈，瞬发
                 CastIfConfigured(me->GetVictim(), SpellSunderingCleave, true);

@@ -15903,8 +15903,14 @@ bool bot_ai::IsTank(Unit const* unit) const
         {
             Group::MemberSlotList const& slots = gr->GetMemberSlots();
             for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
-                if (itr->guid == unit->GetGUID())
-                    return itr->flags & (MEMBER_FLAG_MAINTANK | MEMBER_FLAG_MAINASSIST);
+            {
+                if (itr->guid != unit->GetGUID())
+                    continue;
+                //勾选了主坦克/主助理图标时直接认定为坦克，否则继续按职业、天赋与装备判定
+                if (itr->flags & (MEMBER_FLAG_MAINTANK | MEMBER_FLAG_MAINASSIST))
+                    return true;
+                break;
+            }
             if (gr->isLFGGroup() && sLFGMgr->GetRoles(unit->GetGUID()) & lfg::PLAYER_ROLE_TANK)
                 return true;
         }
@@ -15960,8 +15966,14 @@ bool bot_ai::IsOffTank(Unit const* unit) const
             {
                 Group::MemberSlotList const& slots = gr->GetMemberSlots();
                 for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
-                    if (itr->guid == unit->GetGUID())
-                        return itr->flags & MEMBER_FLAG_MAINASSIST;
+                {
+                    if (itr->guid != unit->GetGUID())
+                        continue;
+                    //勾选了主助理图标时直接认定为副坦，否则继续按职业、天赋与装备判定
+                    if (itr->flags & MEMBER_FLAG_MAINASSIST)
+                        return true;
+                    break;
+                }
             }
         }
         switch (player->GetClass())
