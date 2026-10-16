@@ -164,19 +164,15 @@ struct boss_rift_muselek : public BossAIBase
                 break;
             case EventFreezingTrap:
                 if (Unit* target = SelectRandomPlayer(40.0f))
-                {
                     CastIfConfigured(target, SpellFreezingTrap);
-                    _markedTarget = target->GetGUID();
-                    events.ScheduleEvent(EventAimedShot, 6s);
-                }
-                events.ScheduleEvent(EventFreezingTrap, Milliseconds(urand(12000, 16000)));
+                ScheduleAimedShot();
+                events.ScheduleEvent(EventFreezingTrap, Milliseconds(urand(20000, 25000)));
                 break;
             case EventAimedShot:
                 if (Unit* target = ObjectAccessor::GetUnit(*me, _markedTarget))
                 {
-                    CastIfConfigured(target, SpellHuntersMark, true);
-                    _markedTargets.push_back(target->GetGUID());
                     CastIfConfigured(target, SpellAimedShot);
+                    _markedTarget.Clear();
                 }
                 break;
             case EventRaptorStrike: // T2新增：目标进入近战范围时补充猛禽一击
@@ -196,6 +192,17 @@ struct boss_rift_muselek : public BossAIBase
     }
 
 private:
+    void ScheduleAimedShot()
+    {
+        if (Unit* target = SelectTarget(SelectTargetMethod::MaxDistance, 0, 45.0f, true, true))
+        {
+            _markedTarget = target->GetGUID();
+            CastIfConfigured(target, SpellHuntersMark, true);
+            _markedTargets.push_back(_markedTarget);
+            events.ScheduleEvent(EventAimedShot, 3s);
+        }
+    }
+
     void ClearMarkedTargets()
     {
         for (ObjectGuid const& guid : _markedTargets)
