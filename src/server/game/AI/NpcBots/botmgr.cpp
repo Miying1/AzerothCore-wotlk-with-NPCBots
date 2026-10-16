@@ -954,6 +954,14 @@ void BotMgr::RemoveBot(ObjectGuid guid, uint8 removetype)
         case BOT_REMOVE_UNBIND:                            resetType = BOTAI_RESET_UNBIND;                                                        break;
         default:                                           resetType = BOTAI_RESET_LOGOUT;                                                        break;
     }
+
+    // 解雇（对话解雇 / 租金不足自动移除 / GM 命令 / debug 重置归属）统一在这里归还装备：
+    // 此前只有对话解雇分支会归还装备，其它路径会把 owner 清零却把装备留在机器人身上，
+    // 于是数据库里出现「没有主人却仍然关联着装备」的脏数据，玩家的装备也拿不回来。
+    // 归还必须在解除归属之前完成（此时 _botData->owner / master 仍是原主人）
+    if (resetType == BOTAI_RESET_DISMISS)
+        bot->GetBotAI()->ReturnAllEquipmentToOwner();
+
     bot->GetBotAI()->ResetBotAI(resetType);
 
     bot->SetFaction(bot->GetCreatureTemplate()->faction);

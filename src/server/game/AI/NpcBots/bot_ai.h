@@ -319,6 +319,11 @@ public:
     Item* GetEquipsByGuid(ObjectGuid itemGuid) const;
     uint32 GetEquipDisplayId(uint8 slot) const;
     [[nodiscard]] BotEquipResult UnEquipAll(ObjectGuid receiver, bool store_to_bank);
+    // 解雇 / 归属到期：把机器人身上所有玩家装备归还主人（主人在线放背包，离线邮寄），
+    // 结尾无条件回写 characters_npcbot 装备列，返回归还（含邮寄）的件数
+    uint8 ReturnAllEquipmentToOwner();
+    // 自愈：无主人的自由 bot 载入时，把数据库里残留的玩家装备寄回记录的原主人并清空装备列
+    void RecoverOwnerlessEquipment();
     uint8 GetRealEquippedItemsCount() const;
     bool HasRealEquipment() const { return !!GetRealEquippedItemsCount(); }
     float GetAverageItemLevel() const;

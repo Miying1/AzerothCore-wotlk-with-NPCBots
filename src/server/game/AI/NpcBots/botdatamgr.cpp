@@ -3072,14 +3072,20 @@ void BotDataMgr::UpdateNpcBotData(uint32 entry, NpcBotDataUpdateType updateType,
                 if (Item const* botitem = items[k])
                 {
                     bool standard = false;
-                    for (auto i : NPCBots::index_array<uint8, MAX_EQUIPMENT_ITEMS>)
+                    // 只有武器槽(前 MAX_EQUIPMENT_ITEMS 个)才存在模板自带的标准装备；
+                    // 之前的实现拿护甲/饰品的 entry 去和武器模板比对，一旦撞上就会被当成标准装备、
+                    // 直接清零装备列且不落库，于是物品留在 item_instance 里变成孤儿数据
+                    if (k <= BOT_SLOT_RANGED)
                     {
-                        if (einfo->ItemEntry[i] == botitem->GetEntry())
+                        for (auto i : NPCBots::index_array<uint8, MAX_EQUIPMENT_ITEMS>)
                         {
-                            itr->second.equips[k] = 0;
-                            bstmt->SetData(k, uint32(0));
-                            standard = true;
-                            break;
+                            if (einfo->ItemEntry[i] == botitem->GetEntry())
+                            {
+                                itr->second.equips[k] = 0;
+                                bstmt->SetData(k, uint32(0));
+                                standard = true;
+                                break;
+                            }
                         }
                     }
                     if (standard)
