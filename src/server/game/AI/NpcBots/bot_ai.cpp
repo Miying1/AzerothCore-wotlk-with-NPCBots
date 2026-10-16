@@ -15735,6 +15735,24 @@ void bot_ai::RecoverOwnerlessEquipment()
     uint32 mailed_count = 0;
     uint32 deleted_count = 0;
 
+    // 清空装备列（含悬空 guid），保证「无主人」与「无装备」一致。
+    // 这步必须独立于下面邮寄物品的事务：引擎在事务中任何一条语句失败时会整包回滚
+    // （MySQLConnection::ExecuteTransaction），而邮寄很容易失败（例如物品 guid 已挂在 mail_items
+    // 上，INSERT 撞主键 1062）。若把清空语句和邮寄放进同一个事务，邮寄失败会把清空一并回滚，
+    // 悬空槽位原样留在 characters_npcbot 里，每次 spawn 反复失败，永远清不掉。
+    // 所以这里单独落库，保证「寄不出去」不会连累「清不干净」；先清空再邮寄，
+    // 万一邮寄失败最多留下一行没人引用的 item_instance 孤立数据，而不会出现
+    // 「物品既在邮件里、又还挂在 bot 身上」的复制状态。
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+        _botData->equips[i] = 0;
+
+    CharacterDatabasePreparedStatement* upd_stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_NPCBOT_EQUIP);
+    uint8 k = 0;
+    for (; k < BOT_INVENTORY_SIZE; ++k)
+        upd_stmt->SetData(k, uint32(0));
+    upd_stmt->SetData(k, me->GetEntry());
+    CharacterDatabase.Execute(upd_stmt);
+
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
     if (iiresult)
@@ -15777,18 +15795,9 @@ void bot_ai::RecoverOwnerlessEquipment()
         } while (iiresult->NextRow());
     }
 
-    // 清空装备列（含悬空 guid），保证「无主人」与「无装备」一致
-    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
-        _botData->equips[i] = 0;
-
-    CharacterDatabasePreparedStatement* upd_stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_NPCBOT_EQUIP);
-    uint8 k = 0;
-    for (; k < BOT_INVENTORY_SIZE; ++k)
-        upd_stmt->SetData(k, uint32(0));
-    upd_stmt->SetData(k, me->GetEntry());
-    trans->Append(upd_stmt);
-
-    CharacterDatabase.CommitTransaction(trans);
+    // 装备列已在上面独立清空并落库，这里只提交邮寄/删除部分（可能没有任何语句）
+    if (trans->GetSize() > 0)
+        CharacterDatabase.CommitTransaction(trans);
 
     BOT_LOG_WARN("npcbots", "RecoverOwnerlessEquipment(): free bot {} (id: {}) had leftover equipment, {} item(s) mailed back to their owners, {} invalid item(s) deleted",
         me->GetName().c_str(), me->GetEntry(), mailed_count, deleted_count);
