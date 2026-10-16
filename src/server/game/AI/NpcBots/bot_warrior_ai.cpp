@@ -865,7 +865,7 @@ public:
                 (isArms || mytar->GetClass() == CLASS_ROGUE || mytar->GetShapeshiftForm() == FORM_CAT) &&
                 dist < 5 && rage >= rcost(REND_1) && mytar->GetCreatureType() != CREATURE_TYPE_MECHANICAL &&
                 !(mytar->IsCreature() &&
-                (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_BLEED-1)))) &&
+                (mytar->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_BLEED))) &&
                 !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARRIOR, 0x20, 0x0, 0x0, me->GetGUID()) &&
                 (_inStance(4) || (me->GetLevel() >= 15 && stanceChange(diff, 4))))
             {

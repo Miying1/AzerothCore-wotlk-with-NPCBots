@@ -690,8 +690,9 @@ class CastingUnitCheck
         {
             if (spellInfo->HasEffect(SPELL_EFFECT_INTERRUPT_CAST) && spellInfo->GetFirstRankSpell()->Id != 853) //hammer of justice
             {
+                // 免疫位下标就是 MECHANIC_* 的取值（HasMechanicTemplateImmunity 内部按 1ULL << mechanic 取位），不能减 1
                 if (u->IsCreature() &&
-                    (u->ToCreature()->HasMechanicTemplateImmunity(1u << (MECHANIC_INTERRUPT - 1))))
+                    (u->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_INTERRUPT)))
                     return false;
 
                 for (uint8 i = CURRENT_FIRST_NON_MELEE_SPELL; i != CURRENT_AUTOREPEAT_SPELL; ++i)
@@ -722,7 +723,7 @@ class CastingUnitCheck
             if (silenceSpell)
             {
                 if (u->IsCreature() &&
-                    (u->ToCreature()->HasMechanicTemplateImmunity(1u << (MECHANIC_SILENCE - 1))))
+                    (u->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_SILENCE)))
                     return false;
 
                 for (uint8 i = CURRENT_FIRST_NON_MELEE_SPELL; i != CURRENT_AUTOREPEAT_SPELL; ++i)

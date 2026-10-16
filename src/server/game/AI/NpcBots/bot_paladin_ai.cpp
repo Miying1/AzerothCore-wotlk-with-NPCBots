@@ -939,7 +939,7 @@ public:
                 {
                     Creature const* cre = victim->ToCreature();
                     if (cre && cre->GetCreatureTemplate()->rank != CREATURE_ELITE_NORMAL &&
-                        (cre->HasMechanicTemplateImmunity(1u<<(MECHANIC_STUN-1))))
+                        (cre->HasMechanicTemplateImmunity(1ULL << MECHANIC_STUN)))
                         JUSTICE = 0;
                 }
                 SEAL = COMMAND ? COMMAND : JUSTICE ? JUSTICE : RIGHT;

@@ -833,7 +833,7 @@ public:
                 (GetSpec() == BOT_SPEC_PRIEST_SHADOW || mytar->IsControlledByPlayer()) &&
                 me->GetDistance(mytar) < CalcSpellMaxRange(DEVOURING_PLAGUE_1) &&
                 mytar->GetHealth() > me->GetMaxHealth()/2 * (1 + mytar->getAttackers().size()) &&
-                !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_INFECTED-1)))) &&
+                !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_INFECTED))) &&
                 AuraNeedsRefresh(mytar->GetAuraEffect(SPELL_AURA_PERIODIC_LEECH, SPELLFAMILY_PRIEST, 0x02000000, 0x0, 0x0, me->GetGUID()), 100))
                 return doCast(mytar, GetSpell(DEVOURING_PLAGUE_1));
 
