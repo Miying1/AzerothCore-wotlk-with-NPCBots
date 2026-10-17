@@ -63,8 +63,9 @@ struct boss_rift_wyrmthalak : public BossAIBase
 
         _reinforcementsSummoned = true;
         me->Yell(WyrmthalakHelpText, LANG_UNIVERSAL);
-        SummonTieredCreature(RiftEntrySpirestoneWarlord, me->GetRandomNearPosition(6.0f), 0.8f, 0.8f);
-        SummonTieredCreature(RiftEntrySmolderthornBerserker, me->GetRandomNearPosition(6.0f), 0.8f, 0.8f);
+        // 两个援军的血量系数由 0.8 下调至 0.32（降低 60%），伤害系数保持 0.8 不变。
+        SummonTieredCreature(RiftEntrySpirestoneWarlord, me->GetRandomNearPosition(6.0f), 0.25f, 0.8f);
+        SummonTieredCreature(RiftEntrySmolderthornBerserker, me->GetRandomNearPosition(6.0f), 0.25f, 0.8f);
     }
 
     void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }

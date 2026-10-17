@@ -40,7 +40,7 @@ enum Spells : uint32
 {
     SpellFireball = 44189,
     SpellFlamestrikeSummon = 44192,
-    SpellPhoenixVisual = 44194,
+    SpellPhoenixBurn = 44197,    // 燃烧：凤凰每2秒对周围造成火焰伤害并灼烧自身
     SpellShockBarrier = 46165,
     SpellPyroblast = 36819,
     SpellDragonsBreath = 42949,  // 3.3.5：法师龙息术（前方锥形火焰伤害并短暂混乱）
@@ -76,6 +76,9 @@ struct npc_rift_kaelthas_phoenix : public RiftLevel70SummonAI
 
     void ScheduleAbilities() override
     {
+        // 与源版凤凰一致：点燃自身，每2秒对周围造成火焰伤害并灼烧自己。
+        // 44198 的伤害由 RiftSummonAI::DamageDealt 按当前Tier倍率与召唤物系数缩放。
+        DoCast(me, SpellPhoenixBurn, true);
         _events.ScheduleEvent(1, 3s);
     }
 
@@ -185,6 +188,8 @@ struct boss_rift_kaelthas : public BossAIBase
         // 保持原版70级伤害基线；Tier伤害由配置表统一倍率承担，避免T2/T3对同一法术重复放大。
         SetRaidSpellDamageMultiplier(1.0f);
         AddInterruptImmuneSpell(SpellGravityLapseChannel);
+        // 火球术是Boss的主力输出，读条期间免疫打断，避免被玩家无限打断导致Boss无伤害。
+        AddInterruptImmuneSpell(SpellFireball);
     }
 
     void ExecuteRiftEvent(uint32 eventId) override
@@ -204,8 +209,12 @@ struct boss_rift_kaelthas : public BossAIBase
             case EventPhoenix:
                 me->Yell(KaelthasPhoenixText, LANG_UNIVERSAL);
                 me->PlayDirectSound(KaelthasPhoenixSound);
-                CastIfConfigured(me, SpellPhoenixVisual, true);
-                SummonTieredCreature(RiftEntryPhoenix, me->GetRandomNearPosition(6.0f), 0.45f, 0.65f,
+                // 44194 本身是召唤术（Effect=SUMMON，目标 24674 原版凤凰），必须改用裂隙凤凰模板召唤，
+                // 否则场上会同时出现一只不受Tier控制的原版凤凰。
+                // 血量系数0.65：燃烧光环每2秒额外烧掉5%最大生命，原0.45的血量在30秒存在期内损耗过大。
+                // 伤害系数0.86：凤凰所有法术共用该系数，使燃烧(44198)每跳达到约1500
+                // （1749 x 0.86），火球(44189)同步提升至约6020。
+                SummonTieredCreature(RiftEntryPhoenix, me->GetRandomNearPosition(6.0f), 0.65f, 0.86f,
                     TEMPSUMMON_TIMED_DESPAWN, 30000);
                 events.ScheduleEvent(EventPhoenix, 60s);
                 break;
@@ -271,6 +280,27 @@ private:
         events.ScheduleEvent(EventGravityLapsePlayers, 2s);
     }
 
+    // 44226 由玩家自身施放，伤害不经过 BossAIBase::DamageDealt，
+    // 必须在这里按当前Tier把调谐表中的每跳基线写入基础点数，否则伤害恒为DBC原值且不随难度提升。
+    void CastGravityLapseDot(Player* player)
+    {
+        int32 baseDamage = 0;
+        if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(SpellGravityLapseDot))
+            if (tuning->EffectBasePoints.size() > 1)
+                baseDamage = tuning->EffectBasePoints[1];
+
+        if (baseDamage <= 0)
+        {
+            player->CastSpell(player, SpellGravityLapseDot, true, nullptr, nullptr, me->GetGUID());
+            return;
+        }
+
+        float multiplier = _tierConfig ? _tierConfig->DamageMultiplier : 1.0f;
+        int32 damage = int32(std::lround(double(baseDamage) * double(multiplier)));
+        player->CastCustomSpell(SpellGravityLapseDot, SPELLVALUE_BASE_POINT1, std::max<int32>(1, damage),
+            player, true, nullptr, nullptr, me->GetGUID());
+    }
+
     void RemoveGravityLapseFromPlayers()
     {
         me->GetMap()->DoForAllPlayers([&](Player* player)
@@ -297,7 +327,7 @@ private:
             if (action == EventGravityLapsePlayers)
                 CastIfConfigured(player, SpellGravityLapsePlayer + _gravityLapseCounter, true);
             else if (action == EventGravityLapseKnockup)
-                player->CastSpell(player, SpellGravityLapseDot, true, nullptr, nullptr, me->GetGUID());
+                CastGravityLapseDot(player);
             else if (action == EventGravityLapseFlight)
                 player->CastSpell(player, SpellGravityLapseFly, true, nullptr, nullptr, me->GetGUID());
             ++_gravityLapseCounter;

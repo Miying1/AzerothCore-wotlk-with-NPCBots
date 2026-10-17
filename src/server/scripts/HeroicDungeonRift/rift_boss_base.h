@@ -205,6 +205,11 @@ public:
         if (damageType != DIRECT_DAMAGE)
         {
             uint32 spellId = GetDamageSpellId(victim, damageType);
+            // 按目标生命百分比结算的技能（如摩摩尔音爆=当前生命的80%）已在脚本内给出最终伤害，
+            // 再叠加Tier倍率会让T2/T3超过目标生命上限变成必死，因此这类技能跳过缩放。
+            if (std::find(_unscaledSpells.begin(), _unscaledSpells.end(), spellId) != _unscaledSpells.end())
+                return;
+
             if (RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(spellId))
             {
                 // 固定伤害/DoT在施法时已写入T1基线；武器倍率只作用于直接技能伤害，
@@ -419,6 +424,13 @@ protected:
             _interruptImmuneSpells.push_back(spellId);
     }
 
+    // 注册后该法术的伤害不再叠加Tier倍率，交给自身脚本按百分比等规则结算。
+    void AddUnscaledSpell(uint32 spellId)
+    {
+        if (spellId && std::find(_unscaledSpells.begin(), _unscaledSpells.end(), spellId) == _unscaledSpells.end())
+            _unscaledSpells.push_back(spellId);
+    }
+
     uint32 GetDamageSpellId(Unit* victim, DamageEffectType damageType) const
     {
         if (damageType == DOT)
@@ -470,6 +482,7 @@ protected:
     EventMap events;
     std::vector<ObjectGuid> _riftSummons;
     std::vector<uint32> _interruptImmuneSpells;
+    std::vector<uint32> _unscaledSpells;
 };
 
 // 裂隙召唤生物（同伴和增援）的共享AI基类。

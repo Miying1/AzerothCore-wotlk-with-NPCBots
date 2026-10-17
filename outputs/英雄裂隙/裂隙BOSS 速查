@@ -1,0 +1,272 @@
+11492	『狂野变形者』奥兹恩	
+17838	时间裂隙	npc_time_rift
+100000	英雄裂隙引导者	npc_rift_entry
+100100	艾德温·范克里夫 [T1]	boss_rift_vancleef
+100101	艾德温·范克里夫 [T2]	boss_rift_vancleef
+100102	艾德温·范克里夫 [T3]	boss_rift_vancleef
+100103	斯尼德的伐木机 [T1]	boss_rift_sneed
+100104	斯尼德的伐木机 [T2]	boss_rift_sneed
+100105	斯尼德的伐木机 [T3]	boss_rift_sneed
+100106	厨师 [T1]	boss_rift_cookie
+100107	厨师 [T2]	boss_rift_cookie
+100108	厨师 [T3]	boss_rift_cookie
+100109	电刑器6000型 [T1]	boss_rift_electrocutioner
+100110	电刑器6000型 [T2]	boss_rift_electrocutioner
+100111	电刑器6000型 [T3]	boss_rift_electrocutioner
+100112	机电师瑟玛普拉格 [T1]	boss_rift_thermaplugg
+100113	机电师瑟玛普拉格 [T2]	boss_rift_thermaplugg
+100114	机电师瑟玛普拉格 [T3]	boss_rift_thermaplugg
+100115	『寒冰使者』亚门纳尔 [T1]	boss_rift_amnennar
+100116	『寒冰使者』亚门纳尔 [T2]	boss_rift_amnennar
+100117	『寒冰使者』亚门纳尔 [T3]	boss_rift_amnennar
+100118	暴食者 [T1]	boss_rift_glutton
+100119	暴食者 [T2]	boss_rift_glutton
+100120	暴食者 [T3]	boss_rift_glutton
+100121	拉姆塔斯主宰 [T1]	boss_rift_ramtusk
+100122	拉姆塔斯主宰 [T2]	boss_rift_ramtusk
+100123	拉姆塔斯主宰 [T3]	boss_rift_ramtusk
+100124	卡尔加·刺肋 [T1]	boss_rift_charlga
+100125	卡尔加·刺肋 [T2]	boss_rift_charlga
+100126	卡尔加·刺肋 [T3]	boss_rift_charlga
+100127	血色十字军指挥官莫格莱尼 [T1]	boss_rift_mograine
+100128	血色十字军指挥官莫格莱尼 [T2]	boss_rift_mograine
+100129	血色十字军指挥官莫格莱尼 [T3]	boss_rift_mograine
+100130	赫洛德 [T1]	boss_rift_herod
+100131	赫洛德 [T2]	boss_rift_herod
+100132	赫洛德 [T3]	boss_rift_herod
+100133	暮光领主克尔里斯 [T1]	boss_rift_kelris
+100134	暮光领主克尔里斯 [T2]	boss_rift_kelris
+100135	暮光领主克尔里斯 [T3]	boss_rift_kelris
+100136	阿库麦尔 [T1]	boss_rift_akumai
+100137	阿库麦尔 [T2]	boss_rift_akumai
+100138	阿库麦尔 [T3]	boss_rift_akumai
+100139	阿札达斯 [T1]	boss_rift_archaedas
+100140	阿札达斯 [T2]	boss_rift_archaedas
+100141	阿札达斯 [T3]	boss_rift_archaedas
+100142	伊兰尼库斯之影 [T1]	boss_rift_eranikus
+100143	伊兰尼库斯之影 [T2]	boss_rift_eranikus
+100144	伊兰尼库斯之影 [T3]	boss_rift_eranikus
+100145	『预言者』迦玛兰 [T1]	boss_rift_jammalan
+100146	『预言者』迦玛兰 [T2]	boss_rift_jammalan
+100147	『预言者』迦玛兰 [T3]	boss_rift_jammalan
+100148	永生的沃尔丹 [T1]	boss_rift_verdan
+100149	永生的沃尔丹 [T2]	boss_rift_verdan
+100150	永生的沃尔丹 [T3]	boss_rift_verdan
+100151	『吞噬者』穆坦努斯 [T1]	boss_rift_mutanus
+100152	『吞噬者』穆坦努斯 [T2]	boss_rift_mutanus
+100153	『吞噬者』穆坦努斯 [T3]	boss_rift_mutanus
+100154	指挥官斯普林瓦尔 [T1]	boss_rift_springvale
+100155	指挥官斯普林瓦尔 [T2]	boss_rift_springvale
+100156	指挥官斯普林瓦尔 [T3]	boss_rift_springvale
+100157	大法师阿鲁高 [T1]	boss_rift_arugal
+100158	大法师阿鲁高 [T2]	boss_rift_arugal
+100159	大法师阿鲁高 [T3]	boss_rift_arugal
+100160	秘法师杜安 [T1]	boss_rift_doan
+100161	秘法师杜安 [T2]	boss_rift_doan
+100162	秘法师杜安 [T3]	boss_rift_doan
+100163	加兹瑞拉 [T1]	boss_rift_gahzrilla
+100164	加兹瑞拉 [T2]	boss_rift_gahzrilla
+100165	加兹瑞拉 [T3]	boss_rift_gahzrilla
+100166	乌克兹·沙顶 [T1]	boss_rift_ukorz
+100167	乌克兹·沙顶 [T2]	boss_rift_ukorz
+100168	乌克兹·沙顶 [T3]	boss_rift_ukorz
+100169	维利塔恩领主 [T1]	boss_rift_vyletongue
+100170	维利塔恩领主 [T2]	boss_rift_vyletongue
+100171	维利塔恩领主 [T3]	boss_rift_vyletongue
+100172	被诅咒的塞雷布拉斯 [T1]	boss_rift_celebras
+100173	被诅咒的塞雷布拉斯 [T2]	boss_rift_celebras
+100174	被诅咒的塞雷布拉斯 [T3]	boss_rift_celebras
+100175	瑟莱德丝公主 [T1]	boss_rift_theradras
+100176	瑟莱德丝公主 [T2]	boss_rift_theradras
+100177	瑟莱德丝公主 [T3]	boss_rift_theradras
+100178	洛考尔领主 [T1]	boss_rift_roccor
+100179	洛考尔领主 [T2]	boss_rift_roccor
+100180	洛考尔领主 [T3]	boss_rift_roccor
+100181	伊森迪奥斯领主 [T1]	boss_rift_incendius
+100182	伊森迪奥斯领主 [T2]	boss_rift_incendius
+100183	伊森迪奥斯领主 [T3]	boss_rift_incendius
+100184	贝尔加 [T1]	boss_rift_baelgar
+100185	贝尔加 [T2]	boss_rift_baelgar
+100186	贝尔加 [T3]	boss_rift_baelgar
+100187	魔像领主阿格曼奇 [T1]	boss_rift_argelmach
+100188	魔像领主阿格曼奇 [T2]	boss_rift_argelmach
+100189	魔像领主阿格曼奇 [T3]	boss_rift_argelmach
+100190	弗莱拉斯大使 [T1]	boss_rift_flamelash
+100191	弗莱拉斯大使 [T2]	boss_rift_flamelash
+100192	弗莱拉斯大使 [T3]	boss_rift_flamelash
+100193	杜姆雷尔 [T1]	boss_rift_the_seven
+100194	杜姆雷尔 [T2]	boss_rift_the_seven
+100195	杜姆雷尔 [T3]	boss_rift_the_seven
+100196	达格兰·索瑞森大帝 [T1]	boss_rift_thaurissan
+100197	达格兰·索瑞森大帝 [T2]	boss_rift_thaurissan
+100198	达格兰·索瑞森大帝 [T3]	boss_rift_thaurissan
+100199	烟网蛛后 [T1]	boss_rift_smolderweb
+100200	烟网蛛后 [T2]	boss_rift_smolderweb
+100201	烟网蛛后 [T3]	boss_rift_smolderweb
+100202	维姆萨拉克主宰 [T1]	boss_rift_wyrmthalak
+100203	维姆萨拉克主宰 [T2]	boss_rift_wyrmthalak
+100204	维姆萨拉克主宰 [T3]	boss_rift_wyrmthalak
+100205	蕾瑟塔蒂丝 [T1]	boss_rift_lethtendris
+100206	蕾瑟塔蒂丝 [T2]	boss_rift_lethtendris
+100207	蕾瑟塔蒂丝 [T3]	boss_rift_lethtendris
+100208	『狂野变形者』奥兹恩 [T1]	boss_rift_alzzin
+100209	『狂野变形者』奥兹恩 [T2]	boss_rift_alzzin
+100210	『狂野变形者』奥兹恩 [T3]	boss_rift_alzzin
+100211	伊莫塔尔 [T1]	boss_rift_immolthar
+100212	伊莫塔尔 [T2]	boss_rift_immolthar
+100213	伊莫塔尔 [T3]	boss_rift_immolthar
+100214	托塞德林王子 [T1]	boss_rift_tortheldrin
+100215	托塞德林王子 [T2]	boss_rift_tortheldrin
+100216	托塞德林王子 [T3]	boss_rift_tortheldrin
+100217	守卫摩尔达 [T1]	boss_rift_moldar
+100218	守卫摩尔达 [T2]	boss_rift_moldar
+100219	守卫摩尔达 [T3]	boss_rift_moldar
+100220	戈多克大王 [T1]	boss_rift_gordok
+100221	戈多克大王 [T2]	boss_rift_gordok
+100222	戈多克大王 [T3]	boss_rift_gordok
+100223	莱斯·霜语 [T1]	boss_rift_ras_frostwhisper
+100224	莱斯·霜语 [T2]	boss_rift_ras_frostwhisper
+100225	莱斯·霜语 [T3]	boss_rift_ras_frostwhisper
+100226	拉文尼亚 [T1]	boss_rift_ravenian
+100227	拉文尼亚 [T2]	boss_rift_ravenian
+100228	拉文尼亚 [T3]	boss_rift_ravenian
+100229	黑暗院长加丁 [T1]	boss_rift_gandling
+100230	黑暗院长加丁 [T2]	boss_rift_gandling
+100231	黑暗院长加丁 [T3]	boss_rift_gandling
+100232	巴纳札尔 [T1]	boss_rift_balnazzar
+100233	巴纳札尔 [T2]	boss_rift_balnazzar
+100234	巴纳札尔 [T3]	boss_rift_balnazzar
+100235	安娜丝塔丽男爵夫人 [T1]	boss_rift_anastari
+100236	安娜丝塔丽男爵夫人 [T2]	boss_rift_anastari
+100237	安娜丝塔丽男爵夫人 [T3]	boss_rift_anastari
+100238	瑞文戴尔男爵 [T1]	boss_rift_rivendare
+100239	瑞文戴尔男爵 [T2]	boss_rift_rivendare
+100240	瑞文戴尔男爵 [T3]	boss_rift_rivendare
+100241	大术士奈德克斯 [T1]	boss_rift_nethekurse
+100242	大术士奈德克斯 [T2]	boss_rift_nethekurse
+100243	大术士奈德克斯 [T3]	boss_rift_nethekurse
+100244	大酋长卡加斯·刃拳 [T1]	boss_rift_kargath
+100245	大酋长卡加斯·刃拳 [T2]	boss_rift_kargath
+100246	大酋长卡加斯·刃拳 [T3]	boss_rift_kargath
+100247	布洛克 [T1]	boss_rift_broggok
+100248	布洛克 [T2]	boss_rift_broggok
+100249	布洛克 [T3]	boss_rift_broggok
+100250	『破坏者』凯利丹 [T1]	boss_rift_kelidan
+100251	『破坏者』凯利丹 [T2]	boss_rift_kelidan
+100252	『破坏者』凯利丹 [T3]	boss_rift_kelidan
+100253	『无疤者』欧玛尔 [T1]	boss_rift_omor
+100254	『无疤者』欧玛尔 [T2]	boss_rift_omor
+100255	『无疤者』欧玛尔 [T3]	boss_rift_omor
+100256	督军卡利斯瑞 [T1]	boss_rift_kalithresh
+100257	督军卡利斯瑞 [T2]	boss_rift_kalithresh
+100258	督军卡利斯瑞 [T3]	boss_rift_kalithresh
+100259	沼泽之王莫斯莱克 [T1]	boss_rift_muselek
+100260	沼泽之王莫斯莱克 [T2]	boss_rift_muselek
+100261	沼泽之王莫斯莱克 [T3]	boss_rift_muselek
+100262	黑色潜猎者 [T1]	boss_rift_black_stalker
+100263	黑色潜猎者 [T2]	boss_rift_black_stalker
+100264	黑色潜猎者 [T3]	boss_rift_black_stalker
+100265	『背叛者』曼纽 [T1]	boss_rift_mennu
+100266	『背叛者』曼纽 [T2]	boss_rift_mennu
+100267	『背叛者』曼纽 [T3]	boss_rift_mennu
+100268	奎克米瑞 [T1]	boss_rift_quagmirran
+100269	奎克米瑞 [T2]	boss_rift_quagmirran
+100270	奎克米瑞 [T3]	boss_rift_quagmirran
+100271	末日预言者达利亚 [T1]	boss_rift_dalliah
+100272	末日预言者达利亚 [T2]	boss_rift_dalliah
+100273	末日预言者达利亚 [T3]	boss_rift_dalliah
+100274	怒镰者索寇斯瑞特 [T1]	boss_rift_soccothrates
+100275	怒镰者索寇斯瑞特 [T2]	boss_rift_soccothrates
+100276	怒镰者索寇斯瑞特 [T3]	boss_rift_soccothrates
+100277	拉杰 [T1]	boss_rift_laj
+100278	拉杰 [T2]	boss_rift_laj
+100279	拉杰 [T3]	boss_rift_laj
+100280	扭曲分裂者 [T1]	boss_rift_warp_splinter
+100281	扭曲分裂者 [T2]	boss_rift_warp_splinter
+100282	扭曲分裂者 [T3]	boss_rift_warp_splinter
+100283	操纵者帕萨里欧 [T1]	boss_rift_pathaleon
+100284	操纵者帕萨里欧 [T2]	boss_rift_pathaleon
+100285	操纵者帕萨里欧 [T3]	boss_rift_pathaleon
+100286	莫尔墨 [T1]	boss_rift_murmur
+100287	莫尔墨 [T2]	boss_rift_murmur
+100288	莫尔墨 [T3]	boss_rift_murmur
+100289	鹰王伊奇斯 [T1]	boss_rift_ikiss
+100290	鹰王伊奇斯 [T2]	boss_rift_ikiss
+100291	鹰王伊奇斯 [T3]	boss_rift_ikiss
+100292	奈萨斯王子萨法尔 [T1]	boss_rift_shaffar
+100293	奈萨斯王子萨法尔 [T2]	boss_rift_shaffar
+100294	奈萨斯王子萨法尔 [T3]	boss_rift_shaffar
+100295	死亡看守者辛瑞克 [T1]	boss_rift_shirrak
+100296	死亡看守者辛瑞克 [T2]	boss_rift_shirrak
+100297	死亡看守者辛瑞克 [T3]	boss_rift_shirrak
+100298	主教玛拉达尔 [T1]	boss_rift_maladaar
+100299	主教玛拉达尔 [T2]	boss_rift_maladaar
+100300	主教玛拉达尔 [T3]	boss_rift_maladaar
+100301	凯尔萨斯·逐日者 [T1]	boss_rift_kaelthas
+100302	凯尔萨斯·逐日者 [T2]	boss_rift_kaelthas
+100303	凯尔萨斯·逐日者 [T3]	boss_rift_kaelthas
+100304	维斯路登 [T1]	boss_rift_vazruden
+100305	维斯路登 [T2]	boss_rift_vazruden
+100306	维斯路登 [T3]	boss_rift_vazruden
+100510	T1裂隙	npc_rift_portal
+100511	T2裂隙	npc_rift_portal
+100512	T3裂隙	npc_rift_portal
+102000	高阶审判官怀特迈恩	npc_rift_whitemane
+102001	步行炸弹	npc_rift_walking_bomb
+102002	冰霜幽灵	npc_rift_frost_spectre
+102003	血色受训员	npc_rift_scarlet_trainee
+102004	陷地图腾	npc_rift_earthgrab_totem
+102005	土灵守护者	npc_rift_earthen_guardian
+102006	暴食者 [T3]	npc_rift_vault_warder
+102007	土灵筑厅师	npc_rift_earthen_hallshaper
+102008	土灵管理者	npc_rift_earthen_custodian
+102009	阿库麦尔钳嘴龟	npc_rift_akumai_snapjaw
+102010	阿库麦尔的仆从	npc_rift_akumai_servant
+102011	卢兹鲁	npc_rift_ruuzlu
+102012	『观察者』克鲁什	npc_rift_chorsh
+102013	茉艾拉·铜须公主	npc_rift_moira
+102014	复活的守护者	npc_rift_risen_guardian
+102015	燃灵	npc_rift_burning_spirit
+102016	尖石督军	npc_rift_spirestone_warlord
+102017	燃棘狂战士	npc_rift_smolderthorn_berserker
+102018	阿鲁高的虚无行者	npc_rift_arugal_voidwalker
+102019	虚无行者爪牙	npc_rift_voidwalker_minion
+102020	尖塔小蜘蛛	npc_rift_spire_spiderling
+102021	无脑的骷髅	npc_rift_mindless_skeleton
+102022	奥兹恩的爪牙	npc_rift_alzzin_minion
+102023	贝尔加的产物	npc_rift_baelgar_spawn
+102024	黑特雷尔	npc_rift_seven_haterel
+102025	安格雷尔	npc_rift_seven_angerrel
+102026	瓦勒雷尔	npc_rift_seven_vilerel
+102027	格鲁雷尔	npc_rift_seven_gloomrel
+102028	西斯雷尔	npc_rift_seven_seethrel
+102029	多普雷尔	npc_rift_seven_doperel
+102030	末日之炉魔匠	npc_rift_argelmach_arcanasmith
+102031	狂怒魔像	npc_rift_argelmach_golem
+102032	怒锤傀儡	npc_rift_argelmach_wrath_hammer
+102033	武器技师	npc_rift_argelmach_technician
+102034	破碎之手刺客	npc_rift_shattered_hand_assassin
+102035	希顿护卫	npc_rift_shattered_hand_heathen
+102036	劫夺者护卫	npc_rift_shattered_hand_reaver
+102037	神射手护卫	npc_rift_shattered_hand_sharpshooter
+102038	布洛克毒云	npc_rift_broggok_poison_cloud
+102039	恶魔般的猎犬	npc_rift_fiendish_hound
+102040	纳迦蒸馏者	npc_rift_naga_distiller
+102041	裂爪	npc_rift_claw
+102042	孢子行者	npc_rift_spore_strider
+102043	曼纽的治疗结界	npc_rift_mennu_healing_ward
+102044	受污染的陷地图腾	npc_rift_mennu_earthgrab_totem
+102045	受污染的石肤图腾	npc_rift_mennu_stoneskin_totem
+102046	堕落的新星图腾	npc_rift_mennu_nova_totem
+102047	荆棘鞭笞者	npc_rift_thorn_lasher
+102048	荆棘撕掠者	npc_rift_thorn_flayer
+102049	树苗	npc_rift_warp_sapling
+102050	虚空怨灵	npc_rift_nether_wraith
+102051	以太信标	npc_rift_ethereal_beacon
+102052	以太学徒	npc_rift_ethereal_apprentice
+102053	专注之火	npc_rift_focus_fire
+102054	偷取的灵魂	npc_rift_stolen_soul
+102055	马丁瑞德的化身	npc_rift_martyred_avatar
+102056	凤凰	npc_rift_kaelthas_phoenix
+102057	秘法之球	npc_rift_kaelthas_arcane_sphere
+102058	纳桑	npc_rift_nazan

@@ -43,8 +43,6 @@ enum Entries : uint32
     RiftEntryNetherWraith = 102050 // source 21062
 };
 
-constexpr int32 ArcaneBlastRaidDamage = 5000;
-
 constexpr char const* PathaleonAggroText = "我们的时间非常紧迫。你们休想添乱！";
 constexpr char const* PathaleonDominationText = "我正在寻找一个伙伴……";
 constexpr char const* PathaleonSummonText = "是叫人帮忙的时候了。";
@@ -173,7 +171,8 @@ struct boss_rift_pathaleon : public BossAIBase
                 events.ScheduleEvent(EventArcaneTorrent, 15s);
                 break;
             case EventDomination:
-                if (Unit* target = SelectRandomPlayer(50.0f))
+                // 不点名主坦：withTank=false 会排除当前主坦（威胁列表中的 last victim）。
+                if (Unit* target = SelectRandomPlayer(50.0f, false, false))
                 {
                     me->Yell(PathaleonDominationText, LANG_UNIVERSAL, target);
                     me->PlayDirectSound(PathaleonDominationSound, target->ToPlayer());
@@ -194,8 +193,9 @@ struct boss_rift_pathaleon : public BossAIBase
                 events.ScheduleEvent(EventPolarityShift, _tier == 3 ? 28s : 36s);
                 break;
             case EventArcaneBlast: // T3新增：能源舰奥术冲击
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellArcaneBlast, SPELLVALUE_BASE_POINT1,
-                    ArcaneBlastRaidDamage, true);
+                // 不要点名主坦：withTank=false 会排除当前主坦（威胁列表中的 last victim）。
+                // 混合BP：BP0为0不覆写，BP1的T1基线直接取自调谐表（35314）。
+                CastIfConfigured(SelectRandomPlayer(100.0f, false, false), SpellArcaneBlast, true);
                 events.ScheduleEvent(EventArcaneBlast, 9s);
                 break;
             default:

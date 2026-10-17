@@ -122,7 +122,7 @@ struct boss_rift_akumai : public BossAIBase
         if (_tier >= 2 && !_snapjawPhaseStarted && me->HealthBelowPctDamaged(65, damage))
         {
             _snapjawPhaseStarted = true;
-            SummonWave(RiftEntryAkumaiSnapjaw, _tier == 3 ? 3 : 2, 0.55f, 0.65f);
+            SummonWave(RiftEntryAkumaiSnapjaw, _tier == 3 ? 3 : 2, 0.275f, 0.65f);
             events.RescheduleEvent(EventSnapjawWave, _tier == 3 ? 16s : 21s);
         }
     }
@@ -148,11 +148,11 @@ struct boss_rift_akumai : public BossAIBase
                 break;
             case EventSnapjawWave:
                 if (_snapjawPhaseStarted)
-                    SummonWave(RiftEntryAkumaiSnapjaw, _tier == 3 ? 2 : 1, 0.55f, 0.65f);
+                    SummonWave(RiftEntryAkumaiSnapjaw, _tier == 3 ? 2 : 1, 0.275f, 0.65f);
                 events.ScheduleEvent(EventSnapjawWave, _tier == 3 ? 18s : 24s);
                 break;
             case EventServantWave:
-                SummonWave(RiftEntryAkumaiServant, 1, 0.6f, 0.8f);
+                SummonWave(RiftEntryAkumaiServant, 1, 0.3f, 0.8f);
                 events.ScheduleEvent(EventServantWave, 20s);
                 break;
             default:

@@ -47,11 +47,6 @@ constexpr char const* SlayTexts[] =
     "你死了——嘎！离我的宝物远点！",
     "嗯……"
 };
-constexpr int32 ArcaneVolleyRaidDamage = 3500;
-constexpr int32 ArcaneExplosionRaidDamage = 8500;
-constexpr int32 ArcaneBarrageRaidDamage = 4500;
-constexpr int32 ManaDetonationRaidDamage = 5000;
-
 constexpr char const* DeathText = "艾吉斯不会——嘎，嘎——死……";
 constexpr char const* ArcaneExplosionText = "艾吉斯开始引导奥术能量……";
 }
@@ -120,7 +115,8 @@ struct boss_rift_ikiss : public BossAIBase
 
     void ConfigureTier() override
     {
-        // TBC 奥术箭雨/魔爆术分别在事件中覆盖为83级五人团本伤害，WotLK新增技能保留DBC原值。
+        // 四个伤害技能的T1基线统一由 rift_spell_damage.h 调谐表提供，
+        // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
         SetRaidSpellDamageMultiplier(1.0f);
         AddInterruptImmuneSpell(SpellArcaneExplosion);
     }
@@ -130,7 +126,7 @@ struct boss_rift_ikiss : public BossAIBase
         switch (eventId)
         {
             case EventArcaneVolley:
-                CastRaidTunedSpell(me, SpellArcaneVolley, ArcaneVolleyRaidDamage);
+                CastIfConfigured(me, SpellArcaneVolley);
                 events.ScheduleEvent(EventArcaneVolley, Milliseconds(urand(7000, 12000)));
                 break;
             case EventPolymorph:
@@ -138,7 +134,7 @@ struct boss_rift_ikiss : public BossAIBase
                 events.ScheduleEvent(EventPolymorph, Milliseconds(urand(15000, 17500)));
                 break;
             case EventArcaneExplosion:
-                CastRaidTunedSpell(me, SpellArcaneExplosion, ArcaneExplosionRaidDamage);
+                CastIfConfigured(me, SpellArcaneExplosion);
                 events.ScheduleEvent(EventResumeCombat, 6s);
                 break;
             case EventResumeCombat:
@@ -150,13 +146,11 @@ struct boss_rift_ikiss : public BossAIBase
                 events.ScheduleEvent(EventSlow, Milliseconds(urand(20000, 30000)));
                 break;
             case EventArcaneBarrage: // T2新增：低伤点名，避免与法力爆炸同秒
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellArcaneBarrage, SPELLVALUE_BASE_POINT0,
-                    ArcaneBarrageRaidDamage);
+                CastIfConfigured(SelectRandomPlayer(), SpellArcaneBarrage);
                 events.ScheduleEvent(EventArcaneBarrage, 17s);
                 break;
             case EventManaDetonation: // T3新增：中等范围爆发，与奥术弹幕保持7秒错峰
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellManaDetonation, SPELLVALUE_BASE_POINT0,
-                    ManaDetonationRaidDamage);
+                CastIfConfigured(SelectRandomPlayer(), SpellManaDetonation);
                 events.ScheduleEvent(EventManaDetonation, 24s);
                 break;
             default:

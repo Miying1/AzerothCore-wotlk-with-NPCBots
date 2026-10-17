@@ -1642,6 +1642,14 @@ public:
             value = value * pctbonus;
         }
 
+        void ApplyClassThreatMods(SpellInfo const* spellInfo, float& threat) const override
+        {
+            //英勇打击在 DPS 天赋（武器/狂怒）下仇恨偏高，统一削减 30% 仇恨，避免从坦克手中抢过仇恨
+            if (spellInfo->GetFirstRankSpell()->Id == HEROIC_STRIKE_1 &&
+                (GetSpec() == BOT_SPEC_WARRIOR_ARMS || GetSpec() == BOT_SPEC_WARRIOR_FURY))
+                threat *= 0.5f;
+        }
+
         void OnClassSpellGo(SpellInfo const* spellInfo) override
         {
             uint32 baseId = spellInfo->GetFirstRankSpell()->Id;

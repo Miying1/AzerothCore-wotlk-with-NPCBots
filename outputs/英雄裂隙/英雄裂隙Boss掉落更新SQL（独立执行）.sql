@@ -74,22 +74,22 @@ UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,5,0,1,2,1,1,'裂隙 T2 - 掉落组 源生萨隆邪铁 15%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_FRAGMENT,0,60,0,1,2,1,1,'裂隙 T2 - 掉落组 源力碎片 50%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_FRAGMENT,0,50,0,1,2,1,1,'裂隙 T2 - 掉落组 源力碎片 50%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_CORE,0,5,0,1,2,1,1,'裂隙 T3 - 材料组 源力核心 5%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,10,0,1,2,1,1,'裂隙 T2 - 掉落组 随机坐骑礼包 10%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,5,0,1,2,1,1,'裂隙 T2 - 掉落组 随机坐骑礼包 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,10,0,1,2,1,1,'裂隙 T2 - 掉落组 幸运币 10%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,5,0,1,2,1,1,'裂隙 T2 - 掉落组 幸运币 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_CHALLENGE_MARK,0,100,0,1,0,3,3,'裂隙 T2 - 挑战印记 100% - 3个'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_RIFT_FRAGMENT,0,30,0,1,0,1,1,'裂隙 T2 - 裂隙碎片 30% - 1个'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_RIFT_FRAGMENT,0,30,0,1,2,1,1,'裂隙 T2 - 裂隙碎片 30% - 1个'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2;
 
 -- ============================================================================
@@ -100,34 +100,34 @@ FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2;
 -- ============================================================================
 INSERT INTO `creature_loot_template`
 (`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
-SELECT `entry_id`,0,@RIFT_LOOT_REF_240,85,0,1,1,1,1,'裂隙 T3 - 装备组 85% 240装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_240,80,0,1,1,1,1,'裂隙 T3 - 装备组 85% 240装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,0,@RIFT_LOOT_REF_250,15,0,1,1,1,1,'裂隙 T3 - 装备组 15% 250装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_250,20,0,1,1,1,1,'裂隙 T3 - 装备组 15% 250装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_ARTIFACT,0,10,0,1,2,1,1,'裂隙 T3 - 材料组 10% 神器材料'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_ARTIFACT,0,10,0,1,2,1,1,'裂隙 T3 - 材料组2 10% 神器材料'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,35,0,1,2,1,1,'裂隙 T3 - 材料组 35% 源生萨隆邪铁'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,30,0,1,2,1,1,'裂隙 T3 - 材料组2 35% 源生萨隆邪铁'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_FRAGMENT,0,35,0,1,2,1,1,'裂隙 T3 - 掉落组 源力碎片 35%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_FRAGMENT,0,50,0,1,2,1,1,'裂隙 T3 - 掉落组2 源力碎片 35%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_CORE,0,10,0,1,2,1,1,'裂隙 T3 - 材料组 源力核心 10%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_POWER_CORE,0,10,0,1,2,1,1,'裂隙 T3 - 材料组2 源力核心 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,10,0,1,2,1,1,'裂隙 T3 - 掉落组 随机坐骑礼包 10%'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_MOUNT_GIFT,0,5,0,1,3,1,1,'裂隙 T3 - 掉落组3 随机坐骑礼包 10%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,35,0,1,0,1,1,'裂隙 T3 - 幸运币 35% 独立掉落'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_LUCKY_COIN,0,8,0,1,3,1,1,'裂隙 T3 - 幸运币3 35% 独立掉落'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_CHALLENGE_MARK,0,100,0,1,0,5,5,'裂隙 T3 - 挑战印记 100% - 5个'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,@RIFT_LOOT_ITEM_RIFT_FRAGMENT,0,50,0,1,0,1,1,'裂隙 T3 - 裂隙碎片 50% - 1个'
+SELECT `entry_id`,@RIFT_LOOT_ITEM_RIFT_FRAGMENT,0,50,0,1,3,1,1,'裂隙 T3 - 裂隙碎片3 50% - 1个'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3;
 
 -- ============================================================================

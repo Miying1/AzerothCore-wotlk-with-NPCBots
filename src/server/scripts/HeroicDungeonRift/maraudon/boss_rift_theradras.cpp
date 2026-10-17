@@ -99,7 +99,8 @@ struct boss_rift_theradras : public BossAIBase
                 break;
             case EventRepulsiveGaze: // T2新增：憎恨怒视，瞬发
                 CastIfConfigured(me, SpellRepulsiveGaze, true);
-                events.ScheduleEvent(EventRepulsiveGaze, _tier == 3 ? 16s : 20s);
+                // 恐惧冷却：T2 40秒，T3 35秒。
+                events.ScheduleEvent(EventRepulsiveGaze, _tier == 3 ? 35s : 40s);
                 break;
             case EventTier3Skill: // T3新增：击退，瞬发
                 CastIfConfigured(me->GetVictim(), SpellKnockAway, true);
