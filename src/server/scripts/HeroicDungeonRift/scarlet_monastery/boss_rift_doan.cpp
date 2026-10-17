@@ -118,7 +118,6 @@ struct boss_rift_doan : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(15.0f);
         AddInterruptImmuneSpell(SpellArcaneMissiles);
     }
 

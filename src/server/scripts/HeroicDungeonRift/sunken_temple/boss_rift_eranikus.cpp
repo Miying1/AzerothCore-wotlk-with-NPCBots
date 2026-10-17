@@ -49,7 +49,7 @@ struct boss_rift_eranikus : public BossAIBase
         events.ScheduleEvent(EventAcidBreath, 5000ms);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

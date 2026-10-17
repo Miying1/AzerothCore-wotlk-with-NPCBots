@@ -51,7 +51,7 @@ struct boss_rift_glutton : public BossAIBase
     }
 
     // 裂隙伤害校准：疾病云的周期伤害在通用Tier倍率外补偿15倍。
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

@@ -144,7 +144,6 @@ struct boss_rift_warp_splinter : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(2.0f);
         AddInterruptImmuneSpell(SpellTranquility);
     }
 

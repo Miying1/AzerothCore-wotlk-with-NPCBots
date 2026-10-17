@@ -132,7 +132,7 @@ struct boss_rift_akumai : public BossAIBase
         DespawnRiftSummons();
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

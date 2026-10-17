@@ -82,7 +82,7 @@ struct boss_rift_lethtendris : public BossAIBase
             events.ScheduleEvent(EventCurseOfTongues, 15s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

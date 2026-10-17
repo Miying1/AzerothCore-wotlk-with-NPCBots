@@ -68,7 +68,6 @@ struct boss_rift_kelris : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(15.0f);
         // 催眠术与心灵震爆都是可打断读条，按需求让本Boss的读条技能免疫打断。
         AddInterruptImmuneSpell(SpellSleep);
         AddInterruptImmuneSpell(SpellMindBlast);

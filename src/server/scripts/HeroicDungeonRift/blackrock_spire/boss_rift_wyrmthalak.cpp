@@ -68,7 +68,7 @@ struct boss_rift_wyrmthalak : public BossAIBase
         SummonTieredCreature(RiftEntrySmolderthornBerserker, me->GetRandomNearPosition(6.0f), 0.25f, 0.8f);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

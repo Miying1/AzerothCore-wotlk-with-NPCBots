@@ -151,7 +151,7 @@ struct boss_rift_laj : public BossAIBase
             events.ScheduleEvent(EventArcaneDevastation, 27s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(3.5f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

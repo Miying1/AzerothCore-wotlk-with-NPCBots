@@ -117,7 +117,6 @@ struct boss_rift_ikiss : public BossAIBase
     {
         // 四个伤害技能的T1基线统一由 rift_spell_damage.h 调谐表提供，
         // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
-        SetRaidSpellDamageMultiplier(1.0f);
         AddInterruptImmuneSpell(SpellArcaneExplosion);
     }
 

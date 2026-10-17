@@ -119,11 +119,7 @@ struct boss_rift_nethekurse : public BossAIBase
     }
 
 protected:
-    void ConfigureTier() override
-    {
-        // DBC 30500/28599 基础伤害约 1260/1618-1881；2.5 倍后约 3.1k/4.0-4.7k，符合 83 级团队首领单次伤害。
-        SetRaidSpellDamageMultiplier(2.5f);
-    }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

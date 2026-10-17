@@ -83,7 +83,7 @@ struct boss_rift_theradras : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 18s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

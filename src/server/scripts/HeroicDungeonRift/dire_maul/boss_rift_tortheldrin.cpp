@@ -61,7 +61,7 @@ struct boss_rift_tortheldrin : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 14s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

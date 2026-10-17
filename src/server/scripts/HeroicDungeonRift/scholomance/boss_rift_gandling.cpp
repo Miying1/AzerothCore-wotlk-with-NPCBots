@@ -160,7 +160,7 @@ struct boss_rift_gandling : public BossAIBase
                     me->AddThreat(newTarget, 1000000.0f);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

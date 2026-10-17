@@ -66,7 +66,7 @@ struct boss_rift_arugal : public BossAIBase
             me->Yell(ArugalKillText, LANG_UNIVERSAL, victim);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

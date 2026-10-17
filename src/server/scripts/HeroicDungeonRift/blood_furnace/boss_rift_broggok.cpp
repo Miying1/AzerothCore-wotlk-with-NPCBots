@@ -97,11 +97,7 @@ struct boss_rift_broggok : public BossAIBase
     }
 
 protected:
-    void ConfigureTier() override
-    {
-        // TBC 法术基础伤害约数百点，4 倍后适合作为 83 级团队持续毒伤。
-        SetRaidSpellDamageMultiplier(4.0f);
-    }
+    void ConfigureTier() override { }
 
     // 直接打开布洛戈克房间的前后门：裂隙版已移除原版牢房/拉杆前置，
     // 若门仍处于关闭状态会挡住玩家接近Boss。

@@ -70,7 +70,7 @@ struct boss_rift_ras_frostwhisper : public BossAIBase
         BossAIBase::UpdateAI(diff);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); AddInterruptImmuneSpell(SpellFear); }
+    void ConfigureTier() override { AddInterruptImmuneSpell(SpellFear); }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

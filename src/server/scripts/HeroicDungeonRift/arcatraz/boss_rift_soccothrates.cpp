@@ -178,7 +178,6 @@ struct boss_rift_soccothrates : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(2.5f);
         CastIfConfigured(me, SpellFelImmolation, true);
     }
 

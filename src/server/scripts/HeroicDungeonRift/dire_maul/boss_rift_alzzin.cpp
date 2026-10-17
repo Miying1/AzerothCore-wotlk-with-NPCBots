@@ -70,7 +70,6 @@ struct boss_rift_alzzin : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(15.0f);
         // 弱化与寒冬都是有1.5秒读条的自然系法术，读条期间免疫打断，避免被玩家无限打断导致技能失效。
         AddInterruptImmuneSpell(SpellEnervate);
         AddInterruptImmuneSpell(SpellWither);

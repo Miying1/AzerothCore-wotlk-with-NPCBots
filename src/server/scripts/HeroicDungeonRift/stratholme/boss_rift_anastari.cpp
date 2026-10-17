@@ -49,7 +49,7 @@ struct boss_rift_anastari : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 16s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

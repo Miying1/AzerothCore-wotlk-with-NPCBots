@@ -51,7 +51,7 @@ struct boss_rift_mutanus : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 16s); // T3新增
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); AddInterruptImmuneSpell(SpellEntanglingRoots); }
+    void ConfigureTier() override { AddInterruptImmuneSpell(SpellEntanglingRoots); }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

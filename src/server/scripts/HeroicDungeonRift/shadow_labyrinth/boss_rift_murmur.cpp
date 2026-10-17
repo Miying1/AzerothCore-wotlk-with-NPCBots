@@ -70,7 +70,6 @@ struct boss_rift_murmur : public BossAIBase
     {
         // 除按生命百分比结算的音爆外，所有技能的T1基线统一由 rift_spell_damage.h 调谐表提供，
         // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
-        SetRaidSpellDamageMultiplier(1.0f);
         AddInterruptImmuneSpell(SpellSonicBoomCast);
         AddInterruptImmuneSpell(SpellLightningNova);
         AddInterruptImmuneSpell(SpellSonicScreech);

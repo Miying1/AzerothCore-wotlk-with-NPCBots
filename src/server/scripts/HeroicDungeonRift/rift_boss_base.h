@@ -415,9 +415,6 @@ protected:
         _riftSummons.clear();
     }
 
-    // 旧Boss脚本仍调用此接口，但Spell ID调谐后不再使用Boss级法术倍率。
-    void SetRaidSpellDamageMultiplier(float /*multiplier*/) { }
-
     void AddInterruptImmuneSpell(uint32 spellId)
     {
         if (spellId && std::find(_interruptImmuneSpells.begin(), _interruptImmuneSpells.end(), spellId) == _interruptImmuneSpells.end())

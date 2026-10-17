@@ -142,7 +142,7 @@ struct boss_rift_pathaleon : public BossAIBase
         me->PlayDirectSound(PathaleonDeathSound);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(5.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

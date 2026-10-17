@@ -153,11 +153,7 @@ struct boss_rift_vazruden : public BossAIBase
         BossAIBase::JustDied(killer);
     }
 
-    void ConfigureTier() override
-    {
-        // TBC 70级技能已接近目标伤害区间，仅做小幅83级法术基线修正。
-        SetRaidSpellDamageMultiplier(2.0f);
-    }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

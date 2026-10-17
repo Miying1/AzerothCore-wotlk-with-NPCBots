@@ -136,11 +136,7 @@ struct boss_rift_omor : public BossAIBase
     }
 
 protected:
-    void ConfigureTier() override
-    {
-        // TBC 暗影法术基础伤害约千点，3 倍足以匹配 83 级团队承伤。
-        SetRaidSpellDamageMultiplier(3.0f);
-    }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

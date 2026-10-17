@@ -59,7 +59,7 @@ struct boss_rift_baelgar : public BossAIBase
         _nextSpawnThreshold -= 20;
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

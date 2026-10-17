@@ -185,8 +185,6 @@ struct boss_rift_kaelthas : public BossAIBase
 
     void ConfigureTier() override
     {
-        // 保持原版70级伤害基线；Tier伤害由配置表统一倍率承担，避免T2/T3对同一法术重复放大。
-        SetRaidSpellDamageMultiplier(1.0f);
         AddInterruptImmuneSpell(SpellGravityLapseChannel);
         // 火球术是Boss的主力输出，读条期间免疫打断，避免被玩家无限打断导致Boss无伤害。
         AddInterruptImmuneSpell(SpellFireball);

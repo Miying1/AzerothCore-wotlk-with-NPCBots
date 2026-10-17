@@ -180,7 +180,6 @@ struct boss_rift_shaffar : public BossAIBase
     {
         // T2/T3新增的奥术弹幕与奥术冲击，其T1基线同样由 rift_spell_damage.h 调谐表提供，
         // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
-        SetRaidSpellDamageMultiplier(1.0f);
     }
 
     void ExecuteRiftEvent(uint32 eventId) override

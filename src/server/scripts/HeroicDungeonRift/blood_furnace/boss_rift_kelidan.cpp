@@ -80,11 +80,7 @@ struct boss_rift_kelidan : public BossAIBase
     }
 
 protected:
-    void ConfigureTier() override
-    {
-        // TBC 暗影箭雨与火焰新星基础伤害已较高，3 倍可维持合理团队爆发。
-        SetRaidSpellDamageMultiplier(3.0f);
-    }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
