@@ -51,7 +51,8 @@ enum Spells : uint32
     SpellGravityLapseDot = 44226,
     SpellGravityLapseFly = 44227,
     SpellGravityLapseChannel = 44251,
-    SpellPowerFeedback = 44233
+    SpellPowerFeedback = 44233,
+    SpellArcaneSpherePulse = 44263  // 秘法之球常驻脉冲：每1秒触发44264，对周围8码内敌人造成奥术伤害
 };
 
 constexpr char const* KaelthasAggroText = "别拿那种眼神看着我！我知道你们在想些什么，但风暴要塞的失败早就过去了。";
@@ -74,6 +75,20 @@ struct npc_rift_kaelthas_phoenix : public RiftLevel70SummonAI
 {
     explicit npc_rift_kaelthas_phoenix(Creature* creature) : RiftLevel70SummonAI(creature) { }
 
+    // 刷新后按普通AI行为立即锁定并追击目标：优先沿用施法者的当前目标，
+    // 施法者无目标时自行进入战斗并锁定随机玩家，近战由基类UpdateAI的DoMeleeAttackIfReady持续执行。
+    void IsSummonedBy(WorldObject* summoner) override
+    {
+        RiftLevel70SummonAI::IsSummonedBy(summoner);
+
+        if (me->GetVictim())
+            return;
+
+        me->SetInCombatWithZone();
+        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+            AttackStart(target);
+    }
+
     void ScheduleAbilities() override
     {
         // 与源版凤凰一致：点燃自身，每2秒对周围造成火焰伤害并灼烧自己。
@@ -84,12 +99,14 @@ struct npc_rift_kaelthas_phoenix : public RiftLevel70SummonAI
 
     void ExecuteAbility(uint32 eventId) override
     {
-        if (eventId == 1)
-        {
-            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
-                DoCast(target, SpellFireball);
-            _events.ScheduleEvent(1, 7s);
-        }
+        if (eventId != 1)
+            return;
+
+        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 40.0f, true))
+            DoCast(target, SpellFireball);
+
+        // 目标暂时不可选时也要重新排程，避免火球循环中断后凤凰只剩近战。
+        _events.ScheduleEvent(1, 7s);
     }
 };
 
@@ -100,6 +117,10 @@ struct npc_rift_kaelthas_arcane_sphere : public RiftLevel70SummonAI
     void ScheduleAbilities() override
     {
         me->SetReactState(REACT_AGGRESSIVE);
+        // 源版秘法之球自带常驻光环44263：每1秒触发44264，对周围8码内敌人造成奥术伤害。
+        // 裂隙模板复制时只保留主Boss的常驻光环，召唤物的auras被清空，这里在生成时补施以恢复持续范围伤害；
+        // 44264的伤害保持DBC原值，仍由 RiftSummonAI::DamageDealt 按Tier倍率与召唤物系数缩放。
+        DoCast(me, SpellArcaneSpherePulse, true);
     }
 };
 

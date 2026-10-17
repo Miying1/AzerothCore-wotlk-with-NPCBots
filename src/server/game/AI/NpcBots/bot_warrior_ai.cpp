@@ -235,9 +235,16 @@ public:
             return BOT_STANCE_NONE;
         }
 
+        //只有坦克定位（主坦/副坦角色或防护天赋）才允许使用嘲讽类技能与防御姿态
+        //防御姿态自带 +45% 威胁加成，DPS 天赋的战士切过去会大量抢仇恨
+        bool CanUseTankAbilities() const
+        {
+            return IsTank() || IsOffTank() || GetSpec() == BOT_SPEC_WARRIOR_PROTECTION;
+        }
+
         bool CanCastConfiguredTaunt(uint32 diff) const override
         {
-            return IsSpellReady(TAUNT_1, diff, false);
+            return CanUseTankAbilities() && IsSpellReady(TAUNT_1, diff, false);
         }
 
         bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
@@ -530,7 +537,7 @@ public:
             Unit const* u = mytar->GetVictim();
 
             //TAUNT //No GCD
-            if (IsSpellReady(TAUNT_1, diff, false) && CanTauntTarget(mytar, dist) &&
+            if (IsSpellReady(TAUNT_1, diff, false) && CanUseTankAbilities() && CanTauntTarget(mytar, dist) &&
                 ((!BotDataMgr::IsTankingClass(u->GetClass()) && (GetHealthPCT(u) < 80 || _inStance(2))) || IsTank()) &&
                 IsInBotParty(u) &&
                 (_inStance(2) || (stancetimer <= diff && stanceChange(diff, 2))))
@@ -539,7 +546,7 @@ public:
                     return;
             }
             //TAUNT 2 (distant)
-            if (IsSpellReady(TAUNT_1, diff, false) && CanTauntDistantTarget(mytar) &&
+            if (IsSpellReady(TAUNT_1, diff, false) && CanUseTankAbilities() && CanTauntDistantTarget(mytar) &&
                 (_inStance(2) || stancetimer <= diff))
             {
                 Unit* tUnit = FindDistantTauntTarget();
@@ -594,7 +601,8 @@ public:
                     if (count > 1 && doCast(me, GetSpell(CHALLENGING_SHOUT_1)))
                         return;
                 }
-                if (u && u != me && !IsSpellReady(TAUNT_1, diff, false) && !IsTank(u) && !CCed(mytar) && dist < 9 &&
+                if (u && u != me && CanUseTankAbilities() && !IsSpellReady(TAUNT_1, diff, false) &&
+                    !IsTank(u) && !CCed(mytar) && dist < 9 &&
                     (!BotDataMgr::IsTankingClass(u->GetClass()) || IsTank()) && IsInBotParty(u))
                 {
                     if (doCast(me, GetSpell(CHALLENGING_SHOUT_1)))
@@ -611,8 +619,8 @@ public:
                     return;
             }
             //MOCKING BLOW
-            if (IsSpellReady(MOCKING_BLOW_1, diff) && can_do_normal && HasRole(BOT_ROLE_DPS) && Rand() < 70 && u && u != me &&
-                !IsTank(u) && dist < 5 && rage >= rcost(MOCKING_BLOW_1) &&
+            if (IsSpellReady(MOCKING_BLOW_1, diff) && can_do_normal && CanUseTankAbilities() &&
+                Rand() < 70 && u && u != me && !IsTank(u) && dist < 5 && rage >= rcost(MOCKING_BLOW_1) &&
                 !CCed(mytar) && (!BotDataMgr::IsTankingClass(u->GetClass()) || IsTank()) && IsInBotParty(u) &&
                 (_inStance(4) || (stancetimer <= diff && stanceChange(diff, 4))))
             {
@@ -1202,6 +1210,10 @@ public:
                 stance = (me->GetLevel() >= 30 && !IsTank()) ? 3 : 1;
             else if (stance == 4)
                 stance = me->GetLevel() >= 10 && IsTank() ? 2 : 1;
+
+            //非坦克定位不切防御姿态（防御姿态自带 +45% 威胁加成，DPS 战士切过去会抢仇恨）
+            if (stance == 2 && !CanUseTankAbilities())
+                return false;
 
             if (stance == 2 && me->GetLevel() < 10)
                 return false;

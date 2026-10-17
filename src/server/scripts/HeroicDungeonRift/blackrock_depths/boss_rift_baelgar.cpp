@@ -54,8 +54,8 @@ struct boss_rift_baelgar : public BossAIBase
         if (!me->HealthBelowPctDamaged(_nextSpawnThreshold, damage))
             return;
 
-        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.7f, 0.7f);
-        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.7f, 0.7f);
+        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.35f, 0.7f);
+        SummonTieredCreature(RiftEntryBaelGarSpawn, me->GetRandomNearPosition(6.0f), 0.35f, 0.7f);
         _nextSpawnThreshold -= 20;
     }
 
@@ -67,7 +67,7 @@ struct boss_rift_baelgar : public BossAIBase
         {
             case EventMagmaSplash:
                 CastIfConfigured(me->GetVictim(), SpellMagmaSplash);
-                events.ScheduleEvent(EventMagmaSplash, 12000ms);
+                events.ScheduleEvent(EventMagmaSplash, 25000ms);
                 break;
             case EventTier2Skill: // T2新增：火焰冲击，瞬发
                 CastFinalRaidDamageSpell(me->GetVictim(), SpellFireBlast, SPELLVALUE_BASE_POINT0,
