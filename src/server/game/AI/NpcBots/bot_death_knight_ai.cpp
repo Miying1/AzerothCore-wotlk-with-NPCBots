@@ -795,7 +795,7 @@ public:
 
             //CHAINS OF ICE
             if (IsSpellReady(CHAINS_OF_ICE_1, diff) && Rand() < 65 && dist < CalcSpellMaxRange(CHAINS_OF_ICE_1) && mytar->isMoving() &&
-                !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_SNARE-1)))) &&
+                !(mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_SNARE))) &&
                 HaveRunes(CHAINS_OF_ICE_1) && !CCed(mytar, true) && (!u || (!IsTank(u) && IsInBotParty(u))) &&
                 !mytar->HasAuraWithMechanic(1u<<MECHANIC_SNARE))
             {
@@ -816,7 +816,7 @@ public:
             }
 
             //Diseases in general
-            bool noDiseases = mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_INFECTED-1)));
+            bool noDiseases = mytar->IsCreature() && (mytar->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_INFECTED));
             AuraEffect const* blop = noDiseases ? nullptr : mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DEATHKNIGHT, 0x0, 0x2000000, 0x0, me->GetGUID());
             AuraEffect const* frof = noDiseases ? nullptr : mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_DEATHKNIGHT, 0x0, 0x4000000, 0x0, me->GetGUID());
             AuraEffect const* ebop = (noDiseases || GetSpec() != BOT_SPEC_DK_UNHOLY) ? nullptr : mytar->GetAuraEffect(SPELL_AURA_LINKED, SPELLFAMILY_DEATHKNIGHT, 0x0, 0x800, 0x0, me->GetGUID());

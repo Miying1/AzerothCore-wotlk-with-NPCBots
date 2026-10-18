@@ -522,7 +522,7 @@ struct boss_rift_the_seven : public BossAIBase
             SummonTieredCreature(RiftEntryVoidwalkerMinion, me->GetRandomNearPosition(6.0f), 0.6f, 0.8f);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

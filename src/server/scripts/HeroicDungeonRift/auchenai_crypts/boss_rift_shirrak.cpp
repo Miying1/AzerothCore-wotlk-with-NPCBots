@@ -91,7 +91,7 @@ struct boss_rift_shirrak : public BossAIBase
         ScriptedAI::EnterEvadeMode(why);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(2.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

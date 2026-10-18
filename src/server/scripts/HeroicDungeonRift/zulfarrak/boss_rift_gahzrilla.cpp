@@ -48,7 +48,7 @@ struct boss_rift_gahzrilla : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 20s); // T3新增
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

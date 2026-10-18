@@ -399,8 +399,9 @@ bool bot_ai::SetBotOwner(Player* newowner)
     BotAddResult addRes = newowner->GetBotMgr()->AddBot(me);
     if (addRes & BOT_ADD_FATAL)
     {
-        // 诊断日志：重绑时 AddBot 返回致命错误，30 秒后重试
-        BOT_LOG_WARN("npcbots", "SetBotOwner(): bot {} (entry {}, owner {}) rebind to {} FAILED, AddBot result {} (retry in 30s)",
+        // 诊断日志：AddBot 返回致命错误（雇佣 / 重绑共用此入口）。注意此处失败不会自动重试，
+        // _checkMasterTimer 只延后 FindMaster 的检查节奏，与本次雇佣/重绑无关
+        BOT_LOG_WARN("npcbots", "SetBotOwner(): bot {} (entry {}, db owner {}) set owner to {} FAILED, AddBot result {}",
             me->GetName(), me->GetEntry(), _botData->owner, newowner->GetName(), static_cast<uint32>(addRes));
         _checkMasterTimer += 30000;
         return false;
@@ -465,69 +466,13 @@ void bot_ai::CheckOwnerExpiry()
         // 必须放在下面「hard reset owner」之前，此时 _botData->owner 还是原主人。
         sScriptMgr->OnBotDismiss(me, _botData->owner);
 
-        //send all items back
-        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_NPCBOT_EQUIP_BY_ITEM_INSTANCE);
-        //        0            1                2      3         4        5      6             7                 8           9           10    11    12         13
-        //"SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, guid, itemEntry, owner_guid "
-        //  "FROM item_instance WHERE guid IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_SYNCH
-
-        for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
-            stmt->SetData(i, _botData->equips[i] ? _botData->equips[i] : std::numeric_limits<uint32>::max());
-
-        PreparedQueryResult iiresult = CharacterDatabase.Query(stmt);
-        if (iiresult)
-        {
-            std::vector<Item*> items;
-
-            do
-            {
-                Field* fields2 = iiresult->Fetch();
-                uint32 itemGuidLow = fields2[11].Get<uint32>();
-                uint32 itemId = fields2[12].Get<uint32>();
-                uint8 item_idx = std::numeric_limits<uint8>::max();
-
-                for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
-                {
-                    if (_equips[i] && _equips[i]->GetEntry() == itemId)
-                    {
-                        item_idx = i;
-                        break;
-                    }
-                }
-                if (item_idx >= BOT_INVENTORY_SIZE)
-                {
-                    BOT_LOG_ERROR("npcbots", "bot_ai::CheckOwnerExpiry(): item id {} guid {} not found in bot's inventory!\n{}", itemId, itemGuidLow, me->GetGUID().ToString());
-                    continue;
-                }
-
-                items.push_back(_equips[item_idx]);
-                _removeEquipment(item_idx);
-
-            } while (iiresult->NextRow());
-
-            CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-            while (!items.empty())
-            {
-                static const std::string subject = LocalizedNpcText(nullptr, BOT_TEXT_OWNERSHIP_EXPIRED);
-                MailDraft draft(subject, "");
-                for (uint8 i = 0; !items.empty() && i < MAX_MAIL_ITEMS; ++i)
-                {
-                    Item* item = items.back();
-                    items.pop_back();
-                    item->SetOwnerGUID(ownerGuid);
-                    item->FSetState(ITEM_CHANGED);
-                    item->SaveToDB(trans);
-                    draft.AddItem(item);
-                }
-                draft.SendMailTo(trans, MailReceiver(_botData->owner), MailSender(me, MAIL_STATIONERY_GM));
-            }
-            CharacterDatabase.CommitTransaction(trans);
-
-            for (auto slot : NPCBots::index_array<uint8, BOT_FIRST_NON_WEAPON_SLOT>)
-                if (_resetEquipment(slot, ObjectGuid::Empty, false) != BotEquipResult::BOT_EQUIP_RESULT_OK) {}
-
-            BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_EQUIPS, _equips.data());
-        }
+        // 归还全部装备：主人此刻已离线，ReturnAllEquipmentToOwner() 会按 _botData->owner 逐件邮寄回去。
+        // 这里不再依赖「按 item_instance 查出的物品」，而是以机器人真实穿戴为准，
+        // 并且无论是否成功归还都会完整回写 characters_npcbot 装备列，
+        // 避免出现「没有主人却仍然关联着装备」的脏数据
+        uint8 returned = ReturnAllEquipmentToOwner();
+        BOT_LOG_DEBUG("npcbots", "bot_ai::CheckOwnerExpiry(): bot {} (id: {}) expired for owner {}, {} item(s) returned by mail",
+            me->GetName(), me->GetEntry(), _botData->owner, uint32(returned));
 
         //hard reset owner
         uint32 newOwner = 0;
@@ -10337,7 +10282,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
                 item->FSetState(ITEM_CHANGED);
                 item->SaveToDB(trans);
-                MailDraft(istr.str(), "").AddItem(item).SendMailTo(trans, MailReceiver(player), MailSender(me));
+                // 文具统一为 GM 文具，与其它归还路径保持一致
+                MailDraft(istr.str(), "").AddItem(item).SendMailTo(trans, MailReceiver(player), MailSender(me, MAIL_STATIONERY_GM));
                 CharacterDatabase.CommitTransaction(trans);
 
                 player->SendEquipError(msg, nullptr, nullptr, item->GetEntry());
@@ -11139,6 +11085,26 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     }
                 }
 
+                // Bot Giver 的 HIRE_ENTRY 会固定以 reason==0 进入这里，绕过了 OnGossipHello 里的 reason 预检查，
+                // 因此总 bot 数 / 每职业上限必须在这里（真正的雇佣入口）补齐，否则 AddBot 会静默返回
+                // BOT_ADD_MAX_EXCEED / BOT_ADD_MAX_CLASS_EXCEED，玩家只看到机器人说「...」而无任何原因
+                uint32 maxNpcBots = BotCfg::GetMaxNpcBots(player->GetLevel()) + player->GetVipBenefits().extra_botcount;
+                if (BotDataMgr::GetOwnedBotsCount(player->GetGUID()) >= maxNpcBots)
+                {
+                    ChatHandler ch(player->GetSession());
+                    ch.PSendSysMessage(LocalizedNpcText(player, BOT_TEXT_HIREFAIL_MAXBOTS).c_str(), maxNpcBots);
+                    BotSay("...", player);
+                    break;
+                }
+                if (BotCfg::GetMaxClassBots() && BotDataMgr::GetOwnedBotsCount(player->GetGUID(), me->GetClassMask()) >= BotCfg::GetMaxClassBots())
+                {
+                    uint8 classCount = BotDataMgr::GetOwnedBotsCount(player->GetGUID(), me->GetClassMask());
+                    ChatHandler ch(player->GetSession());
+                    ch.PSendSysMessage(LocalizedNpcText(player, BOT_TEXT_HIREFAIL_MAXCLASSBOTS).c_str(), classCount, BotCfg::GetMaxClassBots());
+                    BotSay("...", player);
+                    break;
+                }
+
                 if (SetBotOwner(player))
                 {
                     if (_botclass == BOT_CLASS_SPHYNX)
@@ -11215,23 +11181,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
         case GOSSIP_SENDER_DISMISS:
         {
             BotMgr* mgr = player->GetBotMgr();
-            //send items to owner -- Unequip all
-            bool abort = false;
-            for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
-            {
-                BotEquipResult slot_result = i <= BOT_SLOT_RANGED ? _resetEquipment(i, player->GetGUID(), false) : _unequip(i, player->GetGUID(), false);
-                if (slot_result != BotEquipResult::BOT_EQUIP_RESULT_OK)
-                {
-                    ChatHandler ch(player->GetSession());
-                    ch.PSendSysMessage(LocalizedNpcText(player, BOT_TEXT_CANT_DISMISS_EQUIPMENT).c_str(), uint32(i), LocalizedNpcText(player, BOT_TEXT_SLOT_MH + i));
-                    abort = true;
-                    break;
-                }
-            }
-
-            if (abort)
-                break;
-
+            // 装备归还统一由 BotMgr::RemoveBot() -> ReturnAllEquipmentToOwner() 处理：
+            // 主人在线时直接放回背包（放不下自动邮寄），保证每条解雇路径都不会漏掉装备
             mgr->RemoveBot(me->GetGUID(), BOT_REMOVE_DISMISS);
             if (BotCfg::IsEnrageOnDimissEnabled())
             {
@@ -11688,6 +11639,9 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                         master->GetBotMgr()->RemoveBot(me->GetGUID(), BOT_REMOVE_DISMISS);
                     else
                     {
+                        // 解除归属前先把玩家装备归还（主人不在场时按数据库记录邮寄），
+                        // 否则会留下「没有主人却仍然关联着装备」的脏数据
+                        ReturnAllEquipmentToOwner();
                         uint32 newOwner = 0;
                         BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_OWNER, &newOwner);
                         NpcBotData::SharedOwnersContainer sharedOwners{};
@@ -14010,6 +13964,17 @@ BotEquipResult bot_ai::_unequip(uint8 slot, ObjectGuid receiver, bool store_to_b
     if (!item)
         return BotEquipResult::BOT_EQUIP_RESULT_OK; //already unequipped
 
+    // 未指派接收者时只退回「物品自身记录的所有者」，不再按机器人当前主人兜底：
+    // 按 _botData->owner 兜底会让 _OnAreaUpdate / _GenerateDebugEquip 等非解雇路径
+    // 也把装备寄给当前主人，语义扩散过广。物品记录的归属才是真正该归还的对象。
+    // 收件人必须真实存在，否则保持为空、交给下面的兜底分支删除记录，绝不生成死邮件
+    if (!receiver)
+    {
+        ObjectGuid const itemOwner = item->GetOwnerGUID();
+        if (itemOwner.IsPlayer() && sCharacterCache->HasCharacterCacheEntry(itemOwner))
+            receiver = itemOwner;
+    }
+
     if (store_to_bank)
     {
         if (!receiver || IAmFree())
@@ -14052,7 +14017,8 @@ BotEquipResult bot_ai::_unequip(uint8 slot, ObjectGuid receiver, bool store_to_b
                 CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
                 item->FSetState(ITEM_CHANGED);
                 item->SaveToDB(trans);
-                MailDraft(istr.str(), "").AddItem(item).SendMailTo(trans, MailReceiver(master), MailSender(me));
+                // 文具统一为 GM 文具，与其它归还路径保持一致
+                MailDraft(istr.str(), "").AddItem(item).SendMailTo(trans, MailReceiver(master), MailSender(me, MAIL_STATIONERY_GM));
                 CharacterDatabase.CommitTransaction(trans);
             }
             else
@@ -14061,16 +14027,29 @@ BotEquipResult bot_ai::_unequip(uint8 slot, ObjectGuid receiver, bool store_to_b
                 master->SendNewItem(pItem, 1, true, false, false);
             }
         }
-        else
+        else if (sCharacterCache->HasCharacterCacheEntry(receiver))
         {
             item->SetOwnerGUID(receiver);
 
             CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
             item->FSetState(ITEM_CHANGED);
             item->SaveToDB(trans);
-            const std::string& subject = LocalizedNpcText(nullptr, BOT_TEXT_OWNERSHIP_EXPIRED);
-            MailDraft(subject, "").AddItem(item).SendMailTo(trans, MailReceiver(receiver.GetCounter()), MailSender(me));
+            std::string const& subject = LocalizedNpcText(nullptr, BOT_TEXT_OWNERSHIP_EXPIRED);
+            // 文具统一为 GM 文具，与「归属到期自愈」等其它归还路径保持一致
+            MailDraft(subject, "").AddItem(item).SendMailTo(trans, MailReceiver(receiver.GetCounter()), MailSender(me, MAIL_STATIONERY_GM));
             CharacterDatabase.CommitTransaction(trans);
+        }
+        else
+        {
+            // 收件人角色已不存在：物品无法归还，连同数据库记录一起删除。
+            // 若照常邮寄会产生无人可领的死邮件，并把 item_instance.owner_guid
+            // 改写成不存在的角色，物品将永久无法恢复
+            BOT_LOG_ERROR("npcbots", "bot_ai::_unequip(): bot {} (id: {}) slot {} item {} (guid: {}) receiver {} does not exist, deleting its DB record!",
+                me->GetName().c_str(), me->GetEntry(), uint32(slot), itemId, item->GetGUID().GetCounter(), receiver.ToString().c_str());
+            CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+            Item::DeleteFromDB(trans, item->GetGUID().GetCounter());
+            CharacterDatabase.CommitTransaction(trans);
+            delete item;
         }
     }
     else
@@ -14078,6 +14057,21 @@ BotEquipResult bot_ai::_unequip(uint8 slot, ObjectGuid receiver, bool store_to_b
         //slot < BOT_SLOT_RANGED && einfo->ItemEntry[slot] == itemId
         //we have our standard weapon which we should get rid of
         //item->SetState(ITEM_REMOVED, master); //delete Item object
+
+        // 走到这里说明物品既不是该槽位的标准武器、又没有接收者（例如主人已被删除）：
+        // 物品对象即将被销毁，必须同时删掉它的数据库记录，否则会留下「没有主人也没有归属」的孤儿数据。
+        // 游荡 / 召唤 / 临时 bot 的装备本来就不落库，直接丢弃即可，不做多余的删除。
+        // （einfo->ItemEntry 只有前 MAX_EQUIPMENT_ITEMS 个武器槽，非武器槽必须靠短路避免越界）
+        if (!IsWanderer() && !IsTempBot() && !me->IsSummon() &&
+            (slot > BOT_SLOT_RANGED || einfo->ItemEntry[slot] != itemId))
+        {
+            BOT_LOG_ERROR("npcbots", "bot_ai::_unequip(): bot {} (id: {}) slot {} item {} (guid: {}) has no receiver and is not a standard weapon, deleting its DB record!",
+                me->GetName().c_str(), me->GetEntry(), uint32(slot), itemId, item->GetGUID().GetCounter());
+            CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+            Item::DeleteFromDB(trans, item->GetGUID().GetCounter());
+            CharacterDatabase.CommitTransaction(trans);
+        }
+
         delete item; //!Invalidated!
         //item = nullptr; //already in "_updateEquips(slot, nullptr);"
     }
@@ -15655,6 +15649,160 @@ BotEquipResult bot_ai::UnEquipAll(ObjectGuid receiver, bool store_to_bank)
     return suc;
 }
 
+// 解雇 / 归属到期：把机器人身上所有玩家装备归还给主人。
+// - 主人在线：优先放回其背包，放不下则邮寄；
+// - 主人离线（master 已不再指向主人）：_unequip() 会以邮件形式寄回数据库里记录的主人；
+// - 主人角色已被删除：不再邮寄（否则只会产生无人可领的死邮件），改按物品自身归属处理；
+// - 物品自身也没有有效归属：_unequip() 删除其数据库记录，避免留下无人可认领的孤儿数据。
+// 结尾无条件用当前真实装备状态完整回写 characters_npcbot，杜绝「没有主人却仍关联着装备」的脏数据。
+// 返回归还（含邮寄）的装备件数。
+uint8 bot_ai::ReturnAllEquipmentToOwner()
+{
+    EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(me->GetEntry());
+    if (!einfo)
+        return 0;
+
+    // 归还目标：优先当前在线的实际主人，其次数据库里记录的主人
+    ObjectGuid receiver;
+    if (!IAmFree() && master->GetGUID().IsPlayer())
+        receiver = master->GetGUID();
+    else if (_botData->owner)
+        receiver = ObjectGuid(HighGuid::Player, 0, _botData->owner);
+
+    // 收件人角色必须真实存在：角色已被删除时照常邮寄只会产生无人可领的死邮件，
+    // 并把 item_instance.owner_guid 改写成不存在的角色（物品永久不可恢复）。
+    // 这里退化成「无接收者」，交给 _unequip() 的兜底分支删除记录并留下日志
+    if (!receiver.IsEmpty() && !sCharacterCache->HasCharacterCacheEntry(receiver))
+    {
+        BOT_LOG_ERROR("npcbots", "ReturnAllEquipmentToOwner(): bot {} (id: {}) owner {} no longer exists, its equipment can not be returned and will be deleted!",
+            me->GetName().c_str(), me->GetEntry(), uint32(_botData->owner));
+        receiver = ObjectGuid::Empty;
+    }
+
+    uint8 returned = 0;
+
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+    {
+        Item const* item = _equips[i];
+        if (!item)
+            continue;
+        // 模板自带的标准武器本来就属于机器人，不需要归还
+        if (i <= BOT_SLOT_RANGED && einfo->ItemEntry[i] == item->GetEntry())
+            continue;
+
+        if (_unequip(i, receiver, false) == BotEquipResult::BOT_EQUIP_RESULT_OK)
+            ++returned;
+    }
+
+    // 武器槽补回模板标准武器，让解除归属后的自由 bot 战斗逻辑正常
+    // （此前的装备都已归还，_resetEquipment() 不会再丢弃任何玩家装备）
+    // 这里必须传空 receiver：补装的是模板标准武器，_equip() 在标准武器路径下会跳过
+    // 「receiver == master->GetGUID()」的接收者校验/搬运动作，传玩家 guid 只是无谓耦合
+    for (auto slot : NPCBots::index_array<uint8, BOT_FIRST_NON_WEAPON_SLOT>)
+        if (_resetEquipment(slot, ObjectGuid::Empty, false) != BotEquipResult::BOT_EQUIP_RESULT_OK) {}
+
+    // 兜底完整回写：即使装备列里全是已失效的 guid（数据库里没有对应物品），也要把真实状态写回
+    BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_EQUIPS, _equips.data());
+
+    return returned;
+}
+
+// 自愈：无主人的自由 bot 不应继续持有玩家装备（历史脏数据 / 异常解雇残留 / 数据库回档导致的失效 guid）。
+// 载入装备前先把数据库里残留装备寄回 item_instance 记录的原主人，并清空 characters_npcbot 装备列。
+void bot_ai::RecoverOwnerlessEquipment()
+{
+    bool has_equips = false;
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+    {
+        if (_botData->equips[i])
+        {
+            has_equips = true;
+            break;
+        }
+    }
+    if (!has_equips)
+        return;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_NPCBOT_EQUIP_BY_ITEM_INSTANCE);
+    //        0            1                2      3         4        5      6             7                 8           9           10    11    12         13
+    //"SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, guid, itemEntry, owner_guid "
+    //  "FROM item_instance WHERE guid IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_SYNCH
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+        stmt->SetData(i, _botData->equips[i] ? _botData->equips[i] : std::numeric_limits<uint32>::max());
+
+    PreparedQueryResult iiresult = CharacterDatabase.Query(stmt);
+
+    uint32 mailed_count = 0;
+    uint32 deleted_count = 0;
+
+    // 清空装备列（含悬空 guid），保证「无主人」与「无装备」一致。
+    // 这步必须独立于下面邮寄物品的事务：引擎在事务中任何一条语句失败时会整包回滚
+    // （MySQLConnection::ExecuteTransaction），而邮寄很容易失败（例如物品 guid 已挂在 mail_items
+    // 上，INSERT 撞主键 1062）。若把清空语句和邮寄放进同一个事务，邮寄失败会把清空一并回滚，
+    // 悬空槽位原样留在 characters_npcbot 里，每次 spawn 反复失败，永远清不掉。
+    // 所以这里单独落库，保证「寄不出去」不会连累「清不干净」；先清空再邮寄，
+    // 万一邮寄失败最多留下一行没人引用的 item_instance 孤立数据，而不会出现
+    // 「物品既在邮件里、又还挂在 bot 身上」的复制状态。
+    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+        _botData->equips[i] = 0;
+
+    CharacterDatabasePreparedStatement* upd_stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_NPCBOT_EQUIP);
+    uint8 k = 0;
+    for (; k < BOT_INVENTORY_SIZE; ++k)
+        upd_stmt->SetData(k, uint32(0));
+    upd_stmt->SetData(k, me->GetEntry());
+    CharacterDatabase.Execute(upd_stmt);
+
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+    if (iiresult)
+    {
+        do
+        {
+            Field* fields = iiresult->Fetch();
+            uint32 itemGuidLow = fields[11].Get<uint32>();
+            uint32 itemId = fields[12].Get<uint32>();
+            uint32 itemOwnerLow = fields[13].Get<uint32>();
+            ObjectGuid itemOwner = itemOwnerLow ? ObjectGuid(HighGuid::Player, 0, itemOwnerLow) : ObjectGuid::Empty;
+
+            // 找不到原主人（角色已删除 / 物品从来没有归属）：没有可以归还的对象，直接删除该物品记录
+            if (itemOwner.IsEmpty() || !sCharacterCache->HasCharacterCacheEntry(itemOwner))
+            {
+                BOT_LOG_WARN("npcbots", "RecoverOwnerlessEquipment(): free bot {} (id: {}) keeps item {} (guid: {}, owner: {}) which has no valid owner, deleting it!",
+                    me->GetName().c_str(), me->GetEntry(), itemId, itemGuidLow, itemOwnerLow);
+                Item::DeleteFromDB(trans, itemGuidLow);
+                ++deleted_count;
+                continue;
+            }
+
+            Item* item = new Item;
+            if (!item->LoadFromDB(itemGuidLow, itemOwner, fields, itemId))
+            {
+                BOT_LOG_ERROR("npcbots", "RecoverOwnerlessEquipment(): unable to load item {} (guid: {}) of free bot {} (id: {}), deleting it!",
+                    itemId, itemGuidLow, me->GetName().c_str(), me->GetEntry());
+                delete item;
+                Item::DeleteFromDB(trans, itemGuidLow);
+                ++deleted_count;
+                continue;
+            }
+
+            item->FSetState(ITEM_CHANGED);
+            item->SaveToDB(trans);
+
+            static const std::string subject = LocalizedNpcText(nullptr, BOT_TEXT_OWNERSHIP_EXPIRED);
+            MailDraft(subject, "").AddItem(item).SendMailTo(trans, MailReceiver(itemOwnerLow), MailSender(me, MAIL_STATIONERY_GM));
+            ++mailed_count;
+        } while (iiresult->NextRow());
+    }
+
+    // 装备列已在上面独立清空并落库，这里只提交邮寄/删除部分（可能没有任何语句）
+    if (trans->GetSize() > 0)
+        CharacterDatabase.CommitTransaction(trans);
+
+    BOT_LOG_WARN("npcbots", "RecoverOwnerlessEquipment(): free bot {} (id: {}) had leftover equipment, {} item(s) mailed back to their owners, {} invalid item(s) deleted",
+        me->GetName().c_str(), me->GetEntry(), mailed_count, deleted_count);
+}
+
 uint8 bot_ai::GetRealEquippedItemsCount() const
 {
     EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(me->GetEntry());
@@ -15764,8 +15912,14 @@ bool bot_ai::IsTank(Unit const* unit) const
         {
             Group::MemberSlotList const& slots = gr->GetMemberSlots();
             for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
-                if (itr->guid == unit->GetGUID())
-                    return itr->flags & (MEMBER_FLAG_MAINTANK | MEMBER_FLAG_MAINASSIST);
+            {
+                if (itr->guid != unit->GetGUID())
+                    continue;
+                //勾选了主坦克/主助理图标时直接认定为坦克，否则继续按职业、天赋与装备判定
+                if (itr->flags & (MEMBER_FLAG_MAINTANK | MEMBER_FLAG_MAINASSIST))
+                    return true;
+                break;
+            }
             if (gr->isLFGGroup() && sLFGMgr->GetRoles(unit->GetGUID()) & lfg::PLAYER_ROLE_TANK)
                 return true;
         }
@@ -15821,8 +15975,14 @@ bool bot_ai::IsOffTank(Unit const* unit) const
             {
                 Group::MemberSlotList const& slots = gr->GetMemberSlots();
                 for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
-                    if (itr->guid == unit->GetGUID())
-                        return itr->flags & MEMBER_FLAG_MAINASSIST;
+                {
+                    if (itr->guid != unit->GetGUID())
+                        continue;
+                    //勾选了主助理图标时直接认定为副坦，否则继续按职业、天赋与装备判定
+                    if (itr->flags & MEMBER_FLAG_MAINASSIST)
+                        return true;
+                    break;
+                }
             }
         }
         switch (player->GetClass())
@@ -16103,6 +16263,13 @@ void bot_ai::InitEquips()
     EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(me->GetEntry());
     ASSERT(einfo, "Trying to spawn bot with no equip info!");
 
+    // 自愈：自由 bot（无主人）不应该继续持有玩家装备。
+    // 历史上异常解雇（GM 命令 / debug 重置归属 / 归属到期时物品查询失败）会留下
+    // 「owner=0 但 characters_npcbot 仍写着装备」的脏数据，这里在载入装备前统一清理并寄回原主人
+    // （临时/召唤 bot 的装备不落库，不参与自愈）
+    if (!_botData->owner && !IsTempBot() && !me->IsSummon())
+        RecoverOwnerlessEquipment();
+
     const bool is_wanderer = IsWanderer();
     if (is_wanderer || me->IsSummon())
     {
@@ -16165,6 +16332,11 @@ void bot_ai::InitEquips()
         //"SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, guid, itemEntry, owner_guid "
         //  "FROM item_instance WHERE guid IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_SYNCH
 
+        // 载入 bot 装备时要把归属写回主人：否则 Item 的内存归属为空，
+        // 之后任何一次 UpdateNpcBotData(NPCBOT_UPDATE_EQUIPS) 都会把
+        // item_instance.owner_guid 覆盖成 0，自愈逻辑会把玩家装备误判成无主物品删除
+        ObjectGuid const equipOwnerGuid = _botData->owner ? ObjectGuid(HighGuid::Player, 0, _botData->owner) : ObjectGuid::Empty;
+
         std::array<uint32, BOT_INVENTORY_SIZE> assigned_item_guids{};
         for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
         {
@@ -16196,7 +16368,7 @@ void bot_ai::InitEquips()
                 uint32 itemGuidLow = fields2[11].Get<uint32>();
                 uint32 itemId = fields2[12].Get<uint32>();
                 Item* item = new Item;
-                ASSERT(item->LoadFromDB(itemGuidLow, ObjectGuid::Empty, fields2, itemId));
+                ASSERT(item->LoadFromDB(itemGuidLow, equipOwnerGuid, fields2, itemId));
                 //gonna find where to store our new item
                 bool found = false;
                 for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)

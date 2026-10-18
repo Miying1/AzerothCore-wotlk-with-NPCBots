@@ -235,9 +235,16 @@ public:
             return BOT_STANCE_NONE;
         }
 
+        //只有坦克定位（主坦/副坦角色或防护天赋）才允许使用嘲讽类技能与防御姿态
+        //防御姿态自带 +45% 威胁加成，DPS 天赋的战士切过去会大量抢仇恨
+        bool CanUseTankAbilities() const
+        {
+            return IsTank() || IsOffTank() || GetSpec() == BOT_SPEC_WARRIOR_PROTECTION;
+        }
+
         bool CanCastConfiguredTaunt(uint32 diff) const override
         {
-            return IsSpellReady(TAUNT_1, diff, false);
+            return CanUseTankAbilities() && IsSpellReady(TAUNT_1, diff, false);
         }
 
         bool CastConfiguredTaunt(Unit* boss, uint32 diff) override
@@ -530,7 +537,7 @@ public:
             Unit const* u = mytar->GetVictim();
 
             //TAUNT //No GCD
-            if (IsSpellReady(TAUNT_1, diff, false) && CanTauntTarget(mytar, dist) &&
+            if (IsSpellReady(TAUNT_1, diff, false) && CanUseTankAbilities() && CanTauntTarget(mytar, dist) &&
                 ((!BotDataMgr::IsTankingClass(u->GetClass()) && (GetHealthPCT(u) < 80 || _inStance(2))) || IsTank()) &&
                 IsInBotParty(u) &&
                 (_inStance(2) || (stancetimer <= diff && stanceChange(diff, 2))))
@@ -539,7 +546,7 @@ public:
                     return;
             }
             //TAUNT 2 (distant)
-            if (IsSpellReady(TAUNT_1, diff, false) && CanTauntDistantTarget(mytar) &&
+            if (IsSpellReady(TAUNT_1, diff, false) && CanUseTankAbilities() && CanTauntDistantTarget(mytar) &&
                 (_inStance(2) || stancetimer <= diff))
             {
                 Unit* tUnit = FindDistantTauntTarget();
@@ -594,7 +601,8 @@ public:
                     if (count > 1 && doCast(me, GetSpell(CHALLENGING_SHOUT_1)))
                         return;
                 }
-                if (u && u != me && !IsSpellReady(TAUNT_1, diff, false) && !IsTank(u) && !CCed(mytar) && dist < 9 &&
+                if (u && u != me && CanUseTankAbilities() && !IsSpellReady(TAUNT_1, diff, false) &&
+                    !IsTank(u) && !CCed(mytar) && dist < 9 &&
                     (!BotDataMgr::IsTankingClass(u->GetClass()) || IsTank()) && IsInBotParty(u))
                 {
                     if (doCast(me, GetSpell(CHALLENGING_SHOUT_1)))
@@ -611,8 +619,8 @@ public:
                     return;
             }
             //MOCKING BLOW
-            if (IsSpellReady(MOCKING_BLOW_1, diff) && can_do_normal && HasRole(BOT_ROLE_DPS) && Rand() < 70 && u && u != me &&
-                !IsTank(u) && dist < 5 && rage >= rcost(MOCKING_BLOW_1) &&
+            if (IsSpellReady(MOCKING_BLOW_1, diff) && can_do_normal && CanUseTankAbilities() &&
+                Rand() < 70 && u && u != me && !IsTank(u) && dist < 5 && rage >= rcost(MOCKING_BLOW_1) &&
                 !CCed(mytar) && (!BotDataMgr::IsTankingClass(u->GetClass()) || IsTank()) && IsInBotParty(u) &&
                 (_inStance(4) || (stancetimer <= diff && stanceChange(diff, 4))))
             {
@@ -865,7 +873,7 @@ public:
                 (isArms || mytar->GetClass() == CLASS_ROGUE || mytar->GetShapeshiftForm() == FORM_CAT) &&
                 dist < 5 && rage >= rcost(REND_1) && mytar->GetCreatureType() != CREATURE_TYPE_MECHANICAL &&
                 !(mytar->IsCreature() &&
-                (mytar->ToCreature()->HasMechanicTemplateImmunity(1u<<(MECHANIC_BLEED-1)))) &&
+                (mytar->ToCreature()->HasMechanicTemplateImmunity(1ULL << MECHANIC_BLEED))) &&
                 !mytar->GetAuraEffect(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_WARRIOR, 0x20, 0x0, 0x0, me->GetGUID()) &&
                 (_inStance(4) || (me->GetLevel() >= 15 && stanceChange(diff, 4))))
             {
@@ -1202,6 +1210,10 @@ public:
                 stance = (me->GetLevel() >= 30 && !IsTank()) ? 3 : 1;
             else if (stance == 4)
                 stance = me->GetLevel() >= 10 && IsTank() ? 2 : 1;
+
+            //非坦克定位不切防御姿态（防御姿态自带 +45% 威胁加成，DPS 战士切过去会抢仇恨）
+            if (stance == 2 && !CanUseTankAbilities())
+                return false;
 
             if (stance == 2 && me->GetLevel() < 10)
                 return false;
@@ -1640,6 +1652,14 @@ public:
                 pctbonus *= 2.0f;
 
             value = value * pctbonus;
+        }
+
+        void ApplyClassThreatMods(SpellInfo const* spellInfo, float& threat) const override
+        {
+            //英勇打击在 DPS 天赋（武器/狂怒）下仇恨偏高，按 0.5 倍结算（削减 50% 仇恨），避免从坦克手中抢过仇恨
+            if (spellInfo->GetFirstRankSpell()->Id == HEROIC_STRIKE_1 &&
+                (GetSpec() == BOT_SPEC_WARRIOR_ARMS || GetSpec() == BOT_SPEC_WARRIOR_FURY))
+                threat *= 0.5f;
         }
 
         void OnClassSpellGo(SpellInfo const* spellInfo) override

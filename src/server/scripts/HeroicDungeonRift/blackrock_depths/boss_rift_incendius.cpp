@@ -58,7 +58,7 @@ struct boss_rift_incendius : public BossAIBase
         BossAIBase::JustDied(nullptr);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

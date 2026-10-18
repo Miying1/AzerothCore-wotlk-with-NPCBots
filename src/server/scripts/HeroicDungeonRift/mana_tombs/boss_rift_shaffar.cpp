@@ -53,9 +53,6 @@ enum Spells : uint32
     SpellArcaneBlast = 58462    // 3.3.5：紫罗兰监狱奥术冲击
 };
 
-constexpr int32 ArcaneBarrageRaidDamage = 4500;
-constexpr int32 ArcaneBlastRaidDamage = 5000;
-
 constexpr char const* AggroTexts[] =
 {
     "看来我们还没有正式介绍过。",
@@ -179,7 +176,11 @@ struct boss_rift_shaffar : public BossAIBase
         BossAIBase::JustDied(killer);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(2.5f); }
+    void ConfigureTier() override
+    {
+        // T2/T3新增的奥术弹幕与奥术冲击，其T1基线同样由 rift_spell_damage.h 调谐表提供，
+        // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
+    }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -205,13 +206,11 @@ struct boss_rift_shaffar : public BossAIBase
                 events.ScheduleEvent(EventSummonBeacon, 10s);
                 break;
             case EventArcaneBarrage: // T2新增：3.3.5奥术弹幕，固定15秒避免与奥术冲击追平
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellArcaneBarrage, SPELLVALUE_BASE_POINT0,
-                    ArcaneBarrageRaidDamage);
+                CastIfConfigured(SelectRandomPlayer(), SpellArcaneBarrage);
                 events.ScheduleEvent(EventArcaneBarrage, 15s);
                 break;
             case EventArcaneBlast: // T3新增：3.3.5奥术冲击，与奥术弹幕保持错峰
-                CastFinalRaidDamageSpell(me->GetVictim(), SpellArcaneBlast, SPELLVALUE_BASE_POINT0,
-                    ArcaneBlastRaidDamage);
+                CastIfConfigured(me->GetVictim(), SpellArcaneBlast);
                 events.ScheduleEvent(EventArcaneBlast, 19s);
                 break;
             default:

@@ -27,12 +27,10 @@ enum Spells : uint32
     SpellThorns = 22128,       // 荆棘术（T1原版）
     SpellEnervate = 22661,     // 弱化（T1原版）
     SpellWither = 22662,       // 寒冬（T1原版）
-    SpellMangle = 22689,       // 裂伤（T2新增，混合BP：仅覆写BP1周期伤害）
+    SpellMangle = 22689,       // 裂伤（T2新增，混合BP：BP0为0不覆写，仅覆写BP1周期伤害）
     SpellViciousBite = 19319,  // 恶毒之咬（T3新增）
     SpellDisarm = 22691        // 缴械（T3新增）
 };
-
-constexpr int32 MangleTier1DamagePerTick = 1800;
 }
 
 struct boss_rift_alzzin : public BossAIBase
@@ -70,7 +68,12 @@ struct boss_rift_alzzin : public BossAIBase
             SummonTieredCreature(RiftEntryAlzzinMinion, me->GetRandomNearPosition(6.0f), 0.6f, 0.7f);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override
+    {
+        // 弱化与寒冬都是有1.5秒读条的自然系法术，读条期间免疫打断，避免被玩家无限打断导致技能失效。
+        AddInterruptImmuneSpell(SpellEnervate);
+        AddInterruptImmuneSpell(SpellWither);
+    }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -88,9 +91,8 @@ struct boss_rift_alzzin : public BossAIBase
                 CastIfConfigured(SelectRandomPlayer(), SpellWither);
                 events.ScheduleEvent(EventWither, Milliseconds(14000));
                 break;
-            case EventMangle: // T2新增：裂伤，瞬发；混合BP仅覆写BP1周期伤害
-                CastFinalRaidDamageSpell(me->GetVictim(), SpellMangle, SPELLVALUE_BASE_POINT1,
-                    MangleTier1DamagePerTick, true);
+            case EventMangle: // T2新增：裂伤，瞬发；混合BP，BP1周期伤害直接取自调谐表（22689）
+                CastIfConfigured(me->GetVictim(), SpellMangle, true);
                 events.ScheduleEvent(EventMangle, _tier == 3 ? 10s : 12s);
                 break;
             case EventViciousBite: // T3新增：恶毒之咬，瞬发

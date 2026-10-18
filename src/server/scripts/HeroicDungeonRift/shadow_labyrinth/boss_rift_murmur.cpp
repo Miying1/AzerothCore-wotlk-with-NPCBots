@@ -39,13 +39,6 @@ enum Spells : uint32
     SpellSonicScreech = 64422   // 3.3.5：奥杜尔音速尖啸
 };
 
-constexpr int32 ResonanceRaidDamage = 4000;
-constexpr int32 ThunderingStormRaidDamage = 5000;
-constexpr int32 SonicShockRaidDamage = 5500;
-constexpr int32 LightningNovaRaidDamage = 6500;
-// DBC 64422约60k总锥形分摊伤害；T1基准下调为30k，T3应用2倍后恢复为约60k总量。
-constexpr int32 SonicScreechTier1SharedDamage = 30000;
-
 constexpr char const* SonicBoomText = "摩摩尔从空气中汲取能量……";
 constexpr char const* LightningNovaText = "摩摩尔周围的空气迸发出强烈电光！";
 constexpr char const* SonicScreechText = "摩摩尔汇聚出一道毁灭性的音波！";
@@ -75,11 +68,14 @@ struct boss_rift_murmur : public BossAIBase
 
     void ConfigureTier() override
     {
-        // 仅保留全局 Tier 伤害倍率；TBC 固定伤害技能在事件中按83级目标值逐项覆盖。
-        SetRaidSpellDamageMultiplier(1.0f);
+        // 除按生命百分比结算的音爆外，所有技能的T1基线统一由 rift_spell_damage.h 调谐表提供，
+        // 运行时再由 BossAIBase::DamageDealt 应用当前Tier的伤害倍率。
         AddInterruptImmuneSpell(SpellSonicBoomCast);
         AddInterruptImmuneSpell(SpellLightningNova);
         AddInterruptImmuneSpell(SpellSonicScreech);
+        // 38795的伤害由 spell_murmur_sonic_boom_effect 按目标当前生命的80%结算，
+        // 百分比机制不应再叠加Tier倍率，否则T2/T3会超过目标生命上限变成必死。
+        AddUnscaledSpell(SpellSonicBoomEffect);
     }
 
     void ExecuteRiftEvent(uint32 eventId) override
@@ -111,28 +107,26 @@ struct boss_rift_murmur : public BossAIBase
             case EventResonanceCast:
                 if (ShouldCastResonance())
                 {
-                    CastRaidTunedSpell(me, SpellResonance, ResonanceRaidDamage);
+                    CastIfConfigured(me, SpellResonance);
                     events.ScheduleEvent(EventResonanceCast, Milliseconds(urand(6000, 18000)));
                 }
                 break;
             case EventThunderingStorm:
-                CastRaidTunedSpell(me, SpellThunderingStorm, ThunderingStormRaidDamage);
+                CastIfConfigured(me, SpellThunderingStorm);
                 events.ScheduleEvent(EventThunderingStorm, Milliseconds(urand(6050, 10000)));
                 break;
             case EventSonicShock:
-                CastRaidTunedSpell(me->GetVictim(), SpellSonicShock, SonicShockRaidDamage);
+                CastIfConfigured(me->GetVictim(), SpellSonicShock);
                 events.ScheduleEvent(EventSonicShock, Milliseconds(urand(3650, 9150)));
                 break;
             case EventLightningNova: // T2新增：5秒读条的范围爆发，避开28秒音爆窗口
                 me->TextEmote(LightningNovaText, nullptr, false);
-                CastFinalRaidDamageSpell(me, SpellLightningNova, SPELLVALUE_BASE_POINT0,
-                    LightningNovaRaidDamage);
+                CastIfConfigured(me, SpellLightningNova);
                 events.ScheduleEvent(EventLightningNova, 45s);
                 break;
-            case EventSonicScreech: // T3新增：2.5秒锥形分摊伤害，保留DBC原始读条
+            case EventSonicScreech: // T3新增：2.5秒锥形范围伤害，保留DBC原始读条； 
                 me->TextEmote(SonicScreechText, nullptr, false);
-                CastFinalRaidDamageSpell(me, SpellSonicScreech, SPELLVALUE_BASE_POINT0,
-                    SonicScreechTier1SharedDamage);
+                CastIfConfigured(me, SpellSonicScreech);
                 events.ScheduleEvent(EventSonicScreech, 50s);
                 break;
             default:

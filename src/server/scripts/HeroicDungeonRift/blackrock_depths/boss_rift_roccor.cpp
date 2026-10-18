@@ -50,7 +50,7 @@ struct boss_rift_roccor : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 16s); // T3新增
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -76,7 +76,7 @@ struct boss_rift_roccor : public BossAIBase
             case EventTier3Skill: // T3新增：熔岩喷溅，混合BP0直伤/BP1周期，瞬发
                 CastFinalRaidDamageSpell(me->GetVictim(), SpellMagmaSplash,
                     MagmaSplashTier1DirectDamage, MagmaSplashTier1DamagePerTick, true);
-                events.ScheduleEvent(EventTier3Skill, 12s);
+                events.ScheduleEvent(EventTier3Skill, 25s);
                 break;
             default:
                 break;

@@ -86,7 +86,19 @@ struct npc_rift_thorn_lasher : public RiftLevel70SummonAI
             return;
 
         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 30.0f, true))
+        {
+            // 源模板（19919）带 UNIT_FLAG_PACIFIED（禁止近战），而棘刺喷射(34745)的 PreventionType
+            // 是「安抚」类型，携带该标志时 CheckCast 会直接返回 SPELL_FAILED_PACIFIED 而永远放不出来。
+            // 这里只在施法瞬间临时解除安抚，施法后立刻恢复，从而保持不近战的同时能正常出技能。
+            bool pacified = me->HasUnitFlag(UNIT_FLAG_PACIFIED);
+            if (pacified)
+                me->RemoveUnitFlag(UNIT_FLAG_PACIFIED);
+
             DoCast(target, SpellThornShot); // 荆棘射击
+
+            if (pacified)
+                me->SetUnitFlag(UNIT_FLAG_PACIFIED);
+        }
         _events.ScheduleEvent(1, 4s);
     }
 };
@@ -139,7 +151,7 @@ struct boss_rift_laj : public BossAIBase
             events.ScheduleEvent(EventArcaneDevastation, 27s);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(3.5f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

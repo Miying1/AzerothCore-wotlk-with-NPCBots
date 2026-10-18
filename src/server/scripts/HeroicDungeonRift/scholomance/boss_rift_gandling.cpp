@@ -80,6 +80,10 @@ Position const GandlingSummonPos[6][3] =
 constexpr uint32 RisenGuardianSummonCount = 3;
 constexpr char const* GandlingAggroText = "现在开始上课！";
 constexpr uint32 GandlingAggroSound = 7145;
+
+// 传送房开门检查间隔：被传送玩家清完房内守卫后需尽快开门，
+// 但不必每帧轮询（每次检查都要遍历6个房间的守卫GUID）。
+constexpr uint32 TeleportRoomCheckInterval = 500;
 }
 
 struct boss_rift_gandling : public BossAIBase
@@ -90,6 +94,7 @@ struct boss_rift_gandling : public BossAIBase
     {
         BossAIBase::Reset();
         _currentRoom = 6; // 无有效房间
+        ClearAllTeleportRoomTracking();
         OpenAllGates();
     }
 
@@ -97,6 +102,10 @@ struct boss_rift_gandling : public BossAIBase
     {
         me->Yell(GandlingAggroText, LANG_UNIVERSAL);
         me->PlayDirectSound(GandlingAggroSound);
+
+        // 开战前确保六扇房门全开：房门在world库中的默认状态是关闭的，
+        // 若Reset时因房间网格尚未加载而开门失败，之后被传送进房的玩家就没有出口。
+        OpenAllGates();
 
         events.ScheduleEvent(EventArcaneMissiles, Milliseconds(6000));
         events.ScheduleEvent(EventCurseOfDarkmaster, Milliseconds(12000));
@@ -114,6 +123,21 @@ struct boss_rift_gandling : public BossAIBase
         BossAIBase::JustDied(nullptr);
     }
 
+    void UpdateAI(uint32 diff) override
+    {
+        // 开门检查必须独立于战斗状态：被传送玩家死亡或全员脱战后Boss不再有仇恨目标，
+        // 基类的UpdateVictim会提前返回，若把开门交给EventMap，房门将永远不会重新打开。
+        if (_teleportRoomCheckTimer <= diff)
+        {
+            _teleportRoomCheckTimer = TeleportRoomCheckInterval;
+            OpenClearedTeleportRooms();
+        }
+        else
+            _teleportRoomCheckTimer -= diff;
+
+        BossAIBase::UpdateAI(diff);
+    }
+
     void SpellHitTarget(Unit* target, SpellInfo const* spell) override
     {
         if (!target || !spell || spell->Id != SpellShadowPortal)
@@ -125,6 +149,7 @@ struct boss_rift_gandling : public BossAIBase
 
         // 关该房间门 + 在该房间召唤3只复生的守卫 + 传送目标
         SetGate(room, false);
+        _roomTeleportedPlayerGuids[room] = target->GetGUID();
         SpawnMobsInRoom(room);
         me->CastSpell(target, GandlingPortalSpells[room], true);
 
@@ -135,7 +160,7 @@ struct boss_rift_gandling : public BossAIBase
                     me->AddThreat(newTarget, 1000000.0f);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -154,13 +179,19 @@ struct boss_rift_gandling : public BossAIBase
                 events.ScheduleEvent(EventShadowShield, Milliseconds(25000));
                 break;
             case EventShadowPortal:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 15.0f, true))
+            {
+                // 暗影传送门只传送真实玩家：本分支的SelectTarget(playerOnly=true)把NPCBot也算作玩家
+                // （DefaultTargetSelector放宽到IsNPCBot），而SelectPlayerTarget在范围内没有真实玩家时
+                // 仍会回退到BOT，因此这里再显式排除一次；没有真实玩家时本次不传送。
+                Unit* target = SelectPlayerTarget(SelectTargetMethod::Random, 0, 15.0f);
+                if (target && !target->IsNPCBot())
                 {
                     _currentRoom = urand(0, 5);
                     me->CastSpell(target, SpellShadowPortal, false);
                 }
                 events.ScheduleEvent(EventShadowPortal, 25s);
                 break;
+            }
             case EventSummonGuardians: // T2新增：Boss场内额外召唤3只守卫，区别于T1传送房守卫
                 for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
                     SummonTieredCreature(RiftEntryRisenGuardian, me->GetRandomNearPosition(8.0f), 0.6f, 0.7f);
@@ -196,10 +227,86 @@ private:
         if (room >= 6)
             return;
         for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
-            SummonTieredCreature(RiftEntryRisenGuardian, GandlingSummonPos[room][i], 0.6f, 0.7f);
+        {
+            // 记录本房守卫：守卫全部死亡或消失后据此重新开门，否则被传送玩家会被关在房内。
+            if (Creature* guardian = SummonTieredCreature(RiftEntryRisenGuardian, GandlingSummonPos[room][i], 0.6f, 0.7f))
+                _roomGuardianGuids[room][i] = guardian->GetGUID();
+        }
+    }
+
+    // 房间守卫全部死亡或消失后开门放人，对应原版SummonedCreatureDespawn里的开门处理。
+    // 被传送进房的玩家死亡或已离开副本时同样开门，对应原版由守卫KilledUnit触发的开门，
+    // 否则玩家以灵魂状态跑尸时会被关在房内、队友也无法进房清掉剩下的守卫。
+    void OpenClearedTeleportRooms()
+    {
+        for (uint8 room = 0; room < 6; ++room)
+        {
+            if (!IsTeleportRoomInUse(room))
+                continue;
+
+            if (HasAliveRoomGuardian(room) && IsTeleportedPlayerTrapped(room))
+                continue;
+
+            SetGate(room, true);
+            ClearTeleportRoomTracking(room);
+        }
+    }
+
+    // 只有被传送过玩家的房间才由本AI接管房门，避免误开别人操作的房门。
+    bool IsTeleportRoomInUse(uint8 room) const
+    {
+        if (!_roomTeleportedPlayerGuids[room].IsEmpty())
+            return true;
+
+        for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
+            if (!_roomGuardianGuids[room][i].IsEmpty())
+                return true;
+        return false;
+    }
+
+    bool HasAliveRoomGuardian(uint8 room) const
+    {
+        for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
+        {
+            ObjectGuid const& guardianGuid = _roomGuardianGuids[room][i];
+            if (guardianGuid.IsEmpty())
+                continue;
+
+            if (Creature* guardian = ObjectAccessor::GetCreature(*me, guardianGuid))
+                if (guardian->IsAlive())
+                    return true;
+        }
+        return false;
+    }
+
+    // 玩家死亡或已离开本次副本时不再有被困风险，房内守卫交给后续进房的人清掉。
+    bool IsTeleportedPlayerTrapped(uint8 room) const
+    {
+        Player* player = ObjectAccessor::FindPlayer(_roomTeleportedPlayerGuids[room]);
+        if (!player || !player->IsAlive())
+            return false;
+        return player->GetMapId() == me->GetMapId() && player->GetInstanceId() == me->GetInstanceId();
+    }
+
+    void ClearAllTeleportRoomTracking()
+    {
+        for (uint8 room = 0; room < 6; ++room)
+            ClearTeleportRoomTracking(room);
+    }
+
+    void ClearTeleportRoomTracking(uint8 room)
+    {
+        for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
+            _roomGuardianGuids[room][i].Clear();
+        _roomTeleportedPlayerGuids[room].Clear();
     }
 
     uint32 _currentRoom = 6;
+    // 每个传送房当前登记的守卫GUID，用于判断该房间是否已清空。
+    ObjectGuid _roomGuardianGuids[6][RisenGuardianSummonCount];
+    // 每个传送房最近一次被传送进去的玩家，用于在玩家死亡后开门。
+    ObjectGuid _roomTeleportedPlayerGuids[6];
+    uint32 _teleportRoomCheckTimer = TeleportRoomCheckInterval;
 };
 
 void AddSC_boss_rift_gandling()

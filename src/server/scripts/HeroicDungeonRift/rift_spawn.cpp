@@ -36,9 +36,6 @@ constexpr uint32 RiftOpenReminder5Minutes = 5 * MINUTE;
 constexpr uint32 RiftOpenReminder1Minute = 1 * MINUTE;
 // 开启/结束通知的连发次数。
 constexpr uint32 RiftOpenCloseNoticeRepeat = 2;
-// 刷新点 Z 与其 XY 处地面高度偏差超过该值即视为异常点位（多半是来源本身悬空/在地下，
-// 或点位落在坡坎边缘）。异常点按 ERROR 打印，默认日志级别下即可发现需要重建或清理的点位。
-constexpr float SpawnPointZFaultTolerance = 2.0f;
 }
 
 uint32 GetEntranceEntryForTier(uint8 tier)
@@ -682,16 +679,7 @@ bool RiftSpawnManager::SpawnOne(RiftSpawnRegion const& region, Map* map, uint8 t
     if (groundZ <= INVALID_HEIGHT)
         groundZ = map->GetGridHeight(spawnPos.GetPositionX(), spawnPos.GetPositionY());
     if (groundZ > INVALID_HEIGHT)
-    {
-        // 与本地地面偏差过大说明这条点位数据不可信：按 ERROR 打印，默认日志级别下即可发现。
-        float const offsetZ = groundZ - spawnPos.GetPositionZ();
-        if (offsetZ > SpawnPointZFaultTolerance || offsetZ < -SpawnPointZFaultTolerance)
-            LOG_ERROR("scripts", "Five-player heroic rift spawn point {} (region {}, T{}) Z {} deviates "
-                "from the ground at its XY by {} and was corrected to {}; regenerate this point.",
-                pointId, region.RegionId, uint32(tier), spawnPos.GetPositionZ(), offsetZ, groundZ);
-
         spawnPos.Relocate(spawnPos.GetPositionX(), spawnPos.GetPositionY(), groundZ, spawnPos.GetOrientation());
-    }
     else
     {
         LOG_ERROR("scripts", "Five-player heroic rift spawn point {} (region {}, T{}) has no ground height at its XY "

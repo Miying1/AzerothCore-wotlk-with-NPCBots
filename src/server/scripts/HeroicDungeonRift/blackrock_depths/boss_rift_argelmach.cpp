@@ -6,6 +6,7 @@
 
 #include "Creature.h"
 #include "ScriptMgr.h"
+#include "SpellScript.h"
 
 namespace HeroicDungeonRift
 {
@@ -187,18 +188,57 @@ struct npc_rift_argelmach_technician : public RiftSummonAI
     }
 };
 
+// 15305 闪电链：CastCustomSpell 对链式法术写入 BASE_POINT 后实测仍按 DBC 值结算，
+// 这里在命中时按裂隙T1基线重写 EFFECT_0 伤害；非裂隙Boss（原版阿格曼奇等）保留DBC原始行为。
+class spell_rift_chain_lightning : public SpellScript
+{
+    PrepareSpellScript(spell_rift_chain_lightning);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SpellChainLightning });
+    }
+
+    void HandleDamage(SpellEffIndex effIndex)
+    {
+        if (effIndex != EFFECT_0)
+            return;
+
+        Creature* caster = GetCaster() ? GetCaster()->ToCreature() : nullptr;
+        if (!caster || !GetTierConfigForCreature(caster))
+            return;
+
+        RiftSpellDamageTuning const* tuning = GetRiftSpellDamageTuning(SpellChainLightning);
+        if (!tuning || !tuning->EffectBasePoints[EFFECT_0])
+            return;
+
+        int32 damage = CompensateRiftCreatureLevelScaling(caster, SpellChainLightning, EFFECT_0,
+            tuning->EffectBasePoints[EFFECT_0]);
+        SetEffectValue(std::max<int32>(1, damage));
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_rift_chain_lightning::HandleDamage, EFFECT_0,
+            SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 struct boss_rift_argelmach : public BossAIBase
 {
     explicit boss_rift_argelmach(Creature* creature) : BossAIBase(creature) { }
+
+    void Reset() override
+    {
+        BossAIBase::Reset();
+        _nextSpawnIndex = 0;
+    }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
         me->Yell(ArgelmachAggroText, LANG_UNIVERSAL);
         me->PlayDirectSound(ArgelmachAggroSound);
         CastIfConfigured(me, SpellLightningShield, true);
-
-        // 原版/T1：裂隙开战同时召唤4个构造体同伴
-        SummonConstructs();
 
         events.ScheduleEvent(EventChainLightning, 15000ms);
         events.ScheduleEvent(EventShock, 6500ms);
@@ -208,7 +248,19 @@ struct boss_rift_argelmach : public BossAIBase
             events.ScheduleEvent(EventTier3Skill, 14s); // T3新增
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/,
+        SpellSchoolMask /*damageSchoolMask*/) override
+    {
+        // 原版的4个构造体同伴改为按血量阈值依次召唤：90%、75%、60%、50%各出1只。
+        if (_nextSpawnIndex >= SpawnOrderCount ||
+            !me->HealthBelowPctDamaged(SpawnThresholds[_nextSpawnIndex], damage))
+            return;
+
+        SummonTieredCreature(SpawnEntries[_nextSpawnIndex], me->GetRandomNearPosition(5.0f), 0.7f, 0.9f);
+        ++_nextSpawnIndex;
+    }
+
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
@@ -238,13 +290,18 @@ struct boss_rift_argelmach : public BossAIBase
     }
 
 private:
-    void SummonConstructs()
+    // 按顺序召唤的四类构造体及其血量阈值：90% 铁匠 → 75% 魔像 → 60% 怒火之锤 → 50% 武器技师。
+    static constexpr uint8 SpawnOrderCount = 4;
+    static constexpr int32 SpawnThresholds[SpawnOrderCount] = { 90, 75, 60, 50 };
+    static constexpr uint32 SpawnEntries[SpawnOrderCount] =
     {
-        SummonTieredCreature(RiftEntryArcanasmith, me->GetRandomNearPosition(5.0f), 0.7f, 0.7f);
-        SummonTieredCreature(RiftEntryRagereaverGolem, me->GetRandomNearPosition(5.0f), 0.7f, 0.7f);
-        SummonTieredCreature(RiftEntryWrathHammer, me->GetRandomNearPosition(5.0f), 0.7f, 0.7f);
-        SummonTieredCreature(RiftEntryWeaponTechnician, me->GetRandomNearPosition(5.0f), 0.7f, 0.7f);
-    }
+        RiftEntryArcanasmith,
+        RiftEntryRagereaverGolem,
+        RiftEntryWrathHammer,
+        RiftEntryWeaponTechnician
+    };
+
+    uint8 _nextSpawnIndex = 0;
 };
 
 void AddSC_boss_rift_argelmach()
@@ -254,6 +311,7 @@ void AddSC_boss_rift_argelmach()
     RegisterCreatureAI(npc_rift_argelmach_golem);
     RegisterCreatureAI(npc_rift_argelmach_wrath_hammer);
     RegisterCreatureAI(npc_rift_argelmach_technician);
+    RegisterSpellScript(spell_rift_chain_lightning);
 }
 
 } // namespace HeroicDungeonRift

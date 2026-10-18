@@ -234,7 +234,6 @@ struct boss_rift_maladaar : public BossAIBase
 
     void ConfigureTier() override
     {
-        SetRaidSpellDamageMultiplier(2.5f);
         AddInterruptImmuneSpell(SpellMindFlay);
     }
 

@@ -23,10 +23,8 @@ enum Spells : uint32
 {
     SpellGraspingVines = 8142,  // 缠绕之藤（原版/T1基础）
     SpellThrash = 3391,         // 痛击（T2新增）
-    SpellEntanglingRoots = 12747 // 纠缠根须（T3新增）
+    SpellEntanglingRoots = 12747 // 纠缠根须（T3新增，混合BP：仅覆写BP1周期伤害）
 };
-
-constexpr int32 EntanglingRootsTier1DamagePerTick = 1800;
 }
 
 struct boss_rift_verdan : public BossAIBase
@@ -57,8 +55,8 @@ struct boss_rift_verdan : public BossAIBase
                 events.ScheduleEvent(EventThrash, _tier == 3 ? 12s : 16s);
                 break;
             case EventEntanglingRoots: // T3新增：纠缠根须，点名随机目标，免疫打断
-                CastFinalRaidDamageSpell(SelectRandomPlayer(), SpellEntanglingRoots, SPELLVALUE_BASE_POINT1,
-                    EntanglingRootsTier1DamagePerTick);
+                // 混合BP：BP0为0不覆写，BP1的T1基线直接取自调谐表（12747）。
+                CastIfConfigured(SelectRandomPlayer(), SpellEntanglingRoots);
                 events.ScheduleEvent(EventEntanglingRoots, 20s);
                 break;
             default:

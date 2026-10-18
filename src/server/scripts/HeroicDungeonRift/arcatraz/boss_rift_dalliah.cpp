@@ -81,7 +81,7 @@ struct boss_rift_dalliah : public BossAIBase
         me->PlayDirectSound(DalliahDeathSound);
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(2.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {

@@ -334,7 +334,7 @@ struct boss_rift_archaedas : public BossAIBase
         DespawnRiftSummons();
     }
 
-    void ConfigureTier() override { SetRaidSpellDamageMultiplier(15.0f); }
+    void ConfigureTier() override { }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
