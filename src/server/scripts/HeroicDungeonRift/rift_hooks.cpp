@@ -71,6 +71,16 @@ class rift_player_script : public PlayerScript
 public:
     rift_player_script() : PlayerScript("rift_player_script") { }
 
+    bool OnPlayerCanRepopAtGraveyard(Player* player) override
+    {
+        return RunManager::Instance().CanPlayerReleaseSpirit(player);
+    }
+
+    void OnPlayerReleasedGhost(Player* player) override
+    {
+        RunManager::Instance().OnPlayerReleasedGhost(player);
+    }
+
     void OnPlayerResurrect(Player* player, float /*restore_percent*/, bool& /*applySickness*/) override
     {
         RunManager::Instance().OnPlayerResurrect(player);

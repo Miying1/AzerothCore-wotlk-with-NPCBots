@@ -4607,6 +4607,12 @@ void Player::DeleteOldRecoveryItems(uint32 keepDays)
 */
 void Player::BuildPlayerRepop()
 {
+    if (IsAlive() || HasPlayerFlag(PLAYER_FLAGS_GHOST))
+        return;
+
+    if (!sScriptMgr->OnPlayerCanRepopAtGraveyard(this))
+        return;
+
     WorldPacket data(SMSG_PRE_RESURRECT, GetPackGUID().size());
     data << GetPackGUID();
     SendDirectMessage(&data);
@@ -5109,9 +5115,6 @@ void Player::RepopAtGraveyard()
     // for example from WorldSession::HandleMovementOpcodes
 
     AreaTableEntry const* zone = sAreaTableStore.LookupEntry(GetAreaId());
-
-    if (!sScriptMgr->OnPlayerCanRepopAtGraveyard(this))
-        return;
 
     // Such zones are considered unreachable as a ghost and the player must be automatically revived
     // Xinef: Get Transport Check is not needed

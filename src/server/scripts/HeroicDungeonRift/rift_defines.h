@@ -368,6 +368,8 @@ public:
     bool ExitRun(Player* player, GameObject* portal, std::string& error);
     void OnPlayerEnterMap(Map* map, Player* player);
     void OnPlayerLeaveMap(Map* map, Player* player);
+    bool CanPlayerReleaseSpirit(Player* player) const;
+    void OnPlayerReleasedGhost(Player* player);
     void OnPlayerResurrect(Player* player);
     void OnMapUpdate(Map* map, uint32 diff);
     void OnDestroyInstance(Map* map);

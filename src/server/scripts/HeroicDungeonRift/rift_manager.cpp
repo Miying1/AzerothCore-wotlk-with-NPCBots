@@ -13,11 +13,13 @@
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "Group.h"
+#include "botmgr.h"
 #include "InstanceSaveMgr.h"
 #include "Log.h"
 #include "Map.h"
 #include "MapMgr.h"
 #include "ObjectAccessor.h"
+#include "ObjectGuid.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 
@@ -645,6 +647,77 @@ void RunManager::OnPlayerLeaveMap(Map* map, Player* player)
             _pendingPlayers.erase(player->GetGUID());
         }
     }
+}
+
+bool RunManager::CanPlayerReleaseSpirit(Player* player) const
+{
+    if (!player)
+        return true;
+
+    std::shared_ptr<RunComponent> run = FindByPlayer(player->GetGUID());
+    if (!run || run->MapId != player->GetMapId() || run->InstanceId != player->GetInstanceId())
+        return true;
+
+    if (player->IsAlive())
+    {
+        SendMessage(player, "战斗还未结束,还不能释放!");
+        return false;
+    }
+
+    for (MemberState const& member : run->Members)
+    {
+        if (member.Exited || !member.Entered)
+            continue;
+
+        Player* runPlayer = ObjectAccessor::FindPlayer(member.PlayerGuid);
+        if (!runPlayer)
+        {
+            SendMessage(player, "战斗还未结束,还不能释放!");
+            return false;
+        }
+
+        if (runPlayer->GetMapId() != run->MapId || runPlayer->GetInstanceId() != run->InstanceId)
+            continue;
+
+        if (runPlayer->IsAlive())
+        {
+            SendMessage(player, "战斗还未结束,还不能释放!");
+            return false;
+        }
+
+        if (!runPlayer->GetBotMgr())
+            continue;
+
+        BotMap const* bots = runPlayer->GetBotMgr()->GetBotMap();
+        for (auto const& [guid, bot] : *bots)
+        {
+            if (bot && bot->GetMapId() == run->MapId && bot->GetInstanceId() == run->InstanceId && bot->IsAlive())
+            {
+                SendMessage(player, "战斗还未结束,还不能释放!");
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+void RunManager::OnPlayerReleasedGhost(Player* player)
+{
+    if (!player)
+        return;
+
+    std::shared_ptr<RunComponent> run = FindByPlayer(player->GetGUID());
+    if (!run || run->MapId != player->GetMapId() || run->InstanceId != player->GetInstanceId())
+        return;
+
+    player->ResurrectPlayer(1.0f);
+    if (!player->IsAlive())
+        return;
+
+    player->SpawnCorpseBones();
+    player->TeleportTo(run->MapId, run->PlayerEntry.GetPositionX(), run->PlayerEntry.GetPositionY(),
+        run->PlayerEntry.GetPositionZ(), run->PlayerEntry.GetOrientation());
 }
 
 void RunManager::OnPlayerResurrect(Player* player)
