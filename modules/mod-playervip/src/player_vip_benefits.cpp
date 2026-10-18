@@ -22,7 +22,7 @@ namespace
 constexpr uint32 GoldLootBonusIncrement = 15;
 constexpr uint32 MaxGoldLootBonus = 150;
 constexpr uint32 MaxVipLevel = 10; // VIP 等级上限
-constexpr uint32 MaxExtraBotCount = 4; // 账号额外可雇佣佣兵名额上限
+constexpr uint32 MaxExtraBotCount = 3; // 账号额外可雇佣佣兵名额上限
 constexpr uint32 BotCountIncrement = 1;   // 每件物品增加的额外佣兵名额
 
 // 物品使用确认弹窗（gossip）的发送者与动作约定

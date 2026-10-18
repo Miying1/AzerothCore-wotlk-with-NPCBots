@@ -11067,7 +11067,7 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     break;
                 }
 
-                // IP 限制：每个 IP 最大雇佣 BOT 数量 = 基础上限 + 同 IP 所有账号 VIP 等级总和 * 8
+                // IP 限制：每个 IP 最大雇佣 BOT 数量 = 基础上限 + 同 IP 所有账号 VIP 等级总和 * 9
                 if (!player->IsGameMaster())
                 {
                     // 一次查询拿到该 IP 的已雇佣数量与其下所有账号的 VIP 等级总和
@@ -11075,8 +11075,8 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                     uint32 vipLevelSum = 0;
                     BotDataMgr::GetIpBotInfo(player->GetSession()->GetRemoteAddress(), ipBotsCount, vipLevelSum);
 
-                    // VIP 等级每级 +8
-                    uint32 ipMaxBots = BotMgr::GetIPMaxBots() + vipLevelSum * 8u;
+                    // VIP 等级每级 +9
+                    uint32 ipMaxBots = BotMgr::GetIPMaxBots() + vipLevelSum * 9u;
                     if (ipBotsCount >= ipMaxBots)
                     {
                         ChatHandler ch(player->GetSession());

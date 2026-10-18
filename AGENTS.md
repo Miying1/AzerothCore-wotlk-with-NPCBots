@@ -84,6 +84,7 @@ Hard rules (also enforced by CI with `-Werror`, plus `cppcheck`):
 - **DB queries**: use `PreparedStatement` (via `WorldDatabase` / `CharacterDatabase` / `LoginDatabase` and the prepared-statement enums), not raw query strings. Non-blocking reads go async: `_queryProcessor.AddCallback(db.AsyncQuery(stmt).WithPreparedCallback(...))` (or `WithCallback`). Multi-statement writes wrap in `SQLTransaction` + `Execute` / `AppendPreparedStatement`.
 - **Timed actions in AI**: use `EventMap` (event id → delay; simple) or `TaskScheduler` (lambdas, repeats, cancellation), both members of `CreatureAI` — don't roll your own tick counters. See any boss script under `src/server/scripts/`.
 - **AI 选目标与 NPCBot**: `UnitAI::SelectTarget(..., playerOnly = true)` 已经包含 NPCBot —— `DefaultTargetSelector` 的判定是 `IsPlayer() || IsNPCBot()`（`src/server/game/AI/CoreAI/UnitAI.h`），本项目对上游打过 npcbot 补丁。凡是要“只选玩家类目标”又需要兼容 Bot 的场合直接用 `playerOnly = true`，不要以为它排除了 Bot 而把它改成 `false` 或自己加 `IsNPlayer()` 过滤；只有确实要排除 Bot（例如点名真实玩家）时才用 `SelectPlayerTarget` / 显式 `!IsNPCBot()`。
+**临时脚本工具**  使用python脚本
 
 ## Scripting registration
 
