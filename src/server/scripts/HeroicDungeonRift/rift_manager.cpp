@@ -658,7 +658,7 @@ bool RunManager::CanPlayerReleaseSpirit(Player* player) const
     if (!run || run->MapId != player->GetMapId() || run->InstanceId != player->GetInstanceId())
         return true;
 
-    if (player->IsAlive())
+    if (player->IsAlive() && player->IsInCombat())
     {
         SendMessage(player, "战斗还未结束,还不能释放!");
         return false;
@@ -671,15 +671,12 @@ bool RunManager::CanPlayerReleaseSpirit(Player* player) const
 
         Player* runPlayer = ObjectAccessor::FindPlayer(member.PlayerGuid);
         if (!runPlayer)
-        {
-            SendMessage(player, "战斗还未结束,还不能释放!");
-            return false;
-        }
+            continue;
 
         if (runPlayer->GetMapId() != run->MapId || runPlayer->GetInstanceId() != run->InstanceId)
             continue;
 
-        if (runPlayer->IsAlive())
+        if (runPlayer->IsAlive() && runPlayer->IsInCombat())
         {
             SendMessage(player, "战斗还未结束,还不能释放!");
             return false;
@@ -691,7 +688,7 @@ bool RunManager::CanPlayerReleaseSpirit(Player* player) const
         BotMap const* bots = runPlayer->GetBotMgr()->GetBotMap();
         for (auto const& [guid, bot] : *bots)
         {
-            if (bot && bot->GetMapId() == run->MapId && bot->GetInstanceId() == run->InstanceId && bot->IsAlive())
+            if (bot && bot->GetMapId() == run->MapId && bot->GetInstanceId() == run->InstanceId && bot->IsAlive() && bot->IsInCombat())
             {
                 SendMessage(player, "战斗还未结束,还不能释放!");
                 return false;
