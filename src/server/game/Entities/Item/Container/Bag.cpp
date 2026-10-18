@@ -44,6 +44,12 @@ Bag::~Bag()
                                GetEntry(), (uint32)GetSlot(), (uint32)GetBagSlot(), (uint32)i);
                 item->RemoveFromWorld();
             }
+
+            // 包内物品可能仍挂在主人的更新队列上，先摘队列再 delete，否则队列残留悬空指针。
+            // 不能用 IsInUpdateQueue() 判断：SetState(ITEM_UNCHANGED) 会复位 uQueuePos 却保留队列指针。
+            if (Player* owner = item->GetOwner())
+                item->RemoveFromUpdateQueueOf(owner);
+
             delete m_bagslot[i];
         }
 }

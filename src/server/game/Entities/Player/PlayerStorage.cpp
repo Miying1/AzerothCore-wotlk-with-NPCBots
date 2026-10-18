@@ -7654,6 +7654,14 @@ void Player::_SaveAuras(CharacterDatabaseTransaction trans, bool logout)
     }
 }
 
+void Player::ClearItemUpdateQueueEntry(Item* item)
+{
+    // 置空占位而不删除元素，保证其他物品的 uQueuePos 索引仍然有效；同一物品可能有重复条目，需全量清除。
+    for (Item*& entry : m_itemUpdateQueue)
+        if (entry == item)
+            entry = nullptr;
+}
+
 void Player::_SaveInventory(CharacterDatabaseTransaction trans)
 {
     CharacterDatabasePreparedStatement* stmt = nullptr;
@@ -7835,6 +7843,11 @@ void Player::_SaveInventory(CharacterDatabaseTransaction trans)
             case ITEM_UNCHANGED:
                 break;
         }
+
+        // ITEM_REMOVED 的 SaveToDB 会 delete this，先把队列中指向它的条目（可能重复）全部清空，
+        // 否则后续条目变成野指针。直接清而不走 RemoveFromUpdateQueueOf，避免其归属/blocked 校验漏清。
+        if (item->GetState() == ITEM_REMOVED)
+            ClearItemUpdateQueueEntry(item);
 
         // 账号银行扩展：落库时把账号银行物品的 owner_guid 写为 0（与公会银行一致），避免删除角色时被
         // CHAR_DEL_ITEM_INSTANCE_BY_OWNER 误删共享物品；内存中仍保留玩家归属，保证更新队列与绑定校验正常。

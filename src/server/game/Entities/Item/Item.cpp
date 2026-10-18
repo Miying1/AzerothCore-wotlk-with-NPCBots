@@ -772,9 +772,6 @@ void Item::AddToUpdateQueueOf(Player* player)
 
 void Item::RemoveFromUpdateQueueOf(Player* player)
 {
-    if (!IsInUpdateQueue())
-        return;
-
     ASSERT(player);
 
     if (player->GetGUID() != GetOwnerGUID())
@@ -786,10 +783,9 @@ void Item::RemoveFromUpdateQueueOf(Player* player)
     if (player->m_itemUpdateQueueBlocked)
         return;
 
-    // 边界校验：队列可能已被 _SaveInventory 的 clear() 清空，此时 uQueuePos 是失效的旧索引，
-    // 直接下标赋值会造成堆越界写。仅当索引仍在队列范围内时才置空槽位，无论如何都要复位标记。
-    if (static_cast<std::size_t>(uQueuePos) < player->m_itemUpdateQueue.size())
-        player->m_itemUpdateQueue[uQueuePos] = nullptr;
+    // 不能用 uQueuePos 定位：SetState(ITEM_UNCHANGED) 只复位 uQueuePos、不摘队列指针，重复入队会留下旧条目，
+    // 因此按指针全量清除（含重复条目）。
+    player->ClearItemUpdateQueueEntry(this);
     uQueuePos = -1;
 }
 
