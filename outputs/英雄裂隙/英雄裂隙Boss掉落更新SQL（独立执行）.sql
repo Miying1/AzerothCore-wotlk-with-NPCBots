@@ -43,7 +43,7 @@ WHERE `Entry` IN (SELECT `entry_id` FROM `heroic_dungeon_rift_boss_tier`);
 -- ============================================================================
 INSERT INTO `creature_loot_template`
 (`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
-SELECT `entry_id`,0,@RIFT_LOOT_REF_230,70,0,1,0,1,1,'裂隙 T1 - 230装等装备 70%'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_230,100,0,1,0,1,1,'裂隙 T1 - 230装等装备 100%'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=1
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,2,0,1,2,1,1,'裂隙 T1 - 材料组 源生萨隆邪铁 2%'
@@ -65,10 +65,10 @@ FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=1;
 -- ============================================================================
 INSERT INTO `creature_loot_template`
 (`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
-SELECT `entry_id`,0,@RIFT_LOOT_REF_230,75,0,1,1,1,1,'裂隙 T2 - 装备组 80% 230装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_230,60,0,1,1,1,1,'裂隙 T2 - 装备组 80% 230装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
-SELECT `entry_id`,0,@RIFT_LOOT_REF_240,25,0,1,1,1,1,'裂隙 T2 - 装备组 20% 240装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_240,40,0,1,1,1,1,'裂隙 T2 - 装备组 20% 240装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_SARONITE,0,8,0,1,2,1,1,'裂隙 T2 - 掉落组 源生萨隆邪铁 15%'
@@ -100,10 +100,10 @@ FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=2;
 -- ============================================================================
 INSERT INTO `creature_loot_template`
 (`Entry`,`Item`,`Reference`,`Chance`,`QuestRequired`,`LootMode`,`GroupId`,`MinCount`,`MaxCount`,`Comment`)
-SELECT `entry_id`,0,@RIFT_LOOT_REF_240,80,0,1,1,1,1,'裂隙 T3 - 装备组 85% 240装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_240,70,0,1,1,1,1,'裂隙 T3 - 装备组 85% 240装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
-SELECT `entry_id`,0,@RIFT_LOOT_REF_250,20,0,1,1,1,1,'裂隙 T3 - 装备组 15% 250装等'
+SELECT `entry_id`,0,@RIFT_LOOT_REF_250,30,0,1,1,1,1,'裂隙 T3 - 装备组 15% 250装等'
 FROM `heroic_dungeon_rift_boss_tier` WHERE `tier`=3
 UNION ALL
 SELECT `entry_id`,@RIFT_LOOT_ITEM_ARTIFACT,0,5,0,1,2,1,1,'裂隙 T3 - 材料组2 10% 神器材料'
