@@ -152,6 +152,8 @@ struct boss_rift_gandling : public BossAIBase
         _roomTeleportedPlayerGuids[room] = target->GetGUID();
         SpawnMobsInRoom(room);
         me->CastSpell(target, GandlingPortalSpells[room], true);
+        // 目标落进房间后才让房内守卫开打，避免它们跟着全场仇恨去找门外的坦克。
+        EngageRoomGuardians(room, target);
 
         // 被传者若为主目标则降威胁、转火次目标
         if (Unit* victim = me->GetVictim())
@@ -229,14 +231,37 @@ private:
         for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
         {
             // 记录本房守卫：守卫全部死亡或消失后据此重新开门，否则被传送玩家会被关在房内。
-            if (Creature* guardian = SummonTieredCreature(RiftEntryRisenGuardian, GandlingSummonPos[room][i], 0.6f, 0.7f))
+            // enterZoneCombat=false：房内守卫不能参与全场战斗，否则刷新瞬间就会隔着关闭的房门扑向门外的主坦；
+            // 召唤后先保持被动，等目标被传送进房再由 EngageRoomGuardians 指定目标。
+            if (Creature* guardian = SummonTieredCreature(RiftEntryRisenGuardian, GandlingSummonPos[room][i], 0.6f, 0.7f,
+                TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10 * IN_MILLISECONDS, false, false))
+            {
+                guardian->SetReactState(REACT_PASSIVE);
                 _roomGuardianGuids[room][i] = guardian->GetGUID();
+            }
+        }
+    }
+
+    // 被传送进房的玩家落地后，让该房间的守卫只锁定这名玩家开打。
+    void EngageRoomGuardians(uint32 room, Unit* target)
+    {
+        if (!target || room >= 6)
+            return;
+
+        for (uint32 i = 0; i < RisenGuardianSummonCount; ++i)
+        {
+            Creature* guardian = ObjectAccessor::GetCreature(*me, _roomGuardianGuids[room][i]);
+            if (!guardian || !guardian->IsAlive())
+                continue;
+
+            guardian->SetReactState(REACT_AGGRESSIVE);
+            guardian->AI()->AttackStart(target);
         }
     }
 
     // 房间守卫全部死亡或消失后开门放人，对应原版SummonedCreatureDespawn里的开门处理。
-    // 被传送进房的玩家死亡或已离开副本时同样开门，对应原版由守卫KilledUnit触发的开门，
-    // 否则玩家以灵魂状态跑尸时会被关在房内、队友也无法进房清掉剩下的守卫。
+    // 被传送进房的玩家死亡、已离开副本、或释放灵魂后被复活回入口（人已不在房内）时同样开门，
+    // 对应原版由守卫KilledUnit触发的开门，否则队友无法进房清掉剩下的守卫、房间会一直卡住。
     void OpenClearedTeleportRooms()
     {
         for (uint8 room = 0; room < 6; ++room)
@@ -279,13 +304,19 @@ private:
         return false;
     }
 
-    // 玩家死亡或已离开本次副本时不再有被困风险，房内守卫交给后续进房的人清掉。
+    // 玩家死亡、已离开本次副本或已经不在房里时都不再有被困风险，房内守卫交给后续进房的人清掉。
     bool IsTeleportedPlayerTrapped(uint8 room) const
     {
         Player* player = ObjectAccessor::FindPlayer(_roomTeleportedPlayerGuids[room]);
         if (!player || !player->IsAlive())
             return false;
-        return player->GetMapId() == me->GetMapId() && player->GetInstanceId() == me->GetInstanceId();
+
+        if (player->GetMapId() != me->GetMapId() || player->GetInstanceId() != me->GetInstanceId())
+            return false;
+
+        // 只按“人还站在这个房间里”判断被困：裂隙内释放灵魂会把人复活到副本入口（仍在同一实例），
+        // 若不看距离，房门会被永久锁住，队友永远进不来清掉剩下的守卫。
+        return player->GetDistance(GandlingSummonPos[room][0]) <= 40.0f;
     }
 
     void ClearAllTeleportRoomTracking()

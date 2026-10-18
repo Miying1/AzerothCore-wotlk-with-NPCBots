@@ -635,7 +635,9 @@ void RunManager::OnPlayerLeaveMap(Map* map, Player* player)
     if (!run || run->MapId != map->GetId() || run->InstanceId != map->GetInstanceId())
         return;
 
-    // 死亡释放灵魂去墓地属于暂时离开，保留运行关联与临时实例绑定，以便玩家跑尸回到本实例。
+    // 裂隙内释放灵魂不会去墓地跑尸：OnPlayerReleasedGhost 会直接把玩家复活并传回本场玩家传入点，
+    // 因此这里是“死亡状态下仍被移出本实例”的异常情况（登出、GM 传送尸体等），保留运行关联与
+    // 临时实例绑定，玩家复活/重新进入后仍属于本场裂隙。
     // 活着时通过非传送门方式离开（炉石/GM传送等）视为彻底放弃本场裂隙，解除关联避免卡住后续进入。
     if (!player->isDead())
     {
@@ -658,12 +660,8 @@ bool RunManager::CanPlayerReleaseSpirit(Player* player) const
     if (!run || run->MapId != player->GetMapId() || run->InstanceId != player->GetInstanceId())
         return true;
 
-    if (player->IsAlive() && player->IsInCombat())
-    {
-        SendMessage(player, "战斗还未结束,还不能释放!");
-        return false;
-    }
-
+    // 只检查本场其他成员（含其 NPCBot）是否仍在战斗：调用本函数时释放者自己必已死亡，
+    // 不存在“自己还活着且在战斗”的情况，因此无需再单独判断发起释放的玩家。
     for (MemberState const& member : run->Members)
     {
         if (member.Exited || !member.Entered)
@@ -708,6 +706,9 @@ void RunManager::OnPlayerReleasedGhost(Player* player)
     if (!run || run->MapId != player->GetMapId() || run->InstanceId != player->GetInstanceId())
         return;
 
+    // 裂隙内释放灵魂不做常规跑尸：直接复活并传送回本场玩家传入点。
+    // 调用方 Player::BuildPlayerRepop 会因玩家已复活而返回 false 并跳过 RepopAtGraveyard，
+    // 所以不会再被送到最近墓地复活。只有战斗未结束时（CanPlayerReleaseSpirit 返回 false）才拦截释放。
     player->ResurrectPlayer(1.0f);
     if (!player->IsAlive())
         return;
@@ -727,11 +728,12 @@ void RunManager::OnPlayerResurrect(Player* player)
     if (!run)
         return;
 
-    // 跑尸回到本裂隙实例内复活，保留运行关联，玩家可继续战斗。
+    // 在本裂隙实例内复活（例如释放灵魂后由 OnPlayerReleasedGhost 复活回传入点），
+    // 保留运行关联，玩家可继续战斗。
     if (player->GetMapId() == run->MapId && player->GetInstanceId() == run->InstanceId)
         return;
 
-    // 灵魂医者/墓地复活（复活后不在本裂隙实例内），视为彻底离开，解除关联避免残留导致无法再次进入。
+    // 在实例外复活（灵魂医者/其他复活手段），视为彻底离开，解除关联避免残留导致无法再次进入。
     MemberState* member = FindMember(*run, player->GetGUID());
     if (member && !member->Exited)
         member->Exited = true;

@@ -344,7 +344,8 @@ protected:
 
     Creature* SummonTieredCreature(uint32 entry, Position const& position, float healthCoefficient = 1.0f,
         float damageCoefficient = 1.0f, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN,
-        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS, bool preservePassiveState = false)
+        uint32 despawnMilliseconds = 10 * IN_MILLISECONDS, bool preservePassiveState = false,
+        bool enterZoneCombat = true)
     {
         if (!entry || !_tierConfig)
             return nullptr;
@@ -356,7 +357,8 @@ protected:
         ApplySummonTierStats(summon, healthCoefficient, damageCoefficient, damageCoefficient, preservePassiveState);
         _riftSummons.push_back(summon->GetGUID());
         // 保留状态的召唤物（如奥达曼石像守卫和七贤待激活成员）在自身AI唤醒后才进入战斗。
-        if (!preservePassiveState)
+        // enterZoneCombat=false 用于限制在小房间内、只应与指定目标交战的召唤物。
+        if (!preservePassiveState && enterZoneCombat)
             summon->SetInCombatWithZone();
         return summon;
     }

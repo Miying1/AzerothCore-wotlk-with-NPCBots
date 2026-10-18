@@ -715,16 +715,18 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
         if (_player->GetDeathTimer())
         {
             _player->GetThreatMgr().RemoveMeFromThreatLists();
-            _player->BuildPlayerRepop();
-            _player->RepopAtGraveyard();
+            // 释放流程若已被脚本接管（OnPlayerReleasedGhost 直接复活并传送，例如裂隙副本），
+            // 返回 false，此时不能再执行 RepopAtGraveyard()，否则会把活着的玩家送去墓地。
+            if (_player->BuildPlayerRepop())
+                _player->RepopAtGraveyard();
         }
         else if (_player->HasSpiritOfRedemptionAura())
         {
             // this will kill character by SPELL_AURA_SPIRIT_OF_REDEMPTION
             _player->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
             _player->KillPlayer();
-            _player->BuildPlayerRepop();
-            _player->RepopAtGraveyard();
+            if (_player->BuildPlayerRepop())
+                _player->RepopAtGraveyard();
         }
         else if (_player->HasPendingBind())
         {

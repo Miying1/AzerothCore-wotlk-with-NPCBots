@@ -4604,8 +4604,9 @@ void Player::DeleteOldRecoveryItems(uint32 keepDays)
 /* Preconditions:
   - a resurrectable corpse must not be loaded for the player (only bones)
   - the player must be in world
-  返回值：false 表示本次释放未执行，调用方不应继续执行 RepopAtGraveyard()，
-          否则会出现“脚本拒绝释放（客户端已收到提示）但角色仍被传送到墓地”的问题。
+  返回值：false 表示调用方不应继续执行 RepopAtGraveyard()，否则会出现
+          “脚本拒绝释放（客户端已收到提示）但角色仍被传送到墓地”，
+          或“脚本在释放钩子里已复活并传送玩家，却又被传送到墓地”的问题。
 */
 bool Player::BuildPlayerRepop()
 {
@@ -4613,7 +4614,14 @@ bool Player::BuildPlayerRepop()
         return false;
 
     if (!sScriptMgr->OnPlayerCanRepopAtGraveyard(this))
+    {
+        // 客户端点击“释放灵魂”后会在本地隐藏死亡/释放界面，若服务端只是静默丢弃请求，
+        // 玩家就看不到任何按钮，只能重登。这里让客户端重置一次释放灵魂计时器，
+        // 使释放界面重新出现，玩家可以等战斗结束后再次点击。
+        WorldPacket data(SMSG_FORCED_DEATH_UPDATE);
+        SendDirectMessage(&data);
         return false;
+    }
 
     WorldPacket data(SMSG_PRE_RESURRECT, GetPackGUID().size());
     data << GetPackGUID();
@@ -4659,7 +4667,11 @@ bool Player::BuildPlayerRepop()
     StopMirrorTimers(); // disable timers on bars
     SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_ALWAYS_STAND); // set and clear other
     sScriptMgr->OnPlayerReleasedGhost(this);
-    return true;
+
+    // 脚本可能已在此钩子里把玩家复活并传送走（例如裂隙副本释放即复活回入口），
+    // 此时返回 false 让调用方跳过 RepopAtGraveyard()，否则会把已经复活的玩家
+    // 又传送到最近的墓地，表现为“点释放灵魂后直接在墓地复活”。
+    return !IsAlive();
 }
 
 void Player::ResurrectPlayer(float restore_percent, bool applySickness)
