@@ -2095,7 +2095,11 @@ public:
     [[nodiscard]] WorldLocation GetCorpseLocation() const { return _corpseLocation; }
     uint32 GetResurrectionSpellId();
     void ResurrectPlayer(float restore_percent, bool applySickness = false);
-    void BuildPlayerRepop();
+    // 返回值表示调用方是否可以继续执行 RepopAtGraveyard()：
+    // true  表示释放流程已执行（或允许继续），调用方可以接着传送到墓地；
+    // false 表示本次什么都没做（角色仍活着 / 已是幽灵 / 被 OnPlayerCanRepopAtGraveyard 脚本拒绝），
+    //       调用方不应再执行 RepopAtGraveyard()，否则会把未释放的灵魂直接传送走。
+    bool BuildPlayerRepop();
     void RepopAtGraveyard();
 
     void SendDurabilityLoss();

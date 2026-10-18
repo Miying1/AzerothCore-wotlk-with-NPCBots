@@ -4433,8 +4433,9 @@ void Spell::EffectStuck(SpellEffIndex /*effIndex*/)
             return;
 
         // xinef: player is in corpse
-        if (!target->HasPlayerFlag(PLAYER_FLAGS_GHOST))
-            target->BuildPlayerRepop();
+        // 释放被脚本拒绝时（如裂隙副本战斗未结束）不要继续传送到墓地
+        if (!target->HasPlayerFlag(PLAYER_FLAGS_GHOST) && !target->BuildPlayerRepop())
+            return;
         target->RepopAtGraveyard();
         return;
     }

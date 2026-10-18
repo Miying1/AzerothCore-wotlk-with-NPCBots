@@ -82,7 +82,10 @@ void WorldSession::HandleRepopRequestOpcode(WorldPacket& recv_data)
 
     //this is spirit release confirm?
     GetPlayer()->RemovePet(nullptr, PET_SAVE_NOT_IN_SLOT, true);
-    GetPlayer()->BuildPlayerRepop();
+    // BuildPlayerRepop 内部已询问 OnPlayerCanRepopAtGraveyard 脚本钩子，
+    // 被拒时必须直接返回，否则客户端已提示不能释放，但角色仍会被传送到墓地。
+    if (!GetPlayer()->BuildPlayerRepop())
+        return;
     GetPlayer()->RepopAtGraveyard();
 }
 

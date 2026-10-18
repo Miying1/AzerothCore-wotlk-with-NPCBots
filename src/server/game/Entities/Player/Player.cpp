@@ -4604,14 +4604,16 @@ void Player::DeleteOldRecoveryItems(uint32 keepDays)
 /* Preconditions:
   - a resurrectable corpse must not be loaded for the player (only bones)
   - the player must be in world
+  返回值：false 表示本次释放未执行，调用方不应继续执行 RepopAtGraveyard()，
+          否则会出现“脚本拒绝释放（客户端已收到提示）但角色仍被传送到墓地”的问题。
 */
-void Player::BuildPlayerRepop()
+bool Player::BuildPlayerRepop()
 {
     if (IsAlive() || HasPlayerFlag(PLAYER_FLAGS_GHOST))
-        return;
+        return false;
 
     if (!sScriptMgr->OnPlayerCanRepopAtGraveyard(this))
-        return;
+        return false;
 
     WorldPacket data(SMSG_PRE_RESURRECT, GetPackGUID().size());
     data << GetPackGUID();
@@ -4630,7 +4632,7 @@ void Player::BuildPlayerRepop()
     if (GetCorpse() && corpseLocation.GetMapId() == GetMapId())
     {
         LOG_ERROR("entities.player", "BuildPlayerRepop: player {} ({}) already has a corpse", GetName(), GetGUID().ToString());
-        return;
+        return true; // 尸体已存在，释放流程视为已完成，允许调用方继续传送到墓地
     }
 
     // create a corpse and place it at the player's location
@@ -4638,7 +4640,7 @@ void Player::BuildPlayerRepop()
     if (!corpse)
     {
         LOG_ERROR("entities.player", "Error creating corpse for Player {} [{}]", GetName(), GetGUID().ToString());
-        return;
+        return true; // 建尸体失败，但仍允许调用方传送到墓地，避免玩家卡在死亡状态
     }
     GetMap()->AddToMap(corpse);
     SetHealth(1); // convert player body to ghost
@@ -4657,6 +4659,7 @@ void Player::BuildPlayerRepop()
     StopMirrorTimers(); // disable timers on bars
     SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_ALWAYS_STAND); // set and clear other
     sScriptMgr->OnPlayerReleasedGhost(this);
+    return true;
 }
 
 void Player::ResurrectPlayer(float restore_percent, bool applySickness)
