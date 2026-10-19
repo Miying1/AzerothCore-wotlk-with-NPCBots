@@ -8,6 +8,7 @@
 #include "Player.h"
 #include "ScriptedGossip.h"
 #include "ScriptMgr.h"
+#include "TemporarySummon.h"
 
 namespace HeroicDungeonRift
 {
@@ -103,12 +104,15 @@ constexpr int32 ShadowBoltTier1DirectDamage = 4500;
 constexpr std::chrono::seconds MemberActivationInterval = 30s;
 // 七贤每个成员使用单Boss血量预算的1/7×1.1，七名成员总血量约为单Boss的1.1倍。
 constexpr float MemberHealthCoefficient = 1.1f / 7.0f;
+// 整场遭遇（末日之链与6名成员）血量统一提高50%，合计约为单Boss的1.65倍。
+constexpr float SevenHealthMultiplier = 1.5f;
 constexpr float SevenBossMeleeDamageCoefficient = 35.0f / 12.0f;
 constexpr uint32 TombOfSevenInstanceData = 4;
 constexpr uint32 SevenFriendlyFaction = 35;
 constexpr uint32 SevenHostileFaction = 754;
 constexpr int32 ActionStartEncounter = 1;
 constexpr int32 ActionMemberDied = 2;
+constexpr int32 ActionResetEncounter = 3;
 
 // 喊话（中文，对应原版 creature_text，由主Boss末日之链发出）
 constexpr char const* TheSevenAggroText = "你们挑战了七贤，现在你们死定了！";
@@ -128,6 +132,8 @@ public:
         me->SetFaction(SevenFriendlyFaction);
         me->SetImmuneToPC(true);
         me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        // 七贤成员的所有施法均不可打断（脚踢/拳击/法术反制等打断效果免疫）。
+        me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
     }
 
     void IsSummonedBy(WorldObject* /*summoner*/) override { }
@@ -150,6 +156,14 @@ public:
         me->SetLootRecipient(nullptr);
         if (me->IsAlive())
             me->GetMotionMaster()->MoveTargetedHome();
+
+        // 成员脱战视为本次交锋结束，通知控制实体把整场遭遇复位到初始状态。
+        // 控制实体复位时会连同本成员一起回收重建，因此之后不能再访问 me。
+        if (TempSummon* summon = me->ToTempSummon())
+            if (Unit* summoner = summon->GetSummonerUnit())
+                if (summoner->IsCreature())
+                    if (CreatureAI* summonerAI = summoner->ToCreature()->AI())
+                        summonerAI->DoAction(ActionResetEncounter);
     }
 
 protected:
@@ -385,6 +399,8 @@ struct boss_rift_the_seven : public BossAIBase
     void Reset() override
     {
         BossAIBase::Reset();
+        // BossAIBase::Reset 会清除打断免疫，七贤整场遭遇（含末日之链）需重新开启。
+        me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
         _voidwalkersSummoned = false;
         _encounterStarted = false;
         _activeMemberIndex = 0;
@@ -454,6 +470,14 @@ struct boss_rift_the_seven : public BossAIBase
             else if (_encounterStarted && _activeMemberIndex < _memberGuids.size())
                 events.ScheduleEvent(EventActivateMember, MemberActivationInterval);
         }
+        else if (action == ActionResetEncounter)
+        {
+            // 成员脱战：整场遭遇回到初始状态，等待玩家再次对话开启。
+            if (!_encounterStarted)
+                return;
+
+            ResetEncounter();
+        }
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -482,13 +506,24 @@ struct boss_rift_the_seven : public BossAIBase
         if (!_encounterStarted)
             return;
 
+        ResetEncounter();
+    }
+
+    // 脱战后把整场遭遇复原到初始状态：清理战斗状态，回收全部召唤物，
+    // 再按初始流程恢复血量、友方可对话状态并重新召唤6名成员。
+    void ResetEncounter()
+    {
         events.Reset();
         me->RemoveAllAuras();
         me->GetThreatMgr().ClearAllThreat();
         me->CombatStop(true);
+        me->InterruptNonMeleeSpells(false);
+        me->LoadCreaturesAddon(true);
         me->SetLootRecipient(nullptr);
         if (me->IsAlive())
             me->GetMotionMaster()->MoveTargetedHome();
+
+        Reset();
     }
 
     void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
@@ -572,11 +607,15 @@ private:
 
     void ScaleControllerHealth()
     {
-        uint64 scaledHealth = uint64(me->GetMaxHealth()) * MemberHealthCoefficient;
+        uint64 scaledHealth = uint64(me->GetMaxHealth()) *
+            (MemberHealthCoefficient * SevenHealthMultiplier);
         scaledHealth = std::max<uint64>(1, std::min<uint64>(scaledHealth, std::numeric_limits<uint32>::max()));
         me->SetCreateHealth(uint32(scaledHealth));
         me->SetMaxHealth(uint32(scaledHealth));
         me->SetFullHealth();
+        // 末日之链只保留单Boss血量的1/7×1.1×1.5，若不重算拾取伤害门槛，
+        // 引擎仍要求打掉模板血量的一半，血量远低于该值导致尸体永远不可拾取（无掉落）。
+        me->ResetPlayerDamageReq();
     }
 
     void SummonMembers()
@@ -585,8 +624,10 @@ private:
         for (uint32 entry : { RiftEntrySevenAngerRel, RiftEntrySevenSeethRel, RiftEntrySevenDopeRel,
             RiftEntrySevenGloomRel, RiftEntrySevenVileRel, RiftEntrySevenHateRel })
         {
-            if (Creature* member = SummonTieredCreature(entry, me->GetRandomNearPosition(5.0f),
-                MemberHealthCoefficient, SevenBossMeleeDamageCoefficient,
+            // 以刷新点而不是当前位置为基准：脱战复位时控制实体可能还在回家路上，
+            // 若按当前位置召唤，成员会滞留在脱战地点。
+            if (Creature* member = SummonTieredCreature(entry, me->GetRandomPoint(me->GetHomePosition(), 5.0f),
+                MemberHealthCoefficient * SevenHealthMultiplier, SevenBossMeleeDamageCoefficient,
                 TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10 * IN_MILLISECONDS, true))
                 _memberGuids.push_back(member->GetGUID());
         }

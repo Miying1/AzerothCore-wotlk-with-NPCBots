@@ -375,6 +375,9 @@ protected:
         summon->SetCreateHealth(uint32(scaledHealth));
         summon->SetMaxHealth(uint32(scaledHealth));
         summon->SetFullHealth();
+        // 血量系数小于0.5的召唤物（如七贤成员）缩放后实际血量会低于引擎按模板血量一半
+        // 设定的拾取门槛，导致尸体永远不可拾取，必须按缩放后的血量重算门槛。
+        summon->ResetPlayerDamageReq();
 
         float finalMeleeDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, meleeDamageCoefficient);
         float finalSpellDamageMultiplier = _tierConfig->DamageMultiplier * std::max(0.01f, spellDamageCoefficient);

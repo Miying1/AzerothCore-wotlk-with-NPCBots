@@ -1000,6 +1000,9 @@ void ApplyTierStats(Creature* creature, TierConfig const& config, uint32 baseHea
     creature->SetCreateHealth(uint32(scaledHealth));
     creature->SetMaxHealth(uint32(scaledHealth));
     creature->SetFullHealth();
+    // 引擎在 InitStats 时按模板血量的一半记录拾取伤害门槛（_playerDamageReq），
+    // 此处改写最大生命后必须重算，否则尸体按旧门槛判定而无法拾取。
+    creature->ResetPlayerDamageReq();
 }
 
 } // namespace HeroicDungeonRift
