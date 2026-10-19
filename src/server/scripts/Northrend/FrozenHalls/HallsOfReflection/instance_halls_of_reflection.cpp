@@ -178,6 +178,10 @@ public:
         _waveResumeStep = 0;
         _falricPhaseComplete = false;
         _remainingTrashKills = 0;
+        _waveTrashCount = 0;
+        _waveActivateCursor = 0;
+        std::fill(std::begin(_waveTrashGUID), std::end(_waveTrashGUID), ObjectGuid::Empty);
+        std::fill(std::begin(_trashWaveNumber), std::end(_trashWaveNumber), uint8(0));
         _isLichKingFightActive = false;
         _batteredHiltStatus = 0;
         _outroTimer = 0;
@@ -317,6 +321,63 @@ public:
         }
     }
 
+    // 判断玩家所在队伍中是否还有存活的 BOT。
+    // BOT 必须与当前副本在同一地图：未跟随进本、已被传送出去的 BOT 不能算“还有活着的”，
+    // 否则副本内明明已经团灭，却因为副本外残留的 BOT 永远不肯重置波次
+    bool HasAliveBotsInInstance(Player* player)
+    {
+        auto hasAliveBot = [this](Player* owner) -> bool
+        {
+            if (!owner || !owner->HaveBot())
+                return false;
+
+            for (auto const& it : *owner->GetBotMgr()->GetBotMap())
+            {
+                Creature* bot = it.second;
+                if (bot && bot->IsInWorld() && bot->FindMap() == instance && bot->IsAlive())
+                    return true;
+            }
+            return false;
+        };
+
+        if (hasAliveBot(player))
+            return true;
+
+        // 单人玩家没有队伍，上面的检查即可覆盖
+        if (Group* group = player->GetGroup())
+            for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+            {
+                Player* member = itr->GetSource();
+                if (!member || member == player || member->FindMap() != instance)
+                    continue;
+                if (hasAliveBot(member))
+                    return true;
+            }
+
+        return false;
+    }
+
+    void OnPlayerLeave(Player* player) override
+    {
+        InstanceScript::OnPlayerLeave(player);
+
+        // 最后一名玩家离开副本后波次无法继续推进（Update 会因副本内没有玩家而停止更新），
+        // 而且灵魂被传出副本时团灭判定也永远等不到。无论该玩家与其 BOT 是否存活，
+        // 都在这里复位波次，避免下次进入时计数接着涨却不再刷新小怪。
+        // 注意：不能用 GetPlayersCountExceptGMs()，本项目的 npcbot 补丁会把 BOT 计入该值，
+        // 单人带 BOT 离开时人数永远大于 1，波次将永远不会复位，所以这里只统计真实玩家
+        uint32 players = 0;
+        for (auto const& ref : instance->GetPlayers())
+        {
+            Player* member = ref.GetSource();
+            if (member && !member->IsGameMaster())
+                ++players;
+        }
+
+        if (_waveNumber && players <= 1)
+            HandleWaveWipe();
+    }
+
     void OnGameObjectCreate(GameObject* go) override
     {
         switch (go->GetEntry())
@@ -374,6 +435,9 @@ public:
                             general->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
                         }
                         _waveNumber = 0;
+                        _remainingTrashKills = 0;
+                        _waveTrashCount = 0;
+                        _nextWaveTimer = 0;
                         DoUpdateWorldState(WORLD_STATE_HALLS_OF_REFLECTION_WAVES_ENABLED, 0);
 
                         instance->DoForAllPlayers([](Player* player)
@@ -630,19 +694,18 @@ public:
 
     void OnUnitDeath(Unit* unit) override
     {
-        if (_waveNumber && _remainingTrashKills)
+        // 只统计“本波激活”的小怪：旧波次残留的怪在下一波被杀时不能再减计数，
+        // 否则本波的击杀数永远凑不齐，只能等 150 秒超时硬推波次
+        if (_waveNumber && _waveNumber % 5 && _remainingTrashKills)
         {
-            switch (unit->GetEntry())
-            {
-                case NPC_WAVE_MERCENARY:
-                case NPC_WAVE_FOOTMAN:
-                case NPC_WAVE_RIFLEMAN:
-                case NPC_WAVE_PRIEST:
-                case NPC_WAVE_MAGE:
-                    if ((--_remainingTrashKills) == 0 && _waveNumber % 5 && _nextWaveTimer > 5000)
+            for (uint8 i = 0; i < _waveTrashCount; ++i)
+                if (_waveTrashGUID[i] == unit->GetGUID())
+                {
+                    _waveTrashGUID[i].Clear();
+                    if ((--_remainingTrashKills) == 0 && _nextWaveTimer > 5000)
                         _nextWaveTimer = 5000;
                     break;
-            }
+                }
         }
 
         if (unit->GetEntry() == NPC_QUEL_DELAR)
@@ -655,7 +718,8 @@ public:
             }
     }
 
-    void RandomizeCompositionsAndShow()
+    // 重新生成 8 个波次的小怪组合（不改变当前波次进度）
+    void GenerateCompositions()
     {
         uint8 r1 = urand(0, 1);
         uint8 r2 = urand(2, 3);
@@ -672,49 +736,206 @@ public:
             uint8 r = urand(0, k - 1);
             uint8 ur = 0;
             for (uint8 j = 0; j < 4; ++j)
-                if (left[j])
+            {
+                if (!left[j])
+                    continue;
+                if (ur == r)
                 {
-                    if (ur == r)
-                    {
-                        left[j] = false;
-                        for (uint8 i = 0; i < MAX_SPIRITUAL_REFLECTIONS; ++i)
-                            _chosenComposition[8 - k][i] = allowedCompositions[j + 4][i];
-                        break;
-                    }
-                    ++ur;
+                    left[j] = false;
+                    for (uint8 i = 0; i < MAX_SPIRITUAL_REFLECTIONS; ++i)
+                        _chosenComposition[8 - k][i] = allowedCompositions[j + 4][i];
+                    break;
                 }
+                ++ur;
+            }
         }
-        if (_falricPhaseComplete)
+    }
+
+    // 回收已死亡的旧波次槽位：这些怪已经无法参战，继续占着槽位会逐波耗尽可用小怪，
+    // 最终表现为波次计数还在涨却一只小怪都刷不出来
+    void RecoverDeadTrash()
+    {
+        for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
         {
+            // 0xFF 表示该位置是“跳过的老一波”被主动击杀的，不能复活复用
+            if (!_trashActive[i] || _trashWaveNumber[i] == _waveNumber || _trashWaveNumber[i] == 0xFF)
+                continue;
+            Creature* c = instance->GetCreature(_trashGUID[i]);
+            if (c && !c->IsAlive())
+                _trashActive[i] = false;
+        }
+    }
+
+    // 查找一只尚未被波次系统占用的小怪，返回在 _trashGUID 中的下标，找不到返回 -1
+    int8 FindFreeTrash(uint32 entry)
+    {
+        int8 deadFallback = -1;   // entry 匹配但已经死亡
+        int8 aliveFallback = -1;  // entry 不匹配但还活着
+
+        for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
+        {
+            if (_trashActive[i])
+                continue;
+
+            Creature* c = instance->GetCreature(_trashGUID[i]);
+            if (!c)
+                continue;
+
+            bool const alive = c->IsAlive();
+            if (c->GetEntry() == entry)
+            {
+                // 优先选活着的小怪；尸体只在没有别的选择时才启用（激活时会复活）
+                if (alive)
+                    return int8(i);
+                if (deadFallback < 0)
+                    deadFallback = int8(i);
+            }
+            else if (alive && aliveFallback < 0)
+                aliveFallback = int8(i);
+        }
+
+        // 正常情况下每个波次的组合与实际刷怪数量严格匹配；匹配不到时复用任意一只
+        // 未占用的怪，避免整波激活失败、波次计数空转
+        return deadFallback >= 0 ? deadFallback : aliveFallback;
+    }
+
+    // 当前波次应刷出的小怪数量；Boss 波（5、10）返回 0
+    uint8 GetWaveTrashNum() const
+    {
+        if (!_waveNumber || !(_waveNumber % 5))
+            return 0;
+        if (_waveNumber <= 2)
+            return 3;
+        if (_waveNumber <= 4)
+            return 4;
+        return 5;
+    }
+
+    // 当前波次在 _chosenComposition 中的组合下标
+    uint8 GetWaveCompositionIndex() const
+    {
+        return _waveNumber - (_waveNumber > 5 ? 2 : 1);
+    }
+
+    // 激活当前波次中尚未刷出的小怪，_waveActivateCursor 记录补刷进度；返回本次激活数量
+    uint8 ActivateWaveTrash()
+    {
+        uint8 const numToActivate = GetWaveTrashNum();
+        if (!numToActivate)
+            return 0;
+
+        uint8 const compositionIndex = GetWaveCompositionIndex();
+        // 组合在灭团时会被清空，如果恢复流程没有重新生成（例如重新进入副本），
+        // 这里补生成一次，否则整波都选不到小怪，只会空转波次计数
+        if (!_chosenComposition[compositionIndex][0])
+            GenerateCompositions();
+
+        RecoverDeadTrash();
+
+        uint8 activated = 0;
+        while (_waveActivateCursor < numToActivate)
+        {
+            // 尸体同样会被复活后重新激活，只有全部槽位都被占用才会选不到
+            int8 const index = FindFreeTrash(_chosenComposition[compositionIndex][_waveActivateCursor]);
+            // 暂时没有可用槽位时保留游标，稍后原地补刷，避免漏刷的小怪被波次直接跳过
+            if (index < 0 || !ActivateTrash(uint8(index)))
+                break;
+            ++activated;
+            ++_waveActivateCursor;
+        }
+        return activated;
+    }
+
+    // 补刷当前波次漏掉的小怪。不能推进波次，否则会跳波并与下一波小怪混在一起
+    void ResumeWaveTrash()
+    {
+        uint8 const numToActivate = GetWaveTrashNum();
+        _remainingTrashKills += ActivateWaveTrash();
+        _nextWaveTimer = (_waveActivateCursor < numToActivate) ? 5000 : 150000;
+    }
+
+    // 让指定小怪真正出现在场上并进入战斗
+    bool ActivateTrash(uint8 index)
+    {
+        if (index >= NUM_OF_TRASH)
+            return false;
+
+        Creature* c = instance->GetCreature(_trashGUID[index]);
+        if (!c || _trashActive[index])
+            return false;
+
+        _trashActive[index] = true;
+        _trashWaveNumber[index] = _waveNumber;
+        // 灭团或超时后小怪的存活与可见状态可能已经错乱（例如只剩登记 GUID 而对象是尸体、
+        // 或者还处于隐藏状态），这里强制复活并显示，否则整波会“选中了怪但不刷新”
+        if (!c->IsAlive())
+            c->Respawn(true);
+        c->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+        c->SetImmuneToAll(false);
+        c->SetVisible(true);
+        if (_waveTrashCount < 5)
+            _waveTrashGUID[_waveTrashCount++] = c->GetGUID();
+        c->AI()->DoAction(1);
+        return true;
+    }
+
+    // 把本波尚未消耗的小怪以灵魂形态显示出来
+    void ShowAllTrash()
+    {
+        for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
+            if (!_trashActive[i])
+                if (Creature* c = instance->GetCreature(_trashGUID[i]))
+                {
+                    if (!c->IsAlive())
+                        c->Respawn(true);
+                    c->SetVisible(true);
+                    c->CastSpell(c, SPELL_WELL_OF_SOULS_VISUAL, false);
+                }
+    }
+
+    void RandomizeCompositionsAndShow()
+    {
+        GenerateCompositions();
+        RecoverDeadTrash();
+
+        // 副本重新加载后运行时标记会被清零，这里以持久化的 Boss 状态为准，
+        // 否则老一已经死了还会重刷 1-4 波的小怪
+        if (!_falricPhaseComplete && GetBossState(DATA_FALRIC) == DONE)
+            _falricPhaseComplete = true;
+
+        if (_falricPhaseComplete && _waveNumber < 4)
+        {
+            // 这些被“跳过消耗”的小怪同样会走 Unit::Kill，不能让它们误减当前波次的击杀计数
+            _remainingTrashKills = 0;
+            _waveTrashCount = 0;
+            _waveActivateCursor = 0;
+
             for (; _waveNumber < 4; ++_waveNumber)
             {
                 uint8 numToActivate = (_waveNumber <= 1) ? 3 : 4;
 
                 for (uint8 i = 0; i < numToActivate; ++i)
                 {
-                    uint32 entry = _chosenComposition[_waveNumber][i];
-                    bool forward = !!urand(0, 1);
-                    for (int8 j = (forward ? 0 : NUM_OF_TRASH - 1); (forward ? j < NUM_OF_TRASH : j >= 0); (forward ? ++j : --j))
-                        if (!_trashActive[j])
-                            if (Creature* c = instance->GetCreature(_trashGUID[j]))
-                                if (c->GetEntry() == entry)
-                                {
-                                    _trashActive[j] = true;
-                                    Unit::Kill(c, c);
-                                    break;
-                                }
+                    int8 index = FindFreeTrash(_chosenComposition[_waveNumber][i]);
+                    if (index < 0)
+                        continue;
+
+                    Creature* c = instance->GetCreature(_trashGUID[index]);
+                    if (!c)
+                        continue;
+
+                    // 标记为“跳过阶段已消耗”，不再参与后续死亡槽位回收
+                    _trashActive[index] = true;
+                    _trashWaveNumber[index] = 0xFF;
+                    // 已经是尸体的无需再消耗一次
+                    if (c->IsAlive())
+                        Unit::Kill(c, c);
                 }
             }
             _waveNumber = 5;
         }
 
-        for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
-            if (!_trashActive[i])
-                if (Creature* c = instance->GetCreature(_trashGUID[i]))
-                {
-                    c->SetVisible(true);
-                    c->CastSpell(c, SPELL_WELL_OF_SOULS_VISUAL, false);
-                }
+        ShowAllTrash();
     }
 
     void StartNextWave()
@@ -723,6 +944,8 @@ public:
             return;
 
         ++_waveNumber;
+        // 每一波都从头开始刷怪，_waveActivateCursor 表示本波已处理到组合中的第几只
+        _waveActivateCursor = 0;
         if (_waveNumber >= 6)
             _falricPhaseComplete = true;
 
@@ -739,6 +962,9 @@ public:
         if (_waveNumber == 5 || _waveNumber == 10)
         {
             _nextWaveTimer = 0;
+            // Boss 波不再需要统计小怪击杀
+            _remainingTrashKills = 0;
+            _waveTrashCount = 0;
             if (_waveNumber == 5)
             {
                 // 法瑞克已阵亡或对象已被回收时不能停在这里，否则永远不出下一波（Boss），
@@ -758,30 +984,23 @@ public:
         }
         else
         {
-            _nextWaveTimer = 150000;
+            uint8 const numToActivate = GetWaveTrashNum();
 
-            uint8 numToActivate = 5;
-            if (_waveNumber <= 2)
-                numToActivate = 3;
-            else if (_waveNumber <= 4)
-                numToActivate = 4;
-            _remainingTrashKills += numToActivate;
-            for (uint8 i = 0; i < numToActivate; ++i)
+            _waveTrashCount = 0;
+            // 击杀计数按本波重新开始：上一波超时硬推时残留的击杀数不能带入本波，
+            // 否则本波永远凑不齐，只能每波都等 150 秒超时
+            _remainingTrashKills = ActivateWaveTrash();
+
+            if (!_remainingTrashKills)
             {
-                uint32 entry = _chosenComposition[_waveNumber - (_waveNumber > 5 ? 2 : 1)][i];
-                bool forward = !!urand(0, 1);
-                for (int8 j = (forward ? 0 : NUM_OF_TRASH - 1); (forward ? j < NUM_OF_TRASH : j >= 0); (forward ? ++j : --j))
-                    if (!_trashActive[j])
-                        if (Creature* c = instance->GetCreature(_trashGUID[j]))
-                            if (c->GetEntry() == entry)
-                            {
-                                _trashActive[j] = true;
-                                c->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                                c->SetImmuneToAll(false);
-                                c->AI()->DoAction(1);
-                                break;
-                            }
+                // 一只都没刷出来说明状态异常：保持当前波次并在 5 秒后原地重试，
+                // 避免“波次计数一直在涨但永远不出小怪”
+                _nextWaveTimer = 5000;
+                return;
             }
+
+            // 还有小怪没刷出来时 5 秒后继续补刷，补齐后进入 150 秒击杀等待
+            _nextWaveTimer = (_waveActivateCursor < numToActivate) ? 5000 : 150000;
         }
     }
 
@@ -799,24 +1018,27 @@ public:
         DoUpdateWorldState(WORLD_STATE_HALLS_OF_REFLECTION_WAVE_COUNT, 0);
         HandleGameObject(GO_FRONT_DOOR, true);
 
-        _trashCounter = NUM_OF_TRASH;
         _waveNumber = 0;
         _nextWaveTimer = 0;
         std::memset(&_chosenComposition, 0, sizeof(_chosenComposition));
+        std::fill(std::begin(_trashWaveNumber), std::end(_trashWaveNumber), uint8(0));
 
+        // 所有小怪一律复位（不只本波激活的）：灭团/超时后小怪的存活状态可能与
+        // _trashActive 不同步，只复活 active 的怪会留下尸体，下一波选中它时不会刷新
         for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
-            if (_trashActive[i])
-                if (Creature* c = instance->GetCreature(_trashGUID[i]))
-                {
-                    c->GetThreatMgr().ClearAllThreat();
-                    c->CombatStop(true);
-                    c->InterruptNonMeleeSpells(true);
-                    c->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                    c->SetImmuneToAll(true);
+            if (Creature* c = instance->GetCreature(_trashGUID[i]))
+            {
+                c->GetThreatMgr().ClearAllThreat();
+                c->CombatStop(true);
+                c->InterruptNonMeleeSpells(true);
+                c->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                c->SetImmuneToAll(true);
+                if (!c->IsAlive())
                     c->Respawn(true);
-                    c->UpdatePosition(c->GetHomePosition(), true);
-                    c->StopMovingOnCurrentPos();
-                }
+                c->UpdatePosition(c->GetHomePosition(), true);
+                c->StopMovingOnCurrentPos();
+                c->SetVisible(false);
+            }
         std::fill(std::begin(_trashActive), std::end(_trashActive), false);
         if (Creature* falric = GetCreature(DATA_FALRIC))
             falric->AI()->EnterEvadeMode();
@@ -826,6 +1048,8 @@ public:
         _waveResumeTimer = 5000;
         _waveResumeStep = 2;
         _remainingTrashKills = 0;
+        _waveTrashCount = 0;
+        _waveActivateCursor = 0;
     }
 
     void Update(uint32 diff) override
@@ -850,16 +1074,11 @@ public:
                             continue;
                         if (p->IsAlive())
                             allDead = false;
-                        else if (p->HaveBot())
+                        else if (HasAliveBotsInInstance(p))
                         {
-                            // 玩家死亡但 BOT 仍存活时，不算团灭，避免波次被错误重置
-                            BotMap const* botMap = p->GetBotMgr()->GetBotMap();
-                            for (auto const& it : *botMap)
-                                if (it.second && it.second->IsAlive())
-                                {
-                                    allDead = false;
-                                    break;
-                                }
+                            // 只有玩家与其队伍中同在本副本的 BOT 全部死亡才算团灭；
+                            // 副本外的 BOT 不计入，BOT 仍存活时波次继续
+                            allDead = false;
                         }
                         if (p->GetExactDist2d(&CenterPos) > MAX_DIST_FROM_CENTER_IN_COMBAT)
                         {
@@ -900,7 +1119,11 @@ public:
             if (_nextWaveTimer <= diff)
             {
                 _nextWaveTimer = 0;
-                StartNextWave();
+                // 本波还有小怪没刷出来时只能原地补刷，不能推进波次
+                if (_waveNumber && _waveNumber % 5 && _waveActivateCursor < GetWaveTrashNum())
+                    ResumeWaveTrash();
+                else
+                    StartNextWave();
             }
             else
                 _nextWaveTimer -= diff;
@@ -1146,7 +1369,11 @@ private:
     uint16 _waveResumeTimer{};
     uint8 _waveResumeStep{};
     bool _falricPhaseComplete{};
-    uint8 _remainingTrashKills{};
+    uint8 _remainingTrashKills{};           // 本波剩余待击杀的小怪数量
+    ObjectGuid _waveTrashGUID[5];           // 本波激活的小怪，用于精确统计击杀
+    uint8 _waveTrashCount{};
+    uint8 _waveActivateCursor{};            // 本波已处理到组合中的第几只（补刷进度）
+    uint8 _trashWaveNumber[NUM_OF_TRASH]{}; // 每只小怪最后一次被激活的波次（0xFF 表示跳过阶段消耗）
 
     // Lich King fight
     bool _isLichKingFightActive{};
