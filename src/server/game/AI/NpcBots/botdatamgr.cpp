@@ -3059,6 +3059,11 @@ void BotDataMgr::UpdateNpcBotData(uint32 entry, NpcBotDataUpdateType updateType,
 
             EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(entry);
 
+            // 装备列（characters_npcbot.equips）与物品数据（item_instance / character_inventory）分开提交。
+            // 装备列是「该槽位是否已被拿走」的唯一权威记录：若与物品侧语句共用一个事务，物品侧一旦
+            // 死锁或失败就会把清槽一起回滚，留下「物品已回到玩家背包、装备列仍指向它」的双持脏数据，
+            // 重启后会被重复加载，玩家卸下时就会看到凭空多出一件一模一样的装备。
+            CharacterDatabaseTransaction item_trans = CharacterDatabase.BeginTransaction();
             CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
             bstmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_NPCBOT_EQUIP);
@@ -3124,9 +3129,9 @@ void BotDataMgr::UpdateNpcBotData(uint32 entry, NpcBotDataUpdateType updateType,
                     stmt->SetData(++index, botitem->GetText());
                     stmt->SetData(++index, botitem->GetGUID().GetCounter());
 
-                    trans->Append(stmt);
+                    item_trans->Append(stmt);
 
-                    Item::DeleteFromInventoryDB(trans, botitem->GetGUID().GetCounter()); //prevent duplicates
+                    Item::DeleteFromInventoryDB(item_trans, botitem->GetGUID().GetCounter()); //prevent duplicates
 
                     bstmt->SetData(k, botitem->GetGUID().GetCounter());
                 }
@@ -3136,7 +3141,10 @@ void BotDataMgr::UpdateNpcBotData(uint32 entry, NpcBotDataUpdateType updateType,
 
             bstmt->SetData(k, entry);
             trans->Append(bstmt);
+            // 先落装备列，再落物品数据：物品侧失败最多让物品行过期，不会把槽位状态改回旧值
             CharacterDatabase.CommitTransaction(trans);
+            if (item_trans->GetSize() > 0)
+                CharacterDatabase.CommitTransaction(item_trans);
             break;
         }
         case NPCBOT_UPDATE_ERASE:
