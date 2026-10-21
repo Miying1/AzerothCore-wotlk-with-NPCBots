@@ -374,6 +374,9 @@ public:
         {
             if (!IsSpellReady(PW_SHIELD_1, diff) || IsCasting())
                 return false;
+            if (_spec == BOT_SPEC_PRIEST_DISCIPLINE &&
+                GetHealthPCT(target) >= ((IsTank(target) || IsPointedHealTarget(target)) ? 90 : 70))
+                return false;
             if (target->HasAuraTypeWithFamilyFlags(SPELL_AURA_MECHANIC_IMMUNITY, SPELLFAMILY_PRIEST, 0x20000000) ||
                 target->HasAuraTypeWithFamilyFlags(SPELL_AURA_SCHOOL_ABSORB, SPELLFAMILY_PRIEST, 0x1))
                 return false;
