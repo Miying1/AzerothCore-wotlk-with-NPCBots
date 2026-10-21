@@ -1140,11 +1140,11 @@ public:
                 case CLASS_SHAMAN:
                     if (BLESSING_OF_KINGS && !kings && doCast(target, BLESSING_OF_KINGS))
                         return true;
+                    else if (BLESSING_OF_WISDOM && !wisdom && target->GetPowerType() == POWER_MANA && doCast(target, BLESSING_OF_WISDOM))
+                        return true;
                     else if (BLESSING_OF_MIGHT && !might && doCast(target, BLESSING_OF_MIGHT))
                         return true;
-                    else if (BLESSING_OF_SANCTUARY && !sanctuary && doCast(target, BLESSING_OF_SANCTUARY))
-                        return true;
-                    else if (BLESSING_OF_WISDOM && !wisdom && target->GetPowerType() == POWER_MANA && doCast(target, BLESSING_OF_WISDOM))
+                    else if (!IsTank() && BLESSING_OF_SANCTUARY && !sanctuary && doCast(target, BLESSING_OF_SANCTUARY))
                         return true;
                     break;
                 default:
