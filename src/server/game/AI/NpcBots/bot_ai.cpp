@@ -12766,8 +12766,6 @@ void bot_ai::_autoLootCreatureGold(Creature* creature) const
 void bot_ai::_autoLootCreatureItems(Player* receiver, Creature* creature, uint32 lootQualityMask, uint32 lootThreshold) const
 {
     //初始化接收者的自由拾取(FFA)/任务/条件物品列表, 等价于玩家打开尸体
-    //MULTI_DROP 物品(如岩石守卫者的碎片、徽章等代币)的已拾取状态是按玩家记录的,
-    //若此处不初始化, StoreLootItem 无法将其标记为已拾取, 机器人会无限重复拾取
     creature->loot.FillNotNormalLootFor(receiver);
 
     uint8 slot = 0;
@@ -12792,6 +12790,10 @@ void bot_ai::_autoLootCreatureItems(Player* receiver, Creature* creature, uint32
         if (itemProto->Quality >= lootThreshold)
             continue;
         if (!((1u << itemProto->Quality) & lootQualityMask))
+            continue;
+
+        //货币代币(如岩石守卫者的碎片)已在 FillNotNormalLootFor 中自动入包, 此处跳过可避免重复获取
+        if (loot_item.freeforall && itemProto->IsCurrencyToken())
             continue;
 
         if (_canLootItemForPlayer(receiver, creature, slot - 1) && loot_item.AllowedForPlayer(receiver, creature->GetGUID()))
