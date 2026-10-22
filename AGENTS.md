@@ -105,4 +105,4 @@ Custom (non-upstream) scripts go in `src/server/scripts/Custom/` (gitignored).
 
 - **法术 DBC 路径**：`outputs/Spell.csv`
 - **本地数据库（MySQL 8.0）**：`E:\wlk80Server\mysql8.0` 或 `G:\wow\WLK80\mysql8.0\`
-- **数据库账号**：`root`，密码：`wow@80`
+- **本地数据库账号**：`root`，密码：`wow@80`

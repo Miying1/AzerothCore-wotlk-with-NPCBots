@@ -53,6 +53,7 @@
 #include "World.h"
 
 #include <limits>
+#include <unordered_set>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -14003,7 +14004,20 @@ BotEquipResult bot_ai::_unequip(uint8 slot, ObjectGuid receiver, bool store_to_b
             ItemPosCountVec dest;
             uint32 no_space = 0;
 
-            if (store_to_bank)
+            // 该物品已经躺在主人身上了（背包 / 银行）：说明装备列此前残留了已归还装备的
+            // guid，重启后又被当成装备重复加载（玩家一侧一份 + bot 一份）。此时绝不能再入库或邮寄，
+            // 否则同一个 guid 会占两个格子，客户端就显示成「两件一模一样的装备」。
+            // bot 侧这份只是重复的内存副本，直接丢弃；DB 行属于玩家那一份，不能删。
+            // 这个判断必须放在 CanStoreNewItem 之前，否则唯一型物品会因「已持有」被判为放不下而走邮寄，
+            // 变成「背包一件 + 邮件一件」
+            if (Item* existing = master->GetItemByGuid(item->GetGUID()))
+            {
+                BOT_LOG_ERROR("npcbots", "bot_ai::_unequip(): 机器人 {} (id: {}) 槽位 {} 的物品 {} (guid: {}) 已经在主人 {} 的背包/银行里，丢弃机器人身上的重复副本",
+                    me->GetName().c_str(), me->GetEntry(), uint32(slot), itemId, item->GetGUID().GetCounter(), master->GetName().c_str());
+                if (existing != item)
+                    delete item;
+            }
+            else if (store_to_bank)
             {
                 BotDataMgr::DepositBotBankItem(receiver, item);
             }
@@ -16348,6 +16362,8 @@ void bot_ai::InitEquips()
 
         PreparedQueryResult iiresult = CharacterDatabase.Query(stmt);
 
+        bool has_dangling_equip = false;
+
         if (!iiresult) //blank bot - fill with standard items
         {
             for (auto i : NPCBots::index_array<uint8, MAX_EQUIPMENT_ITEMS>)
@@ -16363,12 +16379,64 @@ void bot_ai::InitEquips()
         }
         else
         {
+            // 双持脏数据自愈：装备列里的 guid 可能已经回到某个角色背包（历史上卸下装备时装备列没落库）。
+            // 这类记录若照常加载，同一件物品会同时出现在背包和 bot 身上，之后卸下时又会被塞进背包的
+            // 另一个格子，玩家就会看到「凭空多出一件一模一样的装备」。
+            // 这里先查出仍挂在 character_inventory 的 guid，加载时直接跳过并清空对应槽位。
+            // 注意：邮件(mail_items)与账号银行(account_bank_item)里的物品不在 character_inventory，
+            // 目前不参与该校验
+            CharacterDatabasePreparedStatement* inv_stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_NPCBOT_EQUIP_IN_INVENTORY);
+            for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+                inv_stmt->SetData(i, _botData->equips[i]);
+
+            std::unordered_set<uint32> equips_in_inventory;
+            if (PreparedQueryResult inv_result = CharacterDatabase.Query(inv_stmt))
+            {
+                do
+                    equips_in_inventory.insert((*inv_result)[0].Get<uint32>());
+                while (inv_result->NextRow());
+            }
+
             Field* fields2;
             do
             {
                 fields2 = iiresult->Fetch();
                 uint32 itemGuidLow = fields2[11].Get<uint32>();
                 uint32 itemId = fields2[12].Get<uint32>();
+                uint32 itemOwnerLow = fields2[13].Get<uint32>();
+
+                // guid 确实存在于 item_instance，不再算悬空
+                for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+                {
+                    if (assigned_item_guids[i] == itemGuidLow)
+                        assigned_item_guids[i] = 0;
+                }
+
+                // 归属不是当前主人（且非空）：可能是跨角色残留，仅记录告警不阻断加载，
+                // 避免把共享 owner 给 bot 装备、主人变更等历史数据当成脏数据清掉而丢装备
+                if (itemOwnerLow != 0 && itemOwnerLow != _botData->owner)
+                {
+                    BOT_LOG_WARN("npcbots", "InitEquips: 机器人 {} {} 主人 {} 的装备列 guid {} (物品 {}) 归属角色 {}，仍照常加载",
+                        me->GetEntry(), me->GetName(), _botData->owner, itemGuidLow, itemId, itemOwnerLow);
+                }
+
+                // 该物品仍挂在某个角色背包里：绝不能加载，否则同一件物品会在背包与 bot 身上各存一份，
+                // 之后卸下时会被塞进背包的另一个格子，玩家就会看到凭空多出一件一模一样的装备
+                if (equips_in_inventory.contains(itemGuidLow))
+                {
+                    BOT_LOG_ERROR("npcbots", "InitEquips: 机器人 {} {} 主人 {} 的装备列 guid {} (物品 {}) 仍挂在玩家背包中，重置该槽位！",
+                        me->GetEntry(), me->GetName(), _botData->owner, itemGuidLow, itemId);
+                    for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
+                    {
+                        if (_botData->equips[i] == itemGuidLow)
+                        {
+                            _botData->equips[i] = 0;
+                            has_dangling_equip = true;
+                        }
+                    }
+                    continue;
+                }
+
                 Item* item = new Item;
                 ASSERT(item->LoadFromDB(itemGuidLow, equipOwnerGuid, fields2, itemId));
                 //gonna find where to store our new item
@@ -16384,22 +16452,16 @@ void bot_ai::InitEquips()
                     }
                 }
                 ASSERT(found);
-                for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
-                {
-                    if (assigned_item_guids[i] == itemGuidLow)
-                        assigned_item_guids[i] = 0;
-                }
 
             } while (iiresult->NextRow());
         }
 
         // 清理悬空引用：characters_npcbot 中指向已不存在的 item_instance 的装备槽位，直接重置该槽位
-        bool has_dangling_equip = false;
         for (auto i : NPCBots::index_array<uint8, BOT_INVENTORY_SIZE>)
         {
             if (assigned_item_guids[i] != 0)
             {
-                BOT_LOG_ERROR("npcbots", "InitEquips: bot {} {} owner {} has item guid {} assigned to slot {} which doesn't exist in DB! Resetting slot!",
+                BOT_LOG_ERROR("npcbots", "InitEquips: 机器人 {} {} 主人 {} 的装备列 guid {} 指向的槽位 {} 在数据库中不存在，重置该槽位！",
                     me->GetEntry(), me->GetName(), _botData->owner, assigned_item_guids[i], uint32(i));
                 _botData->equips[i] = 0;
                 has_dangling_equip = true;
