@@ -1177,7 +1177,9 @@ bool BotMgr::RemoveBotFromGroup(Creature* bot)
 
     RemoveBotFromBGQueue(bot);
 
-    if (bot->GetBotAI()->HasRole(BOT_ROLE_PARTY) && !_owner->GetSession()->PlayerLogout())
+    // 登出时若配置了“登出离开队伍”，队伍会被解散，此时必须一并清除 BOT_ROLE_PARTY 角色，
+    // 否则下次登录机器人会因残留的 PARTY 角色自动重新组队（表现为“登出已解散、上线却还在队里”）。
+    if (bot->GetBotAI()->HasRole(BOT_ROLE_PARTY) && (!_owner->GetSession()->PlayerLogout() || sWorld->getBoolConfig(CONFIG_LEAVE_GROUP_ON_LOGOUT)))
         bot->GetBotAI()->ToggleRole(BOT_ROLE_PARTY, true);
 
     //debug
