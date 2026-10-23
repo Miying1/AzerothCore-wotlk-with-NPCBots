@@ -668,7 +668,13 @@ SpellCastResult bot_ai::CheckBotCast(Unit const* victim, uint32 spellId) const
     //immunities
     if (victim->isType(TYPEMASK_UNIT))
     {
-        if (spellInfo->HasEffect(SPELL_EFFECT_HEAL) || spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL))
+        if (IsDpsStopped() && victim->IsHostileTo(me) &&
+            !spellInfo->HasEffect(SPELL_EFFECT_HEAL) && !spellInfo->HasEffect(SPELL_EFFECT_HEAL_PCT) &&
+            !spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL))
+            return SPELL_FAILED_DONT_REPORT;
+
+        if (spellInfo->HasEffect(SPELL_EFFECT_HEAL) || spellInfo->HasEffect(SPELL_EFFECT_HEAL_PCT) ||
+            spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL))
         {
             //banish or something
             Unit::AuraEffectList const& healPctEffects = victim->GetAuraEffectsByType(SPELL_AURA_MOD_HEALING_PCT);
@@ -770,6 +776,10 @@ bool bot_ai::doCast(Unit* victim, uint32 spellId, TriggerCastFlags flags)
         return false;
 
     m_botSpellInfo = m_botSpellInfo->TryGetSpellInfoOverride(me);
+
+    if (IsDpsStopped() &&
+        victim->IsHostileTo(me) && !m_botSpellInfo->IsPositive())
+        return false;
 
     //select aura level
     if (victim->isType(TYPEMASK_UNIT))
@@ -1270,6 +1280,10 @@ void bot_ai::SetBotCommandState(uint32 st, bool force, Position* newpos, float* 
             opponent = nullptr;
             if (mover->isMoving())
                 mover->ToCreature()->BotStopMovement();
+        }
+        else if (st & BOT_COMMAND_STOP_DPS)
+        {
+            me->AttackStop();
         }
         else if (st & BOT_COMMAND_STAY)
         {
@@ -3811,6 +3825,8 @@ bool bot_ai::CanBotAttack(Unit const* target, int8 byspell, bool secondary) cons
         return false;
     if (HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION))
         return false;
+    if (IsDpsStopped() && target->IsHostileTo(me))
+        return false;
     if (target->HasUnitState(UNIT_STATE_EVADE | UNIT_STATE_IN_FLIGHT))
         return false;
     //if (target->IsCombatDisallowed())
@@ -4820,6 +4836,13 @@ bool bot_ai::CheckAttackTarget()
 
     if (IAmFree() && Feasting())
         return false;
+
+    if (IsDpsStopped())
+    {
+        opponent = nullptr;
+        disttarget = nullptr;
+        return false;
+    }
 
     bool ranged = HasRole(BOT_ROLE_RANGED);
     bool byspell = false;
@@ -6250,6 +6273,13 @@ bool bot_ai::AdjustTankingPosition(Unit const* mytarget) const
 
 void bot_ai::CheckAttackState()
 {
+    if (IsDpsStopped())
+    {
+        if (me->GetVictim())
+            me->AttackStop();
+        return;
+    }
+
     if (me->GetVictim() && me->GetVictim()->IsAlive())
     {
         if (HasRole(BOT_ROLE_DPS) && !me->HasAuraType(SPELL_AURA_MOD_STEALTH) && !me->HasAuraType(SPELL_AURA_MOD_INVISIBILITY) &&

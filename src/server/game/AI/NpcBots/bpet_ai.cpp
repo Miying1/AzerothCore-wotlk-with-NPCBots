@@ -1467,7 +1467,8 @@ void bot_pet_ai::RefreshAura(uint32 spellId, int8 count, Unit* target) const
 //All code above 'x = _getTarget() call must not dereference opponent since it can be invalid
 Unit* bot_pet_ai::_getTarget(bool &reset) const
 {
-    if (petOwner->GetBotAI()->HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION))
+    if (petOwner->GetBotAI()->HasBotCommandState(BOT_COMMAND_FULLSTOP | BOT_COMMAND_INACTION) ||
+        petOwner->GetBotAI()->IsDpsStopped())
         return nullptr;
     if (petOwner->GetBotAI()->GetEngageTimer() > lastdiff)
         return nullptr;

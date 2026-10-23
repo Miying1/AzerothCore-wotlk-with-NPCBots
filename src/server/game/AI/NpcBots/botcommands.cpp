@@ -597,6 +597,8 @@ public:
             { "equip",      HandleNpcBotCommandEquipListCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_EQUIPLIST,          Console::No  },
             { "standstill", HandleNpcBotCommandStandstillCommand,   rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STANDSTILL, Console::No  },
             { "stopfully",  HandleNpcBotCommandStopfullyCommand,    rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_STOPFULLY,  Console::No  },
+            { "stopdps",    HandleNpcBotCommandStopDpsCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
+            { "startdps",   HandleNpcBotCommandResumeDpsCommand,     rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "follow",     npcbotCommandFollowCommandTable                                                                         },
             { "mass",       HandleNpcBotCommandMassCommand,         rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
             { "unmass",     HandleNpcBotCommandUnmassCommand,       rbac::RBAC_PERM_COMMAND_NPCBOT_COMMAND_MISC,       Console::No  },
@@ -4934,6 +4936,77 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         }
 
         handler->SendSysMessage(msg);
+        return true;
+    }
+
+    static bool HandleNpcBotCommandStopDpsCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage("你没有机器人。");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Unit* selected = owner->GetSelectedUnit();
+        Creature* selectedBot = selected ? owner->GetBotMgr()->GetBot(selected->GetGUID()) : nullptr;
+        uint32 stoppedCount = 0;
+        for (auto const& [_, bot] : *owner->GetBotMgr()->GetBotMap())
+        {
+            if (selectedBot && bot != selectedBot)
+                continue;
+
+            bot_ai* ai = bot->GetBotAI();
+            if (!ai->HasRole(BOT_ROLE_DPS) || ai->IsTank())
+                continue;
+
+            ai->SetBotCommandState(BOT_COMMAND_STOP_DPS);
+            if (!ai->IsDpsStopped())
+                continue;
+
+            // 兜底：SetBotCommandState 在载具不可控（mover==nullptr）时不触发 AttackStop，这里统一停手
+            bot->AttackStop();
+            ++stoppedCount;
+        }
+
+        if (!stoppedCount)
+        {
+            handler->SendSysMessage("没有符合条件的输出机器人（坦克不受此命令影响）。");
+            return true;
+        }
+
+        handler->PSendSysMessage("已停止 {} 个机器人的输出。", stoppedCount);
+        return true;
+    }
+
+    static bool HandleNpcBotCommandResumeDpsCommand(ChatHandler* handler)
+    {
+        Player* owner = handler->GetSession()->GetPlayer();
+        if (!owner->HaveBot())
+        {
+            handler->SendSysMessage("你没有机器人。");
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Unit* selected = owner->GetSelectedUnit();
+        Creature* selectedBot = selected ? owner->GetBotMgr()->GetBot(selected->GetGUID()) : nullptr;
+        uint32 resumedCount = 0;
+        for (auto const& [_, bot] : *owner->GetBotMgr()->GetBotMap())
+        {
+            if (selectedBot && bot != selectedBot)
+                continue;
+
+            bot_ai* ai = bot->GetBotAI();
+            if (ai->HasRole(BOT_ROLE_DPS) && !ai->IsTank() && ai->IsDpsStopped())
+            {
+                ai->RemoveBotCommandState(BOT_COMMAND_STOP_DPS);
+                ++resumedCount;
+            }
+        }
+
+        handler->PSendSysMessage("已恢复 {} 个机器人的输出。", resumedCount);
         return true;
     }
 

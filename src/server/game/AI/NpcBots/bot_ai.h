@@ -165,6 +165,7 @@ public:
     void MarkSendPosition(uint32 point_id);
     void SetBotCommandState(uint32 st, bool force = false, Position* newpos = nullptr, float* speed = nullptr);
     void RemoveBotCommandState(uint32 st);
+    bool IsDpsStopped() const { return HasBotCommandState(BOT_COMMAND_STOP_DPS) && HasRole(BOT_ROLE_DPS) && !IsTank(); }
     bool HasBotCommandState(uint32 st) const { return (_botCommandState & st); }
     void SetBotAwaitState(uint8 state);
     inline void RemoveBotAwaitState(uint8 state) { _botAwaitState &= ~state; }
