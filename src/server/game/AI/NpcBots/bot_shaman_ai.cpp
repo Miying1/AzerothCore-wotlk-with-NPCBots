@@ -1755,8 +1755,8 @@ public:
             if ((GetSpec() == BOT_SPEC_SHAMAN_ELEMENTAL) &&
                 lvl >= 35 && ((spellInfo->SpellFamilyFlags[0] & 0x3) || (spellInfo->SpellFamilyFlags[1] & 0x1000)))
                 timebonus += 500;
-            //Stormcaller Chain Heal Bonus (26122): -0.4 sec
-            if (lvl >= 60 && spellId == GetSpell(CHAIN_HEAL_1))
+            //风暴召唤者套装奖励：装备效果生效时治疗链施法缩短0.4秒
+            if (me->HasAura(26122) && spellId == GetSpell(CHAIN_HEAL_1))
                 timebonus += 400;
 
             casttime = std::max<int32>((float(casttime) * (1.0f - pctbonus)) - timebonus, 0);
@@ -1826,9 +1826,9 @@ public:
             int32 timebonus = 0;
             float pctbonus = 0.0f;
 
-            //Improved Reincarnation + Reduced Reincarnation Cooldown: -20 min cooldown for Reincarnation
+            //强化复生保留15分钟减冷却，套装奖励生效时再减少5分钟
             if (spellId == GetSpell(REINCARNATION_1))
-                timebonus += 1200000;
+                timebonus += 900000 + (me->HasAura(27797) ? 300000 : 0);
 
             cooldown = std::max<int32>((float(cooldown) * (1.0f - pctbonus)) - timebonus, 0);
         }
@@ -2146,12 +2146,12 @@ public:
                 }
             }
 
-            //Shields improvement, replaces Static Shock (part 2) and Improved Earth Shield (part 1)
+            //水盾和大地之盾额外增加2层，闪电盾保持额外6层
             if (baseId == LIGHTNING_SHIELD_1 || baseId == EARTH_SHIELD_1 || baseId == WATER_SHIELD_1)
             {
                 if (Aura* shield = target->GetAura(spellId, me->GetGUID()))
                 {
-                    shield->SetCharges(shield->GetCharges() + 6);
+                    shield->SetCharges(shield->GetCharges() + (baseId == LIGHTNING_SHIELD_1 ? 6 : 2));
                 }
             }
 
@@ -2714,7 +2714,7 @@ public:
 
             RefreshAura(SHAMAN_FLAME_SHOCK_PASSIVE);
 
-            RefreshAura(SHAMAN_T10_RESTO_4P, level >= 70 ? 1 : 0);
+            //套装奖励由通用装备逻辑按实际件数添加和移除
 
             RefreshAura(GLYPH_THUNDERSTORM, GetSpell(THUNDERSTORM_1) ? 1 : 0);
             RefreshAura(GLYPH_TOTEM_OF_WRATH, GetSpell(TOTEM_OF_WRATH_1) ? 1 : 0);

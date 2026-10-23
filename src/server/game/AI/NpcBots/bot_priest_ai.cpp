@@ -222,6 +222,39 @@ public:
             return bot_ai::doCast(victim, spellId);
         }
 
+        void CheckShadowfiend(uint32 diff)
+        {
+            if (!HasRole(BOT_ROLE_HEAL) || GetSpec() == BOT_SPEC_PRIEST_SHADOW ||
+                !IsSpellReady(SHADOWFIEND_1, diff) || IsCasting() || GetManaPCT(me) >= 60 || GetBotsPet())
+                return;
+
+            Unit* target = me->GetVictim();
+            if (!target && !IAmFree())
+                target = master->GetVictim();
+            if (!target || !target->IsAlive() || !target->IsInCombat() ||
+                !me->IsValidAttackTarget(target) || me->GetDistance(target) > 30)
+            {
+                target = nullptr;
+                std::list<Unit*> targets;
+                GetNearbyTargetsList(targets, 30.f, 0);
+                for (Unit* candidate : targets)
+                {
+                    if (candidate->IsAlive() && candidate->IsInCombat() && me->IsValidAttackTarget(candidate))
+                    {
+                        target = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (!target)
+                return;
+
+            SummonBotPet(target);
+            if (GetBotsPet())
+                SetSpellCooldown(SHADOWFIEND_1, 300000);
+        }
+
         void CheckHymnOfHope(uint32 diff)
         {
             if (!IsSpellReady(HYMN_OF_HOPE_1, diff) || Rand() > 45 || IsCasting() || IsTank())
@@ -232,18 +265,29 @@ public:
                 return;
 
             uint8 LMPcount = 0;
+            uint8 lowHealerCount = 0;
             for (Unit const* member : BotMgr::GetAllGroupMembers(gr))
             {
                 if (me->GetMap() != member->FindMap() || !member->IsAlive() || !member->IsInCombat() ||
-                    me->GetDistance(member) > 40 || GetManaPCT(member) > (HasRole(BOT_ROLE_HEAL) ? 10 : 50) ||
-                    (member->IsNPCBot() && member->ToCreature()->IsTempBot()) ||
+                    me->GetDistance(member) > 40 || (member->IsNPCBot() && member->ToCreature()->IsTempBot()))
+                    continue;
+
+                //治疗牧不在队友濒危或预计即将濒危时开始引导
+                if (HasRole(BOT_ROLE_HEAL) && (GetHealthPCT(member) < 40 ||
+                    int32(member->GetHealth()) + GetHPS(member) * 3 < int32(member->GetMaxHealth() * 0.4f)))
+                    return;
+
+                if (member->GetPowerType() != POWER_MANA || member->GetMaxPower(POWER_MANA) <= 1 ||
                     member->GetAuraEffect(SPELL_AURA_MOD_INCREASE_ENERGY, SPELLFAMILY_PRIEST, 0x0, 0x0, 0x10))
                     continue;
-                if (++LMPcount > 2)
-                    break;
+                if (GetManaPCT(member) < 40)
+                    ++lowHealerCount;
+                if (GetManaPCT(member) <= 50)
+                    ++LMPcount;
             }
 
-            if (LMPcount > 2 && doCast(me, GetSpell(HYMN_OF_HOPE_1)))
+            bool needsMana = HasRole(BOT_ROLE_HEAL) ? (GetManaPCT(me) < 40 || lowHealerCount >= 2) : LMPcount > 2;
+            if (needsMana && doCast(me, GetSpell(HYMN_OF_HOPE_1)))
                 return;
         }
 
@@ -262,6 +306,7 @@ public:
 
             uint8 LHPcount1, LHPcount2, LHPcount3;
             LHPcount1 = LHPcount2 = LHPcount3 = 0;
+            uint8 criticalPartyCount = 0;
             uint8 lowestPCT = 100;
             Unit* castTarget = nullptr;
 
@@ -275,20 +320,18 @@ public:
                 float dist = me->GetDistance(member);
                 uint8 pct = GetHealthPCT(member);
                 if (canHymn && pct < std::min<uint32>(80, 50 + member->getAttackers().size()*10) && GetLostHP(member) > 4000 && dist < 40)
+                    ++LHPcount1;
+                //治疗祷言只统计实际能命中的自身小队成员
+                if (canPray && pct < 65 && dist < 30 && me->IsInPartyWith(member))
                 {
-                    if (++LHPcount1 > 2)
-                        break;
-                }
-                if (canPray && pct < 65 && dist < 36)
-                {
-                    if (++LHPcount2 > 3)
-                        break;
+                    ++LHPcount2;
+                    if (pct < 50)
+                        ++criticalPartyCount;
                 }
                 //治疗之环放宽：≥1 人 <80% 且 15 码内有第二个低血单位（5 人小队可正常触发）
                 if (canCirc && pct < 80 && dist < 40 && (!castTarget || castTarget->GetDistance(member) < 15))
                 {
-                    if (++LHPcount3 > 1)
-                        break;
+                    ++LHPcount3;
                     if (pct < lowestPCT)
                     {
                         lowestPCT = pct;
@@ -299,7 +342,7 @@ public:
 
             if (LHPcount1 > 2 && doCast(me, GetSpell(DIVINE_HYMN_1)))
                 return true;
-            if (LHPcount2 > 3)
+            if (LHPcount2 >= 3 || criticalPartyCount >= 2)
             {
                 if (me->IsInCombat() && IsSpellReady(INNER_FOCUS_1, diff) && GetManaPCT(me) < 70 &&
                     doCast(me, GetSpell(INNER_FOCUS_1)))
@@ -565,6 +608,7 @@ public:
             {
                 CheckSilence(diff);
                 CheckDispel(diff);
+                CheckShadowfiend(diff);
                 CheckHymnOfHope(diff);
                 CheckManaBurn(diff);
             }
@@ -960,9 +1004,9 @@ public:
                 doCast(target, GetSpell(PENANCE_1)))
                 return true;
 
-            //神圣系：先刷快速治疗堆好运，再放强效治疗术（缩短施法时间）
-            if (GetSpec() == BOT_SPEC_PRIEST_HOLY && IsSpellReady(FLASH_HEAL_1, diff) &&
-                IsSpellReady(HEAL, diff) && hp > 40 && !me->HasAura(SERENDIPITY_BUFF) &&
+            //神圣系：仅在法力充足且目标未来仍有较大缺血时用快速治疗叠好运
+            if (GetSpec() == BOT_SPEC_PRIEST_HOLY && GetManaPCT(me) > 60 && IsSpellReady(FLASH_HEAL_1, diff) &&
+                IsSpellReady(HEAL, diff) && hp > 40 && hp <= 60 && !me->HasAura(SERENDIPITY_BUFF) &&
                 xphploss > GetHealAmount(HEAL) && Rand() < 60 &&
                 doCast(target, GetSpell(FLASH_HEAL_1)))
                 return true;
@@ -976,9 +1020,13 @@ public:
                 if (doCast(target, GetSpell(HEAL)))
                     return true;
             }
-            //恢复（HoT 治疗）：缺失或剩余 <3 秒时提前补（避免断档，尤其坦克）
-            if (IsSpellReady(RENEW_1, diff) && (tanking || !target->getAttackers().empty() || me->GetMap()->IsDungeon()) &&
-                AuraExpiringSoon(target->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_PRIEST, 0x40, 0x0, 0x0, me->GetGUID()), 3000))
+            //恢复：新施放需缺血，提前续补另需持续掉血或更低血量
+            AuraEffect const* renew = target->GetAuraEffect(
+                SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_PRIEST, 0x40, 0x0, 0x0, me->GetGUID());
+            if (IsSpellReady(RENEW_1, diff) && hp < (IsTank(target) ? 90 : 85) && xppct < 95 &&
+                (!renew || hp < (IsTank(target) ? 85 : 75) || hps < 0) &&
+                (tanking || !target->getAttackers().empty() || me->GetMap()->IsDungeon()) &&
+                AuraExpiringSoon(renew, 3000))
             {
                 if (doCast(target, GetSpell(RENEW_1)))
                     return true;

@@ -2048,10 +2048,10 @@ public:
                     pctbonus += 1.0f;
 
             //percent mods
-            //Tree of Life Passive (5420) (activates when learned):
+            //生命之树被动：对应治疗法术减耗20%
             if ((GetSpec() == BOT_SPEC_DRUID_RESTORATION) &&
                 lvl >= 50 && ((spellInfo->SpellFamilyFlags[0] & 0x50) || (spellInfo->SpellFamilyFlags[1] & 0x4000010)))
-                pctbonus += 0.5f;
+                pctbonus += 0.2f;
             //Glyph of the Wild:
             if (lvl >= 15 && baseId == MARK_OF_THE_WILD_1)
                 pctbonus += 0.5f;
@@ -2139,9 +2139,14 @@ public:
             //Naturalist: -0.5 sec cast time for Healing Touch
             if (lvl >= 15 && baseId == HEALING_TOUCH_1)
                 timebonus += 500;
-            //Regrowth bonus (ids:21872,46834): -0.2 x2 sec cast time for Regrowth
-            if (lvl >= 68 && baseId == REGROWTH_1)
-                timebonus += 400;
+            //仅在对应装备奖励生效时缩短愈合施法时间
+            if (baseId == REGROWTH_1)
+            {
+                if (me->HasAura(21872))
+                    timebonus += 200;
+                if (me->HasAura(46834))
+                    timebonus += 200;
+            }
 
             casttime = std::max<int32>(int32((float(casttime) * (1.0f - pctbonus)) - timebonus), 0);
         }
@@ -2217,8 +2222,8 @@ public:
                 pctbonus += 1.0f;
 
             //flat mods
-            //Genesis Rebirth Bonus (26106): -5 min cooldown for Rebirth
-            if (baseId == REBIRTH_1)
+            //起源套装奖励：装备效果生效时复生冷却缩短5分钟
+            if (baseId == REBIRTH_1 && me->HasAura(26106))
                 timebonus += 300000;
             //Improved Mangle part 1: -1.5 sec cooldown for Mangle (Bear)
             if (lvl >= 50 && baseId == MANGLE_BEAR_1)
@@ -3027,14 +3032,7 @@ public:
             RefreshAura(GLYPH_BARKSKIN, level >= 44 ? 1 : 0);
             RefreshAura(GLYPH_RAKE, level >= 24 ? 1 : 0);
             RefreshAura(GLYPH_SHRED, level >= 22 ? 1 : 0);
-            RefreshAura(T10_RESTO_P4_BONUS, level >= 80 ? 1 : 0);
-            RefreshAura(T9_RESTO_P4_BONUS, level >= 80 ? 1 : 0);
-            RefreshAura(T8_RESTO_P4_BONUS, level >= 78 ? 1 : 0);
-            RefreshAura(T9_BALANCE_P2_BONUS, level >= 78 ? 1 : 0);
-            RefreshAura(T10_BALANCE_P2_BONUS, level >= 78 ? 1 : 0);
-            RefreshAura(T10_BALANCE_P4_BONUS, level >= 78 ? 1 : 0);
-            RefreshAura(T8_FERAL_P2_BONUS, level >= 78 ? 1 : 0);
-            RefreshAura(T10_FERAL_P4_BONUS, level >= 80 ? 1 : 0);
+            //套装奖励由通用装备逻辑按实际件数添加和移除
         }
 
         bool CanUseManually(uint32 basespell) const override

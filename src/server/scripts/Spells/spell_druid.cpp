@@ -1189,14 +1189,22 @@ class spell_dru_t10_restoration_4p_bonus : public SpellScript
 
             targets.remove(GetExplTargetUnit());
             std::list<Unit*> tempTargets;
-            Group const* gr = bot->GetBotOwner()->GetGroup();
-            if (gr && !gr->IsMember(bot->GetGUID()))
-                gr = nullptr;
+            Player const* owner = bot->GetBotOwner();
+            Group const* group = owner->GetGroup();
+            //仅允许同队玩家和BOT；无队伍时允许主人及同主人BOT
+            for (WorldObject* target : targets)
+            {
+                Unit* unit = target->ToUnit();
+                if (!unit || (!unit->IsPlayer() && !unit->IsNPCBot()))
+                    continue;
 
-            if (gr)
-                for (std::list<WorldObject*>::const_iterator itr = targets.begin(); itr != targets.end(); ++itr)
-                    if (gr->IsMember((*itr)->GetGUID()))
-                        tempTargets.push_back((*itr)->ToUnit());
+                Player const* targetOwner = unit->IsNPCBot() ? unit->ToCreature()->GetBotOwner() : nullptr;
+                bool sameParty = group ? (group->IsMember(unit->GetGUID()) ||
+                    (targetOwner && group->IsMember(targetOwner->GetGUID()))) :
+                    (unit == owner || targetOwner == owner);
+                if (sameParty && !unit->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_DRUID, 64, EFFECT_0))
+                    tempTargets.push_back(unit);
+            }
 
             if (tempTargets.empty())
             {
@@ -1927,7 +1935,15 @@ class spell_dru_t10_restoration_4p_bonus_dummy : public AuraScript
         if (!healInfo || !healInfo->GetHeal())
             return false;
 
-        Player* caster = eventInfo.GetActor()->ToPlayer();
+        Unit* actor = eventInfo.GetActor();
+        if (!actor)
+            return false;
+
+        //BOT由跳转法术筛选同队目标，保留玩家原有触发条件
+        if (actor->IsNPCBot())
+            return true;
+
+        Player* caster = actor->ToPlayer();
         if (!caster)
             return false;
 
