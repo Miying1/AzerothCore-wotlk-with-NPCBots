@@ -14,6 +14,7 @@
 #include "ObjectAccessor.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
+#include <string_view>
 
 class TransmogItem_WorldScript : public WorldScript
 {
@@ -703,8 +704,17 @@ public:
         uint16 account_id = player->GetSession()->GetAccountId();
         ItemTemplate const* proto = item->GetTemplate();
         std::string name = proto->Name1;
+        // 物品名以"幻象"开头时去掉该前缀，例如"幻象*寒冰"取得"寒冰"
+        static std::string_view const illusionPrefix = "幻象";
+        if (name.size() > illusionPrefix.size() && std::string_view(name).starts_with(illusionPrefix))
+        {
+            name.erase(0, illusionPrefix.size());
+            // 再去掉前缀后紧跟的分隔符 '*'
+            if (!name.empty() && name.front() == '*')
+                name.erase(0, 1);
+        }
         uint32 modelid= static_cast<uint32>(std::stoll(proto->Description));
-        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid,3)) {
+        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid, proto->Quality)) {
             std::ostringstream msg;
             msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
