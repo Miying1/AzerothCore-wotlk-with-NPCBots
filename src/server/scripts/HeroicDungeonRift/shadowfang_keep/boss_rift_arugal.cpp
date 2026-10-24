@@ -94,7 +94,7 @@ struct boss_rift_arugal : public BossAIBase
                 break;
             case EventSummonVoidwalkers:
                 SummonVoidwalkers();
-                events.ScheduleEvent(EventSummonVoidwalkers, _tier == 3 ? 30s : 45s);
+                events.ScheduleEvent(EventSummonVoidwalkers, _tier == 3 ? 50s : 60s);
                 break;
             case EventTier3Skill: // T3新增：暗影箭雨，瞬发
                 CastFinalRaidDamageSpell(me, SpellShadowBoltVolley, SPELLVALUE_BASE_POINT0,

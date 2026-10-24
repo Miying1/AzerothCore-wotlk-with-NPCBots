@@ -60,7 +60,13 @@ struct boss_rift_smolderweb : public BossAIBase
         BossAIBase::JustDied(nullptr);
     }
 
-    void ConfigureTier() override { }
+    void ConfigureTier() override
+    {
+        // 蛛后的乳汁与结晶走非触发式施法，读条期间免疫打断，避免被玩家连续打断导致技能失效；
+        // T2毒液喷吐与T3蛛网本身是触发式瞬发，不需要读条保护。
+        AddInterruptImmuneSpell(SpellMothersMilk);
+        AddInterruptImmuneSpell(SpellCrystallize);
+    }
 
     void ExecuteRiftEvent(uint32 eventId) override
     {
