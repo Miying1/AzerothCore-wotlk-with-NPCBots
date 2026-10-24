@@ -15,6 +15,10 @@
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
 #include <string_view>
+#include <cerrno>
+#include <cstdlib>
+#include "DBCStores.h"
+#include "Log.h"
 
 class TransmogItem_WorldScript : public WorldScript
 {
@@ -692,6 +696,15 @@ public:
     }
 
 };
+// 物品品质（0 粗糙 ~ 5 传说）换算成哈哈镜的品质分组：固定按 Quality - 2 计算，最小为 0。
+// 分组本来是按生物等级（rank 0~3）建立的，直接用物品品质当键会让品质 4/5 的物品落进
+// 没有菜单入口的分组（菜单只遍历 0~3），于是"使用成功但镜子里看不到"。
+// 换算后：粗糙/普通/优秀 -> 0(普通)，精良 -> 1(精英)，史诗 -> 2(稀有)，传说 -> 3(史诗)
+static uint32 MapItemQualityToTransmogGroup(uint32 itemQuality)
+{
+    return itemQuality > 2 ? itemQuality - 2 : 0;
+}
+
 //使用物品收藏变身模型
 class PlayerTransmog_ItemScript : public ItemScript
 {
@@ -713,8 +726,48 @@ public:
             if (!name.empty() && name.front() == '*')
                 name.erase(0, 1);
         }
-        uint32 modelid= static_cast<uint32>(std::stoll(proto->Description));
-        if (auto data= pTransmog->AddModelDataById(account_id, name, modelid, proto->Quality)) {
+
+        // 物品说明栏存的是幻形目标的 DisplayID，必须是纯数字。
+        // 不能用 std::stoll：说明栏为空或非数字时它会抛异常，直接打断整条 use item 流程。
+        std::string const& desc = proto->Description;
+        char* end = nullptr;
+        errno = 0;
+        unsigned long long parsed = std::strtoull(desc.c_str(), &end, 10);
+        uint32 modelid = static_cast<uint32>(parsed);
+        if (desc.empty() || errno == ERANGE || !end || *end != '\0' || parsed > 0xFFFFFFFFull)
+        {
+            LOG_ERROR("module.transmog", "Item {} ({}) has non-numeric description '{}', expected a display id",
+                      item->GetEntry(), name, desc);
+            ch.SendSysMessage("这件幻象物品的数据有误（说明栏不是有效的模型 ID），无法收集。");
+            return false;
+        }
+        if (!sCreatureDisplayInfoStore.LookupEntry(modelid))
+        {
+            LOG_ERROR("module.transmog", "Item {} ({}) points to non-existing display id {}", item->GetEntry(), name, modelid);
+            ch.SendSysMessage("这件幻象物品对应的模型不存在，无法收集。");
+            return false;
+        }
+
+        // 分组换算后再入库，保证新收集的幻象能在"普通/精英/稀有/史诗"菜单里看到
+        uint32 group = MapItemQualityToTransmogGroup(proto->Quality);
+
+        // 提前区分失败原因，避免统一提示"已经拥有"误导玩家
+        if (pTransmog->GetModelDataById(account_id, modelid))
+        {
+            ch.SendSysMessage("你已经拥有了这个幻象，无需重复收集。");
+            return false;
+        }
+        if (QualityGroupMap* qGroup = pTransmog->GetAccountQualityGroupMap(account_id))
+        {
+            auto groupIt = qGroup->find(group);
+            if (groupIt != qGroup->end() && groupIt->second.size() >= 30)
+            {
+                ch.SendSysMessage("该类幻象已满30个，请先删掉部分旧幻象再收集。");
+                return false;
+            }
+        }
+
+        if (auto data = pTransmog->AddModelDataById(account_id, name, modelid, group)) {
             std::ostringstream msg;
             msg << "[" << pTransmog->GetModelNameText(data) << "]幻象已成功收集到了你的哈哈镜中。";
             ch.SendSysMessage(msg.str());
