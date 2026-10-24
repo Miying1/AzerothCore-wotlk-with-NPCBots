@@ -524,6 +524,11 @@ protected:
     // 返回一个位于危险圆外侧的绕行点，引导 bot 沿危险区边缘绕行，避免
     // "直穿危险区-被弹开-再直穿"的死循环导致 bot 始终无法靠近主人。
     bool TryGetAoeDetourPoint(Position const& start, Position const& goal, Position& detour) const;
+    // 以主人为圆心挑选危险区域外的落脚点，供停手（stopdps）且无有效攻击目标时躲避使用：
+    // 在候选安全点中取离 bot 最近、不超出跟随距离且视线可达的一个。
+    bool TryGetAoeSafeSpotAround(Position& pos) const;
+    // 躲圈落脚点与主人之间允许的最大水平距离（与 CalculateAttackPos 的距离上下限一致）
+    float GetAoeSafeSpotMaxCenterDist() const;
 
     float InitAttackRange(float origRange, bool ranged) const;
     void CalculateAttackPos(Unit* target, Position &pos, bool& force) const;
@@ -798,6 +803,9 @@ private:
     uint32 lastdiff{}, checkAurasTimer{}, roleTimer{}, actionsTimer{}, regenTimer{}, _updateTimerLong{}, _updateTimerMedium{}, _updateTimerEx1{}, _updateTimerEx2{};
     uint32 _checkOwershipTimer{}, _checkMasterTimer{};
     uint32 _moveBehindTimer{};
+    uint32 _aoeDodgeTimer{};   // 停手（stopdps）时躲避危险区：安全点重算节流（800ms）
+    Position _aoeDodgePos{};   // 停手时以主人为圆心选出的危险区外落脚点
+    bool _aoeDodgeValid{};
     uint32 _massNoCastTimer{}; // 集合跑位禁读条状态检测计时器（300ms 检测一次）
     uint32 _rentTimer{};
     uint32 _wmoAreaUpdateTimer{};

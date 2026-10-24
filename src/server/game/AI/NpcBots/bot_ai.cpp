@@ -52,8 +52,11 @@
 #include "Transport.h"
 #include "World.h"
 
+#include <algorithm>
 #include <limits>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -513,6 +516,9 @@ void bot_ai::ResetBotAI(uint8 resetType)
     _stayPosValid = false;
     _stayTactical = false;
     _stayFoughtInCombat = false;
+    _aoeDodgePos = Position{};
+    _aoeDodgeValid = false;
+    _aoeDodgeTimer = 0;
     _reviveTimer = 0;
     _forceLandTimer = 0;
 
@@ -4839,6 +4845,8 @@ bool bot_ai::CheckAttackTarget()
 
     if (IsDpsStopped())
     {
+        // 仅清空攻击目标：stopdps 期间 bot 不再跟随主人（跟随分支显式排除 IsDpsStopped），
+        // 危险区躲避交由 GlobalUpdate 中的独立分支处理
         opponent = nullptr;
         disttarget = nullptr;
         return false;
@@ -5619,6 +5627,61 @@ AoeSafeSpotsVec bot_ai::CalculateAoeSafeSpots(Unit* target, float maxdist) const
         }
     }
     return safespots;
+}
+
+float bot_ai::GetAoeSafeSpotMaxCenterDist() const
+{
+    // 与 CalculateAttackPos 采用同一套主人距离上下限，避免为了躲圈跑出跟随范围
+    uint8 const followdist = master->GetBotMgr()->GetBotFollowDist();
+    return followdist > 38 ? 38.0f : followdist < 20 ? 20.0f : float(followdist);
+}
+
+bool bot_ai::TryGetAoeSafeSpotAround(Position& pos) const
+{
+    if (IAmFree() || GetAoeSpots().empty())
+        return false;
+
+    // 候选点以主人为圆心采样，所选落脚点天然位于主人附近；
+    // 采样半径远大于跟随距离，再由下面的距离过滤保证不会为了躲圈跑太远。
+    AoeSafeSpotsVec safespots = CalculateAoeSafeSpots(master, float(BOT_AOE_SAFE_SPOT_DISTANCE));
+    if (safespots.empty())
+        return false;
+
+    float const maxCenterDist = GetAoeSafeSpotMaxCenterDist();
+
+    Unit const* mover = me->GetVehicle() ? me->GetVehicleBase() : me;
+
+    // 先按与 bot 的距离排序，再逐点做视线校验：通常第一次或前几次就命中，
+    // 避免对全部候选点都做 LOS 查询。
+    std::vector<std::pair<float, Position>> candidates;
+    candidates.reserve(safespots.size());
+    for (Position const& safepos : safespots)
+    {
+        if (master->GetExactDist2d(safepos) > maxCenterDist)
+            continue;
+        candidates.emplace_back(mover->GetExactDist2d(safepos), safepos);
+    }
+
+    std::sort(candidates.begin(), candidates.end(),
+        [](auto const& a, auto const& b) { return a.first < b.first; });
+
+    for (auto const& [_, safepos] : candidates)
+    {
+        // 候选点的 Z 取自主人所在位置，地形有高差时先落地再判视线，
+        // 否则会拿一个悬空/埋地的点做 LOS 校验
+        Position spot;
+        spot.Relocate(safepos);
+        mover->UpdateAllowedPositionZ(spot.m_positionX, spot.m_positionY, spot.m_positionZ);
+
+        if (IsWithinAoERadius(spot) ||
+            !mover->IsWithinLOS(spot.m_positionX, spot.m_positionY, spot.m_positionZ))
+            continue;
+
+        pos.Relocate(spot);
+        return true;
+    }
+
+    return false;
 }
 
 bool bot_ai::IsPeriodicDynObjAOEDamage(SpellInfo const* spellInfo)
@@ -19895,7 +19958,13 @@ bool bot_ai::GlobalUpdate(uint32 diff)
     //opponent unsafe
     bool updateMassPosition = !IAmFree() && master->IsAlive() &&
         master->GetBotMgr()->GetBotPositionControl()->CanUpdateMassPosition(*me, *this);
-    if ((IsWanderer() || (!IAmFree() && (!_lastTargetGuid || !GetAllowCombatPositioning())) || updateMassPosition) &&
+    // stopdps 期间 bot 原地待命：主人存活时显式禁止普通跟随（不再依赖 _lastTargetGuid 的隐式副作用）。
+    // 集合跑位（updateMassPosition）与主人死亡后的寻尸/跟随逻辑保持生效，避免掉队；
+    // 危险区躲避由下方独立分支负责。
+    bool const stopFollowing = IsDpsStopped() && master->IsAlive();
+    if ((IsWanderer() ||
+        (!IAmFree() && (!_lastTargetGuid || !GetAllowCombatPositioning()) && !stopFollowing) ||
+        updateMassPosition) &&
         !HasBotCommandState(BOT_COMMAND_STAY) &&
         (!me->GetVehicle() || (!CCed(me->GetVehicleBase(), true) && !me->GetVehicleBase()->GetTarget())))
     {
@@ -19978,6 +20047,7 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             {
                 float speed = 0.0f;
                 _calculatePos(mmover, movepos, &speed);
+
                 float maxdist = std::max<float>((mmover->IsPlayer() ? float(mmover->ToPlayer()->GetBotMgr()->GetBotFollowDist()) : BotMgr::GetBotFollowDistMax() / 2.f) *
                     ((mmover->m_movementInfo.GetMovementFlags() & MOVEMENTFLAG_FORWARD) ? 0.125f : mmover->isMoving() ? 0.03125f : 0.25f), 3.f);
                 Position destPos;
@@ -19991,6 +20061,50 @@ bool bot_ai::GlobalUpdate(uint32 diff)
             }
             else
                 RemoveBotCommandState(BOT_COMMAND_FOLLOW);
+        }
+    }
+
+    // 停手（stopdps）时 bot 不跟随主人，但必须能自主躲避危险区域：
+    // 战斗中无有效攻击目标时攻击走位（CalculateAttackPos/GetInPosition）不执行，
+    // bot 会一直站在危险区里挨打。此处只在自己踩到危险区时把 bot 挪到圈外，
+    // 使用点移动而不设置跟随命令状态，因此不会改变 stopdps 的原地待命语义。
+    if (!IAmFree() && IsDpsStopped() && !opponent && !disttarget &&
+        !HasBotCommandState(BOT_COMMAND_STAY | BOT_COMMAND_FULLSTOP) &&
+        master->IsAlive() && me->IsInMap(master))
+    {
+        Unit const* dodgeMover = me->GetVehicle() ? me->GetVehicleBase() : me;
+        if (!IsWithinAoERadius(dodgeMover->GetPosition()))
+        {
+            // 已离开危险区，丢弃缓存点：否则 800ms 节流窗口内再次进圈时会沿用上一处
+            // 危险区留下的旧点，主人移动或传送后甚至可能跑出几十码
+            _aoeDodgeValid = false;
+        }
+        else if (!IsCasting(dodgeMover) && !IsShootingWand(dodgeMover) && !CCed(dodgeMover, true))
+        {
+            // 安全点重算由计时器节流：每次要采样 200 个碰撞点，不宜每帧执行
+            if (_aoeDodgeTimer <= lastdiff)
+            {
+                _aoeDodgeTimer = 800;
+                _aoeDodgeValid = TryGetAoeSafeSpotAround(_aoeDodgePos);
+            }
+
+            // 缓存点须仍位于主人附近且未被危险区覆盖才使用：
+            // 主人移动/传送后旧点可能已远远落后，此时等节流到点后按新位置重算
+            if (_aoeDodgeValid &&
+                master->GetExactDist2d(&_aoeDodgePos) <= GetAoeSafeSpotMaxCenterDist() + 5.0f &&
+                !IsWithinAoERadius(_aoeDodgePos))
+            {
+                Position dodgeDestPos;
+                if (me->isMoving())
+                    me->GetMotionMaster()->GetDestination(dodgeDestPos.m_positionX, dodgeDestPos.m_positionY,
+                        dodgeDestPos.m_positionZ);
+                else
+                    dodgeDestPos = me->GetPosition();
+
+                // 已在前往该点（或已站在附近）时不再发点，避免每帧重开寻路导致原地抖动
+                if (dodgeDestPos.GetExactDist(&_aoeDodgePos) > 2.0f)
+                    BotMovement(BOT_MOVE_POINT, &_aoeDodgePos);
+            }
         }
     }
 
@@ -20042,6 +20156,8 @@ void bot_ai::CommonTimers(uint32 diff)
     if (checkAurasTimer > diff)     checkAurasTimer -= diff;
     if (waitTimer > diff)           waitTimer -= diff;
     if (_moveBehindTimer > diff)    _moveBehindTimer -= diff;
+    if (_aoeDodgeTimer > diff)      _aoeDodgeTimer -= diff;
+    else                            _aoeDodgeTimer = 0;
     if (itemsAutouseTimer > diff)   itemsAutouseTimer -= diff;
     if (evadeDelayTimer > diff)     evadeDelayTimer -= diff;
     if (roleTimer > diff)           roleTimer -= diff;
