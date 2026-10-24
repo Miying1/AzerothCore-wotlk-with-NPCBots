@@ -3191,6 +3191,24 @@ void BotDataMgr::UpdateNpcBotDataAll(uint32 playerGuid, NpcBotDataUpdateType upd
             bstmt->SetData(1, uint64(1ULL));
             bstmt->SetData(2, playerGuid);
             trans->Append(bstmt);
+
+            // 内存同步（角色删除唯一入口）：调用方 Player::DeleteFromDB() 在清零装备列之后还会执行
+            // DELETE FROM item_instance WHERE owner_guid = <角色>，而 bot 的装备行正是以主人角色为归属
+            // 写进 item_instance 的，于是这些物品行会随角色一起消失。
+            // 如果只清数据库不清内存，机器人会继续以为自己带着那些 guid：下一次 _updateEquips() 会把
+            // 已删除的物品行重新 REPLACE 回 item_instance，或者在下次载入时反复报
+            // 「装备列 guid 指向的槽位在数据库中不存在」。
+            for (auto& [_, bot_data] : _botsData)
+            {
+                if (bot_data.owner != playerGuid)
+                    continue;
+
+                // 与 NPCBOT_UPDATE_OWNER 分支保持一致的归属/租用时间语义
+                bot_data.owner = 0;
+                bot_data.hire_time = 1ULL;
+                bot_data.equips.fill(0);
+                bot_data.shared_owners.clear();
+            }
             break;
         default:
             BOT_LOG_ERROR("sql.sql", "BotDataMgr:UpdateNpcBotDataAll: unhandled updateType {}", uint32(updateType));

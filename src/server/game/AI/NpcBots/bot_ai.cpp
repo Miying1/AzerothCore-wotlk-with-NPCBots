@@ -16372,6 +16372,22 @@ void bot_ai::InitEquips()
     EquipmentInfo const* einfo = BotDataMgr::GetBotEquipmentInfo(me->GetEntry());
     ASSERT(einfo, "Trying to spawn bot with no equip info!");
 
+    // 主人角色已被删除（服务器离线时删档、外部工具维护数据库等都会留下这种数据）：
+    // characters_npcbot.owner 仍指向一个不存在的角色 guid，而该角色名下的 item_instance 行
+    // 已经随删档一起被清掉，bot 的装备列就成了悬空引用。这类 bot 必须按「自由 bot」处理，
+    // 否则下面的无主自愈不会执行，每次载入都只会在悬空清理里报「槽位在数据库中不存在」。
+    if (_botData->owner && !IsTempBot() && !me->IsSummon() &&
+        !sCharacterCache->HasCharacterCacheEntry(ObjectGuid(HighGuid::Player, 0, _botData->owner)))
+    {
+        BOT_LOG_WARN("npcbots", "InitEquips: 机器人 {} {} 的主人角色 {} 已不存在，重置为自由机器人",
+            me->GetEntry(), me->GetName(), _botData->owner);
+
+        uint32 new_owner = 0;
+        BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_OWNER, &new_owner);
+        NpcBotData::SharedOwnersContainer sharedOwners{};
+        BotDataMgr::UpdateNpcBotData(me->GetEntry(), NPCBOT_UPDATE_SHARED_OWNERS, &sharedOwners);
+    }
+
     // 自愈：自由 bot（无主人）不应该继续持有玩家装备。
     // 历史上异常解雇（GM 命令 / debug 重置归属 / 归属到期时物品查询失败）会留下
     // 「owner=0 但 characters_npcbot 仍写着装备」的脏数据，这里在载入装备前统一清理并寄回原主人
