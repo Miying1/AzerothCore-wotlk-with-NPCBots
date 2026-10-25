@@ -5,6 +5,10 @@
 -- attr_type：属性类型（ItemModType，对应 SpellItemEnchantment 的 EffectArg）
 -- tier     ：同属性内数值从小到大序号
 -- chance   ：条目权重（同属性内序号越大权重越低）
+-- enable   ：是否启用（1=启用，0=禁用；禁用条目加载时被跳过，等价于不存在）
+--            默认为 1，故下面的 INSERT 未显式列出该列
+-- 旧表升级（不想重建表时手动执行一次即可，本文件本身是 DROP + CREATE）：
+-- ALTER TABLE `mod_random_enchant` ADD COLUMN `enable` TINYINT UNSIGNED NOT NULL DEFAULT '1' COMMENT '是否启用（1=启用，0=禁用）' AFTER `chance`;
 
 DROP TABLE IF EXISTS `mod_random_enchant`;
 CREATE TABLE `mod_random_enchant` (
@@ -14,6 +18,7 @@ CREATE TABLE `mod_random_enchant` (
   `attr_type` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT '属性类型 ItemModType',
   `tier` INT UNSIGNED NOT NULL DEFAULT '0' COMMENT '同属性内数值从小到大序号',
   `chance` FLOAT NOT NULL DEFAULT '0' COMMENT '条目权重（序号越大越小）',
+  `enable` TINYINT UNSIGNED NOT NULL DEFAULT '1' COMMENT '是否启用（1=启用，0=禁用）',
   PRIMARY KEY (`entry`, `ench`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='自定义随机附魔分组';
 
