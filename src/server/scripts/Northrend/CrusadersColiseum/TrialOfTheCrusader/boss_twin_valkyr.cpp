@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "botmgr.h"
 #include "CreatureScript.h"
 #include "PassiveAI.h"
 #include "Player.h"
@@ -190,6 +191,9 @@ struct boss_twin_valkyrAI : public ScriptedAI
                     pInstance->DoRemoveAurasDueToSpellOnPlayers(essenceId2);
                     pInstance->DoRemoveAurasDueToSpellOnPlayers(empoweredId2);
                     pInstance->DoRemoveAurasDueToSpellOnPlayers(touchId2);
+                    // NPCBot 身上挂的是基础 ID（BOT 施法不做难度映射），上面的难度 ID 清不掉
+                    pInstance->DoRemoveAurasDueToSpellOnPlayers(SPELL_LIGHT_ESSENCE);
+                    pInstance->DoRemoveAurasDueToSpellOnPlayers(SPELL_DARK_ESSENCE);
                 }
                 break;
             case -3:
@@ -573,12 +577,16 @@ public:
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
+        // 相反色精华及其附带光环（当前难度 ID）：玩家与 BOT 上色前都要先摘掉
+        uint32 essenceId = 0;
+        uint32 effect2Id = 0;
+        // 应用到 BOT 上的精华：一律用基础 ID，理由见下方 NPCBot 段注释
+        uint32 botEssenceId = 0;
+
         switch (creature->GetEntry())
         {
             case NPC_LIGHT_ESSENCE:
                 {
-                    uint32 essenceId = 0;
-                    uint32 effect2Id = 0;
                     //uint32 empoweredId = 0;
                     uint32 touchId1 = 0;
                     //uint32 touchId2 = 0;
@@ -619,12 +627,11 @@ public:
                     //player->RemoveAura(touchId2); // dont remove black touch here - only white can have black touch - so white changing to white - so no change of color
                     //player->RemoveAura(empoweredId); // apply new empowered?
                     player->CastSpell(player, SPELL_LIGHT_ESSENCE, true);
+                    botEssenceId = SPELL_LIGHT_ESSENCE;
                 }
                 break;
             case NPC_DARK_ESSENCE:
                 {
-                    uint32 essenceId = 0;
-                    uint32 effect2Id = 0;
                     //uint32 empoweredId = 0;
                     //uint32 touchId1 = 0;
                     uint32 touchId2 = 0;
@@ -665,11 +672,41 @@ public:
                     player->RemoveAura(touchId2);
                     //player->RemoveAura(empoweredId); // apply new empowered?
                     player->CastSpell(player, SPELL_DARK_ESSENCE, true);
+                    botEssenceId = SPELL_DARK_ESSENCE;
                 }
                 break;
             default:
                 break;
         }
+
+        // NPCBot：玩家切换精华后，让该玩家名下的 BOT 同步同色精华。
+        // 必须由 BOT 自己施法：caster 是 NPCBot 时不走 spelldifficulty 映射（Spell.cpp:580），
+        // 这样 BOT 身上挂的才是基础 ID 65684/65686。若由玩家施法，BOT 会拿到难度版本
+        // （如 67224），而精华脚本按难度算出的 auraId（如 67604）永远不存在——脚本里
+        // CastSpell(owner, SPELL_POWERING_UP) 的 caster 是 BOT、同样不做映射，只会挂 67590，
+        // 于是层数叠不上去、Empowered 也永远不会触发。
+        if (botEssenceId && player->HaveBot())
+        {
+            for (auto const& [_, bot] : *player->GetBotMgr()->GetBotMap())
+            {
+                if (!bot || !bot->IsAlive() || !bot->IsInWorld() || bot->FindMap() != creature->FindMap())
+                    continue;
+                // 坦克职责的 BOT 不挂精华（ToggleRole 联动规则下副坦也带 BOT_ROLE_TANK）
+                if (bot->GetBotRoles() & BOT_ROLE_TANK)
+                    continue;
+                if (bot->HasAura(botEssenceId))
+                    continue;
+
+                // 先摘掉相反色：难度版本（BOT 若曾被非 BOT 施法挂上）与基础版本都清，
+                // 附带光环 65811/65827 由 SPELL_AURA_LINKED 自动跟随移除
+                bot->RemoveAura(essenceId);
+                bot->RemoveAura(effect2Id);
+                bot->RemoveAura(SPELL_DARK_ESSENCE);
+                bot->RemoveAura(SPELL_LIGHT_ESSENCE);
+                bot->CastSpell(bot, botEssenceId, true);
+            }
+        }
+
         CloseGossipMenuFor(player);
         return true;
     }
