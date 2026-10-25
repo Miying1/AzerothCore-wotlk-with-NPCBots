@@ -103,14 +103,16 @@ public:                                                 // accessors
         return ReputationRankStrIndex[GetRank(factionEntry)];
     };
 
+    // 只在玩家确实存在针对该阵营的强制反应（SPELL_AURA_FORCE_REACTION）时返回对应声望等级。
+    // 注意：这里必须按 factionTemplateEntry->faction 精确匹配，不能因为"存在任意强制反应"
+    // 就一律返回友善——那样会让玩家在带有伪装/强制反应光环期间无法攻击任何单位。
     ReputationRank const* GetForcedRankIfAny(FactionTemplateEntry const* factionTemplateEntry) const
     {
-        if(_forcedReactions.empty() || factionTemplateEntry == nullptr )
+        if (_forcedReactions.empty() || factionTemplateEntry == nullptr)
             return nullptr;
-        //auto forceItr = _forcedReactions.find(factionTemplateEntry->faction);
-        //return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
-        ReputationRank rank = REP_FRIENDLY;
-        return &rank;
+
+        auto forceItr = _forcedReactions.find(factionTemplateEntry->faction);
+        return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
     }
 
 public:                                                 // modifiers

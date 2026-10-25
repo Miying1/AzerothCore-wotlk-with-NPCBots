@@ -5,6 +5,7 @@
 #include "../rift_boss_base.h"
 
 #include "Creature.h"
+#include "GameObject.h"
 #include "Player.h"
 #include "ScriptedGossip.h"
 #include "ScriptMgr.h"
@@ -107,7 +108,12 @@ constexpr float MemberHealthCoefficient = 1.1f / 7.0f;
 // 整场遭遇（末日之链与6名成员）血量统一提高50%，合计约为单Boss的1.65倍。
 constexpr float SevenHealthMultiplier = 1.5f;
 constexpr float SevenBossMeleeDamageCoefficient = 35.0f / 12.0f;
-constexpr uint32 TombOfSevenInstanceData = 4;
+// 七贤大厅入口门（原版黑石深渊 GO_TOMB_ENTER = 170576，guid 15551）：开战时关闭、脱战复位时重新打开。
+// 注意：不能再用实例数据 TYPE_TOMB_OF_SEVEN(4) 驱动门。原版 instance_blackrock_depths 收到 IN_PROGRESS
+// 会关闭入口/出口门，但它按“原版七贤(9034~9040)是否在战斗”判断，15 秒后自动复位（TombOfSevenReset），
+// 裂隙成员(102024~102029)不在其统计内，战斗途中就会被重新开门并清掉事件状态。
+constexpr uint32 GoTombEnterEntry = 170576;
+constexpr float GoTombEnterSearchRange = 200.0f;
 constexpr uint32 SevenFriendlyFaction = 35;
 constexpr uint32 SevenHostileFaction = 754;
 constexpr int32 ActionStartEncounter = 1;
@@ -451,8 +457,8 @@ struct boss_rift_the_seven : public BossAIBase
                 return;
 
             _encounterStarted = true;
-            if (InstanceScript* instance = me->GetInstanceScript())
-                instance->SetData(TombOfSevenInstanceData, IN_PROGRESS);
+            // 关门由本脚本自己负责，不再写入原版 TYPE_TOMB_OF_SEVEN 实例数据。
+            SetEntranceDoor(false);
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->Yell(TheSevenAggroText, LANG_UNIVERSAL);
             me->PlayDirectSound(TheSevenAggroSound);
@@ -496,8 +502,8 @@ struct boss_rift_the_seven : public BossAIBase
 
     void JustDied(Unit* killer) override
     {
-        if (InstanceScript* instance = me->GetInstanceScript())
-            instance->SetData(TombOfSevenInstanceData, DONE);
+        // 打完开门；不再走原版 TYPE_TOMB_OF_SEVEN(DONE)，避免连带刷出原版七贤宝箱。
+        SetEntranceDoor(true);
         BossAIBase::JustDied(killer);
     }
 
@@ -522,6 +528,9 @@ struct boss_rift_the_seven : public BossAIBase
         me->SetLootRecipient(nullptr);
         if (me->IsAlive())
             me->GetMotionMaster()->MoveTargetedHome();
+
+        // 脱战复位：重新打开入口门，让队伍能退出房间重新准备。
+        SetEntranceDoor(true);
 
         Reset();
     }
@@ -589,6 +598,13 @@ struct boss_rift_the_seven : public BossAIBase
     }
 
 private:
+    // 控制七贤大厅入口门：open 为 true 打开（GO_STATE_ACTIVE），false 关闭（GO_STATE_READY）。
+    void SetEntranceDoor(bool open)
+    {
+        if (GameObject* door = me->FindNearestGameObject(GoTombEnterEntry, GoTombEnterSearchRange))
+            door->SetGoState(open ? GO_STATE_ACTIVE : GO_STATE_READY);
+    }
+
     static bool IsSevenMemberEntry(uint32 entry)
     {
         switch (entry)
