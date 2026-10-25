@@ -386,66 +386,45 @@ public:
             return true;
         }
 
-        void SpawnHodirChests(Difficulty diff, Creature* hodir)
+        // 箱子必须由地图召唤，而不是由霍迪尔召唤：
+        // 霍迪尔在胜利演出结束时会自我移除(SPELL_TELEPORT -> DespawnOrUnsummon)，
+        // 由他召唤的箱子会随之被 Unit::RemoveAllGameObjects 一起删除，玩家将看不到战利品箱。
+        GameObject* SummonHodirChest(uint32 entry, Position const& position)
+        {
+            GameObject* go = instance->SummonGameObject(entry, position, 0, 0, 0, 0, 0);
+            if (go)
+            {
+                go->ReplaceAllGameObjectFlags((GameObjectFlags)0);
+                go->SetRespawnTime(7 * DAY);
+                go->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
+            }
+            return go;
+        }
+
+        void SpawnHodirChests(Difficulty diff)
         {
             switch (diff)
             {
                 case RAID_DIFFICULTY_10MAN_NORMAL: // 10 man chest
                 {
                     if (!GetObjectGuid(DATA_HODIR_CHEST_NORMAL))
-                    {
-                        if (GameObject* go = hodir->SummonGameObject(
-                            GO_HODIR_CHEST_NORMAL,
-                            normalChestPosition.GetPositionX(),
-                            normalChestPosition.GetPositionY(),
-                            normalChestPosition.GetPositionZ(),
-                            normalChestPosition.GetOrientation(), 0, 0, 0, 0, 0))
-                        {
-                            go->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
-                        }
-                    }
-                    if (!GetObjectGuid(DATA_HODIR_CHEST_HARD))
-                    {
-                        if (GameObject* go = hodir->SummonGameObject(
-                            GO_HODIR_CHEST_HARD,
-                            hardChestPosition.GetPositionX(),
-                            hardChestPosition.GetPositionY(),
-                            hardChestPosition.GetPositionZ(),
-                            hardChestPosition.GetOrientation(), 0, 0, 0, 0, 0))
-                        {
-                            go->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
-                            _hmHodir = true;
-                        }
-                    }
+                        SummonHodirChest(GO_HODIR_CHEST_NORMAL, normalChestPosition);
+
+                    if (!GetObjectGuid(DATA_HODIR_CHEST_HARD)
+                        && SummonHodirChest(GO_HODIR_CHEST_HARD, hardChestPosition))
+                        _hmHodir = true;
+
                     break;
                 }
                 case RAID_DIFFICULTY_25MAN_NORMAL: // 25 man chest
                 {
                     if (!GetObjectGuid(DATA_HODIR_CHEST_NORMAL_HERO))
-                    {
-                        if (GameObject* go = hodir->SummonGameObject(
-                            GO_HODIR_CHEST_NORMAL_HERO,
-                            normalChestPosition.GetPositionX(),
-                            normalChestPosition.GetPositionY(),
-                            normalChestPosition.GetPositionZ(),
-                            normalChestPosition.GetOrientation(), 0, 0, 0, 0, 0))
-                        {
-                            go->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
-                        }
-                    }
-                    if (!GetObjectGuid(DATA_HODIR_CHEST_HARD_HERO))
-                    {
-                        if (GameObject* go = hodir->SummonGameObject(
-                            GO_HODIR_CHEST_HARD_HERO,
-                            hardChestPosition.GetPositionX(),
-                            hardChestPosition.GetPositionY(),
-                            hardChestPosition.GetPositionZ(),
-                            hardChestPosition.GetOrientation(), 0, 0, 0, 0, 0))
-                        {
-                            go->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
-                            _hmHodir = true;
-                        }
-                    }
+                        SummonHodirChest(GO_HODIR_CHEST_NORMAL_HERO, normalChestPosition);
+
+                    if (!GetObjectGuid(DATA_HODIR_CHEST_HARD_HERO)
+                        && SummonHodirChest(GO_HODIR_CHEST_HARD_HERO, hardChestPosition))
+                        _hmHodir = true;
+
                     break;
                 }
                 default:
@@ -471,7 +450,7 @@ public:
                 case NPC_HODIR:
                     if (GetBossState(BOSS_HODIR) != DONE)
                     {
-                        SpawnHodirChests(instance->GetDifficulty(), creature);
+                        SpawnHodirChests(instance->GetDifficulty());
                     }
                     break;
                 case NPC_ALGALON:
