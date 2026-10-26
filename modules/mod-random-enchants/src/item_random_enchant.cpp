@@ -1,7 +1,9 @@
 /*
  * 装备掉落随机附魔（按分组：法系 / 物理 / 防御 / 治疗）
  *
- * 分组数据存于自定义表 mod_random_enchant（entry, ench, attr, attr_type, tier, chance）。
+ * 分组数据存于自定义表 mod_random_enchant（entry, ench, attr, attr_type, tier, chance, enable）。
+ * enable=0 的行由加载语句的 `WHERE enable = 1` 直接过滤掉，等价于表里没有这一行：
+ * 不参与加权随机，若某个属性下的条目全部被禁用，该属性也不会被创建。
  *
  * 流程：
  *   1. 世界启动时（OnLoadCustomDatabaseTable）把 mod_random_enchant 加载进内存；
@@ -108,11 +110,16 @@ namespace
         uint32 oldMSTime = getMSTime();
         g_randomEnchGroups.clear();
 
+        // enable=0 的条目在 SQL 层就被过滤掉，内存里只会存在生效的数据。
         QueryResult result = WorldDatabase.Query(
-            "SELECT entry, ench, attr, attr_type, tier, chance FROM mod_random_enchant ORDER BY entry, attr, tier");
+            "SELECT entry, ench, attr, attr_type, tier, chance FROM mod_random_enchant "
+            "WHERE enable = 1 ORDER BY entry, attr, tier");
         if (!result)
         {
-            LOG_WARN("server.loading", ">> Loaded 0 custom random enchant definitions. DB table `mod_random_enchant` is empty.");
+            // 没有启用中的条目，或旧表还没加 enable 列（见 sql/world/custom_random_enchant.sql 顶部的 ALTER 说明）。
+            LOG_WARN("server.loading",
+                     ">> Loaded 0 custom random enchant definitions. DB table `mod_random_enchant` has no enabled rows "
+                     "or no `enable` column.");
             return;
         }
 
@@ -120,7 +127,7 @@ namespace
         std::unordered_map<uint32, std::vector<RandomEnchAttribute>> groups;
         std::unordered_map<uint32, std::unordered_map<std::string, size_t>> attrIndex;
 
-        uint32 count = 0;
+        uint32 count = 0; // 生效条目数
         do
         {
             Field* fields = result->Fetch();
@@ -132,10 +139,7 @@ namespace
             float       chance   = fields[5].Get<float>();
 
             if (chance <= 0.0f)
-            {
-                ++count;
                 continue;
-            }
 
             std::vector<RandomEnchAttribute>& attrList = groups[entry];
             std::unordered_map<std::string, size_t>&  idxMap  = attrIndex[entry];
