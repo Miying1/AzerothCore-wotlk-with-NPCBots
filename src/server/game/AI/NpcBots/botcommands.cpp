@@ -3797,7 +3797,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         return true;
     }
 
-    static bool HandleNpcBotCreateNewCommand(ChatHandler* handler, Optional<std::string> name, Optional<uint8> bclass, Optional<uint8> race, Optional<uint8> gender, Optional<uint8> skin, Optional<uint8> face, Optional<uint8> hairstyle, Optional<uint8> haircolor, Optional<uint8> features, Optional<uint8> soundset)
+    static bool HandleNpcBotCreateNewCommand(ChatHandler* handler, Optional<std::string> name, Optional<uint8> bclass, Optional<uint8> race, Optional<uint8> gender, Optional<uint8> skin, Optional<uint8> face, Optional<uint8> hairstyle, Optional<uint8> haircolor, Optional<uint8> features, Optional<uint8> soundset, Optional<uint32> modelid)
     {
         static auto const ret_err = [](ChatHandler* handler, bool report_ranges = false) {
             if (report_ranges)
@@ -3807,6 +3807,7 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
                 handler->SendSysMessage(".npcbot createnew");
                 handler->SendSysMessage("创建新的 npcbot 生物条目");
                 handler->SendSysMessage("语法: .npcbot createnew #name #class ##race ##gender ##skin ##face ##hairstyle ##haircolor ##features ##[sound_variant = {{1,2,3}}]");
+                handler->SendSysMessage("自定义模型: .npcbot createnew #name #class #race #model_id (省略全部外观参数，模型ID为 creature_display_info 的 ID)");
                 handler->SendSysMessage("对于不能更改外观的职业，必须省略所有额外参数");
                 handler->SendSysMessage("使用 '.npcbot createnew ranges' 查看所有种族的视觉约束");
             }
@@ -3832,10 +3833,17 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
                 (*name)[i] = ' ';
 
         bool const can_change_appearance = (*bclass < BOT_CLASS_EX_START || *bclass == BOT_CLASS_ARCHMAGE);
+        // 指定模型 ID 时无需外观参数，但种族仍需提供（决定种族技能与默认阵营）
+        bool const custom_model = modelid.has_value();
 
-        if (can_change_appearance && (!race || !gender || !skin || !face || !hairstyle || !haircolor || !features))
-            return ret_err(handler);
-        if (!can_change_appearance && (race || gender || skin || face || hairstyle || haircolor || features))
+        if (!custom_model)
+        {
+            if (can_change_appearance && (!race || !gender || !skin || !face || !hairstyle || !haircolor || !features))
+                return ret_err(handler);
+            if (!can_change_appearance && (race || gender || skin || face || hairstyle || haircolor || features))
+                return ret_err(handler);
+        }
+        else if (!race)
             return ret_err(handler);
         if (soundset && (*soundset < 1 || *soundset > SOUND_SETS_COUNT))
             return ret_err(handler);
@@ -3852,15 +3860,23 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         if (race && !((1u << (*race - 1)) & sRaceMgr->GetPlayableRaceMask()))
             return ret_err_invalid_arg(handler, "race", race);
 
-        if (can_change_appearance && *gender != GENDER_MALE && *gender != GENDER_FEMALE)
+        // 自定义模型必须存在于 creature_display_info
+        if (custom_model && !sCreatureDisplayInfoStore.LookupEntry(*modelid))
+        {
+            handler->PSendSysMessage("无效的模型 ID {}!", *modelid);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (!custom_model && can_change_appearance && *gender != GENDER_MALE && *gender != GENDER_FEMALE)
             return ret_err_invalid_arg(handler, "gender", gender);
 
-        // class / race combination check
-        if ((*bclass < BOT_CLASS_EX_START && !sObjectMgr->GetPlayerInfo(*race, *bclass)) ||
-            (*bclass == BOT_CLASS_ARCHMAGE && *race != RACE_HUMAN))
+        // 不限制种族-职业组合（如血精灵德鲁伊），只要种族是可玩种族即可
+        // 仅保留 ARCHMAGE 的种族限制：该自定义职业固定使用人类模型
+        if (!custom_model && *bclass == BOT_CLASS_ARCHMAGE && *race != RACE_HUMAN)
             return ret_err_invalid_args_for(handler, "class", get_class_name(*bclass));
 
-        if (can_change_appearance && !IsValidVisual(*race, *gender, *skin, *face, *hairstyle, *haircolor, *features))
+        if (!custom_model && can_change_appearance && !IsValidVisual(*race, *gender, *skin, *face, *hairstyle, *haircolor, *features))
             return ret_err_invalid_args_for(handler, "race", get_race_name(*race));
 
         //here we force races for custom classes
@@ -3885,7 +3901,9 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         }
 
         //get normalized modelID
-        uint32 modelId = can_change_appearance ? SoundSetModelsArray[RaceToRaceOffset[*race]][*gender][soundset ? *soundset - 1 : urand(0u, 2u)] : 0;
+        //指定了模型 ID 时直接使用，否则按种族/性别/音色从预置表中取
+        uint32 modelId = custom_model ? *modelid :
+            (can_change_appearance ? SoundSetModelsArray[RaceToRaceOffset[*race]][*gender][soundset ? *soundset - 1 : urand(0u, 2u)] : 0);
 
         uint32 newentry = 0;
         QueryResult creres = WorldDatabase.Query("SELECT entry FROM creature_template WHERE entry = {}", BOT_ENTRY_CREATE_BEGIN);
@@ -3919,7 +3937,8 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
         }
         trans->Append("REPLACE INTO creature_template_npcbot_extras VALUES ({}, {}, {})", newentry, uint32(*bclass), uint32(*race));
         trans->Append("REPLACE INTO creature_equip_template SELECT {}, 1, ids.itemID1, ids.itemID2, ids.itemID3, -1 FROM (SELECT itemID1, itemID2, itemID3 FROM creature_equip_template WHERE CreatureID = (SELECT entry FROM creature_template_npcbot_extras WHERE class = {} LIMIT 1)) ids", newentry, uint32(*bclass));
-        if (can_change_appearance)
+        // 自定义模型时外观参数无意义，不写入外观表
+        if (can_change_appearance && !custom_model)
         {
             stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_NPCBOT_APPEARANCE);
             stmt->SetData(0, newentry);

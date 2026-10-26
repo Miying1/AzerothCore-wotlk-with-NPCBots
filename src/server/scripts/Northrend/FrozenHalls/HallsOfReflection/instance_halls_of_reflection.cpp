@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "GameTime.h"
 #include "Group.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
@@ -169,6 +170,8 @@ public:
     void Initialize() override
     {
         std::fill(std::begin(_trashActive), std::end(_trashActive), false);
+        std::fill(std::begin(_trashGUID), std::end(_trashGUID), ObjectGuid::Empty);
+        std::fill(std::begin(_trashSpawnId), std::end(_trashSpawnId), ObjectGuid::LowType(0));
         _trashCounter = 0;
         std::memset(&_chosenComposition, 0, sizeof(_chosenComposition));
         _waveNumber = 0;
@@ -235,11 +238,11 @@ public:
             case NPC_WAVE_RIFLEMAN:
             case NPC_WAVE_PRIEST:
             case NPC_WAVE_MAGE:
-                if (_trashCounter < NUM_OF_TRASH)
-                    _trashGUID[_trashCounter++] = creature->GetGUID();
                 if (GetBossState(DATA_MARWYN) != DONE && !creature->IsAlive())
                     creature->Respawn();
                 creature->SetVisible(false);
+                // 登记表按刷怪点维护：核心重建出来的新对象（GUID 会变）在这里重新绑定槽位
+                RegisterTrash(creature);
                 break;
             case NPC_FROSTSWORN_GENERAL:
                 if (GetBossState(DATA_MARWYN) != DONE)
@@ -751,6 +754,46 @@ public:
         }
     }
 
+    // 波次小怪按刷怪点（spawnId）登记。默认的非兼容重生模式下，Creature::Respawn
+    // 会销毁对象、再由 Map::ProcessRespawns 重建，重建后 GUID 会变；如果只缓存 GUID，
+    // 登记表就会随着重生逐只失效，最终表现为波次计数还在推进却一只小怪都刷不出来
+    void RegisterTrash(Creature* creature)
+    {
+        ObjectGuid::LowType const spawnId = creature->GetSpawnId();
+
+        uint8 index = NUM_OF_TRASH;
+        if (spawnId)
+            for (uint8 i = 0; i < _trashCounter; ++i)
+                if (_trashSpawnId[i] == spawnId)
+                {
+                    index = i;
+                    break;
+                }
+
+        if (index == NUM_OF_TRASH)
+        {
+            if (_trashCounter >= NUM_OF_TRASH)
+                return;
+
+            index = _trashCounter++;
+            _trashSpawnId[index] = spawnId;
+            _trashWaveNumber[index] = 0;
+            _trashActive[index] = false;
+        }
+        else
+        {
+            // 同一刷怪点的对象被重建：本波击杀统计里的旧 GUID 一并换成新的，
+            // 否则这一波永远凑不齐击杀数，只能等 150 秒超时硬推下一波
+            ObjectGuid const oldGuid = _trashGUID[index];
+            if (oldGuid)
+                for (uint8 i = 0; i < _waveTrashCount; ++i)
+                    if (_waveTrashGUID[i] == oldGuid)
+                        _waveTrashGUID[i] = creature->GetGUID();
+        }
+
+        _trashGUID[index] = creature->GetGUID();
+    }
+
     // 回收已死亡的旧波次槽位：这些怪已经无法参战，继续占着槽位会逐波耗尽可用小怪，
     // 最终表现为波次计数还在涨却一只小怪都刷不出来
     void RecoverDeadTrash()
@@ -769,8 +812,9 @@ public:
     // 查找一只尚未被波次系统占用的小怪，返回在 _trashGUID 中的下标，找不到返回 -1
     int8 FindFreeTrash(uint32 entry)
     {
-        int8 deadFallback = -1;   // entry 匹配但已经死亡
-        int8 aliveFallback = -1;  // entry 不匹配但还活着
+        int8 deadFallback = -1;     // entry 匹配但已经死亡
+        int8 aliveFallback = -1;    // entry 不匹配但还活着
+        int8 pendingFallback = -1;  // 对象已被回收，需要交给核心重新生成
 
         for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
         {
@@ -779,7 +823,13 @@ public:
 
             Creature* c = instance->GetCreature(_trashGUID[i]);
             if (!c)
+            {
+                // 对象被回收（例如尸体腐烂后重生时间为 24 小时），但刷怪点还在，
+                // 激活时会按刷怪点把重生时间拉到当前，让核心重新生成
+                if (pendingFallback < 0 && _trashSpawnId[i])
+                    pendingFallback = int8(i);
                 continue;
+            }
 
             bool const alive = c->IsAlive();
             if (c->GetEntry() == entry)
@@ -796,7 +846,9 @@ public:
 
         // 正常情况下每个波次的组合与实际刷怪数量严格匹配；匹配不到时复用任意一只
         // 未占用的怪，避免整波激活失败、波次计数空转
-        return deadFallback >= 0 ? deadFallback : aliveFallback;
+        if (deadFallback >= 0)
+            return deadFallback;
+        return aliveFallback >= 0 ? aliveFallback : pendingFallback;
     }
 
     // 当前波次应刷出的小怪数量；Boss 波（5、10）返回 0
@@ -854,29 +906,95 @@ public:
         _nextWaveTimer = (_waveActivateCursor < numToActivate) ? 5000 : 150000;
     }
 
-    // 让指定小怪真正出现在场上并进入战斗
-    bool ActivateTrash(uint8 index)
+    // 让指定槽位的小怪真正出现在场上并进入战斗
+    void SpawnTrash(uint8 index)
     {
-        if (index >= NUM_OF_TRASH)
-            return false;
-
         Creature* c = instance->GetCreature(_trashGUID[index]);
-        if (!c || _trashActive[index])
-            return false;
+        if (!c)
+            return;
 
-        _trashActive[index] = true;
-        _trashWaveNumber[index] = _waveNumber;
-        // 灭团或超时后小怪的存活与可见状态可能已经错乱（例如只剩登记 GUID 而对象是尸体、
-        // 或者还处于隐藏状态），这里强制复活并显示，否则整波会“选中了怪但不刷新”
-        if (!c->IsAlive())
-            c->Respawn(true);
+        // 灭团或超时后小怪的存活与可见状态可能已经错乱（例如还处于隐藏状态），
+        // 这里强制显示并解除不可选中，否则整波会“选中了怪但不刷新”
         c->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         c->SetImmuneToAll(false);
         c->SetVisible(true);
+
+        // 击杀统计只认这只小怪当前的 GUID（对象重建后 GUID 会变）
         if (_waveTrashCount < 5)
-            _waveTrashGUID[_waveTrashCount++] = c->GetGUID();
+        {
+            bool tracked = false;
+            for (uint8 i = 0; i < _waveTrashCount; ++i)
+                if (_waveTrashGUID[i] == c->GetGUID())
+                {
+                    tracked = true;
+                    break;
+                }
+            if (!tracked)
+                _waveTrashGUID[_waveTrashCount++] = c->GetGUID();
+        }
+
         c->AI()->DoAction(1);
-        return true;
+    }
+
+    // 占用一只小怪作为当前波次的战斗力
+    bool ActivateTrash(uint8 index)
+    {
+        if (index >= NUM_OF_TRASH || _trashActive[index])
+            return false;
+
+        Creature* c = instance->GetCreature(_trashGUID[index]);
+
+        _trashActive[index] = true;
+        _trashWaveNumber[index] = _waveNumber;
+
+        if (c && c->IsAlive())
+        {
+            SpawnTrash(index);
+            return true;
+        }
+
+        // 兼容重生模式下 Respawn 是原地复活，立刻恢复上场状态；
+        // 非兼容模式下（默认）对象会被销毁并交给核心重建，
+        // 重建出来的新对象由 ReconcileWaveTrash 恢复上场状态
+        if (c)
+        {
+            c->Respawn(true);
+            if (c->IsAlive())
+                SpawnTrash(index);
+            return true;
+        }
+
+        // 对象已经被回收：把刷怪点的重生时间拉到当前，让核心重新生成一只
+        if (_trashSpawnId[index])
+        {
+            time_t now = GameTime::GetGameTime().count();
+            instance->SaveCreatureRespawnTime(_trashSpawnId[index], now);
+            return true;
+        }
+
+        _trashActive[index] = false;
+        _trashWaveNumber[index] = 0;
+        return false;
+    }
+
+    // 核对当前波次已上场的小怪：对象被核心重建后（GUID 变化、带着隐藏和不可选中标记）
+    // 需要重新上场，否则会出现“波次在打却看不到怪”的情况
+    void ReconcileWaveTrash()
+    {
+        if (!_waveNumber || !(_waveNumber % 5))
+            return;
+
+        for (uint8 i = 0; i < NUM_OF_TRASH; ++i)
+        {
+            if (!_trashActive[i] || _trashWaveNumber[i] != _waveNumber)
+                continue;
+
+            Creature* c = instance->GetCreature(_trashGUID[i]);
+            if (!c || !c->IsAlive() || c->IsVisible())
+                continue;
+
+            SpawnTrash(i);
+        }
     }
 
     // 把本波尚未消耗的小怪以灵魂形态显示出来
@@ -1060,6 +1178,7 @@ public:
         if (_playerCheckTimer <= diff)
         {
             _playerCheckTimer = 5000;
+            ReconcileWaveTrash();
             if ((GetPersistentData(PERSISTENT_DATA_INTRO)) && GetBossState(DATA_MARWYN) != DONE)
             {
                 Map::PlayerList const& pl = instance->GetPlayers();
@@ -1355,6 +1474,7 @@ private:
     ObjectGuid _spiritualReflectionGUID[MAX_SPIRITUAL_REFLECTIONS];
     ObjectGuid _iceWallTargetGUID[MAX_ICE_WALL_TARGETS];
     ObjectGuid _trashGUID[NUM_OF_TRASH];
+    ObjectGuid::LowType _trashSpawnId[NUM_OF_TRASH]{}; // 刷怪点 ID，对象被核心重建后据此重新绑定
 
     // Runtime state (not persisted)
     uint32 _batteredHiltStatus{};

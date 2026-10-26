@@ -2404,11 +2404,15 @@ void InstanceMap::PermBindAllPlayers()
         player = itr->GetSource();
         group = player->GetGroup();
 
+        // 通过地城查找器（LFG）进入的非团队副本不产生永久实例绑定：
+        // 随机本/指定本打完不应在角色副本进度里留下 CD，临时绑定在离队或退出副本时自动解除。
+        bool const skipPermBind = !IsRaid() && group && group->isLFGGroup();
+
         // players inside an instance cannot be bound to other instances
         // some players may already be permanently bound, in this case nothing happens
         InstancePlayerBind* bind = sInstanceSaveMgr->PlayerGetBoundInstance(player->GetGUID(), save->GetMapId(), save->GetDifficulty());
 
-        if (!bind || !bind->perm)
+        if (!skipPermBind && (!bind || !bind->perm))
         {
             WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
             data << uint32(0);

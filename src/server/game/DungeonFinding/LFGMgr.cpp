@@ -2220,14 +2220,19 @@ namespace lfg
                         }
                     }
 
-                    // Remove bind to that map
-                    sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty(), true);
+                    // Remove bind to that map（保留永久绑定：随机本不应清掉玩家已有的副本 CD）
+                    if (!sInstanceSaveMgr->PlayerIsPermBoundToInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty()))
+                    {
+                        sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty(), true);
+                    }
                 }
                 else
                 {
-                    // RDF removes all binds to that map
-                    if (randomDungeon)
+                    // RDF removes all binds to that map（只清临时绑定，永久 CD 保留）
+                    if (randomDungeon && !sInstanceSaveMgr->PlayerIsPermBoundToInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty()))
+                    {
                         sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty(), true);
+                    }
                 }
 
                 playersTeleported.push_back(player);
