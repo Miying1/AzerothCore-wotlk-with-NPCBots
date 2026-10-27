@@ -3852,8 +3852,15 @@ handler->PSendSysMessage("找到的 {} 个机器人都还不能使用 {}!", foun
             return ret_err_invalid_arg(handler, "class", bclass);
 
         std::string namestr;
-        if (!consoleToUtf8(*name, namestr))
-            return ret_err_invalid_arg(handler, "name");
+        // 控制台输入用的是系统本地编码（中文 Windows 为 GBK），需要转成 UTF-8；
+        // 玩家聊天输入本身就是 UTF-8，若再按控制台编码转换，中文名会变成乱码甚至被判为无效
+        if (!handler->GetSession())
+        {
+            if (!consoleToUtf8(*name, namestr))
+                return ret_err_invalid_arg(handler, "name");
+        }
+        else
+            namestr = *name;
         if (!normalizePlayerName(namestr))
             return ret_err_invalid_arg(handler, "name");
 

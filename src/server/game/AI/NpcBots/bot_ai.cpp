@@ -7512,6 +7512,9 @@ uint32 bot_ai::InitSpell(Unit const* caster, uint32 spell)
 //Using first-rank spell as source, puts spell of max rank allowed for given caster in spellmap
 void bot_ai::InitSpellMap(uint32 basespell, bool forceadd, bool forwardRank)
 {
+    if (!basespell) //0 表示"没有可用法术"（例如该种族/职业组合没有对应种族技能），直接跳过，避免刷错误日志
+        return;
+
     SpellInfo const* info = sSpellMgr->GetSpellInfo(basespell);
     if (!info)
     {
@@ -7743,9 +7746,15 @@ uint32 bot_ai::RaceSpellForClass(uint8 myrace, uint8 myclass)
                     return RACIAL_GIFT_OF_NAARU_SHAMAN;
                 case BOT_CLASS_MAGE:
                     return RACIAL_GIFT_OF_NAARU_MAGE;
+                //以下两个组合在原版游戏里不存在（德莱尼没有盗贼/术士），但 NPCBot 允许任意"种族+职业"，
+                //这里显式给出最接近的版本以完整支持这些组合：物理职业用按攻击强度结算的版本，法系职业用按法术强度结算的版本
+                case BOT_CLASS_ROGUE:
+                    return RACIAL_GIFT_OF_NAARU_WARRIOR;
+                case BOT_CLASS_WARLOCK:
+                    return RACIAL_GIFT_OF_NAARU_MAGE;
                 default:
-                    BOT_LOG_ERROR("entities.player", "RaceSpellForClass(): unknows race:class combo {}, {}", uint32(myrace), uint32(myclass));
-                    return 0;
+                    //其余自定义职业（英雄职业等）统一按法系版本处理，避免返回 0 导致种族技能缺失
+                    return RACIAL_GIFT_OF_NAARU_MAGE;
             }
             break;
         default:
