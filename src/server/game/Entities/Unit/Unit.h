@@ -1298,6 +1298,10 @@ public:
     void SetCreator(Unit* creator);
     Unit* GetCreator() const { return m_creator; }
     Unit* m_creator = nullptr;
+    //创建者（主人玩家或 NPCBot）可能先于召唤物销毁，m_creator 会悬垂；按 guid 重新解析才是安全的
+    [[nodiscard]] Unit* ResolveCreator() const;
+    [[nodiscard]] Player* GetCreatorPlayer() const;
+    ObjectGuid m_creatorGuid;
 
     void SetLastSpellGoTime(TimePoint time_point) { last_spell_go_time_point = time_point; }
     TimePoint GetLastSpellGoTime() const { return last_spell_go_time_point; }

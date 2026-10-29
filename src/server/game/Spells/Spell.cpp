@@ -714,9 +714,14 @@ Spell::~Spell()
 {
     // FindMap() check: pending spell events are destroyed after the caster has left the map,
     // where resolving a unit-summoned caster's owner through ObjectAccessor would assert
-    if (Player* modOwner = (m_caster && m_caster->FindMap()) ? m_caster->GetSpellModOwner() : nullptr)
-        if (modOwner->m_spellModTakingSpell == this)
-            modOwner->SetSpellModTakingSpell(this, false);
+    // 玩家施法者取自身不需要查地图，必须照常释放 spell mod 占用，否则 Player::m_spellModTakingSpell
+    // 会残留指向已销毁 Spell 的指针；只有需要向上解析 owner 的非玩家路径才依赖 GetMap()
+    Player* modOwner = nullptr;
+    if (m_caster)
+        modOwner = m_caster->IsPlayer() ? m_caster->ToPlayer()
+            : (m_caster->FindMap() ? m_caster->GetSpellModOwner() : nullptr);
+    if (modOwner && modOwner->m_spellModTakingSpell == this)
+        modOwner->SetSpellModTakingSpell(this, false);
 
     // unload scripts
     while (!m_loadedScripts.empty())
@@ -3772,6 +3777,10 @@ void Spell::cancel(bool bySelf)
     uint32 oldState = m_spellState;
     m_spellState = SPELL_STATE_FINISHED;
 
+    // 施法者可能已离开地图（例如 NPCBot 传送过程中被移出世界、或事件在施法者出图后才被销毁），
+    // 此时 m_currMap 为空，凡是通过 GetMap() 解析目标或所有者的调用都会触发断言
+    Map* casterMap = m_caster->FindMap();
+
     m_autoRepeat = false;
     switch (oldState)
     {
@@ -3793,7 +3802,8 @@ void Spell::cancel(bool bySelf)
             {
                 for (std::list<TargetInfo>::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
                     if ((*ihit).missCondition == SPELL_MISS_NONE)
-                        if (Unit* unit = m_caster->GetGUID() == ihit->targetGUID ? m_caster : ObjectAccessor::GetUnit(*m_caster, ihit->targetGUID))
+                        if (Unit* unit = m_caster->GetGUID() == ihit->targetGUID ? m_caster
+                                : (casterMap ? ObjectAccessor::GetUnit(*m_caster, ihit->targetGUID) : nullptr))
                             unit->RemoveOwnedAura(m_spellInfo->Id, m_originalCasterGUID, 0, AURA_REMOVE_BY_CANCEL);
 
                 if (m_caster->IsPlayer() && m_spellInfo->IsCooldownStartedOnEvent())
@@ -3807,8 +3817,13 @@ void Spell::cancel(bool bySelf)
                 ArenaSpectator::SendCommand_Spell(m_caster->FindMap(), m_caster->GetGUID(), "SPE", m_spellInfo->Id, bySelf ? 99998 : 99999);
 
             // spell is canceled-take mods and clear list
-            if (Player* player = m_caster->GetSpellModOwner())
-                player->RemoveSpellMods(this);
+            // 玩家施法者取自身不需要查地图，必须照常调用 RemoveSpellMods：跳过会导致"下一次法术"类
+            // spellmod 的充能层数不按实际施放扣除；只有需要向上解析 owner（非玩家施法者）的路径才依赖
+            // GetMap()，出图时会断言
+            Player* modOwner = m_caster->IsPlayer() ? m_caster->ToPlayer()
+                : (casterMap ? m_caster->GetSpellModOwner() : nullptr);
+            if (modOwner)
+                modOwner->RemoveSpellMods(this);
 
             m_appliedMods.clear();
             break;
@@ -4592,7 +4607,11 @@ void Spell::finish(bool ok)
 
     // FindMap() check: pending spell events are destroyed after the caster has left the map,
     // where resolving a unit-summoned caster's owner through ObjectAccessor would assert
-    if (Player* modOwner = (m_caster && m_caster->FindMap()) ? m_caster->GetSpellModOwner() : nullptr)
+    // 玩家施法者取自身不需要查地图，必须照常释放 spell mod 占用，否则 Player::m_spellModTakingSpell
+    // 会残留指向已销毁 Spell 的指针；只有需要向上解析 owner 的非玩家路径才依赖 GetMap()
+    Player* modOwner = m_caster->IsPlayer() ? m_caster->ToPlayer()
+        : (m_caster->FindMap() ? m_caster->GetSpellModOwner() : nullptr);
+    if (modOwner)
         modOwner->SetSpellModTakingSpell(this, false);
 
     if (m_spellInfo->IsChanneled())

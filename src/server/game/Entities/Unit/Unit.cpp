@@ -6883,10 +6883,57 @@ GameObject* Unit::GetFirstGameObjectById(uint32 id) const
     return nullptr;
 }
 
+namespace
+{
+    // 创建者链条的最大回溯深度（宠物 -> bot -> 主人玩家），防止脏数据成环时死循环
+    constexpr uint8 MAX_CREATOR_CHAIN_DEPTH = 4;
+}
+
 void Unit::SetCreator(Unit* creator)
 {
     //creator is unrelated to creator guid
     m_creator = creator;
+    m_creatorGuid = creator ? creator->GetGUID() : ObjectGuid::Empty;
+}
+
+Unit* Unit::ResolveCreator() const
+{
+    // m_creator 是裸指针缓存，创建者（主人玩家或 NPCBot）销毁后指向已释放内存，
+    // 直接解引用会读到垃圾指针（反应/声望判定时会崩服），因此一律按 guid 重新解析
+    if (!m_creatorGuid)
+        return nullptr;
+
+    if (m_creatorGuid.IsPlayer())
+        return ObjectAccessor::FindPlayer(m_creatorGuid);
+
+    // 生物创建者（NPCBot、bot 宠物等）只可能在同一张地图内，出图/销毁后查不到即为 nullptr
+    if (Map* map = FindMap())
+        return map->GetCreature(m_creatorGuid);
+
+    return nullptr;
+}
+
+Player* Unit::GetCreatorPlayer() const
+{
+    // 创建者既可能直接是主人玩家，也可能是 NPCBot（bot 宠物、守护者的创建者往往是 bot 本身），
+    // 后者需要继续沿创建者链条向上找到真正的主人玩家
+    Unit const* current = this;
+    for (uint8 depth = 0; depth < MAX_CREATOR_CHAIN_DEPTH; ++depth)
+    {
+        Unit* creator = current->ResolveCreator();
+        if (!creator)
+            return nullptr;
+
+        if (Player* player = creator->ToPlayer())
+            return player;
+
+        if (!creator->IsNPCBotOrPet())
+            return nullptr;
+
+        current = creator;
+    }
+
+    return nullptr;
 }
 //end npcbot
 
@@ -8139,10 +8186,10 @@ Player* Unit::GetCharmerOrOwnerPlayerOrPlayerItself() const
     if (guid.IsPlayer())
         return ObjectAccessor::GetPlayer(*this, guid);
 
-    //npcbot
+    //npcbot: 创建者可能是主人玩家，也可能是 NPCBot，统一交给 GetCreatorPlayer() 解析
     if (GetTypeId() == TYPEID_UNIT && ToCreature()->IsNPCBotOrPet())
-        if (Unit* creator = ToUnit()->GetCreator())
-            return creator->ToPlayer();
+        if (Player* creatorPlayer = GetCreatorPlayer())
+            return creatorPlayer;
     //end npcbot
 
     return const_cast<Unit*>(this)->ToPlayer();
@@ -8150,10 +8197,10 @@ Player* Unit::GetCharmerOrOwnerPlayerOrPlayerItself() const
 
 Player* Unit::GetAffectingPlayer() const
 {
-    //npcbot: affecting player is creator
+    //npcbot: affecting player is creator（创建者可能是主人玩家，也可能是 NPCBot）
     if (IsNPCBotOrPet())
-        if (Unit* creator = GetCreator())
-            return creator->ToPlayer();
+        if (Player* creatorPlayer = GetCreatorPlayer())
+            return creatorPlayer;
     //end npcbot
 
     if (!GetCharmerOrOwnerGUID())
