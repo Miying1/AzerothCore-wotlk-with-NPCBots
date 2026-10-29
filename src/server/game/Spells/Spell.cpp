@@ -3782,6 +3782,10 @@ void Spell::cancel(bool bySelf)
     Map* casterMap = m_caster->FindMap();
 
     m_autoRepeat = false;
+
+    // 提取到 switch 外部声明，避免 default 标签跳过初始化（C2361）
+    Player* modOwner = nullptr;
+
     switch (oldState)
     {
         case SPELL_STATE_PREPARING:
@@ -3820,7 +3824,7 @@ void Spell::cancel(bool bySelf)
             // 玩家施法者取自身不需要查地图，必须照常调用 RemoveSpellMods：跳过会导致"下一次法术"类
             // spellmod 的充能层数不按实际施放扣除；只有需要向上解析 owner（非玩家施法者）的路径才依赖
             // GetMap()，出图时会断言
-            Player* modOwner = m_caster->IsPlayer() ? m_caster->ToPlayer()
+            modOwner = m_caster->IsPlayer() ? m_caster->ToPlayer()
                 : (casterMap ? m_caster->GetSpellModOwner() : nullptr);
             if (modOwner)
                 modOwner->RemoveSpellMods(this);
