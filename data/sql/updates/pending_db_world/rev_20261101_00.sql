@@ -64,5 +64,3 @@ DELETE FROM `creature_questender` WHERE `id` = 61001 AND `quest` IN (62020, 6202
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (61001, 62020),
 (61001, 62021);
-
- 
