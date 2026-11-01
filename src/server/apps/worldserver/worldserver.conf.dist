@@ -3668,6 +3668,17 @@ Guild.BankTabCost5 = 50000000
 AccountBank.MaxItemLevel = 232
 
 #
+#    AccountBank.BlockedItemEntries
+#        Description: Item entry IDs that are not allowed to be deposited into the account bank.
+#                     Separate the entries with ';' (semicolon), e.g. "50330;50331". A bag containing
+#                     a blocked item is rejected as well. Items that are already stored in the
+#                     account bank are not affected (they can still be moved or withdrawn).
+#                     The personal bank is not affected by this list.
+#        Default:     "" - (Empty, nothing is blocked)
+
+AccountBank.BlockedItemEntries = ""
+
+#
 #    Guild.MemberLimit
 #        Description: Do not allow inviting new players to the guild if the member limit is met or exceeded.
 #        Default:     0 - Disabled

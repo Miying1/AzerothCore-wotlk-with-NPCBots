@@ -43,3 +43,13 @@ DELETE FROM `item_template` WHERE `entry` = @BOT_COUNT_ITEM_ENTRY;
 INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
 VALUES
 (@BOT_COUNT_ITEM_ENTRY, 0, 0, '佣兵名额+1', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 1, 20, '使用后账号内角色额外可雇佣佣兵数量 +1 (账号通用),单个角色最多可雇佣9个佣兵', 18282, 0, 'PlayerVipBotCountItem');
+
+-- 持久化天赋点物品：使用后为角色永久增加天赋点（记录在 characters.extraBonusTalentCount）
+-- 增加的点数由脚本从物品名称中 "+" 后的数值解析，如「天赋点+1」「天赋点+2」
+-- 上限由脚本判断：额外天赋点最多 15 点，超过上限时无法使用
+SET @TALENT_POINT_ITEM_ENTRY := 70103;
+DELETE FROM `item_template` WHERE `entry` IN (@TALENT_POINT_ITEM_ENTRY, @TALENT_POINT_ITEM_ENTRY + 1);
+INSERT INTO `item_template` (`entry`, `class`, `subclass`, `name`, `displayid`, `Quality`, `Flags`, `BuyCount`, `BuyPrice`, `SellPrice`, `InventoryType`, `AllowableClass`, `AllowableRace`, `ItemLevel`, `RequiredLevel`, `stackable`, `description`, `spellid_1`, `spelltrigger_1`, `ScriptName`)
+VALUES
+(@TALENT_POINT_ITEM_ENTRY, 0, 0, '天赋点+1', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 80, 20, '使用后永久增加 1 点天赋点，额外天赋点最多 15 点。', 18282, 0, 'PlayerVipTalentPointItem'),
+(@TALENT_POINT_ITEM_ENTRY + 1, 0, 0, '天赋点+2', 634, 5, 0, 1, 0, 0, 0, -1, -1, 1, 80, 20, '使用后永久增加 2 点天赋点，额外天赋点最多 15 点。', 18282, 0, 'PlayerVipTalentPointItem');

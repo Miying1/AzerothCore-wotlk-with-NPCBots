@@ -31,6 +31,31 @@ constexpr uint32 VipItemGossipCancelAction = GOSSIP_ACTION_INFO_DEF + 1;        
 constexpr uint32 VipItemGossipConfirmAction = GOSSIP_ACTION_INFO_DEF + 2;         // 确认（金币加成物品）
 constexpr uint32 VipItemGossipInstanceConfirmAction = GOSSIP_ACTION_INFO_DEF + 3; // 确认（副本重置物品）
 
+// 天赋点物品：名称形如「天赋点+1」「天赋点+2」，增加的点数取自名称中 "+" 后面的数值
+constexpr uint32 MaxExtraBonusTalentPoints = 15; // 单角色额外天赋点上限
+constexpr uint32 MinTalentPointItemLevel = 80;   // 使用天赋点物品所需的最低等级
+
+// 从物品名称中截取 "+" 后面的数值，例如「天赋点+2」返回 2，解析失败返回 0
+uint32 ParseTalentPointsFromItemName(std::string const& name)
+{
+    size_t pos = name.rfind('+');
+    if (pos == std::string::npos || pos + 1 >= name.size())
+        return 0;
+
+    uint32 points = 0;
+    for (size_t i = pos + 1; i < name.size(); ++i)
+    {
+        if (name[i] < '0' || name[i] > '9')
+            break;
+
+        points = points * 10 + uint32(name[i] - '0');
+        if (points > 1000) // 名称异常时不返回离谱数值
+            return 0;
+    }
+
+    return points;
+}
+
 class PlayerVipBenefitsScript : public PlayerScript
 {
 public:
@@ -370,6 +395,63 @@ public:
         return true;
     }
 };
+
+// 持久化天赋点物品：使用后按物品名称中 "+" 后的数值增加额外天赋点（累加 characters.extraBonusTalentCount）
+// 上限以当前额外天赋点判断，达到 15 点或再加会超过 15 点时不允许使用；使用等级需不低于 80 级
+class PlayerVipTalentPointItem : public ItemScript
+{
+public:
+    PlayerVipTalentPointItem() : ItemScript("PlayerVipTalentPointItem") { }
+
+    bool OnUse(Player* player, Item* item, SpellCastTargets const& /*targets*/) override
+    {
+        if (!player || !item || !item->GetTemplate())
+            return false;
+
+        if (!player->IsAlive())
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("当前状态无法使用该物品。");
+            return true;
+        }
+
+        // 满级才能使用，避免低等级角色提前获得额外天赋点
+        if (player->GetLevel() < MinTalentPointItemLevel)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("需要达到 {} 级才能使用该物品。", MinTalentPointItemLevel);
+            return true;
+        }
+
+        // 增加的点数取自物品名称，如「天赋点+1」「天赋点+2」
+        uint32 points = ParseTalentPointsFromItemName(item->GetTemplate()->Name1);
+        if (!points)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("物品名称格式错误，应形如「天赋点+1」「天赋点+2」。");
+            return true;
+        }
+
+        uint32 currentBonus = player->GetBonusTalentCount();
+        if (currentBonus + points > MaxExtraBonusTalentPoints)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("当前额外天赋点 {}/{}，使用该物品（+{} 点）会超过上限。",
+                currentBonus, MaxExtraBonusTalentPoints, points);
+            return true;
+        }
+
+        // 先累加内存中的额外天赋点，再用绝对赋值写入数据库。
+        // 存档（SaveToDB）也是把 m_extraBonusTalentCount 整体覆盖写入，两者写同一个值，
+        // 因此无论异步队列里的执行顺序如何都不会出现重复累加或回退。
+        player->RewardExtraBonusTalentPoints(points);
+        CharacterDatabase.Execute("UPDATE `characters` SET `extraBonusTalentCount` = {} WHERE `guid` = {}",
+            player->GetBonusTalentCount(), player->GetGUID().GetCounter());
+        // 立即重算可用天赋点并下发给客户端
+        player->InitTalentForLevel();
+
+        player->DestroyItemCount(item->GetEntry(), 1, true);
+        ChatHandler(player->GetSession()).PSendSysMessage("已永久获得 {} 点天赋点，当前额外天赋点：{}/{}。",
+            points, player->GetBonusTalentCount(), MaxExtraBonusTalentPoints);
+        return true;
+    }
+};
 }
 
 void AddPlayerVipBenefitsScripts()
@@ -379,4 +461,5 @@ void AddPlayerVipBenefitsScripts()
     new PlayerVipResetInstanceItem();
     new PlayerVipLevelItem();
     new PlayerVipBotCountItem();
+    new PlayerVipTalentPointItem();
 }

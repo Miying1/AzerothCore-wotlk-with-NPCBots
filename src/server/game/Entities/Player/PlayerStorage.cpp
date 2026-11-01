@@ -15,6 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <unordered_set>
+
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
 #include "ArenaTeam.h"
@@ -2120,6 +2122,63 @@ InventoryResult Player::CanUnequipItem(uint16 pos, bool swap) const
     return EQUIP_ERR_OK;
 }
 
+namespace
+{
+    // 账号银行：解析配置 AccountBank.BlockedItemEntries（固定使用 ';' 分隔的 entry 列表），首次使用时构建并缓存
+    std::unordered_set<uint32> const& GetAccountBankBlockedEntries()
+    {
+        static std::unordered_set<uint32> const blockedEntries = []()
+        {
+            std::unordered_set<uint32> entries;
+            std::string const entryList = sConfigMgr->GetOption<std::string>("AccountBank.BlockedItemEntries", "");
+
+            for (std::string_view token : Acore::Tokenize(entryList, ';', false))
+            {
+                // 兼容 "1; 2" 这类分隔符后带空格的写法
+                while (!token.empty() && (token.front() == ' ' || token.front() == '\t'))
+                    token.remove_prefix(1);
+                while (!token.empty() && (token.back() == ' ' || token.back() == '\t'))
+                    token.remove_suffix(1);
+
+                if (token.empty())
+                    continue;
+
+                if (Optional<uint32> entry = Acore::StringTo<uint32>(token))
+                    entries.insert(*entry);
+                else
+                    LOG_ERROR("entities.player", "AccountBank.BlockedItemEntries: 无法解析 entry '{}'，已忽略",
+                              std::string(token));
+            }
+
+            return entries;
+        }();
+
+        return blockedEntries;
+    }
+
+    // 账号银行：返回物品自身（或背包内任一物品）命中的禁止存入物品，未命中返回 nullptr
+    Item* FindAccountBankBlockedItem(Item* item, std::unordered_set<uint32> const& blockedEntries)
+    {
+        if (blockedEntries.contains(item->GetEntry()))
+            return item;
+
+        // 背包内物品同样受限，避免通过「把违禁物品装进背包再存入」绕过限制
+        if (Bag* bag = item->ToBag())
+        {
+            for (uint32 i = 0; i < bag->GetBagSize(); ++i)
+            {
+                if (Item* bagItem = bag->GetItemByPos(uint8(i)))
+                {
+                    if (blockedEntries.contains(bagItem->GetEntry()))
+                        return bagItem;
+                }
+            }
+        }
+
+        return nullptr;
+    }
+}
+
 InventoryResult Player::CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap, bool not_loading) const
 {
     if (!pItem)
@@ -2140,6 +2199,23 @@ InventoryResult Player::CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest
         {
             ChatHandler(GetSession()).SendNotification("物品等级 {} 超过账号银行上限 {}，无法存入账号银行", pProto->ItemLevel, maxItemLevel);
             return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+        }
+
+        // 账号银行扩展：按配置的 entry 禁止特定物品存入
+        // 1) 仅在玩家主动存入时校验：not_loading == false 表示数据库加载，放行以免历史数据被当作脏数据清理
+        // 2) 物品当前已在银行内（银行内挪位/取出）时不校验，否则配置变更后已有物品会无法移动
+        if (not_loading && !IsBankPos(pItem->GetBagSlot(), pItem->GetSlot()))
+        {
+            std::unordered_set<uint32> const& blockedEntries = GetAccountBankBlockedEntries();
+            if (!blockedEntries.empty())
+            {
+                if (Item* blockedItem = FindAccountBankBlockedItem(pItem, blockedEntries))
+                {
+                    ChatHandler(GetSession()).SendNotification("物品 [{}]（entry {}）被禁止存入账号银行",
+                        blockedItem->GetTemplate()->Name1, blockedItem->GetEntry());
+                    return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+                }
+            }
         }
     }
 
