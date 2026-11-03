@@ -36,16 +36,16 @@
 DELETE FROM `creature_loot_template` WHERE `Entry` IN (36612, 37957, 37958, 37959) AND `Item` = 109999;
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (36612, 109999, 0, 5, 0, 1, 0, 1, 1, '马洛加尔领主（10人普通） - 神器材料'),
-(37957, 109999, 0, 50, 0, 1, 0, 1, 1, '马洛加尔领主（25人普通） - 神器材料'),
-(37958, 109999, 0, 50, 0, 1, 0, 1, 1, '马洛加尔领主（10人英雄） - 神器材料'),
+(37957, 109999, 0, 40, 0, 1, 0, 1, 1, '马洛加尔领主（25人普通） - 神器材料'),
+(37958, 109999, 0, 25, 0, 1, 0, 1, 1, '马洛加尔领主（10人英雄） - 神器材料'),
 (37959, 109999, 0, 100, 0, 1, 0, 1, 1, '马洛加尔领主（25人英雄） - 神器材料');
 
 -- 亡语者女士（Lady Deathwhisper）
 DELETE FROM `creature_loot_template` WHERE `Entry` IN (36855, 38106, 38296, 38297) AND `Item` = 109999;
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (36855, 109999, 0, 5, 0, 1, 0, 1, 1, '亡语者女士（10人普通） - 神器材料'),
-(38106, 109999, 0, 50, 0, 1, 0, 1, 1, '亡语者女士（25人普通） - 神器材料'),
-(38296, 109999, 0, 50, 0, 1, 0, 1, 1, '亡语者女士（10人英雄） - 神器材料'),
+(38106, 109999, 0, 40, 0, 1, 0, 1, 1, '亡语者女士（25人普通） - 神器材料'),
+(38296, 109999, 0, 25, 0, 1, 0, 1, 1, '亡语者女士（10人英雄） - 神器材料'),
 (38297, 109999, 0, 100, 0, 1, 0, 1, 1, '亡语者女士（25人英雄） - 神器材料');
 
 -- 腐面（Festergut）
@@ -109,7 +109,7 @@ DELETE FROM `gameobject_loot_template` WHERE `Entry` IN (28045, 28057, 28072, 28
 INSERT INTO `gameobject_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (28045, 109999, 0, 5, 0, 1, 0, 1, 1, '火炮战军械库（10人普通） - 神器材料'),
 (28072, 109999, 0, 50, 0, 1, 0, 1, 1, '火炮战军械库（25人普通） - 神器材料'),
-(28057, 109999, 0, 50, 0, 1, 0, 1, 1, '火炮战军械库（10人英雄） - 神器材料'),
+(28057, 109999, 0, 25, 0, 1, 0, 1, 1, '火炮战军械库（10人英雄） - 神器材料'),
 (28090, 109999, 0, 100, 0, 1, 0, 1, 1, '火炮战军械库（25人英雄） - 神器材料');
 
 -- 死亡使者萨鲁法尔宝箱（Deathbringer's Cache）
