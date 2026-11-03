@@ -1517,25 +1517,38 @@ public:
             if (!victim)
                 return;
 
-            Unit* target = nullptr;
-            for (GroupReference const* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+            //候选集合必须包含 NPCBot（它们在 Group 里走 GroupBotReference，不是 GroupReference）
+            std::vector<Unit*> const members = BotMgr::GetAllGroupMembers(group);
+
+            //坦克优先：第一优先级为坦克（含 BOT 坦克），第二优先级为正在扛当前目标的成员
+            Unit* preferTank = nullptr;
+            Unit* currentTank = nullptr;
+            for (Unit* unit : members)
             {
-                Player* player = itr->GetSource();
-                if (!player || !player->IsInWorld() || !player->IsAlive() || me->GetMap() != player->FindMap() ||
-                    me->GetDistance(player) > 20)
+                if (!unit || unit == me || !unit->IsInWorld() || !unit->IsAlive() || me->GetMap() != unit->FindMap() ||
+                    me->GetDistance(unit) > 20)
                     continue;
 
-                if (IsTank(player) || player->GetVictim() == victim)
+                bool const isTank = IsTank(unit);
+                if (!isTank && unit->GetVictim() != victim)
+                    continue;
+
+                //仇恨门槛：只有对方仇恨尚未稳固（低于自身仇恨 75%）时嫁祸才有意义
+                if (victim->CanHaveThreatList() &&
+                    victim->GetThreatMgr().GetThreat(unit) >= victim->GetThreatMgr().GetThreat(me) * 0.75f)
+                    continue;
+
+                if (isTank)
                 {
-                    if (!victim->CanHaveThreatList() ||
-                        victim->GetThreatMgr().GetThreat(player) < victim->GetThreatMgr().GetThreat(me) * 0.75f)
-                    {
-                        target = player;
-                        break;
-                    }
+                    preferTank = unit;
+                    break;
                 }
+
+                if (!currentTank)
+                    currentTank = unit;
             }
 
+            Unit* target = preferTank ? preferTank : currentTank;
             if (target)
                 if (doCast(target, GetSpell(TRICKS_OF_THE_TRADE_1)))
                     return;
