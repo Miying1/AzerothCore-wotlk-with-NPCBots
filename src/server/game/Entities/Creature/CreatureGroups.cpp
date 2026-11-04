@@ -395,11 +395,17 @@ void CreatureGroup::RemoveFormationMovement()
 
 void CreatureGroup::DespawnFormation(Milliseconds timeToDespawn /*=0ms*/, Seconds forcedRespawnTimer /*=0s*/)
 {
+    // DespawnOrUnsummon 会同步执行 RemoveFromWorld -> FormationMgr::RemoveCreatureFromGroup，
+    // 在本函数遍历期间就把成员从 m_members 中擦除（组内成员全部移除时还会 delete this），
+    // 直接在 m_members 上遍历会导致迭代器失效，必须先快照成员列表。
+    std::vector<Creature*> members;
+    members.reserve(m_members.size());
     for (auto const& itr : m_members)
-    {
         if (itr.first)
-            itr.first->DespawnOrUnsummon(timeToDespawn, forcedRespawnTimer);
-    }
+            members.push_back(itr.first);
+
+    for (Creature* member : members)
+        member->DespawnOrUnsummon(timeToDespawn, forcedRespawnTimer);
 }
 
 void CreatureGroup::RespawnFormation(bool force)

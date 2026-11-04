@@ -23,6 +23,7 @@
 #include "Unit.h"
 #include <map>
 #include <unordered_map>
+#include <vector>
 
 class Creature;
 class CreatureGroup;
