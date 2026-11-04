@@ -1519,39 +1519,43 @@ public:
 
             //候选集合必须包含 NPCBot（它们在 Group 里走 GroupBotReference，不是 GroupReference）
             std::vector<Unit*> const members = BotMgr::GetAllGroupMembers(group);
+            ThreatManager* threatMgr = victim->CanHaveThreatList() ? &victim->GetThreatMgr() : nullptr;
 
-            //坦克优先：第一优先级为坦克（含 BOT 坦克），第二优先级为正在扛当前目标的成员
-            Unit* preferTank = nullptr;
-            Unit* currentTank = nullptr;
+            //只给坦克嫁祸，且只给对当前目标仇恨最高的那个坦克（玩家坦克与 BOT 坦克不区分优先）
+            //注意不能"取第一个合格目标"：遍历顺序里玩家恒排在 BOT 之前、队长（通常就是主人）又排在最前，
+            //命中即停会让嫁祸固定落在第一个坦克身上，所以必须比较仇恨后取最高者
+            Unit* bestTank = nullptr;
+            float bestTankThreat = -1.0f;
+
             for (Unit* unit : members)
             {
                 if (!unit || unit == me || !unit->IsInWorld() || !unit->IsAlive() || me->GetMap() != unit->FindMap() ||
-                    me->GetDistance(unit) > 20)
+                    !unit->InSamePhase(me) || me->GetDistance(unit) > 20)
                     continue;
 
-                bool const isTank = IsTank(unit);
-                if (!isTank && unit->GetVictim() != victim)
+                //只考虑坦克：玩家坦克按主坦克图标/职业天赋装备判定，BOT 坦克按 AI 坦克职责判定
+                if (!IsTank(unit))
                     continue;
 
-                //仇恨门槛：只有对方仇恨尚未稳固（低于自身仇恨 75%）时嫁祸才有意义
-                if (victim->CanHaveThreatList() &&
-                    victim->GetThreatMgr().GetThreat(unit) >= victim->GetThreatMgr().GetThreat(me) * 0.75f)
+                float const threat = threatMgr ? threatMgr->GetThreat(unit) : 0.0f;
+                //坦克要在打当前目标或对该目标有仇恨，否则嫁祸加不到有效仇恨流里
+                if (unit->GetVictim() != victim && threat <= 0.0f)
                     continue;
 
-                if (isTank)
+                //目标身上已有我给的嫁祸 buff，重复施加只会浪费冷却
+                if (unit->GetAura(TRICKS_OF_THE_TRADE_BUFF, me->GetGUID()))
+                    continue;
+
+                //仇恨最高的坦克胜出（仇恨相等时保留先遍历到的）
+                if (!bestTank || threat > bestTankThreat)
                 {
-                    preferTank = unit;
-                    break;
+                    bestTank = unit;
+                    bestTankThreat = threat;
                 }
-
-                if (!currentTank)
-                    currentTank = unit;
             }
 
-            Unit* target = preferTank ? preferTank : currentTank;
-            if (target)
-                if (doCast(target, GetSpell(TRICKS_OF_THE_TRADE_1)))
-                    return;
+            if (bestTank)
+                doCast(bestTank, GetSpell(TRICKS_OF_THE_TRADE_1));
         }
 
         void CheckSprint(uint32 diff)
