@@ -945,26 +945,51 @@ public:
                 !master->GetGroup() || Rand() > 20)
                 return;
 
+            //误导的仇恨转移目标是登记在自己身上的，buff 还在时重复施放只会白白覆盖正在生效的转移
+            if (me->HasAura(GetSpell(MISDIRECTION_1)))
+                return;
+
             misdirectionTimer = urand(3000, 6000);
 
-            //find tank
-            //stacks
-            std::list<Unit*> tanks;
+            Unit* victim = me->GetVictim();
+            if (!victim)
+                return;
+
+            float const misdirectRange = CalcSpellMaxRange(MISDIRECTION_1, false);
+            ThreatManager* threatMgr = victim->CanHaveThreatList() ? &victim->GetThreatMgr() : nullptr;
+
+            //只给坦克误导，且只给对当前目标仇恨最高的那个坦克（玩家坦克与 BOT 坦克不区分优先）
+            //注意不能"取第一个合格目标"：候选集合里玩家恒排在 BOT 之前、队长（通常就是主人）又排在最前，
+            //命中即停会让误导固定落在第一个坦克身上，所以必须比较仇恨后取最高者
+            Unit* bestTank = nullptr;
+            float bestTankThreat = -1.0f;
+
             for (Unit* member : BotMgr::GetAllGroupMembers(master))
             {
-                if (member->IsInWorld() && me->GetMap() == member->FindMap() && member->IsAlive() &&
-                    member->GetVictim() && member->IsInCombat() && IsTank(member))
+                if (!member || member == me || !member->IsInWorld() || !member->IsAlive() ||
+                    me->GetMap() != member->FindMap() || !member->InSamePhase(me) ||
+                    me->GetDistance(member) > misdirectRange)
+                    continue;
+
+                //只考虑坦克：玩家坦克按主坦克图标/职业天赋装备判定，BOT 坦克按 AI 坦克职责判定
+                if (!IsTank(member))
+                    continue;
+
+                float const threat = threatMgr ? threatMgr->GetThreat(member) : 0.0f;
+                //坦克要在打当前目标或对该目标有仇恨，否则误导加不到有效仇恨流里
+                if (member->GetVictim() != victim && threat <= 0.0f)
+                    continue;
+
+                //仇恨最高的坦克胜出（仇恨相等时保留先遍历到的）
+                if (!bestTank || threat > bestTankThreat)
                 {
-                    tanks.push_back(member);
+                    bestTank = member;
+                    bestTankThreat = threat;
                 }
             }
 
-            if (tanks.empty())
-                return;
-
-            Unit* target = tanks.size() == 1 ? *tanks.begin() : Bcore::Containers::SelectRandomContainerElement(tanks);
-            if (doCast(target, GetSpell(MISDIRECTION_1)))
-                return;
+            if (bestTank)
+                doCast(bestTank, GetSpell(MISDIRECTION_1));
         }
 
         void UpdateAI(uint32 diff) override
