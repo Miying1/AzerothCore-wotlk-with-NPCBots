@@ -520,25 +520,44 @@ private:
 class ResetEncounterEvent : public BasicEvent
 {
 public:
-    ResetEncounterEvent(Unit* caster, uint32 spellId, ObjectGuid otherTransport) : _caster(caster), _spellId(spellId), _otherTransport(otherTransport) { }
+    // npcbot: 事件改挂在地图级事件处理器上，因此只保存 guid，执行时再解析对象，避免持有失效指针
+    ResetEncounterEvent(Map* map, ObjectGuid casterGuid, uint32 spellId, ObjectGuid otherTransport)
+        : _map(map), _casterGuid(casterGuid), _spellId(spellId), _otherTransport(otherTransport) { }
 
     bool Execute(uint64, uint32) override
     {
-        _caster->CastSpell(_caster, _spellId, true);
-        _caster->GetTransport()->ToMotionTransport()->UnloadNonStaticPassengers();
-        _caster->GetTransport()->AddObjectToRemoveList();
-
-        if (Transport* transport = ObjectAccessor::GetTransport(*_caster, _otherTransport))
+        Creature* caster = _map->GetCreature(_casterGuid);
+        if (caster)
         {
-            transport->ToMotionTransport()->UnloadNonStaticPassengers();
-            transport->AddObjectToRemoveList();
+            // npcbot: 传送法术必须无条件施放（与原实现一致），caster 不在舰艇上时也要保证玩家被传走
+            caster->CastSpell(caster, _spellId, true);
+
+            if (Transport* transport = caster->GetTransport())
+                if (MotionTransport* ownTransport = transport->ToMotionTransport())
+                    if (ownTransport->IsInWorld())
+                    {
+                        ownTransport->UnloadNonStaticPassengers();
+                        ownTransport->AddObjectToRemoveList();
+                    }
+        }
+
+        // npcbot: caster 已不存在时退回地图级查询，避免敌方舰艇残留在世界中
+        Transport* otherTransport = caster
+            ? ObjectAccessor::GetTransport(*caster, _otherTransport)
+            : _map->GetTransport(_otherTransport);
+        if (otherTransport)
+        {
+            if (MotionTransport* motionTransport = otherTransport->ToMotionTransport())
+                motionTransport->UnloadNonStaticPassengers();
+            otherTransport->AddObjectToRemoveList();
         }
 
         return true;
     }
 
 private:
-    Unit* _caster;
+    Map* _map;
+    ObjectGuid _casterGuid;
     uint32 _spellId;
     ObjectGuid _otherTransport;
 };
@@ -689,7 +708,11 @@ public:
             else
             {
                 uint32 teleportSpellId = _teamIdInInstance == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
-                me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                // npcbot: 挂到地图级事件处理器上。玩家释放后幽灵会被传送到副本外，船体 creature 会因附近无玩家而
+                // 被移出更新列表，挂在它自己 m_Events 上的事件将停止计时，导致舰艇重置静默失败、之后再也不会重建
+                ObjectGuid enemyGunship = _instance->GetGuidData(DATA_ENEMY_GUNSHIP);
+                me->GetMap()->Events.AddEventAtOffset(
+                    new ResetEncounterEvent(me->GetMap(), me->GetGUID(), teleportSpellId, enemyGunship), 8s);
             }
         }
 
@@ -943,8 +966,9 @@ public:
                 {
                     checkTimer = 1000;
 
-                    // npcbot: 副本内没有玩家（全部死亡并释放）时重置舰艇战斗，避免带 BOT 时玩家跑尸进本后 BOSS 仍处于进行中
-                    if (!me->GetMap()->HavePlayers())
+                    // npcbot: 只有副本内连一个存活单位（玩家/BOT）都没有时才判定灭团并重置舰艇战斗。
+                    // 玩家阵亡释放后幽灵会被传到副本外（ICC 墓地在 571 地图），此时若还有 BOT 在船上则不应杀船
+                    if (me->GetMap()->GetPlayersCountExceptGMs(true) == 0)
                     {
                         bool const isHorde = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE;
                         if (Creature* ship = _instance->GetCreature(isHorde ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
@@ -1288,8 +1312,9 @@ public:
                 {
                     checkTimer = 1000;
 
-                    // npcbot: 副本内没有玩家（全部死亡并释放）时重置舰艇战斗，避免带 BOT 时玩家跑尸进本后 BOSS 仍处于进行中
-                    if (!me->GetMap()->HavePlayers())
+                    // npcbot: 只有副本内连一个存活单位（玩家/BOT）都没有时才判定灭团并重置舰艇战斗。
+                    // 玩家阵亡释放后幽灵会被传到副本外（ICC 墓地在 571 地图），此时若还有 BOT 在船上则不应杀船
+                    if (me->GetMap()->GetPlayersCountExceptGMs(true) == 0)
                     {
                         bool const isHorde = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE;
                         if (Creature* ship = _instance->GetCreature(isHorde ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))

@@ -904,6 +904,11 @@ public:
                 case GO_ORGRIMS_HAMMER_H:
                     GunshipGUID.Clear();
                     break;
+                case GO_THE_SKYBREAKER_H:
+                case GO_ORGRIMS_HAMMER_A:
+                    // npcbot: 敌方舰艇被删除时同步清空 guid，避免残留悬空值
+                    EnemyGunshipGUID.Clear();
+                    break;
                 default:
                     break;
             }
@@ -1093,7 +1098,11 @@ public:
                         }
                     }
                     else if (state == FAIL)
+                    {
+                        // npcbot: 新一轮舰艇重置重新开始计数，不继承上一轮的失败次数
+                        GunshipRespawnRetries = 0;
                         Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
+                    }
                     break;
                 case DATA_DEATHBRINGER_SAURFANG:
                     switch (state)
@@ -1760,7 +1769,24 @@ public:
                             wind->SetGoState(GO_STATE_ACTIVE);
                         break;
                     case EVENT_RESPAWN_GUNSHIP:
+                        // npcbot: guid 残留但对象已不在世界中时先清空，避免重建被永久跳过
+                        if (GunshipGUID && !instance->GetGameObject(GunshipGUID))
+                            GunshipGUID.Clear();
                         SpawnGunship(false);
+                        // npcbot: 若此时旧舰艇还没被重置逻辑删除，本次重建会被跳过（原实现只触发一次，
+                        // 之后即使旧船被删也不会再重建）；改为未建成时每 10 秒重试，建成即停，超过上限放弃
+                        // npcbot: 旧船仍存在时状态保持 FAIL，不能将其 GUID 视为重建成功
+                        if (GunshipGUID && GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != FAIL)
+                            GunshipRespawnRetries = 0;
+                        else if (GunshipRespawnRetries < GUNSHIP_RESPAWN_MAX_RETRIES)
+                        {
+                            ++GunshipRespawnRetries;
+                            Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 10s);
+                        }
+                        else
+                            LOG_WARN("scripts",
+                                "ICC: gunship respawn failed {} times, giving up (map {}, instance {})",
+                                GunshipRespawnRetries, instance->GetId(), instance->GetInstanceId());
                         break;
                     case EVENT_RESPAWN_SINDRAGOSA:
                         if (!GetCreature(DATA_SINDRAGOSA))
@@ -1939,6 +1965,9 @@ public:
         ObjectGuid ScourgeTransporterFirstGUID;
 
         EventMap Events;
+        // npcbot: 舰艇重建的最大重试次数（每 10 秒一次，共 5 分钟）
+        static constexpr uint32 GUNSHIP_RESPAWN_MAX_RETRIES = 30;
+        uint32 GunshipRespawnRetries = 0;
         ObjectGuid LadyDeathwhisperGUID;
         ObjectGuid LadyDeathwisperElevatorGUID;
         ObjectGuid GunshipGUID;
