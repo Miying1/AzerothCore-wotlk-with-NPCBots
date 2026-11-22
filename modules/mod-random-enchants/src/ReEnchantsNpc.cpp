@@ -210,7 +210,7 @@ public:
             if (itemTemplate->Class != ITEM_CLASS_ARMOR
                 || itemTemplate->Quality != ITEM_QUALITY_EPIC
                 || itemTemplate->ItemLevel < 200
-                || (inventoryType != INVTYPE_FINGER && inventoryType != INVTYPE_NECK))
+                || (inventoryType != INVTYPE_TRINKET && inventoryType != INVTYPE_NECK))
                 return;
 
             uint32 itemGuid = item->GetGUID().GetCounter();
