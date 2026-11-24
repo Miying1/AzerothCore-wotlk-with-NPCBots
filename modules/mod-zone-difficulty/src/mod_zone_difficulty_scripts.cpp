@@ -5,7 +5,9 @@
 #include "Config.h"
 #include "Chat.h"
 #include "GameTime.h"
+#include "Group.h"
 #include "ItemTemplate.h"
+#include "LFGMgr.h"
 #include "MapMgr.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
@@ -127,6 +129,32 @@ public:
 
 };
 
+/**
+   判断玩家当前所在副本是否是通过地下城查找器（随机或指定副本）进入的。
+
+   查找器匹配成功后会把副本号登记在队伍的 LFG 数据上（预组队含机器人时复用原队伍，
+   数据挂在队伍 GUID 上），自己从大世界跑到副本入口的普通队伍没有这份数据，因此可以区分。
+   仅认“副本进行中”的状态，避免已通关的残留标志导致误判。
+
+   @param[in]     player 待判断的玩家
+   @return 是否由查找器送入当前副本
+*/
+static bool IsEnteredViaDungeonFinder(Player* player)
+{
+    if (!player || !player->GetMap() || !player->GetMap()->IsDungeon())
+        return false;
+
+    Group* group = player->GetGroup();
+    if (!group || !group->isLFGGroup())
+        return false;
+
+    // 查找器分配的副本地图必须与当前所在副本一致
+    if (sLFGMgr->GetDungeonMapId(group->GetGUID()) != player->GetMap()->GetId())
+        return false;
+
+    lfg::LfgState const state = sLFGMgr->GetState(group->GetGUID());
+    return state == lfg::LFG_STATE_DUNGEON || state == lfg::LFG_STATE_BOOT;
+}
 
 class mod_zone_difficulty_dungeonmaster : public CreatureScript
 {
@@ -225,6 +253,15 @@ public:
         else if (action == 100)
         {
             //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: Try turn on");
+            // 通过地下城查找器（随机/指定副本）进入的队伍不允许开启挑战
+            if (IsEnteredViaDungeonFinder(player))
+            {
+                creature->Whisper("对不起，冒险者，通过地下城查找器进入的队伍不能开启挑战，"
+                    "请从大世界自行跑到副本入口进入。", LANG_UNIVERSAL, player);
+                CloseGossipMenuFor(player);
+                return true;
+            }
+
             bool canTurnOn = true;
             uint32 playerLevel = sChallengeDiff->PlayerLevelData[player->GetGUID().GetCounter()];
             if (!player->IsGameMaster() && playerLevel + 1 < sender) {
@@ -296,9 +333,10 @@ public:
 
         //LOG_INFO("module", "MOD-ZONE-DIFFICULTY: OnGossipHelloChromie");
         Group* group = player->GetGroup();
-        if (group && group->IsLfgRandomInstance() && !player->GetMap()->IsRaid())
+        // 查找器进入的队伍不允许开启挑战；已开启挑战时仍允许查看/关闭
+        if (!sChallengeDiff->HasChallengMode(player->GetMap()->GetInstanceId()) && IsEnteredViaDungeonFinder(player))
         {
-            creature->Whisper("对不起，冒险者!你不能在随机地下城中开启挑战！", LANG_UNIVERSAL, player);
+            creature->Whisper("对不起，冒险者，通过地下城查找器进入的队伍不能开启挑战，请从大世界自行跑到副本入口进入。", LANG_UNIVERSAL, player);
             return true;
         }
         if (!player->IsGameMaster() && !group)

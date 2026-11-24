@@ -524,17 +524,18 @@ public:
         //输出决策入口：优先级由分段函数的调用顺序显式表达
         void Attack(uint32 diff)
         {
-            Unit* mytar = opponent ? opponent : disttarget ? disttarget : nullptr;
+            Unit* mytar = opponent ? opponent : disttarget;
             if (!mytar)
                 return;
 
             StartAttack(mytar, IsMelee());
 
             CheckAttackState();
-            if (!me->IsAlive() || !mytar->IsAlive())
+            // 攻击回调可能清空或切换目标，本轮不再对旧目标施法。
+            if (!me->IsAlive() || (opponent ? opponent : disttarget) != mytar || !mytar->IsAlive())
                 return;
 
-            RogueSnapshot const snap = BuildSnapshot();
+            RogueSnapshot const snap = BuildSnapshot(mytar);
 
             //非战斗时择机进入潜行（行为抖动型随机，不消耗本回合）
             TryEnterStealth(snap, diff);
@@ -612,14 +613,14 @@ public:
         }
 
         //构建一次性只读快照
-        RogueSnapshot BuildSnapshot() const
+        //目标由调用方传入（Attack() 中已校验非空），不在此处重新读取 opponent / disttarget
+        RogueSnapshot BuildSnapshot(Unit* mytar) const
         {
             RogueSnapshot snap;
-            snap.target = opponent ? opponent : disttarget ? disttarget : nullptr;
+            snap.target = mytar;
             if (!snap.target)
                 return snap;
 
-            Unit* mytar = snap.target;
             snap.dist = me->GetDistance(mytar);
             snap.energy = energy;
             snap.maxEnergy = me->GetMaxPower(POWER_ENERGY);
